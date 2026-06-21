@@ -1337,11 +1337,47 @@ export default class PaddockScene extends Phaser.Scene {
 
     const { player } = this;
     const item = this.getActiveItem();
-    const btn  = this.usingPad ? '[ A ]' : '[ E ]';
     const eJust = Phaser.Input.Keyboard.JustDown(this.eKey);
     const aJust = this.padAJustDown;
     this.padAJustDown = false;
-    const pressed = eJust || aJust;
+
+    // ── A button = pure context-sensitive interact (no tools needed) ──────────
+    if (aJust) {
+      // Eggs
+      for (const nest of this.props.nests) {
+        if (!nest.hasEgg) continue;
+        const nd = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, nest.x, nest.y);
+        if (nd < 80) { this.collectEgg(nest); return; }
+      }
+      // Nearest horse — pet + open portrait
+      let nearH = null, nearHD = Infinity;
+      for (const h of this.horses) {
+        const d = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, h.sprite.x, h.sprite.y);
+        if (d < nearHD) { nearHD = d; nearH = h; }
+      }
+      if (nearH && nearHD < INTERACT_DIST) {
+        this.showHeart(nearH.sprite);
+        const allHorses = this.registry.get('allHorses');
+        const hd = allHorses[nearH.key];
+        if (hd?.stats) hd.stats.happiness = Math.min(100, (hd.stats.happiness ?? 80) + 3);
+        this.openPortrait(nearH.key);
+        return;
+      }
+      // Foals
+      for (const foal of this.foals) {
+        const fd = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, foal.sprite.x, foal.sprite.y);
+        if (fd < 65) { this.showHeart(foal.sprite); this.hop(foal.sprite); return; }
+      }
+      // Chickens / other animals — pet and show floating info
+      for (const a of this.animals) {
+        const ad = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, a.sprite.x, a.sprite.y);
+        if (ad < 60) {
+          this.showHeart(a.sprite);
+          this._showAnimalInfo(a);
+          return;
+        }
+      }
+    }
 
     // Trough proximity — checked first so it wins over horse when both are in range
     const trough = this.props.trough;
@@ -1350,10 +1386,10 @@ export default class PaddockScene extends Phaser.Scene {
         player.sprite.x, player.sprite.y, trough.x, trough.y
       );
       if (td < 130 && item?.key === 'bucket' && !trough.filled) {
-        this.interactPrompt.setText(`${btn}  Fill Trough`);
+        this.interactPrompt.setText(`[ E ]  Fill Trough`);
         this.interactPrompt.setPosition(trough.x, trough.y - 40);
         this.interactPrompt.setVisible(true);
-        if (pressed) this.fillTrough();
+        if (eJust) this.fillTrough();
         return;
       }
     }
@@ -1373,13 +1409,13 @@ export default class PaddockScene extends Phaser.Scene {
       if (item?.action === 'ride') verb = 'Mount';
       else if (item?.action === 'lead') verb = this.leading === nearest ? 'Detach Lead' : 'Attach Lead';
       else if (item) verb = `Use ${item.label}`;
-      else verb = 'Info';
+      else verb = 'Info  •  [ A ] Pet';
 
-      this.interactPrompt.setText(`${btn}  ${verb}`);
+      this.interactPrompt.setText(`[ E ]  ${verb}`);
       this.interactPrompt.setPosition(nearest.sprite.x, nearest.sprite.y - 118);
       this.interactPrompt.setVisible(true);
 
-      if (pressed) {
+      if (eJust) {
         if (item?.action === 'ride')        this.mountHorse(nearest);
         else if (item?.action === 'lead')   this.toggleLead(nearest);
         else if (item)                      this.useItemOnHorse(item, nearest);
@@ -1395,10 +1431,10 @@ export default class PaddockScene extends Phaser.Scene {
         player.sprite.x, player.sprite.y, nest.x, nest.y
       );
       if (nd < 80) {
-        this.interactPrompt.setText(`${btn}  Collect Egg`);
+        this.interactPrompt.setText(`[ A ] or [ E ]  Collect Egg`);
         this.interactPrompt.setPosition(nest.x, nest.y - 30);
         this.interactPrompt.setVisible(true);
-        if (pressed) this.collectEgg(nest);
+        if (eJust) this.collectEgg(nest);
         return;
       }
     }
@@ -1409,10 +1445,10 @@ export default class PaddockScene extends Phaser.Scene {
         player.sprite.x, player.sprite.y, foal.sprite.x, foal.sprite.y
       );
       if (fd < 65) {
-        this.interactPrompt.setText(`${btn}  Pet`);
+        this.interactPrompt.setText(`[ A ] or [ E ]  Pet`);
         this.interactPrompt.setPosition(foal.sprite.x, foal.sprite.y - 78);
         this.interactPrompt.setVisible(true);
-        if (pressed) {
+        if (eJust) {
           this.showHeart(foal.sprite);
           this.hop(foal.sprite);
         }
@@ -1420,15 +1456,47 @@ export default class PaddockScene extends Phaser.Scene {
       }
     }
 
+    // Chicken / other animal proximity
+    for (const a of this.animals) {
+      const ad = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, a.sprite.x, a.sprite.y);
+      if (ad < 60) {
+        this.interactPrompt.setText(`[ A ]  Pet`);
+        this.interactPrompt.setPosition(a.sprite.x, a.sprite.y - 54);
+        this.interactPrompt.setVisible(true);
+        return;
+      }
+    }
+
     this.interactPrompt.setVisible(false);
 
     // Place hay on ground when pressing E with food item, not near anything
-    if (pressed && item?.action === 'feed') {
+    if (eJust && item?.action === 'feed') {
       this.placeHay();
     }
-    if (pressed && item?.action === 'seed') {
+    if (eJust && item?.action === 'seed') {
       this.placeSeeds();
     }
+  }
+
+  _showAnimalInfo(a) {
+    const label = a.key.charAt(0).toUpperCase() + a.key.slice(1);
+    const mood  = this.isNight ? 'Sleeping' : 'Wandering';
+    const popup = this.add.text(a.sprite.x, a.sprite.y - 60, `${label}\n${mood}`, {
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: '12px',
+      color: '#fffde0',
+      backgroundColor: '#1c1f2ecc',
+      padding: { x: 8, y: 5 },
+      align: 'center',
+    }).setOrigin(0.5, 1).setDepth(9999);
+    this.tweens.add({
+      targets: popup,
+      y: popup.y - 20,
+      alpha: 0,
+      duration: 1800,
+      ease: 'Quad.easeIn',
+      onComplete: () => popup.destroy(),
+    });
   }
 
   depthSort() {
