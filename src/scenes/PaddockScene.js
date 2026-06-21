@@ -154,7 +154,8 @@ export default class PaddockScene extends Phaser.Scene {
     const sprite = this.add.sprite(startX, startY, 'player_down_0')
       .setOrigin(0.5, 1).setScale(3).setDepth(startY);
 
-    this.player = { sprite, shadow, facing: 'down', moving: false };
+    this.player    = { sprite, shadow, facing: 'down', moving: false };
+    this.moveTween = null; // active tap-to-move tween
 
     // Camera follows the player, bounded to world.
     this.cameras.main.setBounds(0, 0, WORLD_W, WORLD_H);
@@ -170,17 +171,28 @@ export default class PaddockScene extends Phaser.Scene {
     });
     this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
-    // Gamepad — works for any controller connected before or after scene starts.
-    this.gamePad    = null;
-    this.prevADown  = false;
-    this.prevBDown  = false;
-    this.usingPad   = false; // tracks active input method for prompt label
-    this.input.gamepad.on('connected', pad => { this.gamePad = pad; });
-    if (this.input.gamepad.total > 0) {
-      this.gamePad = this.input.gamepad.getPad(0);
-    }
+    // Tap / click to move.
+    this.input.on('pointerdown', this.handleTap, this);
 
-    // Interact prompt — label updates based on whether gamepad or keyboard is active.
+    // Gamepad — track which pad is active; use events (not polling) for buttons
+    // so they work reliably on iOS PWA where polling can miss frames.
+    this.gamePad      = null;
+    this.usingPad     = false;
+    this.padAJustDown = false; // set by 'down' event, consumed in checkProximity
+
+    this.input.gamepad.on('connected', pad => { this.gamePad = pad; });
+    if (this.input.gamepad.total > 0) this.gamePad = this.input.gamepad.getPad(0);
+
+    // A button (index 0) → interact; B button (index 1) → close portrait.
+    this.input.gamepad.on('down', (_pad, button) => {
+      this.usingPad = true;
+      if (button.index === 0) this.padAJustDown = true;
+      if (button.index === 1 && this.scene.isActive('PortraitScene')) {
+        this.scene.stop('PortraitScene');
+      }
+    });
+
+    // Interact prompt — label updates based on active input method.
     this.interactPrompt = this.add.text(0, 0, '[ E ]  interact', {
       fontFamily: 'system-ui, sans-serif',
       fontSize: '13px',
@@ -188,6 +200,70 @@ export default class PaddockScene extends Phaser.Scene {
       backgroundColor: '#1c1f2ecc',
       padding: { x: 8, y: 5 },
     }).setOrigin(0.5, 1).setDepth(9999).setVisible(false);
+  }
+
+  // Tap/click on the world to walk there; tap near a horse to interact with it.
+  handleTap(pointer) {
+    // Ignore if the portrait is open — taps go to that scene instead.
+    if (this.scene.isActive('PortraitScene')) return;
+    if (pointer.button !== 0) return; // primary button / tap only
+
+    const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+
+    // Check if the tap landed near a horse.
+    for (const h of this.horses) {
+      const d = Phaser.Math.Distance.Between(world.x, world.y, h.sprite.x, h.sprite.y);
+      if (d < 80) {
+        // Walk to just beside the horse, then open portrait.
+        const tx = h.sprite.x + (world.x < h.sprite.x ? -70 : 70);
+        this.tapMoveTo(tx, h.sprite.y, () => this.openPortrait(h.key));
+        return;
+      }
+    }
+
+    // Otherwise just walk to the tapped position.
+    this.tapMoveTo(world.x, world.y);
+  }
+
+  // Tween the player to (tx, ty) at walking speed; call onArrive when done.
+  tapMoveTo(tx, ty, onArrive) {
+    if (this.moveTween) { this.moveTween.stop(); this.moveTween = null; }
+
+    const { sprite } = this.player;
+    tx = Phaser.Math.Clamp(tx, PLAYER_BOUNDS.minX, PLAYER_BOUNDS.maxX);
+    ty = Phaser.Math.Clamp(ty, PLAYER_BOUNDS.minY, PLAYER_BOUNDS.maxY);
+
+    const dist = Phaser.Math.Distance.Between(sprite.x, sprite.y, tx, ty);
+    if (dist < 8) { onArrive?.(); return; }
+
+    // Pick facing direction from the movement vector.
+    const dx = tx - sprite.x;
+    const dy = ty - sprite.y;
+    const facing = Math.abs(dx) >= Math.abs(dy)
+      ? (dx < 0 ? 'left' : 'right')
+      : (dy < 0 ? 'up' : 'down');
+
+    this.player.facing = facing;
+    sprite.setFlipX(facing === 'left');
+    const animKey = facing === 'up' ? 'player_walk_up' :
+                    facing === 'down' ? 'player_walk_down' : 'player_walk_side';
+    sprite.play(animKey, true);
+    this.player.moving = true;
+
+    this.moveTween = this.tweens.add({
+      targets: sprite,
+      x: tx, y: ty,
+      duration: (dist / PLAYER_SPEED) * 1000,
+      ease: 'Linear',
+      onComplete: () => {
+        this.moveTween = null;
+        this.player.moving = false;
+        const idleKey = facing === 'up'   ? 'player_up_0' :
+                        facing === 'down'  ? 'player_down_0' : 'player_side_0';
+        sprite.setTexture(idleKey);
+        onArrive?.();
+      },
+    });
   }
 
   // ─── Portrait ────────────────────────────────────────────────────────────
@@ -288,7 +364,7 @@ export default class PaddockScene extends Phaser.Scene {
     if (cursors.down.isDown  || wasd.down.isDown)   vy += 1;
 
     // Gamepad left stick (dead-zone 0.15) and D-pad.
-    // pad.left/right/up/down return float 0-1 (button value), not GamepadButton objects.
+    // pad.left/right/up/down return float 0-1, not GamepadButton objects.
     if (pad) {
       const sx = pad.leftStick.x;
       const sy = pad.leftStick.y;
@@ -300,7 +376,6 @@ export default class PaddockScene extends Phaser.Scene {
       if (pad.down  > 0.5) vy += 1;
     }
 
-    // Detect active input method to drive prompt label.
     const kbActive  = cursors.left.isDown || cursors.right.isDown ||
                       cursors.up.isDown   || cursors.down.isDown  ||
                       wasd.left.isDown    || wasd.right.isDown    ||
@@ -311,6 +386,19 @@ export default class PaddockScene extends Phaser.Scene {
     );
     if (kbActive)  this.usingPad = false;
     if (padActive) this.usingPad = true;
+
+    // Keyboard/gamepad cancels any active tap-to-move tween.
+    if ((kbActive || padActive) && this.moveTween) {
+      this.moveTween.stop();
+      this.moveTween = null;
+    }
+
+    // If a tap tween is running, let it handle position — don't also apply input.
+    if (this.moveTween) {
+      player.shadow.x = player.sprite.x;
+      player.shadow.y = player.sprite.y;
+      return;
+    }
 
     // Clamp combined input to unit range.
     vx = Phaser.Math.Clamp(vx, -1, 1);
@@ -383,24 +471,13 @@ export default class PaddockScene extends Phaser.Scene {
       this.interactPrompt.setVisible(false);
     }
 
-    // E key or gamepad A button (index 0) — open portrait.
-    // pad.buttons[0] is the GamepadButton object with .isDown; pad.A is just a float.
-    const pad     = this.gamePad;
-    const btnA    = pad?.buttons[0];
-    const eJust   = Phaser.Input.Keyboard.JustDown(this.eKey);
-    const aJust   = (btnA?.isDown ?? false) && !this.prevADown;
-    this.prevADown = btnA?.isDown ?? false;
+    // E key — open portrait. A button is handled via gamepad 'down' event in buildPlayer.
+    const eJust = Phaser.Input.Keyboard.JustDown(this.eKey);
+    const aJust = this.padAJustDown;
+    this.padAJustDown = false;
 
     if (inRange && (eJust || aJust)) {
       this.openPortrait(nearest.key);
-    }
-
-    // Gamepad B button (index 1) — close portrait.
-    const btnB   = pad?.buttons[1];
-    const bJust  = (btnB?.isDown ?? false) && !this.prevBDown;
-    this.prevBDown = btnB?.isDown ?? false;
-    if (bJust && this.scene.isActive('PortraitScene')) {
-      this.scene.stop('PortraitScene');
     }
   }
 
