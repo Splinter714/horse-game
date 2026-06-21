@@ -36,6 +36,38 @@ export const COATS = {
     hoof: 0x000000,
     eye: 0x000000,
     markings: { star: false, sock: true, blaze: true }
+  },
+  paint: {
+    label: 'Paint',
+    body: { hi: 0xd8c8a0, mid: 0xc0a878, lo: 0x9a8458 },
+    mane: { hi: 0xf0e8d0, mid: 0xd8c898, lo: 0xb8a870 },
+    hoof: 0x2a2010,
+    eye: 0x1a1008,
+    markings: { star: true, sock: true, paint: true }
+  },
+  chestnut: {
+    label: 'Chestnut',
+    body: { hi: 0xc86030, mid: 0xa84820, lo: 0x843414 },
+    mane: { hi: 0xd08050, mid: 0xb86030, lo: 0x984020 },
+    hoof: 0x2a1408,
+    eye: 0x1a0804,
+    markings: { star: true, sock: false }
+  },
+  cremello: {
+    label: 'Cremello',
+    body: { hi: 0xf4ead0, mid: 0xe8d8b0, lo: 0xd0bc8c },
+    mane: { hi: 0xfffaf0, mid: 0xf4ead4, lo: 0xe0d0b0 },
+    hoof: 0xc0a878,
+    eye: 0x6090b0,
+    markings: { star: false, sock: false }
+  },
+  friesian: {
+    label: 'Friesian',
+    body: { hi: 0x2c2a2a, mid: 0x181616, lo: 0x0a0808 },
+    mane: { hi: 0x222020, mid: 0x0e0c0c, lo: 0x020000 },
+    hoof: 0x000000,
+    eye: 0x000000,
+    markings: { star: false, sock: false, feather: true }
   }
 };
 

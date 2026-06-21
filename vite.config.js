@@ -3,6 +3,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   base: '/horse-game/',
   server: {
+    host: true,
     port: 5173,
     open: true,
     watch: {

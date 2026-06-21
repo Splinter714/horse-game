@@ -3,22 +3,22 @@ import BootScene from './scenes/BootScene.js';
 import PaddockScene from './scenes/PaddockScene.js';
 import PortraitScene from './scenes/PortraitScene.js';
 import HotbarScene from './scenes/HotbarScene.js';
+import RadialMenuScene from './scenes/RadialMenuScene.js';
+import DayNightScene from './scenes/DayNightScene.js';
+import InventoryScene from './scenes/InventoryScene.js';
 
 const config = {
   type: Phaser.AUTO,
-  width: 960,
-  height: 640,
   parent: 'game',
   backgroundColor: '#82c24e',
   pixelArt: true,
   scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH
+    mode: Phaser.Scale.RESIZE,
   },
   input: {
     gamepad: true
   },
-  scene: [BootScene, PaddockScene, PortraitScene, HotbarScene]
+  scene: [BootScene, PaddockScene, DayNightScene, PortraitScene, HotbarScene, RadialMenuScene, InventoryScene]
 };
 
 const game = new Phaser.Game(config);

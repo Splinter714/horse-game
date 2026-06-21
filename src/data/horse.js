@@ -4,6 +4,13 @@
 
 const MAX = 100;
 
+// Tunable base stats for the Friesian "Ebony" — easy to adjust here.
+export const EBONY_BASE_STATS = {
+  health:  95,
+  speed:   80,
+  stamina: 70,
+};
+
 // Per-second decay while playing. Tuned so a well-fed horse stays content for a
 // long play session; full depletion would take ~2 hours of continuous play.
 const DECAY = {
@@ -33,6 +40,10 @@ export class Horse {
       grooming: data.stats?.grooming ?? 60,
       happiness: data.stats?.happiness ?? 85
     };
+    // Optional fixed attributes (not affected by decay).
+    if (data.health  !== undefined) this.health  = data.health;
+    if (data.speed   !== undefined) this.speed   = data.speed;
+    if (data.stamina !== undefined) this.stamina = data.stamina;
     this.lastSeen = data.lastSeen ?? Date.now();
   }
 
@@ -71,7 +82,7 @@ export class Horse {
   }
 
   toJSON() {
-    return {
+    const out = {
       id: this.id,
       name: this.name,
       breed: this.breed,
@@ -80,5 +91,9 @@ export class Horse {
       stats: { ...this.stats },
       lastSeen: this.lastSeen
     };
+    if (this.health  !== undefined) out.health  = this.health;
+    if (this.speed   !== undefined) out.speed   = this.speed;
+    if (this.stamina !== undefined) out.stamina = this.stamina;
+    return out;
   }
 }

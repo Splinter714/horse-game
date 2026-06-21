@@ -1,9 +1,6 @@
 import Phaser from 'phaser';
 
-const W = 960;
-const H = 640;
 const PANEL_W = 300;
-const PANEL_X = W - PANEL_W; // 660 — panel left edge in screen coords
 
 const STATS = [
   { key: 'hunger',    label: 'Food',  color: 0x63a31d },
@@ -46,25 +43,30 @@ export default class PortraitScene extends Phaser.Scene {
   }
 
   build() {
+    const sw = this.scale.width;
+    const sh = this.scale.height;
+    const panelX = sw - PANEL_W;
+    this._sw = sw;
+
     const viewing = this.registry.get('viewingHorse');
     const horse   = viewing?.horse;
     const horseKey = viewing?.horseKey ?? 'horse';
     if (!horse) { this.scene.stop(); return; }
 
     // Dim backdrop over the play area — clicking it closes the panel.
-    const backdrop = this.add.rectangle(0, 0, PANEL_X, H, 0x000000, 0.28)
+    const backdrop = this.add.rectangle(0, 0, panelX, sh, 0x000000, 0.28)
       .setOrigin(0, 0).setInteractive();
     backdrop.on('pointerdown', () => this.close());
 
     // Panel container slides in from off-screen right.
-    this.panel = this.add.container(W, 0);
+    this.panel = this.add.container(sw, 0);
 
     // Panel background.
     const bg = this.add.graphics();
     bg.fillStyle(0xf4f1ec, 1);
-    bg.fillRect(0, 0, PANEL_W, H);
+    bg.fillRect(0, 0, PANEL_W, sh);
     bg.lineStyle(2, 0xd4ceC4, 1);
-    bg.lineBetween(0, 0, 0, H);
+    bg.lineBetween(0, 0, 0, sh);
     this.panel.add(bg);
 
     // ── Horse sprite ──────────────────────────────────────────────
@@ -145,7 +147,7 @@ export default class PortraitScene extends Phaser.Scene {
     this.panel.add(closeBtn);
 
     // Slide in from the right.
-    this.tweens.add({ targets: this.panel, x: PANEL_X, duration: 220, ease: 'Quad.easeOut' });
+    this.tweens.add({ targets: this.panel, x: panelX, duration: 220, ease: 'Quad.easeOut' });
   }
 
   addDivider(y) {
@@ -217,7 +219,7 @@ export default class PortraitScene extends Phaser.Scene {
     this.closing = true;
     this.tweens.add({
       targets: this.panel,
-      x: W,
+      x: this._sw ?? this.scale.width,
       duration: 180,
       ease: 'Quad.easeIn',
       onComplete: () => this.scene.stop(),

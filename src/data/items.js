@@ -7,6 +7,8 @@ export const ITEMS = [
   { key: 'treat',  label: 'Treat',  icon: 'iconTreat',  action: 'pet'   },
   { key: 'bucket', label: 'Water',  icon: 'iconWater',  action: 'water' },
   { key: 'brush',  label: 'Brush',  icon: 'iconBrush',  action: 'brush' },
-  null,
+  { key: 'saddle', label: 'Saddle', icon: 'iconSaddle', action: 'ride'  },
+  { key: 'lead',   label: 'Lead',   icon: 'iconLead',   action: 'lead'  },
+  { key: 'seed',   label: 'Seeds',  icon: 'iconSeed',   action: 'seed'  },
   null,
 ];

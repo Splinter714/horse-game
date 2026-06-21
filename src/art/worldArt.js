@@ -48,12 +48,14 @@ export function buildWorldTextures(scene) {
     g.fillStyle(0xc8924c, 1); g.fillRect(2, 2, 2, 20);
   });
 
-  // --- water trough ---
-  tex(scene, 'trough', 54, 26, (g) => {
-    g.fillStyle(0x8a5a2e, 1); g.fillRect(0, 6, 54, 20);
-    g.fillStyle(0xa06c38, 1); g.fillRect(0, 2, 54, 5);
-    g.fillStyle(0x5fa6d6, 1); g.fillRect(4, 8, 46, 10);
-    g.fillStyle(0x7cc0e8, 1); g.fillRect(4, 8, 46, 3);
+  // --- water trough (empty = dry dark interior) ---
+  tex(scene, 'trough', 100, 26, (g) => {
+    g.fillStyle(0x8a5a2e, 1); g.fillRect(0, 6, 100, 20);
+    g.fillStyle(0xa06c38, 1); g.fillRect(0, 2, 100, 5);
+    g.fillStyle(0x3a2410, 1); g.fillRect(4, 8, 92, 10); // dry dark interior
+    g.fillStyle(0x2a1a08, 1); g.fillRect(4, 15, 92, 3); // shadow at bottom
+    // Post dividers so it reads as one long trough
+    g.fillStyle(0x6a3c18, 1); g.fillRect(47, 4, 4, 22); g.fillRect(49, 2, 2, 4);
   });
 
   // --- hay bale ---
@@ -143,11 +145,154 @@ export function buildWorldTextures(scene) {
     g.fillRect(14, 3, 2, 2); g.fillRect(15, 2, 1, 4); g.fillRect(13, 4, 4, 1);
     g.fillRect(3, 3, 1, 1);
   });
+  tex(scene, 'iconSaddle', 20, 20, (g) => { // saddle
+    g.fillStyle(0x8a5020, 1); g.fillRect(3, 7, 14, 5);
+    g.fillStyle(0x6a3c18, 1); g.fillRect(2, 9, 4, 5); g.fillRect(14, 9, 4, 5);
+    g.fillStyle(0xb07040, 1); g.fillRect(4, 8, 12, 2);
+    g.fillStyle(0x6a3c18, 1);
+    g.fillRect(5, 12, 1, 5); g.fillRect(14, 12, 1, 5);
+    g.fillRect(3, 16, 4, 2); g.fillRect(12, 16, 4, 2);
+  });
+  tex(scene, 'iconLead', 20, 20, (g) => { // rope coil
+    g.fillStyle(0xd4a84a, 1); g.fillCircle(9, 11, 7);
+    g.fillStyle(0x1a1e30, 0); g.fillCircle(9, 11, 4); // clear center (ring shape)
+    g.fillStyle(0xb88c3a, 1); g.fillCircle(9, 11, 5);
+    g.fillStyle(0xd4a84a, 1); g.fillCircle(9, 11, 3);
+    g.fillStyle(0xb88c3a, 1); g.fillCircle(9, 11, 1.5);
+    g.fillStyle(0xd4a84a, 1); g.fillRect(14, 3, 2, 9); g.fillRect(14, 3, 5, 2);
+  });
+  tex(scene, 'troughFull', 100, 26, (g) => {
+    g.fillStyle(0x8a5a2e, 1); g.fillRect(0, 6, 100, 20);
+    g.fillStyle(0xa06c38, 1); g.fillRect(0, 2, 100, 5);
+    g.fillStyle(0x5fa6d6, 1); g.fillRect(4, 8, 92, 10);
+    g.fillStyle(0x9ae0f8, 1); g.fillRect(4, 8, 92, 3);
+    g.fillStyle(0x7cc8e8, 0.7);
+    g.fillRect(8, 12, 10, 1); g.fillRect(30, 14, 12, 1); g.fillRect(60, 11, 8, 1); g.fillRect(78, 13, 10, 1);
+    g.fillStyle(0x6a3c18, 1); g.fillRect(47, 4, 4, 22); g.fillRect(49, 2, 2, 4);
+  });
+  tex(scene, 'hayPile', 36, 12, (g) => { // hay spread on ground
+    g.fillStyle(0xd9b94a, 1); g.fillRect(2, 5, 32, 7);
+    g.fillStyle(0xc4a43a, 1); g.fillRect(2, 8, 32, 3);
+    g.fillStyle(0xd9b94a, 1);
+    g.fillRect(4, 2, 1, 4); g.fillRect(8, 1, 1, 5); g.fillRect(13, 2, 1, 4);
+    g.fillRect(18, 1, 1, 5); g.fillRect(22, 2, 1, 4); g.fillRect(27, 1, 1, 5);
+    g.fillStyle(0xe8cc6a, 1);
+    g.fillRect(6, 3, 1, 3); g.fillRect(15, 2, 1, 4); g.fillRect(24, 3, 1, 3);
+  });
+  tex(scene, 'saddleOverlay', 64, 54, (g) => { // drawn at horse-back position (x=19-38, y=16-22)
+    g.fillStyle(0x8a5020, 1); g.fillRect(19, 16, 20, 6);
+    g.fillStyle(0x6a3c18, 1); g.fillRect(18, 18, 4, 5); g.fillRect(35, 18, 4, 5);
+    g.fillStyle(0xb07040, 1); g.fillRect(20, 17, 17, 2);
+    g.fillStyle(0x6a3c18, 1);
+    g.fillRect(22, 22, 1, 9); g.fillRect(33, 22, 1, 9);
+    g.fillRect(20, 30, 4, 2); g.fillRect(31, 30, 4, 2);
+  });
+  tex(scene, 'iconSeed', 20, 20, (g) => { // scattered seeds
+    g.fillStyle(0xc8a030, 1);
+    g.fillRect(5, 13, 3, 3); g.fillRect(11, 11, 3, 3); g.fillRect(8, 15, 2, 2);
+    g.fillRect(3, 9, 2, 2);  g.fillRect(14, 14, 2, 2); g.fillRect(12, 7, 2, 2);
+    g.fillStyle(0xe8c050, 1);
+    g.fillRect(6, 14, 1, 1); g.fillRect(12, 12, 1, 1); g.fillRect(4, 10, 1, 1);
+    // small pouch at top
+    g.fillStyle(0xd4943c, 1); g.fillRect(7, 3, 6, 7);
+    g.fillStyle(0xe8b054, 1); g.fillRect(7, 3, 6, 2);
+    g.fillStyle(0xb07828, 1); g.fillRect(8, 2, 4, 2);
+    g.fillStyle(0xc8a030, 1); g.fillRect(9, 9, 2, 2); g.fillRect(7, 8, 2, 2);
+  });
+  tex(scene, 'seedPile', 22, 8, (g) => { // seeds scattered on ground
+    g.fillStyle(0xc8a030, 1);
+    g.fillRect(2, 3, 2, 2); g.fillRect(6, 2, 2, 2); g.fillRect(10, 4, 2, 2);
+    g.fillRect(14, 2, 2, 2); g.fillRect(18, 3, 2, 2); g.fillRect(4, 5, 2, 2);
+    g.fillRect(8, 5, 2, 2);  g.fillRect(12, 3, 2, 2); g.fillRect(16, 5, 2, 2);
+    g.fillStyle(0xe8c050, 1);
+    g.fillRect(3, 3, 1, 1); g.fillRect(7, 2, 1, 1); g.fillRect(11, 4, 1, 1);
+    g.fillRect(15, 2, 1, 1); g.fillRect(5, 5, 1, 1);
+  });
   tex(scene, 'iconHeart', 20, 20, (g) => { // heart for the Love button
     g.fillStyle(0xe06a86, 1);
     g.fillCircle(7, 8, 4.5);
     g.fillCircle(13, 8, 4.5);
     g.fillTriangle(3, 10, 17, 10, 10, 17);
     g.fillStyle(0xf2a8bc, 1); g.fillCircle(6, 6, 1.5);
+  });
+
+  // --- chicken coop (64 × 52) ---
+  tex(scene, 'coop', 64, 52, (g) => {
+    // Roof — dark ridge, two slopes
+    g.fillStyle(0x6b3c1a, 1); g.fillTriangle(0, 18, 32, 2, 64, 18);
+    g.fillStyle(0x9a5a2c, 1); g.fillTriangle(2, 18, 32, 4, 62, 18);
+    g.fillStyle(0xb87040, 1);
+    // Left slope highlight
+    g.fillRect(6, 10, 2, 8); g.fillRect(12, 8, 2, 10); g.fillRect(18, 6, 2, 12);
+    // Ridge cap
+    g.fillStyle(0x7a4420, 1); g.fillRect(28, 2, 8, 3);
+
+    // Walls
+    g.fillStyle(0xd4a060, 1); g.fillRect(0, 18, 64, 34);
+    g.fillStyle(0xc0904e, 1); g.fillRect(0, 18, 64, 4); // top shadow under eave
+    g.fillStyle(0xa87840, 1); g.fillRect(0, 44, 64, 8); // ground shadow
+
+    // Left window
+    g.fillStyle(0x5a3010, 1); g.fillRect(6, 24, 14, 10);
+    g.fillStyle(0xffe89a, 1); g.fillRect(7, 25, 12, 8);
+    g.fillStyle(0x5a3010, 1); g.fillRect(12, 25, 2, 8); g.fillRect(7, 28, 12, 2);
+
+    // Right window
+    g.fillStyle(0x5a3010, 1); g.fillRect(44, 24, 14, 10);
+    g.fillStyle(0xffe89a, 1); g.fillRect(45, 25, 12, 8);
+    g.fillStyle(0x5a3010, 1); g.fillRect(50, 25, 2, 8); g.fillRect(45, 28, 12, 2);
+
+    // Door opening (arched) — center bottom
+    g.fillStyle(0x3a1e08, 1); g.fillRect(26, 34, 12, 18);
+    g.fillCircle(32, 34, 6);
+
+    // Vertical wood planks
+    g.fillStyle(0xc0904e, 0.4);
+    for (let x = 8; x < 64; x += 8) g.fillRect(x, 18, 1, 34);
+
+    // Eave board
+    g.fillStyle(0x8a5428, 1); g.fillRect(0, 17, 64, 2);
+  });
+
+  // --- nest (18 × 12) — woven straw ring ---
+  tex(scene, 'nest', 18, 12, (g) => {
+    // Outer straw ring
+    g.fillStyle(0xb87828, 1); g.fillEllipse(9, 8, 18, 10);
+    g.fillStyle(0xd4a030, 1); g.fillEllipse(9, 7, 16, 8);
+    g.fillStyle(0xc49028, 1); g.fillEllipse(9, 8, 12, 6);
+    // Inner hollow
+    g.fillStyle(0x6a3c10, 1); g.fillEllipse(9, 8, 8, 5);
+    // Straw texture lines
+    g.fillStyle(0xe8b840, 1);
+    g.fillRect(3, 6, 3, 1); g.fillRect(12, 6, 3, 1);
+    g.fillRect(5, 4, 2, 1); g.fillRect(11, 4, 2, 1);
+  });
+
+  // --- nest with egg ---
+  tex(scene, 'nestEgg', 18, 12, (g) => {
+    // Same nest base
+    g.fillStyle(0xb87828, 1); g.fillEllipse(9, 8, 18, 10);
+    g.fillStyle(0xd4a030, 1); g.fillEllipse(9, 7, 16, 8);
+    g.fillStyle(0xc49028, 1); g.fillEllipse(9, 8, 12, 6);
+    g.fillStyle(0x6a3c10, 1); g.fillEllipse(9, 8, 8, 5);
+    g.fillStyle(0xe8b840, 1);
+    g.fillRect(3, 6, 3, 1); g.fillRect(12, 6, 3, 1);
+    g.fillRect(5, 4, 2, 1); g.fillRect(11, 4, 2, 1);
+    // Egg sitting in nest
+    g.fillStyle(0xfff8e0, 1); g.fillEllipse(9, 6, 6, 8);
+    g.fillStyle(0xfffdf5, 1); g.fillEllipse(8, 5, 2, 3); // highlight
+  });
+
+  // --- egg (collectible on ground, 6 × 8) ---
+  tex(scene, 'egg', 6, 8, (g) => {
+    g.fillStyle(0xfff8e0, 1); g.fillEllipse(3, 4, 6, 8);
+    g.fillStyle(0xfffdf5, 1); g.fillEllipse(2, 3, 2, 3);
+  });
+
+  // --- egg icon (for inventory badge, 20 × 20) ---
+  tex(scene, 'iconEgg', 20, 20, (g) => {
+    g.fillStyle(0xfff8e0, 1); g.fillEllipse(10, 11, 12, 14);
+    g.fillStyle(0xfffdf5, 1); g.fillEllipse(8, 8, 4, 5);
+    g.fillStyle(0xe8d8a0, 1); g.fillEllipse(10, 14, 8, 4); // shadow base
   });
 }
