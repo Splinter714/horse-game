@@ -1,0 +1,77 @@
+// The higher-fidelity static portrait (front-facing) for the stable screen — the
+// "showcase" half of the hybrid art model. Smoother than the in-world sprite,
+// since it never animates. Drawn from the same coat data.
+
+const WHITE = 0xf4efe6;
+const SIZE = 200;
+
+export function buildPortraitTexture(scene, key, coat) {
+  const b = coat.body;
+  const m = coat.mane;
+  const mk = coat.markings || {};
+  const g = scene.make.graphics({ x: 0, y: 0, add: false });
+
+  // neck / chest
+  g.fillStyle(b.mid, 1);
+  g.fillPoints([{ x: 66, y: 118 }, { x: 134, y: 118 }, { x: 162, y: 200 }, { x: 38, y: 200 }], true);
+  g.fillStyle(b.hi, 0.5); g.fillEllipse(78, 172, 40, 60);
+  g.fillStyle(b.lo, 0.5); g.fillEllipse(132, 176, 40, 60);
+
+  // mane on both sides of the neck
+  g.fillStyle(m.hi, 1); g.fillEllipse(54, 150, 30, 64);
+  g.fillStyle(m.mid, 1); g.fillEllipse(50, 160, 18, 48);
+  g.fillStyle(m.mid, 1); g.fillEllipse(148, 154, 26, 60);
+  g.fillStyle(m.lo, 1); g.fillEllipse(151, 164, 16, 44);
+
+  // ears
+  g.fillStyle(b.mid, 1); g.fillTriangle(72, 48, 60, 12, 92, 44);
+  g.fillStyle(0xe0a890, 1); g.fillTriangle(75, 44, 67, 20, 86, 42);
+  g.fillStyle(b.lo, 1); g.fillTriangle(128, 48, 140, 12, 108, 44);
+  g.fillStyle(0xd09080, 1); g.fillTriangle(125, 44, 133, 20, 114, 42);
+
+  // skull
+  g.fillStyle(b.mid, 1); g.fillEllipse(100, 72, 74, 66);
+  g.fillStyle(b.hi, 1); g.fillEllipse(84, 66, 36, 46);
+  g.fillStyle(b.lo, 0.7); g.fillEllipse(122, 82, 28, 48);
+
+  // lower face
+  g.fillStyle(b.mid, 1); g.fillEllipse(100, 122, 54, 62);
+  g.fillStyle(b.hi, 1); g.fillEllipse(89, 116, 24, 42);
+  g.fillStyle(b.lo, 0.7); g.fillEllipse(116, 126, 24, 44);
+
+  // muzzle
+  g.fillStyle(b.lo, 1); g.fillEllipse(100, 152, 48, 36);
+  g.fillStyle(b.mid, 1); g.fillEllipse(100, 155, 36, 24);
+
+  // face markings
+  if (mk.blaze) {
+    g.fillStyle(WHITE, 1);
+    g.fillEllipse(100, 68, 18, 24);
+    g.fillRoundedRect(92, 66, 16, 66, 5);
+    g.fillEllipse(100, 132, 22, 22);
+  } else if (mk.star) {
+    g.fillStyle(WHITE, 1);
+    g.fillEllipse(100, 66, 16, 20);
+  }
+
+  // forelock
+  g.fillStyle(m.hi, 1); g.fillEllipse(100, 46, 30, 22);
+  g.fillStyle(m.mid, 1); g.fillRect(91, 48, 5, 17);
+  g.fillStyle(m.hi, 1); g.fillRect(98, 50, 5, 19);
+  g.fillStyle(m.lo, 1); g.fillRect(104, 48, 5, 15);
+
+  // eyes
+  g.fillStyle(coat.eye, 1); g.fillEllipse(82, 86, 12, 15);
+  g.fillStyle(WHITE, 0.85); g.fillCircle(80, 83, 2);
+  g.fillStyle(coat.eye, 1); g.fillEllipse(118, 86, 12, 15);
+  g.fillStyle(WHITE, 0.85); g.fillCircle(116, 83, 2);
+
+  // nostrils + mouth
+  g.fillStyle(0x6a3a10, 1);
+  g.fillEllipse(90, 150, 7, 9);
+  g.fillEllipse(110, 150, 7, 9);
+  g.fillStyle(0x7a4a1c, 1); g.fillRoundedRect(92, 160, 16, 2, 1);
+
+  g.generateTexture(key, SIZE, SIZE);
+  g.destroy();
+}

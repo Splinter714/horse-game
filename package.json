@@ -1,0 +1,19 @@
+{
+  "name": "horse-care-game",
+  "version": "0.1.0",
+  "description": "A cozy pixel-art horse care game",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && gh-pages -d dist -b gh-pages"
+  },
+  "dependencies": {
+    "phaser": "^3.80.1"
+  },
+  "devDependencies": {
+    "gh-pages": "^6.3.0",
+    "vite": "^5.4.0"
+  }
+}
