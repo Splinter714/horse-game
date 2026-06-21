@@ -1,10 +1,19 @@
 import Phaser from 'phaser';
 import { saveHorse } from '../data/save.js';
 
-const W = 960;
-const H = 640;
+const WORLD_W = 1920;
+const WORLD_H = 1280;
 
-const BOUNDS = { minX: 100, maxX: 860, minY: 340, maxY: 570 };
+// How close the player needs to be to a horse to interact.
+const INTERACT_DIST = 100;
+const PLAYER_SPEED  = 180; // px / second
+
+// Horse wander area (expanded for larger world).
+const BOUNDS = { minX: 180, maxX: 1740, minY: 360, maxY: 1060 };
+
+// Player movement area (keeps player away from edges).
+const PLAYER_BOUNDS = { minX: 40, maxX: 1880, minY: 80, maxY: 1220 };
+
 const S = 2;
 
 export default class PaddockScene extends Phaser.Scene {
@@ -13,46 +22,60 @@ export default class PaddockScene extends Phaser.Scene {
   }
 
   create() {
-    this.horse = this.registry.get('horse');
+    this.horse    = this.registry.get('horse');
     this.decayAccum = 0;
-    this.saveAccum = 0;
-    this.horses = []; // all wandering horses { sprite, shadow }
+    this.saveAccum  = 0;
+    this.horses     = []; // { sprite, shadow, key }
 
     this.buildWorld();
     this.buildHorses();
+    this.buildPlayer();
 
-    // action events now come from PortraitScene with { type, horseKey }
+    // Action events from PortraitScene carry { type, horseKey }.
     this.game.events.on('horse-action', this.doAction, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.game.events.off('horse-action', this.doAction, this);
     });
   }
 
+  // ─── World ───────────────────────────────────────────────────────────────
+
   buildWorld() {
-    this.add.tileSprite(0, 0, W, H, 'grass')
+    this.add.tileSprite(0, 0, WORLD_W, WORLD_H, 'grass')
       .setOrigin(0, 0).setTileScale(S, S).setDepth(-100);
 
-    [[160, 240], [600, 400], [360, 520], [800, 300]].forEach(([x, y]) => {
+    // Scattered grass-variant patches.
+    [
+      [160, 300], [480, 200], [800, 450], [1100, 300], [1400, 180],
+      [1700, 400], [300, 700], [700, 900], [1000, 750], [1300, 1000],
+      [1600, 850], [200, 1050], [500, 1150], [900, 1100], [1700, 1100],
+    ].forEach(([x, y]) => {
       this.add.image(x, y, 'grass2').setScale(S).setDepth(-99).setAlpha(0.9);
     });
 
+    // Flowers scattered across the full world.
     const flowers = ['flowerRed', 'flowerYellow', 'flowerWhite'];
     [
-      [80,  400], [140, 580], [240, 340], [320, 600], [440, 390],
-      [560, 570], [680, 350], [780, 590], [880, 430], [920, 340],
-      [60,  520], [400, 540], [620, 500], [180, 280], [840, 540]
+      [80, 400], [140, 600], [260, 360], [340, 620], [460, 410],
+      [580, 580], [700, 370], [800, 610], [920, 450], [1000, 350],
+      [60, 540], [420, 560], [640, 520], [190, 290], [860, 560],
+      [1100, 450], [1200, 620], [1340, 390], [1460, 570], [1580, 430],
+      [1700, 600], [1800, 380], [1860, 520], [1050, 800], [1180, 950],
+      [1380, 850], [1520, 980], [1650, 780], [1780, 900], [280, 880],
+      [420, 1020], [560, 900], [700, 1040], [850, 820], [980, 1020],
+      [120, 750], [240, 1100], [360, 980], [500, 800], [630, 1100],
     ].forEach(([x, y], i) => {
-      this.add.image(x, y, flowers[i % flowers.length]).setScale(S).setDepth(y);
+      this.add.image(x, y, flowers[i % flowers.length])
+        .setScale(S).setDepth(y);
     });
   }
 
-  buildHorses() {
-    const player = this.spawnHorse(480, 460, 'horse', 1500);
-    this.sprite = player.sprite;
-    this.shadow = player.shadow;
+  // ─── Horses ──────────────────────────────────────────────────────────────
 
-    this.spawnHorse(200, 400, 'horse2', 800);
-    this.spawnHorse(720, 510, 'horse3', 2200);
+  buildHorses() {
+    this.spawnHorse(680, 730, 'horse',  1500);
+    this.spawnHorse(380, 530, 'horse2',  800);
+    this.spawnHorse(1380, 860, 'horse3', 2200);
   }
 
   spawnHorse(startX, startY, key, wanderDelay) {
@@ -77,9 +100,6 @@ export default class PaddockScene extends Phaser.Scene {
     const sprite = this.add.sprite(startX, startY, `${key}_idle_0`)
       .setOrigin(0.5, 1).setScale(S).setDepth(startY)
       .play(`idle_${key}`);
-
-    sprite.setInteractive({ useHandCursor: true });
-    sprite.on('pointerdown', () => this.openPortrait(key));
 
     const h = { sprite, shadow, key };
     this.horses.push(h);
@@ -113,17 +133,80 @@ export default class PaddockScene extends Phaser.Scene {
     });
   }
 
+  // ─── Player ──────────────────────────────────────────────────────────────
+
+  buildPlayer() {
+    // Animations.
+    const makeAnim = (key, frames, rate) => {
+      if (!this.anims.exists(key)) {
+        this.anims.create({ key, frames, frameRate: rate, repeat: -1 });
+      }
+    };
+    makeAnim('player_walk_down', [{ key: 'player_down_0' }, { key: 'player_down_1' }], 7);
+    makeAnim('player_walk_up',   [{ key: 'player_up_0'   }, { key: 'player_up_1'   }], 7);
+    makeAnim('player_walk_side', [{ key: 'player_side_0' }, { key: 'player_side_1' }], 7);
+
+    const startX = WORLD_W / 2;
+    const startY = WORLD_H / 2 + 60;
+
+    const shadow = this.add.image(startX, startY, 'shadow')
+      .setScale(S * 0.65).setDepth(startY - 1);
+    const sprite = this.add.sprite(startX, startY, 'player_down_0')
+      .setOrigin(0.5, 1).setScale(S).setDepth(startY);
+
+    this.player = { sprite, shadow, facing: 'down', moving: false };
+
+    // Camera follows the player, bounded to world.
+    this.cameras.main.setBounds(0, 0, WORLD_W, WORLD_H);
+    this.cameras.main.startFollow(sprite, true, 0.12, 0.12);
+
+    // Keyboard input.
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.wasd    = this.input.keyboard.addKeys({
+      up:    Phaser.Input.Keyboard.KeyCodes.W,
+      down:  Phaser.Input.Keyboard.KeyCodes.S,
+      left:  Phaser.Input.Keyboard.KeyCodes.A,
+      right: Phaser.Input.Keyboard.KeyCodes.D,
+    });
+    this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+
+    // Gamepad — works for any controller connected before or after scene starts.
+    this.gamePad   = null;
+    this.prevADown = false;
+    this.prevBDown = false;
+    this.input.gamepad.on('connected', pad => { this.gamePad = pad; });
+    if (this.input.gamepad.total > 0) {
+      this.gamePad = this.input.gamepad.getPad(0);
+    }
+
+    // Interact prompt shown above the nearest horse when close enough.
+    this.interactPrompt = this.add.text(0, 0, '[ E ]  interact', {
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: '13px',
+      color: '#ffffff',
+      backgroundColor: '#1c1f2ecc',
+      padding: { x: 8, y: 5 },
+    }).setOrigin(0.5, 1).setDepth(9999).setVisible(false);
+  }
+
+  // ─── Portrait ────────────────────────────────────────────────────────────
+
   openPortrait(key) {
     const allHorses = this.registry.get('allHorses');
-    this.registry.set('viewingHorse', { horse: allHorses[key], portraitKey: `portrait_${key}`, horseKey: key });
+    this.registry.set('viewingHorse', {
+      horse:      allHorses[key],
+      portraitKey: `portrait_${key}`,
+      horseKey:   key,
+    });
     if (this.scene.isActive('PortraitScene')) {
-      // Already open — just refresh it with the new horse.
       this.scene.get('PortraitScene').refresh();
       return;
     }
     this.scene.launch('PortraitScene');
     this.scene.bringToTop('PortraitScene');
   }
+
+  // ─── Actions ─────────────────────────────────────────────────────────────
 
   doAction({ type, horseKey }) {
     const allHorses = this.registry.get('allHorses');
@@ -137,10 +220,8 @@ export default class PaddockScene extends Phaser.Scene {
       case 'pet':   horseData.pet();   break;
     }
 
-    // Save only the player's horse.
     if (horseKey === 'horse') saveHorse(horseData);
 
-    // Visual effect on the correct sprite.
     const h = this.horses.find(h => h.key === horseKey);
     if (h) {
       if (type === 'pet') {
@@ -160,7 +241,7 @@ export default class PaddockScene extends Phaser.Scene {
       targets: heart,
       y: heart.y - 56, alpha: 0, scale: S * 1.4,
       duration: 900, ease: 'Sine.easeOut',
-      onComplete: () => heart.destroy()
+      onComplete: () => heart.destroy(),
     });
   }
 
@@ -171,7 +252,7 @@ export default class PaddockScene extends Phaser.Scene {
       targets: icon,
       y: icon.y - 44, alpha: 0,
       duration: 1000, ease: 'Sine.easeOut',
-      onComplete: () => icon.destroy()
+      onComplete: () => icon.destroy(),
     });
   }
 
@@ -179,25 +260,150 @@ export default class PaddockScene extends Phaser.Scene {
     this.tweens.add({
       targets: sprite,
       y: sprite.y - 12, duration: 120,
-      yoyo: true, ease: 'Quad.easeOut'
+      yoyo: true, ease: 'Quad.easeOut',
     });
   }
 
+  // ─── Update ──────────────────────────────────────────────────────────────
+
   update(time, delta) {
+    this.movePlayer(delta);
+    this.checkProximity();
+    this.depthSort();
+    this.tickDecay(delta);
+    this.tickAutosave(delta);
+  }
+
+  movePlayer(delta) {
+    const { cursors, wasd, player } = this;
+    const pad = this.gamePad;
+
+    let vx = 0, vy = 0;
+
+    // Keyboard
+    if (cursors.left.isDown  || wasd.left.isDown)  vx -= 1;
+    if (cursors.right.isDown || wasd.right.isDown)  vx += 1;
+    if (cursors.up.isDown    || wasd.up.isDown)     vy -= 1;
+    if (cursors.down.isDown  || wasd.down.isDown)   vy += 1;
+
+    // Gamepad left stick (dead-zone 0.15) and D-pad
+    if (pad) {
+      const sx = pad.leftStick.x;
+      const sy = pad.leftStick.y;
+      if (Math.abs(sx) > 0.15) vx += sx;
+      if (Math.abs(sy) > 0.15) vy += sy;
+      if (pad.left?.isDown)  vx -= 1;
+      if (pad.right?.isDown) vx += 1;
+      if (pad.up?.isDown)    vy -= 1;
+      if (pad.down?.isDown)  vy += 1;
+    }
+
+    // Clamp combined input to unit range.
+    vx = Phaser.Math.Clamp(vx, -1, 1);
+    vy = Phaser.Math.Clamp(vy, -1, 1);
+
+    const moving = vx !== 0 || vy !== 0;
+
+    if (moving) {
+      // Normalize diagonal so diagonal speed = straight speed.
+      if (vx !== 0 && vy !== 0) { vx *= 0.707; vy *= 0.707; }
+
+      const dist = PLAYER_SPEED * (delta / 1000);
+      player.sprite.x = Phaser.Math.Clamp(player.sprite.x + vx * dist, PLAYER_BOUNDS.minX, PLAYER_BOUNDS.maxX);
+      player.sprite.y = Phaser.Math.Clamp(player.sprite.y + vy * dist, PLAYER_BOUNDS.minY, PLAYER_BOUNDS.maxY);
+
+      // Determine facing direction from dominant axis.
+      let newFacing;
+      if (Math.abs(vx) >= Math.abs(vy)) {
+        newFacing = vx < 0 ? 'left' : 'right';
+      } else {
+        newFacing = vy < 0 ? 'up' : 'down';
+      }
+
+      if (!player.moving || newFacing !== player.facing) {
+        player.facing = newFacing;
+        const animKey = newFacing === 'up'   ? 'player_walk_up' :
+                        newFacing === 'down'  ? 'player_walk_down' :
+                        'player_walk_side';
+        player.sprite.setFlipX(newFacing === 'left');
+        player.sprite.play(animKey, true);
+      }
+      player.moving = true;
+
+    } else if (player.moving) {
+      // Stopped — freeze on the correct idle frame for the last direction.
+      const idleKey = player.facing === 'up'  ? 'player_up_0' :
+                      player.facing === 'down' ? 'player_down_0' :
+                      'player_side_0';
+      player.sprite.setFlipX(player.facing === 'left');
+      player.sprite.setTexture(idleKey);
+      player.moving = false;
+    }
+
+    player.shadow.x = player.sprite.x;
+    player.shadow.y = player.sprite.y;
+  }
+
+  checkProximity() {
+    const { player } = this;
+    let nearest = null;
+    let nearestDist = Infinity;
+
+    for (const h of this.horses) {
+      const d = Phaser.Math.Distance.Between(
+        player.sprite.x, player.sprite.y,
+        h.sprite.x, h.sprite.y
+      );
+      if (d < nearestDist) { nearestDist = d; nearest = h; }
+    }
+
+    const inRange = nearest && nearestDist < INTERACT_DIST;
+    this.interactPrompt.setVisible(inRange);
+    if (inRange) {
+      this.interactPrompt.setPosition(nearest.sprite.x, nearest.sprite.y - 118);
+    }
+
+    // E key or gamepad A button — open portrait.
+    const pad    = this.gamePad;
+    const eJust  = Phaser.Input.Keyboard.JustDown(this.eKey);
+    const aJust  = (pad?.A?.isDown ?? false) && !this.prevADown;
+    this.prevADown = pad?.A?.isDown ?? false;
+
+    if (inRange && (eJust || aJust)) {
+      this.openPortrait(nearest.key);
+    }
+
+    // Gamepad B button — close portrait.
+    const bJust  = (pad?.B?.isDown ?? false) && !this.prevBDown;
+    this.prevBDown = pad?.B?.isDown ?? false;
+    if (bJust && this.scene.isActive('PortraitScene')) {
+      this.scene.stop('PortraitScene');
+    }
+  }
+
+  depthSort() {
+    const p = this.player;
+    p.shadow.setDepth(p.sprite.y - 1);
+    p.sprite.setDepth(p.sprite.y);
+
     for (const h of this.horses) {
       h.shadow.x = h.sprite.x;
       h.shadow.y = h.sprite.y;
       h.shadow.setDepth(h.sprite.y - 1);
       h.sprite.setDepth(h.sprite.y);
     }
+  }
 
+  tickDecay(delta) {
     this.decayAccum += delta;
     if (this.decayAccum >= 1000) {
       this.horse.applyDecay(this.decayAccum / 1000, false);
       this.decayAccum = 0;
       this.game.events.emit('stats-changed');
     }
+  }
 
+  tickAutosave(delta) {
     this.saveAccum += delta;
     if (this.saveAccum >= 15000) {
       this.saveAccum = 0;

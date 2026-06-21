@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { buildWorldTextures } from '../art/worldArt.js';
 import { buildHorseTextures } from '../art/horseArt.js';
 import { buildPortraitTexture } from '../art/portraitArt.js';
+import { buildPlayerTextures } from '../art/playerArt.js';
 import { getCoat } from '../data/coats.js';
 import { loadHorse } from '../data/save.js';
 import { Horse } from '../data/horse.js';
@@ -36,6 +37,7 @@ export default class BootScene extends Phaser.Scene {
 
     // Build textures for each horse's coat.
     buildWorldTextures(this);
+    buildPlayerTextures(this);
     buildHorseTextures(this, 'horse',  getCoat(playerHorse.coat));
     buildHorseTextures(this, 'horse2', getCoat('bay'));
     buildHorseTextures(this, 'horse3', getCoat('dappleGrey'));
