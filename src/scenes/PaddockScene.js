@@ -266,6 +266,7 @@ export default class PaddockScene extends Phaser.Scene {
         this.player.moving = false;
         const idleKey = facing === 'up'   ? 'player_up_0' :
                         facing === 'down'  ? 'player_down_0' : 'player_side_0';
+        sprite.stop();
         sprite.setTexture(idleKey);
         onArrive?.();
       },
@@ -482,6 +483,7 @@ export default class PaddockScene extends Phaser.Scene {
                       player.facing === 'down' ? 'player_down_0' :
                       'player_side_0';
       player.sprite.setFlipX(player.facing === 'left');
+      player.sprite.stop();
       player.sprite.setTexture(idleKey);
       player.moving = false;
     }
