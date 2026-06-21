@@ -53,10 +53,11 @@ export default class HotbarScene extends Phaser.Scene {
       this.slots.push({ g, x, num, icon, label });
     }
 
-    // Number keys 1–8.
-    for (let i = 1; i <= NUM_SLOTS; i++) {
-      this.input.keyboard.on(`keydown-${i}`, () => this.setActive(i - 1));
-    }
+    // Number keys 1–8 (Phaser uses word-form key names for digits).
+    const KEY_NAMES = ['ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN','EIGHT'];
+    KEY_NAMES.forEach((name, i) => {
+      this.input.keyboard.on(`keydown-${name}`, () => this.setActive(i));
+    });
 
     // Gamepad LB/RB (buttons 4/5) cycle slots.
     this.input.gamepad.on('down', (_pad, button) => {
