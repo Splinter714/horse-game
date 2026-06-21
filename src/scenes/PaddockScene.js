@@ -150,9 +150,9 @@ export default class PaddockScene extends Phaser.Scene {
     const startY = WORLD_H / 2 + 60;
 
     const shadow = this.add.image(startX, startY, 'shadow')
-      .setScale(S * 0.65).setDepth(startY - 1);
+      .setScale(S * 1.0).setDepth(startY - 1);
     const sprite = this.add.sprite(startX, startY, 'player_down_0')
-      .setOrigin(0.5, 1).setScale(S).setDepth(startY);
+      .setOrigin(0.5, 1).setScale(3).setDepth(startY);
 
     this.player = { sprite, shadow, facing: 'down', moving: false };
 
@@ -171,15 +171,16 @@ export default class PaddockScene extends Phaser.Scene {
     this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
     // Gamepad — works for any controller connected before or after scene starts.
-    this.gamePad   = null;
-    this.prevADown = false;
-    this.prevBDown = false;
+    this.gamePad    = null;
+    this.prevADown  = false;
+    this.prevBDown  = false;
+    this.usingPad   = false; // tracks active input method for prompt label
     this.input.gamepad.on('connected', pad => { this.gamePad = pad; });
     if (this.input.gamepad.total > 0) {
       this.gamePad = this.input.gamepad.getPad(0);
     }
 
-    // Interact prompt shown above the nearest horse when close enough.
+    // Interact prompt — label updates based on whether gamepad or keyboard is active.
     this.interactPrompt = this.add.text(0, 0, '[ E ]  interact', {
       fontFamily: 'system-ui, sans-serif',
       fontSize: '13px',
@@ -286,17 +287,30 @@ export default class PaddockScene extends Phaser.Scene {
     if (cursors.up.isDown    || wasd.up.isDown)     vy -= 1;
     if (cursors.down.isDown  || wasd.down.isDown)   vy += 1;
 
-    // Gamepad left stick (dead-zone 0.15) and D-pad
+    // Gamepad left stick (dead-zone 0.15) and D-pad.
+    // pad.left/right/up/down return float 0-1 (button value), not GamepadButton objects.
     if (pad) {
       const sx = pad.leftStick.x;
       const sy = pad.leftStick.y;
       if (Math.abs(sx) > 0.15) vx += sx;
       if (Math.abs(sy) > 0.15) vy += sy;
-      if (pad.left?.isDown)  vx -= 1;
-      if (pad.right?.isDown) vx += 1;
-      if (pad.up?.isDown)    vy -= 1;
-      if (pad.down?.isDown)  vy += 1;
+      if (pad.left  > 0.5) vx -= 1;
+      if (pad.right > 0.5) vx += 1;
+      if (pad.up    > 0.5) vy -= 1;
+      if (pad.down  > 0.5) vy += 1;
     }
+
+    // Detect active input method to drive prompt label.
+    const kbActive  = cursors.left.isDown || cursors.right.isDown ||
+                      cursors.up.isDown   || cursors.down.isDown  ||
+                      wasd.left.isDown    || wasd.right.isDown    ||
+                      wasd.up.isDown      || wasd.down.isDown;
+    const padActive = pad && (
+      Math.abs(pad.leftStick.x) > 0.15 || Math.abs(pad.leftStick.y) > 0.15 ||
+      pad.left > 0.5 || pad.right > 0.5 || pad.up > 0.5 || pad.down > 0.5
+    );
+    if (kbActive)  this.usingPad = false;
+    if (padActive) this.usingPad = true;
 
     // Clamp combined input to unit range.
     vx = Phaser.Math.Clamp(vx, -1, 1);
@@ -358,24 +372,33 @@ export default class PaddockScene extends Phaser.Scene {
     }
 
     const inRange = nearest && nearestDist < INTERACT_DIST;
-    this.interactPrompt.setVisible(inRange);
+
     if (inRange) {
+      // Show prompt only for the active input method.
+      const label = this.usingPad ? '[ A ]  interact' : '[ E ]  interact';
+      if (this.interactPrompt.text !== label) this.interactPrompt.setText(label);
       this.interactPrompt.setPosition(nearest.sprite.x, nearest.sprite.y - 118);
+      this.interactPrompt.setVisible(true);
+    } else {
+      this.interactPrompt.setVisible(false);
     }
 
-    // E key or gamepad A button — open portrait.
-    const pad    = this.gamePad;
-    const eJust  = Phaser.Input.Keyboard.JustDown(this.eKey);
-    const aJust  = (pad?.A?.isDown ?? false) && !this.prevADown;
-    this.prevADown = pad?.A?.isDown ?? false;
+    // E key or gamepad A button (index 0) — open portrait.
+    // pad.buttons[0] is the GamepadButton object with .isDown; pad.A is just a float.
+    const pad     = this.gamePad;
+    const btnA    = pad?.buttons[0];
+    const eJust   = Phaser.Input.Keyboard.JustDown(this.eKey);
+    const aJust   = (btnA?.isDown ?? false) && !this.prevADown;
+    this.prevADown = btnA?.isDown ?? false;
 
     if (inRange && (eJust || aJust)) {
       this.openPortrait(nearest.key);
     }
 
-    // Gamepad B button — close portrait.
-    const bJust  = (pad?.B?.isDown ?? false) && !this.prevBDown;
-    this.prevBDown = pad?.B?.isDown ?? false;
+    // Gamepad B button (index 1) — close portrait.
+    const btnB   = pad?.buttons[1];
+    const bJust  = (btnB?.isDown ?? false) && !this.prevBDown;
+    this.prevBDown = btnB?.isDown ?? false;
     if (bJust && this.scene.isActive('PortraitScene')) {
       this.scene.stop('PortraitScene');
     }
