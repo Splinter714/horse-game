@@ -976,7 +976,6 @@ export default class PaddockScene extends Phaser.Scene {
     // Lead rope drawn each frame when leading a horse
     this.leadRope = this.add.graphics().setDepth(9998);
 
-    this._initDebugOverlay();
   }
 
   handleTap(pointer) {
@@ -1397,7 +1396,6 @@ export default class PaddockScene extends Phaser.Scene {
     this.depthSort();
     this.tickDecay(delta);
     this.tickAutosave(delta);
-    this._updateDebugOverlay();
   }
 
   _pollRawPad() {
@@ -1438,84 +1436,6 @@ export default class PaddockScene extends Phaser.Scene {
     }
 
     this._prevRawButtons = { btnA: this._rawPad.btnA, btnB: this._rawPad.btnB };
-  }
-
-  _initDebugOverlay() {
-    this._debugVisible = false;
-
-    // Small toggle button fixed to top-left (camera-independent)
-    this._debugBtn = this.add.text(8, 8, 'DBG', {
-      fontFamily: 'monospace', fontSize: '11px',
-      color: '#ffffff', backgroundColor: '#00000099',
-      padding: { x: 4, y: 2 },
-    }).setScrollFactor(0).setDepth(99999).setInteractive({ useHandCursor: true });
-
-    this._debugBtn.on('pointerdown', () => {
-      this._debugVisible = !this._debugVisible;
-      this._debugPanel.setVisible(this._debugVisible);
-    });
-
-    this._debugPanel = this.add.text(8, 28, '', {
-      fontFamily: 'monospace', fontSize: '11px',
-      color: '#00ff88', backgroundColor: '#000000cc',
-      padding: { x: 6, y: 4 },
-    }).setScrollFactor(0).setDepth(99999).setVisible(false);
-  }
-
-  _updateDebugOverlay() {
-    if (!this._debugVisible) return;
-
-    const gp = this.input.gamepad;
-    const pad = this.gamePad;
-    const rawPads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
-
-    const lines = [
-      `Phaser gamepad plugin: ${gp ? 'ok' : 'MISSING'}`,
-      `Phaser pads detected:  ${gp?.total ?? 0}`,
-      `navigator.getGamepads: ${rawPads.length} pad(s)`,
-      `this.gamePad set:      ${pad ? 'yes (' + (pad.id || 'no id') + ')' : 'no'}`,
-      '',
-    ];
-
-    if (pad) {
-      lines.push(`Phaser btn count: ${pad.buttons?.length ?? 'n/a'}`);
-      lines.push(`Phaser axis count: ${pad.axes?.length ?? 'n/a'}`);
-      lines.push('Phaser buttons active:');
-      let anyPhaser = false;
-      if (pad.buttons) {
-        for (let i = 0; i < pad.buttons.length; i++) {
-          const b = pad.buttons[i];
-          const val = b?.value ?? (b?.pressed ? 1 : 0);
-          if (val > 0.1) { lines.push(`  btn${i}: ${val.toFixed(2)}`); anyPhaser = true; }
-        }
-      }
-      if (!anyPhaser) lines.push('  (none)');
-
-      lines.push('Phaser axes active:');
-      let anyAxis = false;
-      if (pad.axes) {
-        for (let i = 0; i < pad.axes.length; i++) {
-          const a = pad.axes[i];
-          const val = a?.getValue?.() ?? a?.value ?? a ?? 0;
-          if (Math.abs(val) > 0.1) { lines.push(`  axis${i}: ${val.toFixed(2)}`); anyAxis = true; }
-        }
-      }
-      if (!anyAxis) lines.push('  (none)');
-    }
-
-    if (rawPads.length) {
-      const r = rawPads[0];
-      lines.push('');
-      lines.push(`Raw nav.getGamepads id:`);
-      lines.push(`  ${r.id.substring(0, 40)}`);
-      const pressed = r.buttons.map((b, i) => b.pressed ? i : -1).filter(i => i >= 0);
-      const axesActive = [...r.axes].map((v, i) => Math.abs(v) > 0.1 ? `${i}:${v.toFixed(1)}` : null).filter(Boolean);
-      lines.push(`  Raw btns pressed: ${pressed.length ? pressed.join(', ') : '(none)'}`);
-      lines.push(`  Raw axes active:  ${axesActive.length ? axesActive.join(', ') : '(none)'}`);
-    }
-
-    lines.push('', `usingPad flag: ${this.usingPad}`);
-    this._debugPanel.setText(lines.join('\n'));
   }
 
   updateFoals(delta) {
