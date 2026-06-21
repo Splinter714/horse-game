@@ -961,17 +961,10 @@ export default class PaddockScene extends Phaser.Scene {
     this.gamePad      = null;
     this.usingPad     = false;
     this.padAJustDown = false;
+    this._prevRawButtons = {};
 
     this.input.gamepad.on('connected', pad => { this.gamePad = pad; });
     if (this.input.gamepad.total > 0) this.gamePad = this.input.gamepad.getPad(0);
-
-    this.input.gamepad.on('down', (_pad, button) => {
-      this.usingPad = true;
-      if (button.index === 0) this.padAJustDown = true;
-      if (button.index === 1 && this.scene.isActive('PortraitScene')) {
-        this.scene.stop('PortraitScene');
-      }
-    });
 
     this.interactPrompt = this.add.text(0, 0, '', {
       fontFamily: 'system-ui, sans-serif',
@@ -982,6 +975,8 @@ export default class PaddockScene extends Phaser.Scene {
 
     // Lead rope drawn each frame when leading a horse
     this.leadRope = this.add.graphics().setDepth(9998);
+
+    this._initDebugOverlay();
   }
 
   handleTap(pointer) {
@@ -1393,6 +1388,7 @@ export default class PaddockScene extends Phaser.Scene {
   // ─── Update ──────────────────────────────────────────────────────────────
 
   update(time, delta) {
+    this._pollRawPad();
     this.updateRiding(delta);
     this.movePlayer(delta);
     this.updateLeading(delta);
@@ -1401,6 +1397,125 @@ export default class PaddockScene extends Phaser.Scene {
     this.depthSort();
     this.tickDecay(delta);
     this.tickAutosave(delta);
+    this._updateDebugOverlay();
+  }
+
+  _pollRawPad() {
+    const raw = navigator.getGamepads ? [...navigator.getGamepads()].find(Boolean) : null;
+    if (!raw) { this._rawPad = null; return; }
+
+    // If Phaser detected it, keep this.gamePad set so the rest of the code knows a pad exists.
+    // But we'll read actual state from the raw pad to avoid Phaser's stale cache.
+    if (!this.gamePad && this.input.gamepad.total > 0) {
+      this.gamePad = this.input.gamepad.getPad(0);
+    }
+    if (!this.gamePad && raw) this.gamePad = {}; // sentinel so movePlayer enters the pad branch
+
+    const btns = raw.buttons;
+    const axes = raw.axes;
+
+    // Standard gamepad mapping
+    this._rawPad = {
+      leftStickX:  axes[0] ?? 0,
+      leftStickY:  axes[1] ?? 0,
+      dUp:    btns[12]?.pressed ?? false,
+      dDown:  btns[13]?.pressed ?? false,
+      dLeft:  btns[14]?.pressed ?? false,
+      dRight: btns[15]?.pressed ?? false,
+      btnA:   btns[0]?.pressed  ?? false,
+      btnB:   btns[1]?.pressed  ?? false,
+    };
+
+    // Edge-detect A (just-pressed this frame)
+    if (this._rawPad.btnA && !this._prevRawButtons.btnA) {
+      this.padAJustDown = true;
+      this.usingPad = true;
+    }
+    // B closes portrait
+    if (this._rawPad.btnB && !this._prevRawButtons.btnB) {
+      this.usingPad = true;
+      if (this.scene.isActive('PortraitScene')) this.scene.stop('PortraitScene');
+    }
+
+    this._prevRawButtons = { btnA: this._rawPad.btnA, btnB: this._rawPad.btnB };
+  }
+
+  _initDebugOverlay() {
+    this._debugVisible = false;
+
+    // Small toggle button fixed to top-left (camera-independent)
+    this._debugBtn = this.add.text(8, 8, 'DBG', {
+      fontFamily: 'monospace', fontSize: '11px',
+      color: '#ffffff', backgroundColor: '#00000099',
+      padding: { x: 4, y: 2 },
+    }).setScrollFactor(0).setDepth(99999).setInteractive({ useHandCursor: true });
+
+    this._debugBtn.on('pointerdown', () => {
+      this._debugVisible = !this._debugVisible;
+      this._debugPanel.setVisible(this._debugVisible);
+    });
+
+    this._debugPanel = this.add.text(8, 28, '', {
+      fontFamily: 'monospace', fontSize: '11px',
+      color: '#00ff88', backgroundColor: '#000000cc',
+      padding: { x: 6, y: 4 },
+    }).setScrollFactor(0).setDepth(99999).setVisible(false);
+  }
+
+  _updateDebugOverlay() {
+    if (!this._debugVisible) return;
+
+    const gp = this.input.gamepad;
+    const pad = this.gamePad;
+    const rawPads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
+
+    const lines = [
+      `Phaser gamepad plugin: ${gp ? 'ok' : 'MISSING'}`,
+      `Phaser pads detected:  ${gp?.total ?? 0}`,
+      `navigator.getGamepads: ${rawPads.length} pad(s)`,
+      `this.gamePad set:      ${pad ? 'yes (' + (pad.id || 'no id') + ')' : 'no'}`,
+      '',
+    ];
+
+    if (pad) {
+      lines.push(`Phaser btn count: ${pad.buttons?.length ?? 'n/a'}`);
+      lines.push(`Phaser axis count: ${pad.axes?.length ?? 'n/a'}`);
+      lines.push('Phaser buttons active:');
+      let anyPhaser = false;
+      if (pad.buttons) {
+        for (let i = 0; i < pad.buttons.length; i++) {
+          const b = pad.buttons[i];
+          const val = b?.value ?? (b?.pressed ? 1 : 0);
+          if (val > 0.1) { lines.push(`  btn${i}: ${val.toFixed(2)}`); anyPhaser = true; }
+        }
+      }
+      if (!anyPhaser) lines.push('  (none)');
+
+      lines.push('Phaser axes active:');
+      let anyAxis = false;
+      if (pad.axes) {
+        for (let i = 0; i < pad.axes.length; i++) {
+          const a = pad.axes[i];
+          const val = a?.getValue?.() ?? a?.value ?? a ?? 0;
+          if (Math.abs(val) > 0.1) { lines.push(`  axis${i}: ${val.toFixed(2)}`); anyAxis = true; }
+        }
+      }
+      if (!anyAxis) lines.push('  (none)');
+    }
+
+    if (rawPads.length) {
+      const r = rawPads[0];
+      lines.push('');
+      lines.push(`Raw nav.getGamepads id:`);
+      lines.push(`  ${r.id.substring(0, 40)}`);
+      const pressed = r.buttons.map((b, i) => b.pressed ? i : -1).filter(i => i >= 0);
+      const axesActive = [...r.axes].map((v, i) => Math.abs(v) > 0.1 ? `${i}:${v.toFixed(1)}` : null).filter(Boolean);
+      lines.push(`  Raw btns pressed: ${pressed.length ? pressed.join(', ') : '(none)'}`);
+      lines.push(`  Raw axes active:  ${axesActive.length ? axesActive.join(', ') : '(none)'}`);
+    }
+
+    lines.push('', `usingPad flag: ${this.usingPad}`);
+    this._debugPanel.setText(lines.join('\n'));
   }
 
   updateFoals(delta) {
@@ -1454,23 +1569,23 @@ export default class PaddockScene extends Phaser.Scene {
     if (cursors.up.isDown    || wasd.up.isDown)     vy -= 1;
     if (cursors.down.isDown  || wasd.down.isDown)   vy += 1;
 
-    if (pad) {
-      const sx = pad.leftStick.x, sy = pad.leftStick.y;
-      if (Math.abs(sx) > 0.15) vx += sx;
-      if (Math.abs(sy) > 0.15) vy += sy;
-      if (pad.left  > 0.5) vx -= 1;
-      if (pad.right > 0.5) vx += 1;
-      if (pad.up    > 0.5) vy -= 1;
-      if (pad.down  > 0.5) vy += 1;
+    const rp = this._rawPad;
+    if (rp) {
+      if (Math.abs(rp.leftStickX) > 0.15) vx += rp.leftStickX;
+      if (Math.abs(rp.leftStickY) > 0.15) vy += rp.leftStickY;
+      if (rp.dLeft)  vx -= 1;
+      if (rp.dRight) vx += 1;
+      if (rp.dUp)    vy -= 1;
+      if (rp.dDown)  vy += 1;
     }
 
     const kbActive  = cursors.left.isDown || cursors.right.isDown ||
                       cursors.up.isDown   || cursors.down.isDown  ||
                       wasd.left.isDown    || wasd.right.isDown    ||
                       wasd.up.isDown      || wasd.down.isDown;
-    const padActive = pad && (
-      Math.abs(pad.leftStick.x) > 0.15 || Math.abs(pad.leftStick.y) > 0.15 ||
-      pad.left > 0.5 || pad.right > 0.5 || pad.up > 0.5 || pad.down > 0.5
+    const padActive = rp && (
+      Math.abs(rp.leftStickX) > 0.15 || Math.abs(rp.leftStickY) > 0.15 ||
+      rp.dLeft || rp.dRight || rp.dUp || rp.dDown
     );
     if (kbActive)  this.usingPad = false;
     if (padActive) this.usingPad = true;
