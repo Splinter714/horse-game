@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { saveHorse } from '../data/save.js';
 import {
   playHoofbeat, playEat, playDrink, playBrush, playChime,
-  playSplash, playBirdChirp, startWind, stopWind,
+  playSplash, playBirdChirp, startWind, stopWind, startMusic, stopMusic,
 } from '../audio/sounds.js';
 
 const WORLD_W = 1920;
@@ -55,10 +55,12 @@ export default class PaddockScene extends Phaser.Scene {
       this.game.events.off('horse-action',  this.doAction,      this);
       this.game.events.off('phase-change',  this.onPhaseChange, this);
       stopWind();
+      stopMusic();
     });
 
     // Ambient audio
     startWind();
+    startMusic();
     this._scheduleBirds();
 
     // Riding hoofbeat timer (fires at horse walk frame rate)
@@ -824,7 +826,7 @@ export default class PaddockScene extends Phaser.Scene {
       return;
     }
 
-    this.tapMoveTo(world.x, world.y);
+    if (!this._collides(world.x, world.y)) this.tapMoveTo(world.x, world.y);
   }
 
   tapMoveTo(tx, ty, onArrive) {
@@ -833,9 +835,6 @@ export default class PaddockScene extends Phaser.Scene {
     const { sprite } = this.player;
     tx = Phaser.Math.Clamp(tx, PLAYER_BOUNDS.minX, PLAYER_BOUNDS.maxX);
     ty = Phaser.Math.Clamp(ty, PLAYER_BOUNDS.minY, PLAYER_BOUNDS.maxY);
-
-    // Don't walk into an obstacle — silently cancel the tap
-    if (this._collides(tx, ty)) return;
 
     const dist = Phaser.Math.Distance.Between(sprite.x, sprite.y, tx, ty);
     if (dist < 8) { onArrive?.(); return; }

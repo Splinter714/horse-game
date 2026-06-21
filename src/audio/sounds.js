@@ -281,7 +281,7 @@ export function startWind() {
   filter.frequency.value = 300;
 
   windGain = c.createGain();
-  windGain.gain.value = muted ? 0 : 0.07;
+  windGain.gain.value = muted ? 0 : 0.03;
 
   windNode.connect(filter);
   filter.connect(windGain);
@@ -299,7 +299,7 @@ export function stopWind() {
 
 // ─── Background music (procedural chiptune) ──────────────────────────────────
 
-const TEMPO    = 104;          // BPM
+const TEMPO    = 116;          // BPM
 const BEAT     = 60 / TEMPO;  // seconds per beat
 const LOOKAHEAD = 0.25;        // schedule this far ahead (s)
 const TICK      = 80;          // scheduler interval (ms)
@@ -312,14 +312,14 @@ const C5=523.25,D5=587.33,E5=659.25,F5=698.46,G5=783.99,A5=880.00,B5=987.77;
 // Each entry: [freq (0=rest), duration in beats]
 // 8-bar melody — square wave lead
 const MELODY = [
-  [C5,1],[E5,0.5],[G5,0.5],[E5,1],[C5,1],          // bar 1
-  [D5,1],[F5,0.5],[A5,0.5],[F5,1],[D5,1],           // bar 2
-  [E5,1],[G5,0.5],[C5,0.5],[G5,1.5],[0,0.5],        // bar 3
-  [C5,1.5],[D5,0.5],[E5,2],                          // bar 4
-  [G5,1],[E5,0.5],[C5,0.5],[D5,1],[E5,1],           // bar 5
-  [F5,1],[A5,0.5],[G5,0.5],[E5,1],[D5,1],           // bar 6
-  [G5,1],[F5,0.5],[E5,0.5],[D5,1],[C5,1],           // bar 7
-  [E5,1.5],[G5,0.5],[C5,2],                          // bar 8
+  [C5,0.5],[E5,0.5],[G5,0.5],[E5,0.5],[C5,1],[G5,1],        // bar 1 — bouncy opening
+  [D5,0.5],[F5,0.5],[A5,0.5],[F5,0.5],[D5,1],[A5,1],        // bar 2
+  [E5,0.5],[G5,0.5],[C5,0.5],[E5,0.5],[G5,1],[0,1],         // bar 3 — rest for breath
+  [C5,0.5],[D5,0.5],[E5,0.5],[G5,0.5],[A5,2],               // bar 4 — rising run
+  [G5,0.5],[E5,0.5],[C5,0.5],[D5,0.5],[E5,1],[C5,1],        // bar 5
+  [F5,0.5],[A5,0.5],[G5,0.5],[F5,0.5],[E5,0.5],[D5,0.5],[C5,1], // bar 6 — descending run
+  [G5,1],[A5,0.5],[G5,0.5],[E5,0.5],[D5,0.5],[C5,1],        // bar 7
+  [E5,0.5],[G5,0.5],[A5,0.5],[G5,0.5],[C5,2],               // bar 8 — resolve
 ];
 
 // Bass line — triangle wave (2-beat notes)
@@ -348,13 +348,14 @@ const CHORDS = [
 
 const PATTERN_BEATS = 32; // 8 bars × 4 beats
 
-let musicGain   = null;
-let musicTimer  = null;
-let nextBeat    = 0;   // ctx time when next note starts
-let melodyIdx   = 0;
-let bassIdx     = 0;
-let chordIdx    = 0;
-let beatCount   = 0;   // beats elapsed in pattern
+let musicGain      = null;
+let musicTimer     = null;
+let nextMelodyTime = 0;
+let nextBassTime   = 0;
+let nextChordTime  = 0;
+let melodyIdx      = 0;
+let bassIdx        = 0;
+let chordIdx       = 0;
 
 function scheduleMelodyNote(time, freq, dur) {
   if (!freq) return;
@@ -414,35 +415,28 @@ function schedulerTick() {
 
   const ahead = c.currentTime + LOOKAHEAD;
 
-  // Melody
-  while (nextBeat < ahead && melodyIdx < MELODY.length) {
+  // Melody voice
+  while (nextMelodyTime < ahead) {
     const [freq, dur] = MELODY[melodyIdx];
-    scheduleMelodyNote(nextBeat, freq, dur);
+    scheduleMelodyNote(nextMelodyTime, freq, dur);
+    nextMelodyTime += dur * BEAT;
+    melodyIdx = (melodyIdx + 1) % MELODY.length;
+  }
 
-    // Bass — schedule when bass cursor aligns with melody cursor
-    const bassNote = BASS[bassIdx];
-    if (bassNote) {
-      scheduleBassNote(nextBeat, bassNote[0], bassNote[1]);
-      bassIdx++;
-    }
+  // Bass voice (independent cursor)
+  while (nextBassTime < ahead) {
+    const [freq, dur] = BASS[bassIdx];
+    scheduleBassNote(nextBassTime, freq, dur);
+    nextBassTime += dur * BEAT;
+    bassIdx = (bassIdx + 1) % BASS.length;
+  }
 
-    // Chord on beat boundary
-    const chordNote = CHORDS[chordIdx];
-    if (chordNote && beatCount % 4 === 0) {
-      scheduleChord(nextBeat, chordNote[0]);
-      chordIdx = (chordIdx + 1) % CHORDS.length;
-    }
-
-    beatCount += dur;
-    nextBeat  += dur * BEAT;
-    melodyIdx++;
-
-    if (melodyIdx >= MELODY.length) {
-      // Loop: reset indices, keep nextBeat for seamless repeat
-      melodyIdx = 0;
-      bassIdx   = 0;
-      beatCount = 0;
-    }
+  // Chord stabs every 4 beats
+  while (nextChordTime < ahead) {
+    const [freqs] = CHORDS[chordIdx];
+    scheduleChord(nextChordTime, freqs);
+    nextChordTime += 4 * BEAT;
+    chordIdx = (chordIdx + 1) % CHORDS.length;
   }
 }
 
@@ -450,15 +444,16 @@ export function startMusic() {
   if (musicTimer) return;
   const c = getCtx();
   musicGain = c.createGain();
-  musicGain.gain.value = muted ? 0 : 0.55;
+  musicGain.gain.value = muted ? 0 : 0.07;
   musicGain.connect(c.destination);
 
-  // Init scheduling cursors
-  nextBeat  = c.currentTime + 0.1;
+  const start = c.currentTime + 0.1;
+  nextMelodyTime = start;
+  nextBassTime   = start;
+  nextChordTime  = start;
   melodyIdx = 0;
   bassIdx   = 0;
   chordIdx  = 0;
-  beatCount = 0;
 
   musicTimer = setInterval(schedulerTick, TICK);
   schedulerTick();
@@ -479,7 +474,7 @@ export function stopMusic() {
 export function toggleMute() {
   muted = !muted;
   if (windGain)  windGain.gain.value  = muted ? 0 : 0.07;
-  if (musicGain) musicGain.gain.value = muted ? 0 : 0.55;
+  if (musicGain) musicGain.gain.value = muted ? 0 : 0.07;
   return muted;
 }
 
