@@ -214,9 +214,15 @@ export default class PaddockScene extends Phaser.Scene {
     for (const h of this.horses) {
       const d = Phaser.Math.Distance.Between(world.x, world.y, h.sprite.x, h.sprite.y);
       if (d < 80) {
-        // Walk to just beside the horse, then open portrait.
         const tx = h.sprite.x + (world.x < h.sprite.x ? -70 : 70);
-        this.tapMoveTo(tx, h.sprite.y, () => this.openPortrait(h.key));
+        this.tapMoveTo(tx, h.sprite.y, () => {
+          const item = this.getActiveItem();
+          if (item) {
+            this.useItemOnHorse(item, h);
+          } else {
+            this.openPortrait(h.key);
+          }
+        });
         return;
       }
     }
@@ -264,6 +270,44 @@ export default class PaddockScene extends Phaser.Scene {
         onArrive?.();
       },
     });
+  }
+
+  // Returns the active hotbar item, or null.
+  getActiveItem() {
+    const hotbar = this.scene.get('HotbarScene');
+    return hotbar?.getActiveItem() ?? null;
+  }
+
+  // Apply an item's action to a horse immediately (no panel needed).
+  useItemOnHorse(item, h) {
+    const allHorses = this.registry.get('allHorses');
+    const horse = allHorses[h.key];
+    if (!horse) return;
+
+    switch (item.action) {
+      case 'feed':  horse.feed();  break;
+      case 'water': horse.water(); break;
+      case 'brush': horse.brush(); break;
+      case 'pet':   horse.pet();   break;
+    }
+
+    if (h.key === 'horse') saveHorse(horse);
+    this.game.events.emit('stats-changed');
+
+    if (item.action === 'pet') {
+      this.showHeart(h.sprite);
+      this.hop(h.sprite);
+    } else {
+      this.showIcon(item.icon, h.sprite);
+    }
+
+    // Refresh portrait panel if it's open for this horse.
+    if (this.scene.isActive('PortraitScene')) {
+      const viewing = this.registry.get('viewingHorse');
+      if (viewing?.horseKey === h.key) {
+        this.scene.get('PortraitScene').refreshStats(horse);
+      }
+    }
   }
 
   // ─── Portrait ────────────────────────────────────────────────────────────
@@ -462,8 +506,10 @@ export default class PaddockScene extends Phaser.Scene {
     const inRange = nearest && nearestDist < INTERACT_DIST;
 
     if (inRange) {
-      // Show prompt only for the active input method.
-      const label = this.usingPad ? '[ A ]  interact' : '[ E ]  interact';
+      const item = this.getActiveItem();
+      const verb = item ? `Use ${item.label}` : 'Info';
+      const btn  = this.usingPad ? '[ A ]' : '[ E ]';
+      const label = `${btn}  ${verb}`;
       if (this.interactPrompt.text !== label) this.interactPrompt.setText(label);
       this.interactPrompt.setPosition(nearest.sprite.x, nearest.sprite.y - 118);
       this.interactPrompt.setVisible(true);
@@ -471,13 +517,17 @@ export default class PaddockScene extends Phaser.Scene {
       this.interactPrompt.setVisible(false);
     }
 
-    // E key — open portrait. A button is handled via gamepad 'down' event in buildPlayer.
     const eJust = Phaser.Input.Keyboard.JustDown(this.eKey);
     const aJust = this.padAJustDown;
     this.padAJustDown = false;
 
     if (inRange && (eJust || aJust)) {
-      this.openPortrait(nearest.key);
+      const item = this.getActiveItem();
+      if (item) {
+        this.useItemOnHorse(item, nearest);
+      } else {
+        this.openPortrait(nearest.key);
+      }
     }
   }
 

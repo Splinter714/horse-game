@@ -113,6 +113,36 @@ export function buildWorldTextures(scene) {
     g.fillStyle(0xb6432e, 1); g.fillRect(4, 8, 12, 9);
     g.fillStyle(0x5a2418, 1); g.fillRect(8, 11, 4, 6);
   });
+  tex(scene, 'iconApple', 20, 20, (g) => { // red apple
+    g.fillStyle(0xd64545, 1); g.fillCircle(10, 12, 6);
+    g.fillStyle(0xe87a7a, 1); g.fillCircle(8, 10, 2);
+    g.fillStyle(0x6a3d1a, 1); g.fillRect(9, 4, 2, 4);
+    g.fillStyle(0x3b6d11, 1); g.fillEllipse(13, 5, 6, 3);
+  });
+  tex(scene, 'iconHay', 20, 20, (g) => { // hay bundle
+    g.fillStyle(0xd9b94a, 1); g.fillRoundedRect(3, 6, 14, 10, 3);
+    g.fillStyle(0xc4a43a, 1);
+    g.fillRect(3, 9, 14, 1); g.fillRect(3, 12, 14, 1);
+    g.fillStyle(0x9a7c2a, 1); g.fillRect(8, 6, 1, 10); g.fillRect(11, 6, 1, 10);
+    // stray stalks
+    g.fillStyle(0xd9b94a, 1);
+    g.fillRect(5, 3, 1, 4); g.fillRect(10, 2, 1, 5); g.fillRect(14, 4, 1, 3);
+  });
+  tex(scene, 'iconCarrot', 20, 20, (g) => { // carrot
+    g.fillStyle(0xf07830, 1);
+    g.fillTriangle(10, 17, 6, 7, 14, 7);
+    g.fillStyle(0xff9a5a, 1); g.fillRect(8, 8, 2, 6);
+    g.fillStyle(0x3b8a1c, 1);
+    g.fillRect(9, 3, 1, 5); g.fillRect(7, 4, 1, 4); g.fillRect(11, 4, 1, 4);
+  });
+  tex(scene, 'iconTreat', 20, 20, (g) => { // sugar cube with sparkle
+    g.fillStyle(0xf5ecd0, 1); g.fillRoundedRect(4, 7, 12, 10, 2);
+    g.fillStyle(0xe8d8a8, 1);
+    g.fillRect(4, 11, 12, 1); g.fillRect(9, 7, 1, 10);
+    g.fillStyle(0xffe066, 1); // sparkle
+    g.fillRect(14, 3, 2, 2); g.fillRect(15, 2, 1, 4); g.fillRect(13, 4, 4, 1);
+    g.fillRect(3, 3, 1, 1);
+  });
   tex(scene, 'iconHeart', 20, 20, (g) => { // heart for the Love button
     g.fillStyle(0xe06a86, 1);
     g.fillCircle(7, 8, 4.5);
