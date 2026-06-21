@@ -32,7 +32,11 @@ export default class PaddockScene extends Phaser.Scene {
 
     // World interactables
     this.props = { trough: null, hayPiles: [], seedPiles: [], nests: [] };
-    this.inventory = { egg: 0 };
+    this.inventory = {};
+    this.basketEggs = 0;
+    this.money = 0;
+    this.farmStand = null;
+    this.npcs = [];
 
     // Riding / leading state
     this.riding   = null; // { h, saddleImg }
@@ -44,16 +48,22 @@ export default class PaddockScene extends Phaser.Scene {
     this.buildHorses();
     this.buildAnimals();
     this.buildPlayer();
+    this.buildFarmStand();
 
     // Periodic AI tick: direct idle horses to food/water
     this.time.addEvent({ delay: 3000, loop: true, callback: this.horseTick, callbackScope: this });
 
+    // NPC customer spawning — schedule first arrival
+    this._scheduleNextCustomer();
+
     this.isNight = false;
-    this.game.events.on('horse-action',  this.doAction,      this);
-    this.game.events.on('phase-change',  this.onPhaseChange, this);
+    this.game.events.on('horse-action',    this.doAction,        this);
+    this.game.events.on('phase-change',    this.onPhaseChange,   this);
+    this.game.events.on('basket-shortcut', this.doBasketAction,  this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.game.events.off('horse-action',  this.doAction,      this);
-      this.game.events.off('phase-change',  this.onPhaseChange, this);
+      this.game.events.off('horse-action',    this.doAction,        this);
+      this.game.events.off('phase-change',    this.onPhaseChange,   this);
+      this.game.events.off('basket-shortcut', this.doBasketAction,  this);
       stopWind();
       stopMusic();
     });
@@ -220,6 +230,198 @@ export default class PaddockScene extends Phaser.Scene {
     });
 
     this.time.addEvent({ delay: 2000, loop: true, callback: this.chickenTick, callbackScope: this });
+  }
+
+  // ─── Farm Stand ──────────────────────────────────────────────────────────
+
+  buildFarmStand() {
+    const sx = 1680, sy = 360;
+    const sprite = this.add.image(sx, sy, 'farmStand')
+      .setScale(S).setDepth(sy).setOrigin(0.5, 1);
+    this.farmStand = { x: sx, y: sy, stock: 0, sprite };
+
+    // Sign above stand showing stock
+    this.farmStand.sign = this.add.text(sx, sy - 100, '', {
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: '13px',
+      color: '#fffde0',
+      backgroundColor: '#1c1f2ecc',
+      padding: { x: 8, y: 5 },
+    }).setOrigin(0.5, 1).setDepth(sy + 10).setVisible(false);
+
+    // Obstacle: the solid table area (72*2=144 wide, ~22*2=44 tall, top-half of sprite)
+    this.obstacles.push({ x: sx - 72, y: sy - 88, w: 144, h: 60, isFarmStand: true });
+
+    this._updateStandSign();
+  }
+
+  _updateStandSign() {
+    const s = this.farmStand;
+    if (s.stock > 0) {
+      s.sign.setText(`🥚 ×${s.stock}  for sale`);
+      s.sign.setVisible(true);
+    } else {
+      s.sign.setVisible(false);
+    }
+  }
+
+  doBasketAction() {
+    const { player } = this;
+    // Deposit at farm stand
+    if (this.farmStand && this.basketEggs > 0) {
+      const fd = Phaser.Math.Distance.Between(
+        player.sprite.x, player.sprite.y, this.farmStand.x, this.farmStand.y
+      );
+      if (fd < 120) { this.stockStand(); return; }
+    }
+    // Collect egg from nearest nest
+    for (const nest of this.props.nests) {
+      if (!nest.hasEgg) continue;
+      const nd = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, nest.x, nest.y);
+      if (nd < 80) { this.collectEgg(nest); return; }
+    }
+  }
+
+  stockStand() {
+    if (this.basketEggs <= 0) return;
+    const n = this.basketEggs;
+    this.basketEggs = 0;
+    this.farmStand.stock += n;
+    this.game.events.emit('basket-changed', 0);
+    this._updateStandSign();
+
+    const icon = this.add.image(this.farmStand.x, this.farmStand.y - 60, 'iconEgg')
+      .setScale(1.8).setDepth(10000);
+    this.tweens.add({
+      targets: icon, y: icon.y - 40, alpha: 0,
+      duration: 900, ease: 'Sine.easeOut',
+      onComplete: () => icon.destroy(),
+    });
+  }
+
+  // ─── NPC Customers ───────────────────────────────────────────────────────
+
+  _scheduleNextCustomer() {
+    const delay = Phaser.Math.Between(45_000, 90_000);
+    this.time.delayedCall(delay, () => {
+      if (!this.isNight) this._spawnCustomer();
+      this._scheduleNextCustomer();
+    });
+  }
+
+  _spawnCustomer() {
+    if (!this.farmStand || this.farmStand.stock <= 0) {
+      // No stock — NPC shows up but leaves disappointed
+    }
+
+    // Spawn from the right edge of the world
+    const spawnX = WORLD_W - 20;
+    const spawnY = Phaser.Math.Clamp(
+      this.farmStand.y + Phaser.Math.Between(-80, 80),
+      PLAYER_BOUNDS.minY, PLAYER_BOUNDS.maxY
+    );
+
+    if (!this.anims.exists('npc_walk')) {
+      this.anims.create({
+        key: 'npc_walk',
+        frames: [{ key: 'npc_walk_0' }, { key: 'npc_walk_1' }],
+        frameRate: 7, repeat: -1,
+      });
+    }
+
+    const shadow = this.add.image(spawnX, spawnY, 'shadow').setScale(S * 0.9).setDepth(spawnY - 1);
+    const sprite = this.add.sprite(spawnX, spawnY, 'npc_walk_0')
+      .setOrigin(0.5, 1).setScale(3).setDepth(spawnY);
+
+    const npc = { sprite, shadow, tween: null, state: 'arriving' };
+    this.npcs.push(npc);
+
+    // Walk to the stand
+    const tx = this.farmStand.x + Phaser.Math.Between(-30, 30);
+    const ty = this.farmStand.y + 20;
+    const dist = Phaser.Math.Distance.Between(spawnX, spawnY, tx, ty);
+
+    sprite.setFlipX(true); // walking left toward stand
+    sprite.play('npc_walk', true);
+
+    npc.tween = this.tweens.add({
+      targets: sprite, x: tx, y: ty,
+      duration: (dist / (PLAYER_SPEED * 0.85)) * 1000,
+      ease: 'Linear',
+      onComplete: () => {
+        npc.tween = null;
+        sprite.stop();
+        sprite.setTexture('npc_walk_0');
+        this._npcShop(npc);
+      },
+    });
+  }
+
+  _npcShop(npc) {
+    npc.state = 'shopping';
+    const stand = this.farmStand;
+
+    if (stand.stock <= 0) {
+      // Nothing to buy — show sad bubble and leave
+      this._npcSpeech(npc, ':(');
+      this.time.delayedCall(1200, () => this._npcLeave(npc));
+      return;
+    }
+
+    // Buy 1–3 eggs (up to what's in stock)
+    const qty = Math.min(stand.stock, Phaser.Math.Between(1, 3));
+    const price = qty * 5; // $5 per egg
+    stand.stock -= qty;
+    this.money += price;
+    this._updateStandSign();
+    this.game.events.emit('money-changed', this.money);
+
+    this._npcSpeech(npc, `$${price}!`);
+
+    // Floating coin feedback over the stand
+    const coin = this.add.image(stand.x, stand.y - 50, 'iconCoin')
+      .setScale(2).setDepth(10000);
+    this.tweens.add({
+      targets: coin, y: coin.y - 48, alpha: 0,
+      duration: 1100, ease: 'Sine.easeOut',
+      onComplete: () => coin.destroy(),
+    });
+
+    this.time.delayedCall(1500, () => this._npcLeave(npc));
+  }
+
+  _npcSpeech(npc, text) {
+    const bubble = this.add.text(npc.sprite.x, npc.sprite.y - 60, text, {
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: '14px', color: '#fffde0',
+      backgroundColor: '#2a3050ee',
+      padding: { x: 8, y: 5 },
+    }).setOrigin(0.5, 1).setDepth(10001);
+    this.tweens.add({
+      targets: bubble, y: bubble.y - 24, alpha: 0,
+      duration: 1400, ease: 'Sine.easeOut',
+      onComplete: () => bubble.destroy(),
+    });
+  }
+
+  _npcLeave(npc) {
+    npc.state = 'leaving';
+    const exitX = WORLD_W + 40;
+
+    npc.sprite.setFlipX(false); // walking right off screen
+    npc.sprite.play('npc_walk', true);
+
+    const dist = Phaser.Math.Distance.Between(npc.sprite.x, npc.sprite.y, exitX, npc.sprite.y);
+    npc.tween = this.tweens.add({
+      targets: npc.sprite, x: exitX,
+      duration: (dist / PLAYER_SPEED) * 1000,
+      ease: 'Linear',
+      onComplete: () => {
+        npc.sprite.destroy();
+        npc.shadow.destroy();
+        this.npcs = this.npcs.filter(n => n !== npc);
+      },
+    });
   }
 
   spawnAnimal(startX, startY, key, shadowScale, walkFps, tweenRate, homeX, homeY, wanderRadius, eatFps) {
@@ -407,10 +609,12 @@ export default class PaddockScene extends Phaser.Scene {
 
   collectEgg(nest) {
     if (!nest.hasEgg) return;
+    const item = this.getActiveItem();
+    if (item?.key !== 'basket') return;
     nest.hasEgg = false;
     nest.sprite.setTexture('nest');
-    this.inventory.egg++;
-    this.game.events.emit('inventory-changed', this.inventory);
+    this.basketEggs++;
+    this.game.events.emit('basket-changed', this.basketEggs);
 
     // Floating egg icon feedback
     const icon = this.add.image(nest.x, nest.y - 20, 'iconEgg')
@@ -552,6 +756,11 @@ export default class PaddockScene extends Phaser.Scene {
     };
     for (const h of this.horses) stopOne(h);
     for (const a of this.animals) stopOne(a);
+    // Send any visiting NPCs away at night
+    for (const npc of [...this.npcs]) {
+      if (npc.tween) { npc.tween.stop(); npc.tween = null; }
+      this._npcLeave(npc);
+    }
   }
 
   wakeAllAnimals() {
@@ -1341,9 +1550,22 @@ export default class PaddockScene extends Phaser.Scene {
     const aJust = this.padAJustDown;
     this.padAJustDown = false;
 
-    // ── A button = pure context-sensitive interact (no tools needed) ──────────
+    // ── A button = pure context-sensitive interact ────────────────────────────
     if (aJust) {
-      // Eggs
+      // Basket: deposit at stand or collect egg
+      if (item?.key === 'basket') {
+        if (this.farmStand && this.basketEggs > 0) {
+          const fd = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, this.farmStand.x, this.farmStand.y);
+          if (fd < 120) { this.stockStand(); return; }
+        }
+        for (const nest of this.props.nests) {
+          if (!nest.hasEgg) continue;
+          const nd = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, nest.x, nest.y);
+          if (nd < 80) { this.collectEgg(nest); return; }
+        }
+        return;
+      }
+      // Eggs (no basket — show hint only, actual collect gated in collectEgg)
       for (const nest of this.props.nests) {
         if (!nest.hasEgg) continue;
         const nd = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, nest.x, nest.y);
@@ -1379,6 +1601,27 @@ export default class PaddockScene extends Phaser.Scene {
       }
     }
 
+    // Farm stand proximity — deposit basket eggs
+    if (this.farmStand) {
+      const fd = Phaser.Math.Distance.Between(
+        player.sprite.x, player.sprite.y, this.farmStand.x, this.farmStand.y
+      );
+      if (fd < 120) {
+        const hasBasket = item?.key === 'basket';
+        if (hasBasket && this.basketEggs > 0) {
+          this.interactPrompt.setText(`[ E ]  Place Eggs  (basket: ${this.basketEggs})`);
+        } else if (hasBasket) {
+          this.interactPrompt.setText(`Farm Stand  •  ${this.farmStand.stock} egg${this.farmStand.stock !== 1 ? 's' : ''} for sale  (basket empty)`);
+        } else {
+          this.interactPrompt.setText(`Farm Stand  •  ${this.farmStand.stock} egg${this.farmStand.stock !== 1 ? 's' : ''} for sale`);
+        }
+        this.interactPrompt.setPosition(this.farmStand.x, this.farmStand.y - 100);
+        this.interactPrompt.setVisible(true);
+        if (eJust && hasBasket && this.basketEggs > 0) this.stockStand();
+        return;
+      }
+    }
+
     // Trough proximity — checked first so it wins over horse when both are in range
     const trough = this.props.trough;
     if (trough) {
@@ -1402,7 +1645,7 @@ export default class PaddockScene extends Phaser.Scene {
       );
       if (d < nearestDist) { nearestDist = d; nearest = h; }
     }
-    const inRange = nearest && nearestDist < INTERACT_DIST && item?.action !== 'seed';
+    const inRange = nearest && nearestDist < INTERACT_DIST && item?.action !== 'seed' && item?.action !== 'basket';
 
     if (inRange) {
       let verb;
@@ -1424,17 +1667,20 @@ export default class PaddockScene extends Phaser.Scene {
       return;
     }
 
-    // Nest proximity — collect eggs
+    // Nest proximity — collect eggs (requires basket)
     for (const nest of this.props.nests) {
       if (!nest.hasEgg) continue;
       const nd = Phaser.Math.Distance.Between(
         player.sprite.x, player.sprite.y, nest.x, nest.y
       );
       if (nd < 80) {
-        this.interactPrompt.setText(`[ A ] or [ E ]  Collect Egg`);
+        const hasBasket = item?.key === 'basket';
+        this.interactPrompt.setText(hasBasket
+          ? `[ A ] or [ E ]  Collect Egg`
+          : `Egg in nest  •  equip Basket to collect`);
         this.interactPrompt.setPosition(nest.x, nest.y - 30);
         this.interactPrompt.setVisible(true);
-        if (eJust) this.collectEgg(nest);
+        if (eJust && hasBasket) this.collectEgg(nest);
         return;
       }
     }
@@ -1516,6 +1762,13 @@ export default class PaddockScene extends Phaser.Scene {
       a.shadow.y = a.sprite.y;
       a.shadow.setDepth(a.sprite.y - 1);
       a.sprite.setDepth(a.sprite.y);
+    }
+
+    for (const npc of this.npcs) {
+      npc.shadow.x = npc.sprite.x;
+      npc.shadow.y = npc.sprite.y;
+      npc.shadow.setDepth(npc.sprite.y - 1);
+      npc.sprite.setDepth(npc.sprite.y);
     }
   }
 

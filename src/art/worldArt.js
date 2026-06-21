@@ -295,4 +295,92 @@ export function buildWorldTextures(scene) {
     g.fillStyle(0xfffdf5, 1); g.fillEllipse(8, 8, 4, 5);
     g.fillStyle(0xe8d8a0, 1); g.fillEllipse(10, 14, 8, 4); // shadow base
   });
+
+  // --- farm stand (market table, 72 × 44) ---
+  tex(scene, 'farmStand', 72, 44, (g) => {
+    // Canopy poles
+    g.fillStyle(0x7a4820, 1);
+    g.fillRect(4, 8, 4, 34); g.fillRect(64, 8, 4, 34);
+    // Canopy (striped awning)
+    g.fillStyle(0xd44030, 1); g.fillRect(0, 4, 72, 14);
+    g.fillStyle(0xf8f0e0, 1);
+    for (let x = 0; x < 72; x += 10) g.fillRect(x, 4, 5, 14);
+    // Canopy scalloped edge
+    g.fillStyle(0xd44030, 1);
+    for (let x = 0; x < 72; x += 10) g.fillRect(x + 5, 4, 5, 14);
+    g.fillStyle(0xf8f0e0, 1);
+    for (let x = 0; x < 72; x += 12) { g.fillEllipse(x + 6, 18, 10, 6); }
+    g.fillStyle(0xd44030, 1);
+    for (let x = 6; x < 72; x += 12) { g.fillEllipse(x + 6, 18, 10, 6); }
+    // Table top
+    g.fillStyle(0xa0682c, 1); g.fillRect(4, 22, 64, 12);
+    g.fillStyle(0xc07c38, 1); g.fillRect(4, 22, 64, 4);
+    g.fillStyle(0x8a5820, 1); g.fillRect(4, 30, 64, 4);
+    // Table legs
+    g.fillStyle(0x7a4820, 1);
+    g.fillRect(8, 34, 4, 10); g.fillRect(60, 34, 4, 10);
+  });
+
+  // --- coin icon (for money display, 20 × 20) ---
+  tex(scene, 'iconCoin', 20, 20, (g) => {
+    g.fillStyle(0xe8b820, 1); g.fillCircle(10, 10, 8);
+    g.fillStyle(0xf8d840, 1); g.fillCircle(9, 8, 4);
+    g.fillStyle(0xc89010, 1); g.fillCircle(11, 12, 3);
+    g.fillStyle(0xf0cc30, 1);
+    g.fillRect(8, 6, 2, 1); g.fillRect(9, 5, 2, 2); // $ highlight
+  });
+
+  // --- basket icon (20 × 20) ---
+  tex(scene, 'iconBasket', 20, 20, (g) => {
+    // Handle arch
+    g.fillStyle(0xb07828, 1);
+    g.fillRect(6, 2, 2, 8); g.fillRect(12, 2, 2, 8);
+    g.fillRect(6, 2, 8, 2);
+    // Rim
+    g.fillStyle(0xdcaa50, 1); g.fillRect(2, 8, 16, 2);
+    // Body
+    g.fillStyle(0xc8943c, 1); g.fillRect(2, 10, 16, 8);
+    g.fillStyle(0xdab04c, 1); g.fillRect(3, 11, 14, 2);
+    // Weave lines horizontal
+    g.fillStyle(0xa87228, 1);
+    g.fillRect(2, 12, 16, 1); g.fillRect(2, 14, 16, 1); g.fillRect(2, 16, 16, 1);
+    // Weave lines vertical
+    g.fillRect(5, 10, 1, 8); g.fillRect(9, 10, 1, 8); g.fillRect(13, 10, 1, 8);
+    // Bottom curve
+    g.fillStyle(0xc8943c, 1); g.fillRect(3, 18, 14, 1); g.fillRect(4, 19, 12, 1);
+  });
+
+  // --- NPC customer sprite (16 × 24, same layout as player) ---
+  const NPC_SKIN  = 0xf0c080;
+  const NPC_HAIR  = 0x5a3a20;
+  const NPC_SHIRT = 0x4466cc;
+  const NPC_SHRTD = 0x2a4498;
+  const NPC_PANTS = 0x445566;
+  const NPC_SHOE  = 0x221408;
+
+  const drawNpc = (g, step) => {
+    // Hair
+    g.fillStyle(NPC_HAIR, 1); g.fillRect(4, 0, 8, 3); g.fillRect(3, 2, 2, 6); g.fillRect(11, 2, 2, 6);
+    // Face
+    g.fillStyle(NPC_SKIN, 1); g.fillRect(5, 2, 6, 6);
+    // Eyes
+    g.fillStyle(0x1a0a04, 1); g.fillRect(6, 4, 1, 2); g.fillRect(9, 4, 1, 2);
+    // Shirt
+    g.fillStyle(NPC_SHIRT, 1); g.fillRect(4, 8, 8, 6); g.fillRect(2, 8, 3, 5); g.fillRect(11, 8, 3, 5);
+    g.fillStyle(NPC_SHRTD, 1); g.fillRect(4, 12, 8, 2);
+    // Hands
+    g.fillStyle(NPC_SKIN, 1);
+    g.fillRect(step === 1 ? 1 : 2, step === 1 ? 12 : 13, 2, 2);
+    g.fillRect(step === 1 ? 13 : 12, 13, 2, 2);
+    // Pants
+    g.fillStyle(NPC_PANTS, 1); g.fillRect(4, 14, 8, 2);
+    const lx0 = step === 0 ? 4 : 3, rx0 = step === 0 ? 9 : 10;
+    g.fillRect(lx0, 16, 4, 5); g.fillRect(rx0, 16, 4, 5);
+    // Shoes
+    g.fillStyle(NPC_SHOE, 1);
+    g.fillRect(step === 0 ? lx0 : lx0 - 1, 20, 5, 3);
+    g.fillRect(step === 0 ? rx0 : rx0 + 1, 20, 5, 3);
+  };
+  tex(scene, 'npc_walk_0', 16, 24, (g) => drawNpc(g, 0));
+  tex(scene, 'npc_walk_1', 16, 24, (g) => drawNpc(g, 1));
 }

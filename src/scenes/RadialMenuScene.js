@@ -9,10 +9,11 @@ const FOOD_ITEMS = [
 ];
 
 const TOOL_ITEMS = [
-  { key: 'brush',  label: 'Brush',  icon: 'iconBrush',  action: 'brush' },
-  { key: 'bucket', label: 'Water',  icon: 'iconWater',  action: 'water' },
-  { key: 'lead',   label: 'Lead',   icon: 'iconLead',   action: 'lead'  },
-  { key: 'saddle', label: 'Saddle', icon: 'iconSaddle', action: 'ride'  },
+  { key: 'brush',  label: 'Brush',  icon: 'iconBrush',  action: 'brush'  },
+  { key: 'bucket', label: 'Water',  icon: 'iconWater',  action: 'water'  },
+  { key: 'lead',   label: 'Lead',   icon: 'iconLead',   action: 'lead'   },
+  { key: 'saddle', label: 'Saddle', icon: 'iconSaddle', action: 'ride'   },
+  { key: 'basket', label: 'Basket', icon: 'iconBasket', action: 'basket' },
 ];
 
 const RADIUS  = 110;
@@ -57,8 +58,8 @@ export default class RadialMenuScene extends Phaser.Scene {
 
     // Gamepad
     this._pad  = null;
-    this._xPrev = false; this._xHoldTimer = null;
-    this._yPrev = false; this._yHoldTimer = null;
+    this._ltPrev = false; this._ltHoldTimer = null;
+    this._rtPrev = false; this._rtHoldTimer = null;
     this.input.gamepad?.on('connected', p => { this._pad = p; });
     if (this.input.gamepad?.total > 0) this._pad = this.input.gamepad.getPad(0);
   }
@@ -244,35 +245,47 @@ export default class RadialMenuScene extends Phaser.Scene {
     }
     this._fPrev = fDown;
 
-    if (tDown && !this._tPrev && !this.isOpen)
+    if (tDown && !this._tPrev && !this.isOpen) {
       this._tHoldTimer = this.time.delayedCall(HOLD_MS, () => this._open('tool'));
+      this._tTappedBasket = this.toolItem?.key === 'basket';
+    }
     if (!tDown && this._tPrev) {
-      if (this._tHoldTimer) { this._tHoldTimer.remove(); this._tHoldTimer = null; }
+      if (this._tHoldTimer) {
+        // Short tap — didn't open the radial
+        this._tHoldTimer.remove(); this._tHoldTimer = null;
+        if (this._tTappedBasket) this.game.events.emit('basket-shortcut');
+      }
       if (this.isOpen && this._which === 'tool') this._close(true);
     }
     this._tPrev = tDown;
 
-    // ── Gamepad: X (index 2) = food, Y (index 3) = tools ─────────────────
+    // ── Gamepad: LT (index 6) = food, RT (index 7) = tools ───────────────
     const pad = this._pad ?? (this.input.gamepad?.total > 0 ? this.input.gamepad.getPad(0) : null);
     if (pad) {
-      const xDown = pad.buttons[2]?.pressed ?? false;
-      const yDown = pad.buttons[3]?.pressed ?? false;
+      const ltDown = (pad.buttons[6]?.value ?? 0) > 0.3;
+      const rtDown = (pad.buttons[7]?.value ?? 0) > 0.3;
 
-      if (xDown && !this._xPrev && !this.isOpen)
-        this._xHoldTimer = this.time.delayedCall(HOLD_MS, () => this._open('food'));
-      if (!xDown && this._xPrev) {
-        if (this._xHoldTimer) { this._xHoldTimer.remove(); this._xHoldTimer = null; }
+      if (ltDown && !this._ltPrev && !this.isOpen)
+        this._ltHoldTimer = this.time.delayedCall(HOLD_MS, () => this._open('food'));
+      if (!ltDown && this._ltPrev) {
+        if (this._ltHoldTimer) { this._ltHoldTimer.remove(); this._ltHoldTimer = null; }
         if (this.isOpen && this._which === 'food') this._close(true);
       }
-      this._xPrev = xDown;
+      this._ltPrev = ltDown;
 
-      if (yDown && !this._yPrev && !this.isOpen)
-        this._yHoldTimer = this.time.delayedCall(HOLD_MS, () => this._open('tool'));
-      if (!yDown && this._yPrev) {
-        if (this._yHoldTimer) { this._yHoldTimer.remove(); this._yHoldTimer = null; }
+      if (rtDown && !this._rtPrev && !this.isOpen) {
+        this._rtHoldTimer = this.time.delayedCall(HOLD_MS, () => this._open('tool'));
+        this._rtTappedBasket = this.toolItem?.key === 'basket';
+      }
+      if (!rtDown && this._rtPrev) {
+        if (this._rtHoldTimer) {
+          // Short tap — didn't open the radial
+          this._rtHoldTimer.remove(); this._rtHoldTimer = null;
+          if (this._rtTappedBasket) this.game.events.emit('basket-shortcut');
+        }
         if (this.isOpen && this._which === 'tool') this._close(true);
       }
-      this._yPrev = yDown;
+      this._rtPrev = rtDown;
     }
   }
 }

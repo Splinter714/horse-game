@@ -10,5 +10,5 @@ export const ITEMS = [
   { key: 'saddle', label: 'Saddle', icon: 'iconSaddle', action: 'ride'  },
   { key: 'lead',   label: 'Lead',   icon: 'iconLead',   action: 'lead'  },
   { key: 'seed',   label: 'Seeds',  icon: 'iconSeed',   action: 'seed'  },
-  null,
+  { key: 'basket', label: 'Basket', icon: 'iconBasket', action: 'basket' },
 ];

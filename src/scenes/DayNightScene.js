@@ -23,10 +23,10 @@ export default class DayNightScene extends Phaser.Scene {
     this.overlay = this.add.graphics().setDepth(500);
     this.label   = this.add.text(0, 0, '', {
       fontFamily: 'system-ui, sans-serif',
-      fontSize: '12px',
+      fontSize: '18px',
       color: '#ffffff',
-      backgroundColor: '#00000055',
-      padding: { x: 6, y: 4 },
+      backgroundColor: '#00000066',
+      padding: { x: 10, y: 6 },
     }).setDepth(501).setOrigin(1, 0).setScrollFactor(0);
 
     this.overlay.setScrollFactor(0);
