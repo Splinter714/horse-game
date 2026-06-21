@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import BootScene from './scenes/BootScene.js';
 import PaddockScene from './scenes/PaddockScene.js';
 import PortraitScene from './scenes/PortraitScene.js';
+import HotbarScene from './scenes/HotbarScene.js';
 
 const config = {
   type: Phaser.AUTO,
@@ -17,7 +18,7 @@ const config = {
   input: {
     gamepad: true
   },
-  scene: [BootScene, PaddockScene, PortraitScene]
+  scene: [BootScene, PaddockScene, PortraitScene, HotbarScene]
 };
 
 const game = new Phaser.Game(config);

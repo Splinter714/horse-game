@@ -48,5 +48,6 @@ export default class BootScene extends Phaser.Scene {
     buildPortraitTexture(this, 'portrait_horse3', getCoat('dappleGrey'));
 
     this.scene.start('PaddockScene');
+    this.scene.launch('HotbarScene');
   }
 }

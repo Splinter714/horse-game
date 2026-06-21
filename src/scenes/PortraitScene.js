@@ -2,178 +2,192 @@ import Phaser from 'phaser';
 
 const W = 960;
 const H = 640;
+const PANEL_W = 300;
+const PANEL_X = W - PANEL_W; // 660 — panel left edge in screen coords
 
 const STATS = [
   { key: 'hunger',    label: 'Food',  color: 0x63a31d },
   { key: 'thirst',    label: 'Water', color: 0x378add },
   { key: 'grooming',  label: 'Brush', color: 0xba7517 },
-  { key: 'happiness', label: 'Happy', color: 0x1d9e75 }
+  { key: 'happiness', label: 'Happy', color: 0x1d9e75 },
 ];
 
 const ACTIONS = [
-  { label: 'Feed',  icon: 'iconFeed',  type: 'feed' },
+  { label: 'Feed',  icon: 'iconFeed',  type: 'feed'  },
   { label: 'Water', icon: 'iconWater', type: 'water' },
   { label: 'Brush', icon: 'iconBrush', type: 'brush' },
-  { label: 'Love',  icon: 'iconHeart', type: 'pet' }
+  { label: 'Love',  icon: 'iconHeart', type: 'pet'   },
 ];
-
-const cardW = 540;
-const cardH = 500;
 
 export default class PortraitScene extends Phaser.Scene {
   constructor() {
     super('PortraitScene');
     this.statFills = {};
-    this.moodText = null;
-    this.currentKey = null;
+    this.moodText  = null;
+    this.panel     = null;
+    this.closing   = false;
   }
 
   create() {
-    this.rebuild();
+    this.closing = false;
+    this.build();
     this.input.keyboard.on('keydown-ESC', () => this.close());
   }
 
   refresh() {
+    this.closing = false;
     this.children.removeAll(true);
     this.input.keyboard.removeAllListeners();
     this.statFills = {};
-    this.moodText = null;
-    this.rebuild();
+    this.moodText  = null;
+    this.panel     = null;
+    this.build();
     this.input.keyboard.on('keydown-ESC', () => this.close());
   }
 
-  rebuild() {
+  build() {
     const viewing = this.registry.get('viewingHorse');
-    const horse = viewing?.horse;
-    const portraitKey = viewing?.portraitKey ?? 'portrait_horse';
-    this.currentKey = viewing?.horseKey ?? 'horse';
-    if (!horse) { this.close(); return; }
+    const horse   = viewing?.horse;
+    const horseKey = viewing?.horseKey ?? 'horse';
+    if (!horse) { this.scene.stop(); return; }
 
-    const cx = W / 2;
-    const cy = H / 2;
-
-    // Dimmed backdrop.
-    const backdrop = this.add.rectangle(0, 0, W, H, 0x101622, 0.55)
+    // Dim backdrop over the play area — clicking it closes the panel.
+    const backdrop = this.add.rectangle(0, 0, PANEL_X, H, 0x000000, 0.28)
       .setOrigin(0, 0).setInteractive();
     backdrop.on('pointerdown', () => this.close());
 
-    // Card.
-    const card = this.add.graphics();
-    card.fillStyle(0xf7f4ee, 1);
-    card.fillRoundedRect(cx - cardW / 2, cy - cardH / 2, cardW, cardH, 20);
-    card.lineStyle(2, 0xd8d2c4, 1);
-    card.strokeRoundedRect(cx - cardW / 2, cy - cardH / 2, cardW, cardH, 20);
+    // Panel container slides in from off-screen right.
+    this.panel = this.add.container(W, 0);
 
-    // Block clicks from passing through the card to the backdrop.
-    const cardZone = this.add.zone(cx - cardW / 2, cy - cardH / 2, cardW, cardH)
-      .setOrigin(0, 0).setInteractive();
-    cardZone.on('pointerdown', (_p, _x, _y, evt) => evt.stopPropagation());
+    // Panel background.
+    const bg = this.add.graphics();
+    bg.fillStyle(0xf4f1ec, 1);
+    bg.fillRect(0, 0, PANEL_W, H);
+    bg.lineStyle(2, 0xd4ceC4, 1);
+    bg.lineBetween(0, 0, 0, H);
+    this.panel.add(bg);
 
-    // Portrait frame (left).
-    const frameX = cx - cardW / 2 + 24;
-    const frameY = cy - cardH / 2 + 24;
-    const frameSize = 220;
+    // ── Horse sprite ──────────────────────────────────────────────
+    const animKey = `panel_idle_${horseKey}`;
+    if (!this.anims.exists(animKey)) {
+      this.anims.create({
+        key: animKey,
+        frames: [{ key: `${horseKey}_idle_0` }, { key: `${horseKey}_idle_1` }],
+        frameRate: 2, repeat: -1,
+      });
+    }
+    const horseSprite = this.add.sprite(PANEL_W / 2, 100, `${horseKey}_idle_0`)
+      .setScale(3).setOrigin(0.5, 0.5).setFlipX(false);
+    horseSprite.play(animKey);
+    this.panel.add(horseSprite);
 
-    const frame = this.add.graphics();
-    frame.fillStyle(0xcfe6f2, 1);
-    frame.fillRoundedRect(frameX, frameY, frameSize, frameSize, 12);
-    frame.lineStyle(2, 0xb8d2de, 1);
-    frame.strokeRoundedRect(frameX, frameY, frameSize, frameSize, 12);
+    // ── Name / info ───────────────────────────────────────────────
+    this.panel.add(this.add.text(PANEL_W / 2, 192, horse.name, {
+      fontFamily: 'system-ui, sans-serif', fontSize: '22px',
+      color: '#2c2c2a', fontStyle: 'bold',
+    }).setOrigin(0.5, 0));
 
-    this.add.image(frameX + frameSize / 2, frameY + frameSize / 2 + 8, portraitKey)
-      .setDisplaySize(frameSize, frameSize);
+    this.panel.add(this.add.text(PANEL_W / 2, 222, `${horse.breed}  ·  ${horse.age} yrs`, {
+      fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: '#6a6860',
+    }).setOrigin(0.5, 0));
 
-    // Name / breed / age / mood (right of portrait).
-    const textX = frameX + frameSize + 22;
-    const textY = frameY;
-    this.add.text(textX, textY, horse.name, {
-      fontFamily: 'system-ui, sans-serif', fontSize: '26px', color: '#2c2c2a'
-    });
-    this.add.text(textX, textY + 44, `${horse.breed} mare`, {
-      fontFamily: 'system-ui, sans-serif', fontSize: '15px', color: '#5f5e5a'
-    });
-    this.add.text(textX, textY + 68, `${horse.age} years old`, {
-      fontFamily: 'system-ui, sans-serif', fontSize: '15px', color: '#5f5e5a'
-    });
-    this.moodText = this.add.text(textX, textY + 100, horse.mood(), {
-      fontFamily: 'system-ui, sans-serif', fontSize: '16px', color: '#1d9e75'
-    });
+    this.moodText = this.add.text(PANEL_W / 2, 240, `Feeling ${horse.mood()}`, {
+      fontFamily: 'system-ui, sans-serif', fontSize: '13px', color: '#1d9e75',
+    }).setOrigin(0.5, 0);
+    this.panel.add(this.moodText);
 
-    // Stat bars (below the top row).
-    const barStartY = frameY + frameSize + 20;
-    const barX = frameX;
-    const barW = cardW - 48;
-    let barY = barStartY;
+    this.addDivider(262);
 
-    STATS.forEach((s) => {
-      this.add.text(barX, barY, s.label, {
-        fontFamily: 'system-ui, sans-serif', fontSize: '14px', color: '#5f5e5a'
-      }).setOrigin(0, 0.5);
+    // ── Stat bars ─────────────────────────────────────────────────
+    let barY = 276;
+    for (const s of STATS) {
+      this.panel.add(this.add.text(14, barY, s.label, {
+        fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: '#6a6860',
+      }).setOrigin(0, 0.5));
 
-      const trackX = barX + 60;
-      const trackW = barW - 60;
+      const trackX = 62;
+      const trackW = PANEL_W - 76;
+      const trackY  = barY - 6;
 
-      const bg = this.add.graphics();
-      bg.fillStyle(0xe3ded3, 1);
-      bg.fillRoundedRect(trackX, barY - 5, trackW, 10, 5);
+      const trackBg = this.add.graphics();
+      trackBg.fillStyle(0xe3ded3, 1);
+      trackBg.fillRoundedRect(trackX, trackY, trackW, 12, 6);
+      this.panel.add(trackBg);
 
-      const v = Phaser.Math.Clamp(horse.stats[s.key], 0, 100) / 100;
+      const v    = Phaser.Math.Clamp(horse.stats[s.key], 0, 100) / 100;
       const fill = this.add.graphics();
       fill.fillStyle(s.color, 1);
-      fill.fillRoundedRect(trackX, barY - 5, Math.max(5, trackW * v), 10, 5);
-      this.statFills[s.key] = { fill, trackX, trackW, color: s.color, barY };
+      fill.fillRoundedRect(trackX, trackY, Math.max(5, trackW * v), 12, 6);
+      this.panel.add(fill);
+      this.statFills[s.key] = { fill, trackX, trackW, color: s.color, trackY };
 
-      barY += 24;
-    });
+      barY += 26;
+    }
 
-    // Action buttons.
-    const btnW = 112;
-    const btnH = 44;
-    const btnGap = 12;
-    const totalBtnW = ACTIONS.length * btnW + (ACTIONS.length - 1) * btnGap;
-    let bx = cx - totalBtnW / 2;
-    const by = cy + cardH / 2 - 36;
+    this.addDivider(barY + 6);
 
-    ACTIONS.forEach((a) => {
+    // ── Action buttons (2 × 2 grid) ───────────────────────────────
+    const btnW = 124, btnH = 44, btnGap = 8;
+    const btnY0 = barY + 20;
+    ACTIONS.forEach((a, i) => {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const bx  = 14 + col * (btnW + btnGap);
+      const by  = btnY0 + row * (btnH + btnGap);
       this.makeButton(bx, by, btnW, btnH, a.label, a.icon, () => this.act(a.type, horse));
-      bx += btnW + btnGap;
     });
 
-    // Close button.
-    const close = this.add.text(cx + cardW / 2 - 28, cy - cardH / 2 + 28, '✕', {
-      fontFamily: 'system-ui, sans-serif', fontSize: '24px', color: '#888780'
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    close.on('pointerdown', () => this.close());
+    // ── Close button ──────────────────────────────────────────────
+    const closeBtn = this.add.text(PANEL_W - 12, 14, '✕', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '20px', color: '#9a9790',
+    }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+    closeBtn.on('pointerdown', () => this.close());
+    this.panel.add(closeBtn);
+
+    // Slide in from the right.
+    this.tweens.add({ targets: this.panel, x: PANEL_X, duration: 220, ease: 'Quad.easeOut' });
   }
 
-  makeButton(x, y, w, h, label, iconKey, onClick) {
+  addDivider(y) {
     const g = this.add.graphics();
-    const draw = (bg) => {
+    g.lineStyle(1, 0xd4cec4, 1);
+    g.lineBetween(14, y, PANEL_W - 14, y);
+    this.panel.add(g);
+  }
+
+  makeButton(bx, by, bw, bh, label, iconKey, onClick) {
+    const g = this.add.graphics();
+    const draw = (fill) => {
       g.clear();
-      g.fillStyle(bg, 0.92);
-      g.fillRoundedRect(x - w / 2, y - h / 2, w, h, 10);
-      g.lineStyle(1, 0xffffff, 0.2);
-      g.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 10);
+      g.fillStyle(fill, 0.95);
+      g.fillRoundedRect(bx, by, bw, bh, 8);
+      g.lineStyle(1, 0xffffff, 0.12);
+      g.strokeRoundedRect(bx, by, bw, bh, 8);
     };
     draw(0x3b4a63);
-    this.add.image(x - w / 2 + 22, y, iconKey).setDisplaySize(20, 20);
-    this.add.text(x - w / 2 + 40, y, label, {
-      fontFamily: 'system-ui, sans-serif', fontSize: '15px', color: '#ffffff'
-    }).setOrigin(0, 0.5);
+    this.panel.add(g);
 
-    const zone = this.add.zone(x - w / 2, y - h / 2, w, h).setOrigin(0, 0)
+    const icon = this.add.image(bx + 18, by + bh / 2, iconKey).setDisplaySize(18, 18);
+    this.panel.add(icon);
+
+    const txt = this.add.text(bx + 34, by + bh / 2, label, {
+      fontFamily: 'system-ui, sans-serif', fontSize: '14px', color: '#ffffff',
+    }).setOrigin(0, 0.5);
+    this.panel.add(txt);
+
+    const zone = this.add.zone(bx, by, bw, bh).setOrigin(0, 0)
       .setInteractive({ useHandCursor: true });
     zone.on('pointerover',  () => draw(0x4a5d7d));
     zone.on('pointerout',   () => draw(0x3b4a63));
     zone.on('pointerdown',  () => draw(0x2c384c));
     zone.on('pointerup',    () => { draw(0x4a5d7d); onClick(); });
+    this.panel.add(zone);
   }
 
   act(type, horse) {
-    const viewing = this.registry.get('viewingHorse');
+    const viewing  = this.registry.get('viewingHorse');
     const horseKey = viewing?.horseKey ?? 'horse';
 
-    // Apply to the horse data object directly.
     switch (type) {
       case 'feed':  horse.feed();  break;
       case 'water': horse.water(); break;
@@ -181,27 +195,32 @@ export default class PortraitScene extends Phaser.Scene {
       case 'pet':   horse.pet();   break;
     }
 
-    // Tell PaddockScene to play the effect on the right sprite.
     this.game.events.emit('horse-action', { type, horseKey });
-
-    // Refresh stat bars and mood in place.
     this.refreshStats(horse);
   }
 
   refreshStats(horse) {
-    STATS.forEach((s) => {
+    for (const s of STATS) {
       const entry = this.statFills[s.key];
-      if (!entry) return;
-      const { fill, trackX, trackW, color, barY } = entry;
+      if (!entry) continue;
+      const { fill, trackX, trackW, color, trackY } = entry;
       const v = Phaser.Math.Clamp(horse.stats[s.key], 0, 100) / 100;
       fill.clear();
       fill.fillStyle(color, 1);
-      fill.fillRoundedRect(trackX, barY - 5, Math.max(5, trackW * v), 10, 5);
-    });
-    if (this.moodText) this.moodText.setText(horse.mood());
+      fill.fillRoundedRect(trackX, trackY, Math.max(5, trackW * v), 12, 6);
+    }
+    if (this.moodText) this.moodText.setText(`Feeling ${horse.mood()}`);
   }
 
   close() {
-    this.scene.stop();
+    if (this.closing) return;
+    this.closing = true;
+    this.tweens.add({
+      targets: this.panel,
+      x: W,
+      duration: 180,
+      ease: 'Quad.easeIn',
+      onComplete: () => this.scene.stop(),
+    });
   }
 }
