@@ -143,26 +143,27 @@ function drawSide(g, step) {
   g.fillStyle(PANTS, 1);
   g.fillRect(5, 15, 7, 2);
 
-  // Legs (alternating stride in side view)
+  // Legs — idle: feet together under body; walk: moderate stride
+  // Body (shirt) spans x=5–11, center at 8.
   g.fillStyle(PANTS, 1);
   if (step === 0) {
-    g.fillRect(6, 17, 4, 4);   // near leg
-    g.fillRect(5, 17, 2, 4);   // far leg (partially hidden)
+    g.fillRect(6, 17, 3, 4);   // near leg (6-8)
+    g.fillRect(5, 17, 2, 4);   // far leg (5-6, mostly hidden)
   } else {
-    g.fillRect(8, 17, 4, 4);   // near leg forward
-    g.fillRect(4, 17, 4, 4);   // far leg back
+    g.fillRect(7, 17, 3, 4);   // front leg (7-9)
+    g.fillRect(4, 17, 3, 4);   // back leg (4-6)
   }
   g.fillStyle(PANTS_D, 1);
-  g.fillRect(step === 0 ? 8 : 10, 19, 1, 2);
+  g.fillRect(step === 0 ? 7 : 9, 19, 1, 2);
 
   // Shoes
   g.fillStyle(SHOE, 1);
   if (step === 0) {
-    g.fillRect(5, 21, 5, 3);
-    g.fillRect(4, 21, 3, 2);   // far shoe slightly offset
+    g.fillRect(5, 21, 4, 3);   // near shoe (5-8)
+    g.fillRect(4, 21, 3, 2);   // far shoe (4-6, mostly hidden)
   } else {
-    g.fillRect(7, 21, 5, 3);   // front shoe
-    g.fillRect(3, 21, 5, 3);   // back shoe
+    g.fillRect(6, 21, 5, 3);   // front shoe (6-10)
+    g.fillRect(3, 21, 4, 3);   // back shoe (3-6)
   }
 }
 
