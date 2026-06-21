@@ -44,8 +44,9 @@ function drawDown(g, step) {
   g.fillStyle(PANTS, 1);
   g.fillRect(4, 15, 8, 2);
 
-  // Legs (feet apart on step 1)
-  const lx0 = step === 0 ? 5 : 4;
+  // Legs: idle (step=0) feet together; walk (step=1) stride apart.
+  // Both centered at x=7.5 (sprite center of 16px wide).
+  const lx0 = step === 0 ? 4 : 3;
   const lx1 = step === 0 ? 9 : 10;
   g.fillStyle(PANTS, 1);
   g.fillRect(lx0, 17, 3, 4);
@@ -56,7 +57,7 @@ function drawDown(g, step) {
 
   // Shoes
   g.fillStyle(SHOE, 1);
-  g.fillRect(step === 0 ? 4 : 3, 21, 4, 3);
+  g.fillRect(step === 0 ? 3 : 2, 21, 4, 3);
   g.fillRect(step === 0 ? 9 : 10, 21, 4, 3);
 }
 
@@ -91,7 +92,7 @@ function drawUp(g, step) {
   g.fillRect(4, 15, 8, 2);
 
   // Legs
-  const lx0 = step === 0 ? 5 : 4;
+  const lx0 = step === 0 ? 4 : 3;
   const lx1 = step === 0 ? 9 : 10;
   g.fillStyle(PANTS, 1);
   g.fillRect(lx0, 17, 3, 4);
@@ -102,7 +103,7 @@ function drawUp(g, step) {
 
   // Shoes
   g.fillStyle(SHOE, 1);
-  g.fillRect(step === 0 ? 4 : 3, 21, 4, 3);
+  g.fillRect(step === 0 ? 3 : 2, 21, 4, 3);
   g.fillRect(step === 0 ? 9 : 10, 21, 4, 3);
 }
 
