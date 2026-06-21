@@ -143,21 +143,21 @@ function drawSide(g, step) {
   g.fillStyle(PANTS, 1);
   g.fillRect(5, 15, 7, 2);
 
-  // Legs — side walk bobs up/down, not forward/back in X (avoids kick look).
-  // Near leg lifts slightly on step 1; far leg stays planted behind it.
+  // Legs — centered under torso (shirt x=5–11, center=8).
+  // Near leg lifts 1px on step; far leg stays planted slightly behind.
   g.fillStyle(PANTS, 1);
-  const nearY = step === 0 ? 17 : 16;  // near leg lifts 1px on step
-  g.fillRect(6, nearY, 3, 24 - nearY); // near leg, flush to bottom of sprite
-  g.fillRect(5, 18,    2, 6);           // far leg, always planted, partially hidden
+  const nearY = step === 0 ? 17 : 16;
+  g.fillRect(7, nearY, 3, 24 - nearY); // near leg (7-9), under body center
+  g.fillRect(6, 18,    2, 6);           // far leg (6-7), planted behind
 
   g.fillStyle(PANTS_D, 1);
-  g.fillRect(7, nearY + 2, 1, 2);
+  g.fillRect(8, nearY + 2, 1, 2);
 
-  // Shoes — near shoe lifts with the leg; far shoe stays put
+  // Shoes
   g.fillStyle(SHOE, 1);
-  g.fillRect(5, 21, 4, 3);              // near shoe
+  g.fillRect(6, 21, 4, 3);              // near shoe (6-9)
   if (step === 0) {
-    g.fillRect(4, 21, 3, 2);            // far shoe visible when near is down
+    g.fillRect(5, 21, 3, 2);            // far shoe (5-7) visible when near is down
   }
 }
 
