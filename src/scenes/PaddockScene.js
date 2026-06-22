@@ -4,6 +4,7 @@ import { CONTENT_DEFS } from '../data/items.js';
 import {
   playHoofbeat, playEat, playDrink, playBrush, playChime,
   playSplash, playBirdChirp, startWind, stopWind, startMusic, stopMusic,
+  setMusicMode,
 } from '../audio/sounds.js';
 
 const WORLD_W = 1920;
@@ -931,6 +932,7 @@ export default class PaddockScene extends Phaser.Scene {
       this.isNight = false;
       this.wakeAllAnimals();
     }
+    setMusicMode(isNight);
   }
 
   restAllAnimals() {
