@@ -677,7 +677,7 @@ export default class PaddockScene extends Phaser.Scene {
         const d = Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, pile.x, pile.y);
         if (d < closestDist) { closestDist = d; closest = pile; }
       }
-      if (closest && closestDist < 500) {
+      if (closest) {
         this.chickenGoEat(a, closest);
       }
     }
