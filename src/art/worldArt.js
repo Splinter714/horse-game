@@ -267,41 +267,70 @@ export function buildWorldTextures(scene) {
   });
 
   // --- chicken coop (64 × 52) ---
+  // A raised hen-house: short legs, a chicken-sized pop-door with a ramp, a
+  // hinged nesting box on the side, a wire vent (no glass), and a rooster
+  // weathervane — all to read as a coop, not a dwelling.
   tex(scene, 'coop', 64, 52, (g) => {
-    // Roof — dark ridge, two slopes
-    g.fillStyle(0x6b3c1a, 1); g.fillTriangle(0, 18, 32, 2, 64, 18);
-    g.fillStyle(0x9a5a2c, 1); g.fillTriangle(2, 18, 32, 4, 62, 18);
-    g.fillStyle(0xb87040, 1);
-    // Left slope highlight
-    g.fillRect(6, 10, 2, 8); g.fillRect(12, 8, 2, 10); g.fillRect(18, 6, 2, 12);
-    // Ridge cap
-    g.fillStyle(0x7a4420, 1); g.fillRect(28, 2, 8, 3);
+    const wall = 0xcf9a5c, wallDark = 0xa9743c, post = 0x8a5a2e;
+    const roofDark = 0x5a3418, roofMid = 0x8a5024, roofHi = 0xb87040;
+    const dark = 0x2a1808, legWood = 0x6e4a26, lid = 0x9a6030;
+    const wire = 0x9a8a6a, comb = 0xd23a2a, beak = 0xe0a020;
+    const straw = 0xe8c34a;
 
-    // Walls
-    g.fillStyle(0xd4a060, 1); g.fillRect(0, 18, 64, 34);
-    g.fillStyle(0xc0904e, 1); g.fillRect(0, 18, 64, 4); // top shadow under eave
-    g.fillStyle(0xa87840, 1); g.fillRect(0, 44, 64, 8); // ground shadow
+    // Legs (drawn behind the body so they peek out below)
+    g.fillStyle(legWood, 1);
+    g.fillRect(12, 44, 4, 8); g.fillRect(38, 44, 4, 8); g.fillRect(54, 42, 3, 10);
 
-    // Left window
-    g.fillStyle(0x5a3010, 1); g.fillRect(6, 24, 14, 10);
-    g.fillStyle(0xffe89a, 1); g.fillRect(7, 25, 12, 8);
-    g.fillStyle(0x5a3010, 1); g.fillRect(12, 25, 2, 8); g.fillRect(7, 28, 12, 2);
+    // Main body box
+    g.fillStyle(wall, 1);     g.fillRect(8, 20, 40, 26);
+    g.fillStyle(wallDark, 1); g.fillRect(8, 20, 40, 3);  // eave shadow
+    g.fillStyle(wallDark, 1); g.fillRect(8, 42, 40, 4);  // ground shadow
+    g.fillStyle(wallDark, 1);                            // horizontal planks
+    for (let y = 25; y < 42; y += 4) g.fillRect(8, y, 40, 1);
+    g.fillStyle(post, 1); g.fillRect(8, 20, 3, 26); g.fillRect(45, 20, 3, 26);
 
-    // Right window
-    g.fillStyle(0x5a3010, 1); g.fillRect(44, 24, 14, 10);
-    g.fillStyle(0xffe89a, 1); g.fillRect(45, 25, 12, 8);
-    g.fillStyle(0x5a3010, 1); g.fillRect(50, 25, 2, 8); g.fillRect(45, 28, 12, 2);
+    // Nesting box bump-out on the right with a hinged, slanted lid
+    g.fillStyle(wall, 1);     g.fillRect(46, 30, 14, 12);
+    g.fillStyle(wallDark, 1); g.fillRect(46, 38, 14, 4);
+    g.fillStyle(lid, 1);      g.fillTriangle(44, 31, 61, 25, 61, 31);
+    g.fillStyle(0x6e4326, 1); g.fillRect(44, 30, 17, 1);  // lid edge
+    g.fillStyle(0x3a2410, 1); g.fillCircle(58, 28, 1);    // lid knob
+    g.fillStyle(straw, 1);    g.fillRect(47, 41, 3, 1); g.fillRect(55, 41, 3, 1);
 
-    // Door opening (arched) — center bottom
-    g.fillStyle(0x3a1e08, 1); g.fillRect(26, 34, 12, 18);
-    g.fillCircle(32, 34, 6);
+    // Gable roof over the body
+    g.fillStyle(roofDark, 1); g.fillTriangle(3, 23, 28, 7, 53, 23);
+    g.fillStyle(roofMid, 1);  g.fillTriangle(6, 23, 28, 10, 50, 23);
+    g.fillStyle(roofHi, 1);   // left-slope highlight streaks
+    g.fillRect(11, 18, 2, 4); g.fillRect(16, 15, 2, 5); g.fillRect(21, 12, 2, 6);
+    g.fillStyle(0x6e4326, 1); g.fillRect(3, 22, 50, 2); // eave board
 
-    // Vertical wood planks
-    g.fillStyle(0xc0904e, 0.4);
-    for (let x = 8; x < 64; x += 8) g.fillRect(x, 18, 1, 34);
+    // Rooster weathervane on the ridge
+    g.fillStyle(0x3a2410, 1);
+    g.fillRect(30, 1, 1, 7);          // pole
+    g.fillEllipse(29, 2, 7, 3);       // body
+    g.fillRect(25, 0, 2, 3);          // tail
+    g.fillStyle(comb, 1); g.fillRect(32, 0, 1, 2); // comb
+    g.fillStyle(beak, 1); g.fillRect(33, 1, 1, 1); // beak
 
-    // Eave board
-    g.fillStyle(0x8a5428, 1); g.fillRect(0, 17, 64, 2);
+    // Wire vent (barred, not glass) high-center on the wall
+    g.fillStyle(dark, 1);     g.fillRect(27, 24, 10, 8);
+    g.fillStyle(wire, 1);
+    g.fillRect(27, 27, 10, 1); g.fillRect(27, 29, 10, 1);   // horizontal wires
+    g.fillRect(30, 24, 1, 8);  g.fillRect(33, 24, 1, 8);    // vertical wires
+    g.fillStyle(0x6e4326, 1);
+    g.fillRect(26, 23, 12, 1); g.fillRect(26, 32, 12, 1);
+    g.fillRect(26, 23, 1, 10); g.fillRect(37, 23, 1, 10);
+
+    // Pop-door (chicken sized)
+    g.fillStyle(0x6e4326, 1); g.fillRect(12, 33, 11, 12); // frame
+    g.fillStyle(dark, 1);     g.fillRect(13, 34, 9, 11);  // opening
+
+    // Ramp from the pop-door down to the ground, with rungs
+    g.fillStyle(0xb5824a, 1);
+    g.fillTriangle(13, 44, 22, 44, 6, 52);
+    g.fillTriangle(22, 44, 6, 52, 15, 52);
+    g.fillStyle(0x6e4326, 1);
+    g.fillRect(13, 47, 4, 1); g.fillRect(10, 49, 4, 1); g.fillRect(8, 51, 4, 1);
   });
 
   // --- nest (18 × 12) — woven straw ring ---
