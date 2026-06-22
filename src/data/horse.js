@@ -44,6 +44,8 @@ export class Horse {
     if (data.health  !== undefined) this.health  = data.health;
     if (data.speed   !== undefined) this.speed   = data.speed;
     if (data.stamina !== undefined) this.stamina = data.stamina;
+    // Whether a saddle is equipped (persists; required before the horse can be ridden).
+    this.saddled = data.saddled ?? false;
     this.lastSeen = data.lastSeen ?? Date.now();
   }
 
@@ -89,6 +91,7 @@ export class Horse {
       coat: this.coat,
       age: this.age,
       stats: { ...this.stats },
+      saddled: this.saddled,
       lastSeen: this.lastSeen
     };
     if (this.health  !== undefined) out.health  = this.health;

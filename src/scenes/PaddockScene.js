@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { saveHorse } from '../data/save.js';
+import { saveAllHorses } from '../data/save.js';
 import { CONTENT_DEFS } from '../data/items.js';
 import {
   playHoofbeat, playEat, playDrink, playBrush, playChime,
@@ -49,7 +49,6 @@ export default class PaddockScene extends Phaser.Scene {
   }
 
   create() {
-    this.horse    = this.registry.get('horse');
     this.decayAccum = 0;
     this.saveAccum  = 0;
     this.horses     = [];
@@ -352,6 +351,11 @@ export default class PaddockScene extends Phaser.Scene {
     const h5 = this.spawnHorse(520,  1350, 'horse5', 3000);
     const h6 = this.spawnHorse(1600, 1280, 'horse6', 1800);
     const h7 = this.spawnHorse(900,  1220, 'horse7', 2600); // Ebony — Friesian
+
+    // Restore saddles for any horse that was saddled when the game was last saved.
+    for (const h of this.horses) {
+      if (h.saddled) this.equipSaddle(h);
+    }
 
     // Foals disabled for now — re-enable by uncommenting
     // this.spawnFoal(h3.sprite.x + 80,  h3.sprite.y, 'foal1', h3); // grey foal → Ash
@@ -873,7 +877,9 @@ export default class PaddockScene extends Phaser.Scene {
       .setOrigin(0.5, 1).setScale(S).setDepth(startY)
       .play(`idle_${key}`);
 
-    const h = { sprite, shadow, key, state: 'idle', wanderTween: null, eatTimer: null };
+    const model = this.registry.get('allHorses')[key];
+    const h = { sprite, shadow, key, state: 'idle', wanderTween: null, eatTimer: null,
+                saddled: model?.saddled ?? false, saddleImg: null };
     this.horses.push(h);
     this.scheduleWander(h, wanderDelay);
     return h;
@@ -1536,9 +1542,13 @@ export default class PaddockScene extends Phaser.Scene {
         const tx = h.sprite.x + (world.x < h.sprite.x ? -70 : 70);
         this.tapMoveTo(tx, h.sprite.y, () => {
           const cur = this.getActiveItem();
-          if (cur?.action === 'ride')      { this.mountHorse(h); return; }
+          if (cur?.action === 'saddle')    { this.toggleSaddle(h); return; }
           if (cur?.action === 'lead')      { this.toggleLead(h); return; }
-          if (cur?.action === 'interact')  { this.openPortrait(h.key); return; }
+          // Basic interact mounts a saddled horse; otherwise opens its info.
+          if (cur?.action === 'interact')  {
+            if (h.saddled) this.mountHorse(h); else this.openPortrait(h.key);
+            return;
+          }
           if (cur?.action === 'feed')      { this.placeFood(cur); return; }
           if (cur?.action === 'brush')     { this.useItemOnHorse(cur, h); return; }
           // Water/eggs and empty carriers aren't used on horses — open the portrait.
@@ -1878,7 +1888,44 @@ export default class PaddockScene extends Phaser.Scene {
 
   // ─── Riding ──────────────────────────────────────────────────────────────
 
+  // ─── Saddle (equip/remove) ───────────────────────────────────────────────
+  // The saddle is a persistent, visible piece of tack. Riding is gated behind it
+  // (see mountHorse). Equipping/removing is independent of mounting (issue #54).
+
+  toggleSaddle(h) {
+    if (h.saddled) this.removeSaddle(h);
+    else           this.equipSaddle(h);
+  }
+
+  equipSaddle(h) {
+    if (!h.saddleImg) {
+      h.saddleImg = this.add.image(h.sprite.x, h.sprite.y, 'saddleOverlay')
+        .setScale(S).setOrigin(0.5, 1).setDepth(h.sprite.depth + 1)
+        .setFlipX(h.sprite.flipX);
+    }
+    if (!h.saddled) {
+      h.saddled = true;
+      const model = this.registry.get('allHorses')[h.key];
+      if (model) model.saddled = true;
+      playBrush();
+      this.showIcon('iconSaddle', h.sprite);
+      this._saveHorses();
+    }
+  }
+
+  removeSaddle(h) {
+    if (this.riding?.h === h) return; // can't unsaddle the horse you're riding
+    if (h.saddleImg) { h.saddleImg.destroy(); h.saddleImg = null; }
+    if (h.saddled) {
+      h.saddled = false;
+      const model = this.registry.get('allHorses')[h.key];
+      if (model) model.saddled = false;
+      this._saveHorses();
+    }
+  }
+
   mountHorse(h) {
+    if (!h.saddled) return; // a saddle is required before you can ride
     if (this.riding) this.dismount();
     if (this.leadHorses.includes(h)) this.stopLeadingHorse(h);
 
@@ -1886,10 +1933,6 @@ export default class PaddockScene extends Phaser.Scene {
     if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
     if (h.eatTimer) { h.eatTimer.remove(); h.eatTimer = null; }
     h.state = 'riding';
-
-    const saddleImg = this.add.image(h.sprite.x, h.sprite.y, 'saddleOverlay')
-      .setScale(S).setOrigin(0.5, 1).setDepth(h.sprite.depth + 1)
-      .setFlipX(h.sprite.flipX);
 
     // Freeze player on side-view idle frame so they appear to sit
     this.player.sprite.stop();
@@ -1899,14 +1942,14 @@ export default class PaddockScene extends Phaser.Scene {
     this.player.moving = false;
 
     this._cancelRideNav();
-    this.riding = { h, saddleImg };
+    this.riding = { h };
     this.cameras.main.startFollow(h.sprite, true, 0.12, 0.12);
   }
 
   dismount() {
     if (!this.riding) return;
-    const { h, saddleImg } = this.riding;
-    saddleImg.destroy();
+    const { h } = this.riding;
+    // The saddle stays equipped on the horse — dismounting doesn't remove it.
 
     // Place player next to horse, restore shadow
     const offset = h.sprite.flipX ? 80 : -80;
@@ -1924,7 +1967,8 @@ export default class PaddockScene extends Phaser.Scene {
 
   updateRiding(delta) {
     if (!this.riding) return;
-    const { h, saddleImg } = this.riding;
+    const { h } = this.riding;
+    const saddleImg = h.saddleImg;
     const { cursors, wasd } = this;
 
     let vx = 0, vy = 0;
@@ -2213,11 +2257,11 @@ export default class PaddockScene extends Phaser.Scene {
       case 'water': horse.water(); break;
       case 'brush': horse.brush(); break;
       case 'pet':   horse.pet();   break;
-      case 'ride':  this.mountHorse(h); return;
+      case 'saddle': this.toggleSaddle(h); return;
       case 'lead':  this.toggleLead(h); return;
     }
 
-    if (h.key === 'horse') saveHorse(horse);
+    this._saveHorses();
     this.game.events.emit('stats-changed');
 
     if (item.action === 'pet') {
@@ -2284,7 +2328,7 @@ export default class PaddockScene extends Phaser.Scene {
       case 'pet':   horseData.pet();   break;
     }
 
-    if (horseKey === 'horse') saveHorse(horseData);
+    this._saveHorses();
 
     if (type === 'pet')   playChime();
     if (type === 'feed')  playEat();
@@ -2332,11 +2376,29 @@ export default class PaddockScene extends Phaser.Scene {
 
   // ─── Update ──────────────────────────────────────────────────────────────
 
+  // Keep each equipped saddle glued to its horse as it wanders. The ridden
+  // horse's saddle is synced inside updateRiding, so skip it here.
+  updateSaddles() {
+    const ridden = this.riding?.h;
+    for (const h of this.horses) {
+      if (!h.saddleImg || h === ridden) continue;
+      h.saddleImg.x = h.sprite.x;
+      h.saddleImg.y = h.sprite.y;
+      h.saddleImg.setFlipX(h.sprite.flipX);
+      h.saddleImg.setDepth(h.sprite.depth + 1);
+    }
+  }
+
+  _saveHorses() {
+    saveAllHorses(this.registry.get('allHorses'));
+  }
+
   update(time, delta) {
     this._pollRawPad();
     if (this._paused || this._sleeping) return;
     this._updateHold();
     this.updateRiding(delta);
+    this.updateSaddles();
     this.movePlayer(delta);
     this.updateLeading(delta);
     this.updateFoals(delta);
@@ -2612,29 +2674,31 @@ export default class PaddockScene extends Phaser.Scene {
       if (d < nearestDist) { nearestDist = d; nearest = h; }
     }
     // Carried food/water aren't used directly on a horse — feeding is drop-only
-    // and water goes to the trough. The brush (and ride/lead/info) work directly.
-    const horseUsable = !item || item.action === 'ride' || item.action === 'lead' ||
-      item.action === 'interact' || item.action === 'brush';
+    // and water goes to the trough. The brush, saddle, lead and basic-interact
+    // (empty hand) work directly on a horse.
+    const basicInteract = !item || item.action === 'interact';
+    const horseUsable = basicInteract || item.action === 'saddle' ||
+      item.action === 'lead' || item.action === 'brush';
     const inRange = nearest && nearestDist < INTERACT_DIST && horseUsable;
 
     if (inRange) {
       let verb;
-      if (item?.action === 'ride')      verb = 'Mount';
-      else if (item?.action === 'lead') verb = this.leadHorses.includes(nearest) ? 'Detach Lead' : 'Attach Lead';
-      else if (item?.action === 'interact') verb = 'Info';
-      else if (item) verb = `Use ${item.label}`;
-      else verb = `Info  •  [ A ] Pet`;
+      if (item?.action === 'saddle')             verb = nearest.saddled ? 'Remove Saddle' : 'Saddle Up';
+      else if (item?.action === 'lead')          verb = this.leadHorses.includes(nearest) ? 'Detach Lead' : 'Attach Lead';
+      else if (nearest.saddled && basicInteract) verb = 'Mount';
+      else if (item?.action === 'interact')      verb = 'Info';
+      else                                       verb = `Info  •  [ A ] Pet`;
 
       this.interactPrompt.setText(`${useKey}  ${verb}`);
       this.interactPrompt.setPosition(nearest.sprite.x, nearest.sprite.y - 118);
       this.interactPrompt.setVisible(true);
 
       if (useJust) {
-        if (item?.action === 'ride')      this.mountHorse(nearest);
-        else if (item?.action === 'lead') this.toggleLead(nearest);
-        else if (item?.action === 'interact') this.openPortrait(nearest.key);
-        else if (item?.action === 'brush') this.useItemOnHorse(item, nearest);
-        else                              this.openPortrait(nearest.key);
+        if (item?.action === 'saddle')             this.toggleSaddle(nearest);
+        else if (item?.action === 'lead')          this.toggleLead(nearest);
+        else if (nearest.saddled && basicInteract) this.mountHorse(nearest);
+        else if (item?.action === 'brush')         this.useItemOnHorse(item, nearest);
+        else                                       this.openPortrait(nearest.key);
       }
       return;
     }
@@ -2736,7 +2800,7 @@ export default class PaddockScene extends Phaser.Scene {
     this.saveAccum += delta;
     if (this.saveAccum >= 15000) {
       this.saveAccum = 0;
-      saveHorse(this.horse);
+      this._saveHorses();
     }
   }
 }
