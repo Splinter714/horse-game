@@ -93,15 +93,30 @@ export default class PortraitScene extends Phaser.Scene {
       fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: '#6a6860',
     }).setOrigin(0.5, 0));
 
-    this.moodText = this.add.text(PANEL_W / 2, 240, `Feeling ${horse.mood()}`, {
+    // Vertical cursor for the info block so an optional attributes row
+    // (only horses with fixed health/speed/stamina, e.g. Ebony) pushes the
+    // mood line, divider, and stat bars down instead of overlapping them.
+    let infoY = 240;
+
+    // ── Fixed attributes (health / speed / stamina), when present ──
+    if (horse.health !== undefined) {
+      this.panel.add(this.add.text(PANEL_W / 2, infoY,
+        `Health ${horse.health}  ·  Speed ${horse.speed}  ·  Stamina ${horse.stamina}`, {
+          fontFamily: 'system-ui, sans-serif', fontSize: '11px', color: '#8a6a3a',
+        }).setOrigin(0.5, 0));
+      infoY += 20;
+    }
+
+    this.moodText = this.add.text(PANEL_W / 2, infoY, `Feeling ${horse.mood()}`, {
       fontFamily: 'system-ui, sans-serif', fontSize: '13px', color: '#1d9e75',
     }).setOrigin(0.5, 0);
     this.panel.add(this.moodText);
+    infoY += 22;
 
-    this.addDivider(262);
+    this.addDivider(infoY);
 
     // ── Stat bars ─────────────────────────────────────────────────
-    let barY = 276;
+    let barY = infoY + 14;
     for (const s of STATS) {
       this.panel.add(this.add.text(14, barY, s.label, {
         fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: '#6a6860',
