@@ -318,9 +318,8 @@ function drawChicken(g, bob, phase, coat = CHICKEN_COATS[0]) {
   g.fillRect(11, 0+bob, 2, 3); g.fillRect(13, 1+bob, 2, 2); g.fillRect(10, 1+bob, 2, 2);
   g.fillStyle(0xe03030, 1); g.fillRect(14, 6+bob, 2, 3);
   g.fillStyle(0xe0c030, 1); g.fillRect(15, 4+bob, 1, 2);
-  g.fillStyle(0xe03030, 1); g.fillRect(12, 4+bob, 2, 2);
-  g.fillStyle(0x1a0800, 1); g.fillRect(13, 4+bob, 1, 2);
-  g.fillStyle(0xffffff, 0.8); g.fillRect(12, 4+bob, 1, 1);
+  g.fillStyle(0x1a0800, 1); g.fillRect(12, 4+bob, 2, 2); // eye
+  g.fillStyle(0xffffff, 0.8); g.fillRect(12, 4+bob, 1, 1); // catchlight
 }
 
 // Pecking pose — peckDepth 0 = beak lifted, 2 = beak at ground
@@ -352,9 +351,8 @@ function drawChickenEat(g, peckDepth, coat = CHICKEN_COATS[0]) {
   g.fillStyle(0xe03030, 1); g.fillRect(12, hy - 1, 2, 2); // comb (small)
   g.fillStyle(0xe03030, 1); g.fillRect(14, hy + 3, 2, 2); // wattle
   g.fillStyle(0xe0c030, 1); g.fillRect(15, hy + 4, 1, 2); // beak pointing down
-  g.fillStyle(0xe03030, 1); g.fillRect(12, hy + 1, 2, 2);
-  g.fillStyle(0x1a0800, 1); g.fillRect(13, hy + 1, 1, 2);
-  g.fillStyle(0xffffff, 0.8); g.fillRect(12, hy + 1, 1, 1);
+  g.fillStyle(0x1a0800, 1); g.fillRect(12, hy + 1, 2, 2); // eye
+  g.fillStyle(0xffffff, 0.8); g.fillRect(12, hy + 1, 1, 1); // catchlight
 }
 
 function buildChickenTextures(scene, key, coat) {
