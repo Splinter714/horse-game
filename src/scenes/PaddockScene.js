@@ -1376,6 +1376,7 @@ export default class PaddockScene extends Phaser.Scene {
       const dy = ty - h.sprite.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
+      const fromX = h.sprite.x, fromY = h.sprite.y;
       if (dist > 30) {
         const speed = PLAYER_SPEED * 1.15 * (delta / 1000);
         const ratio = Math.min(1, speed / dist);
@@ -1385,11 +1386,23 @@ export default class PaddockScene extends Phaser.Scene {
         const ny = h.sprite.y + dy * ratio;
         if (!this._collides(nx, h.sprite.y, 16)) h.sprite.x = nx;
         if (!this._collides(h.sprite.x, ny, 16)) h.sprite.y = ny;
-        h.sprite.setFlipX(dx < 0);
+        if (Math.abs(dx) > 1) h.sprite.setFlipX(dx < 0);
+      }
+
+      // Animate from actual movement, not distance-to-target. A led horse trots
+      // at 1.15x player speed, so at steady state it hovers around the stop
+      // threshold and would otherwise flicker between walk and idle each frame.
+      // A short hysteresis window keeps the walk cycle alive through the brief
+      // catch-up pauses, so it only drops to idle once it has truly settled.
+      const moved = Math.hypot(h.sprite.x - fromX, h.sprite.y - fromY);
+      if (moved > 0.3) {
+        h._ledStillFor = 0;
         h.sprite.play(`walk_${h.key}`, true);
       } else {
-        h.sprite.stop();
-        h.sprite.setTexture(`${h.key}_idle_0`);
+        h._ledStillFor = (h._ledStillFor || 0) + delta;
+        if (h._ledStillFor > 150 && h.sprite.anims.currentAnim?.key !== `idle_${h.key}`) {
+          h.sprite.play(`idle_${h.key}`, true);
+        }
       }
 
       // Draw rope segment from previous point to this horse
