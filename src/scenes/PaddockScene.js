@@ -6,14 +6,20 @@ import {
 } from '../audio/sounds.js';
 
 const WORLD_W = 1920;
-const WORLD_H = 1280;
+const WORLD_H = 1600;
 
 const INTERACT_DIST = 100;
 const PLAYER_SPEED  = 210;
 const RIDE_SPEED    = 340;
 
-const BOUNDS      = { minX: 180, maxX: 1740, minY: 360, maxY: 1060 };
-const PLAYER_BOUNDS = { minX: 40, maxX: 1880, minY: 80, maxY: 1220 };
+const BOUNDS      = { minX: 180, maxX: 1740, minY: 200, maxY: 900 };
+const PLAYER_BOUNDS = { minX: 40, maxX: 1880, minY: 80, maxY: 1550 };
+const PASTURE_BOUNDS = { minX: 180, maxX: 1740, minY: 910, maxY: 1450 };
+
+// Gate opening in the top pasture fence (the only gap; gate sits here)
+const GATE_X = 960;
+const GATE_GAP_X0 = 900;
+const GATE_GAP_X1 = 1020;
 
 const S = 2;
 
@@ -41,7 +47,7 @@ export default class PaddockScene extends Phaser.Scene {
 
     // Riding / leading state
     this.riding   = null; // { h, saddleImg }
-    this.leading  = null; // horse being led
+    this.leadHorses = [];  // horses currently being led (in order, trailing the player)
     this.leadRope = null; // Graphics line
 
     this.buildWorld();
@@ -137,8 +143,8 @@ export default class PaddockScene extends Phaser.Scene {
     // Egg-laying timer: every 45 seconds a random chicken may lay in a free nest
     this.time.addEvent({ delay: 45_000, loop: true, callback: this.eggLayTick, callbackScope: this });
 
-    // Water trough (interactive)
-    const tx = 740, ty = 490;
+    // Water trough (interactive) — inside the gated pasture
+    const tx = 740, ty = 1100;
     const troughSprite = this.add.image(tx, ty, 'trough')
       .setScale(S).setDepth(ty).setOrigin(0.5, 0.5);
     this.props.trough = { x: tx, y: ty, sprite: troughSprite, filled: false, drinks: 0 };
@@ -148,42 +154,42 @@ export default class PaddockScene extends Phaser.Scene {
   }
 
   buildPastureFence() {
-    const BOUNDS = { minX: 180, maxX: 1740, minY: 360, maxY: 1060 };
+    const PB = PASTURE_BOUNDS;
     const fenceH = 48, fenceW = 48;
 
     // Left fence (vertical)
-    for (let y = BOUNDS.minY; y < BOUNDS.maxY; y += fenceH) {
-      this.add.image(BOUNDS.minX - 8, y + fenceH / 2, 'fence')
+    for (let y = PB.minY; y < PB.maxY; y += fenceH) {
+      this.add.image(PB.minX - 8, y + fenceH / 2, 'fence')
         .setScale(S).setDepth(y + fenceH / 2).setOrigin(0.5, 0.5).setRotation(Math.PI / 2);
     }
 
     // Right fence (vertical)
-    for (let y = BOUNDS.minY; y < BOUNDS.maxY; y += fenceH) {
-      this.add.image(BOUNDS.maxX + 8, y + fenceH / 2, 'fence')
+    for (let y = PB.minY; y < PB.maxY; y += fenceH) {
+      this.add.image(PB.maxX + 8, y + fenceH / 2, 'fence')
         .setScale(S).setDepth(y + fenceH / 2).setOrigin(0.5, 0.5).setRotation(Math.PI / 2);
     }
 
-    // Top fence (horizontal)
-    for (let x = BOUNDS.minX; x < BOUNDS.maxX; x += fenceW) {
-      this.add.image(x + fenceW / 2, BOUNDS.minY - 8, 'fence')
-        .setScale(S).setDepth(BOUNDS.minY - 8).setOrigin(0.5, 0.5);
+    // Bottom fence (horizontal)
+    for (let x = PB.minX; x < PB.maxX; x += fenceW) {
+      this.add.image(x + fenceW / 2, PB.maxY + 8, 'fence')
+        .setScale(S).setDepth(PB.maxY + 8).setOrigin(0.5, 0.5);
     }
 
-    // Bottom fence with gate opening - fence on left side of gate
-    const gateX = 1500, gateY = BOUNDS.maxY + 8;
-    for (let x = BOUNDS.minX; x < gateX - 60; x += fenceW) {
+    // Top fence with gate opening - fence on left side of gate
+    const gateX = 960, gateY = PB.minY - 8;
+    for (let x = PB.minX; x < gateX - 60; x += fenceW) {
       this.add.image(x + fenceW / 2, gateY, 'fence')
         .setScale(S).setDepth(gateY).setOrigin(0.5, 0.5);
     }
 
-    // Gate (interactive)
+    // Gate (interactive) — positioned at top center of pasture
     const gateSprite = this.add.image(gateX, gateY, 'gateClosed')
       .setScale(S).setDepth(gateY).setOrigin(0.5, 0.5);
 
     this.props.gate = { x: gateX, y: gateY, sprite: gateSprite, open: false };
 
-    // Fence on right side of gate (if needed)
-    for (let x = gateX + 70; x < BOUNDS.maxX; x += fenceW) {
+    // Fence on right side of gate
+    for (let x = gateX + 70; x < PB.maxX; x += fenceW) {
       this.add.image(x + fenceW / 2, gateY, 'fence')
         .setScale(S).setDepth(gateY).setOrigin(0.5, 0.5);
     }
@@ -199,8 +205,8 @@ export default class PaddockScene extends Phaser.Scene {
       { x: 162, y: 192, w: 156, h: 88 },
       // Coop (origin 0.5,1 at 930,400; sprite 64×52 at S=2 → 128×104)
       { x: 868, y: 300, w: 124, h: 100 },
-      // Trough (origin 0.5,0.5 at 740,490; sprite 100×26 at S=2 → 200×52)
-      { x: 652, y: 468, w: 176, h: 44 },
+      // Trough (origin 0.5,0.5 at 740,1100; sprite 100×26 at S=2 → 200×52)
+      { x: 652, y: 1078, w: 176, h: 44 },
       // Fence line (6 segments at y=320, origin 0,0.5; 96×48 each → x=300..876)
       { x: 300, y: 300, w: 576, h: 40 },
     ];
@@ -208,11 +214,25 @@ export default class PaddockScene extends Phaser.Scene {
     // Chicken-specific list: same but without the coop (they're allowed in)
     this.chickenObstacles = this.obstacles.filter(o => o !== this.obstacles[1]);
 
-    // Gate obstacle (added when gate is closed)
-    // Gate sprite at 1500, 1068 (origin 0.5, 0.5); 56×48 at S=2 → 112×96
-    this.gateObstacleIndex = this.obstacles.length;
+    // ── Solid pasture fence ── (perimeter walls with a single gap at the gate)
+    // The gate opening spans x ≈ [GATE_GAP_X0, GATE_GAP_X1] at the top edge.
+    const PB = PASTURE_BOUNDS;
+    const topY = PB.minY - 8, botY = PB.maxY + 8, lX = PB.minX - 8, rX = PB.maxX + 8;
+    const T = 20; // wall thickness
+    this.fenceObstacles = [
+      { x: PB.minX, y: topY - T / 2, w: GATE_GAP_X0 - PB.minX, h: T, isFence: true }, // top-left of gate
+      { x: GATE_GAP_X1, y: topY - T / 2, w: PB.maxX - GATE_GAP_X1, h: T, isFence: true }, // top-right of gate
+      { x: PB.minX, y: botY - T / 2, w: PB.maxX - PB.minX, h: T, isFence: true },     // bottom
+      { x: lX - T / 2, y: topY, w: T, h: botY - topY, isFence: true },                // left
+      { x: rX - T / 2, y: topY, w: T, h: botY - topY, isFence: true },                // right
+    ];
+    for (const f of this.fenceObstacles) this.obstacles.push(f);
+
+    // Gate obstacle — fills the fence gap. Blocks everyone when closed, passable
+    // when open. Thin horizontal strip so movers block at the footing.
+    this.gateObstacle = { x: 960 - 56, y: 902 - 18, w: 112, h: 36, isGate: true };
     if (this.props.gate && !this.props.gate.open) {
-      this.obstacles.push({ x: 1500 - 56, y: 1068 - 48, w: 112, h: 96, isGate: true });
+      this.obstacles.push(this.gateObstacle);
     }
 
     // Nest obstacles added after nests are built (in buildWorld nests are created before this)
@@ -251,13 +271,13 @@ export default class PaddockScene extends Phaser.Scene {
   // ─── Horses ──���─────────────────────────────────────────────���─────────────
 
   buildHorses() {
-    const h1 = this.spawnHorse(680,  730, 'horse',  1500);
-    const h2 = this.spawnHorse(380,  530, 'horse2',  800);
-    const h3 = this.spawnHorse(1380, 860, 'horse3', 2200);
-    const h4 = this.spawnHorse(1050, 480, 'horse4', 1200);
-    const h5 = this.spawnHorse(520,  920, 'horse5', 3000);
-    const h6 = this.spawnHorse(1600, 620, 'horse6', 1800);
-    const h7 = this.spawnHorse(900,  600, 'horse7', 2600); // Ebony — Friesian
+    const h1 = this.spawnHorse(680,  1200, 'horse',  1500);
+    const h2 = this.spawnHorse(380,  1300, 'horse2',  800);
+    const h3 = this.spawnHorse(1380, 1250, 'horse3', 2200);
+    const h4 = this.spawnHorse(1050, 1150, 'horse4', 1200);
+    const h5 = this.spawnHorse(520,  1350, 'horse5', 3000);
+    const h6 = this.spawnHorse(1600, 1280, 'horse6', 1800);
+    const h7 = this.spawnHorse(900,  1220, 'horse7', 2600); // Ebony — Friesian
 
     // Foals disabled for now — re-enable by uncommenting
     // this.spawnFoal(h3.sprite.x + 80,  h3.sprite.y, 'foal1', h3); // grey foal → Ash
@@ -681,19 +701,6 @@ export default class PaddockScene extends Phaser.Scene {
     });
   }
 
-  placeSeeds() {
-    const { sprite, facing } = this.player;
-    let px = sprite.x, py = sprite.y;
-    if      (facing === 'right') px += 60;
-    else if (facing === 'left')  px -= 60;
-    else if (facing === 'down')  py += 45;
-    else                         py -= 45;
-    px = Phaser.Math.Clamp(px + Phaser.Math.Between(-10, 10), BOUNDS.minX, BOUNDS.maxX);
-    py = Phaser.Math.Clamp(py + Phaser.Math.Between(-8,  8),  BOUNDS.minY, BOUNDS.maxY);
-
-    const pileSprite = this.add.image(px, py, 'seedPile').setScale(S).setDepth(py);
-    this.props.seedPiles.push({ x: px, y: py, sprite: pileSprite });
-  }
 
   spawnFoal(startX, startY, key, parentH) {
     if (!this.anims.exists(`idle_${key}`)) {
@@ -777,25 +784,36 @@ export default class PaddockScene extends Phaser.Scene {
   wander(h) {
     if (!h.sprite.active || h.state !== 'idle') return;
     h.state = 'wandering';
-    const { tx, ty } = this._safeTarget(BOUNDS.minX, BOUNDS.maxX, BOUNDS.minY, BOUNDS.maxY,
+    // Horses wander in the pasture, other animals in the farm area
+    const isHorse = this.horses.includes(h);
+    const bounds = isHorse ? PASTURE_BOUNDS : BOUNDS;
+    const { tx, ty } = this._safeTarget(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY,
                                          this.obstacles, h.sprite.x, h.sprite.y);
-    const dist = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, tx, ty);
 
+    const onArrive = () => {
+      if (!h.sprite.active) return;
+      h.wanderTween = null;
+      h.sprite.play(`idle_${h.key}`, true);
+      h.state = 'idle';
+      this.scheduleWander(h, Phaser.Math.Between(2000, 5000));
+    };
+
+    // Route through the gate if the horse is wandering back across the fence
+    // (e.g. it walked out to eat hay and now heads back into the pasture).
+    if (isHorse) {
+      this._runHorsePath(h, this._gatePath(h.sprite.x, h.sprite.y, tx, ty), onArrive);
+      return;
+    }
+
+    const dist = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, tx, ty);
     h.sprite.setFlipX(tx < h.sprite.x);
     h.sprite.play(`walk_${h.key}`, true);
-
     h.wanderTween = this.tweens.add({
       targets: h.sprite,
       x: tx, y: ty,
       duration: Math.max(600, dist * 11),
       ease: 'Sine.easeInOut',
-      onComplete: () => {
-        if (!h.sprite.active) return;
-        h.wanderTween = null;
-        h.sprite.play(`idle_${h.key}`, true);
-        h.state = 'idle';
-        this.scheduleWander(h, Phaser.Math.Between(2000, 5000));
-      }
+      onComplete: onArrive,
     });
   }
 
@@ -817,7 +835,9 @@ export default class PaddockScene extends Phaser.Scene {
       if (a.eatTimer)    { a.eatTimer.remove?.() ?? this.time.removeEvent(a.eatTimer); a.eatTimer = null; }
       a._eatPile = null;
       a.state = 'resting';
-      a.sprite.play(`sleep_${a.key}`, true);
+      a.sprite.play(`idle_${a.key}`, true);
+      // Schedule random lay-down moments while sleeping
+      this._scheduleLayDown(a);
     };
     for (const h of this.horses) stopOne(h);
     for (const a of this.animals) stopOne(a);
@@ -828,11 +848,35 @@ export default class PaddockScene extends Phaser.Scene {
     }
   }
 
+  _scheduleLayDown(a) {
+    if (a._sleepTimer) { this.time.removeEvent(a._sleepTimer); a._sleepTimer = null; }
+    if (a.state !== 'resting') return;
+
+    const delay = Phaser.Math.Between(8000, 16000);
+    a._sleepTimer = this.time.delayedCall(delay, () => {
+      if (a.state !== 'resting') return;
+      a._sleepTimer = null;
+
+      if (Math.random() < 0.5) {
+        a.sprite.play(`sleep_${a.key}`, true);
+        const layDownTime = Phaser.Math.Between(3000, 7000);
+        this.time.delayedCall(layDownTime, () => {
+          if (a.state === 'resting') {
+            a.sprite.play(`idle_${a.key}`, true);
+          }
+        });
+      }
+      this._scheduleLayDown(a);
+    });
+  }
+
   wakeAllAnimals() {
     for (const h of this.horses) {
+      if (h._sleepTimer) { this.time.removeEvent(h._sleepTimer); h._sleepTimer = null; }
       if (h.state === 'resting') { h.state = 'idle'; this.scheduleWander(h, Phaser.Math.Between(500, 3000)); }
     }
     for (const a of this.animals) {
+      if (a._sleepTimer) { this.time.removeEvent(a._sleepTimer); a._sleepTimer = null; }
       if (a.state === 'resting') { a.state = 'idle'; this.scheduleAnimalWander(a, Phaser.Math.Between(500, 3000)); }
     }
   }
@@ -854,6 +898,12 @@ export default class PaddockScene extends Phaser.Scene {
     }
   }
 
+  // True if (x, y) is within the gated pasture — horses can only reach food here.
+  _inPasture(x, y) {
+    const pb = PASTURE_BOUNDS;
+    return x >= pb.minX && x <= pb.maxX && y >= pb.minY && y <= pb.maxY;
+  }
+
   // Returns true if horse was directed somewhere; false if it should wander normally.
   horseTickForHorse(h) {
     const allHorses = this.registry.get('allHorses');
@@ -861,8 +911,11 @@ export default class PaddockScene extends Phaser.Scene {
     if (!horseData) return false;
 
     if (horseData.stats.hunger < 95 && this.props.hayPiles.length > 0) {
+      const gateOpen = !!this.props.gate?.open;
       let closest = null, closestDist = Infinity;
       for (const pile of this.props.hayPiles) {
+        // Hay outside the fence is only reachable when the gate is open
+        if (!this._inPasture(pile.x, pile.y) && !gateOpen) continue;
         const d = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, pile.x, pile.y);
         if (d < closestDist) { closestDist = d; closest = pile; }
       }
@@ -872,7 +925,8 @@ export default class PaddockScene extends Phaser.Scene {
       }
     }
 
-    if (horseData.stats.thirst < 95 && this.props.trough?.filled) {
+    if (horseData.stats.thirst < 95 && this.props.trough?.filled &&
+        this._inPasture(this.props.trough.x, this.props.trough.y)) {
       const td = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, this.props.trough.x, this.props.trough.y);
       if (td < 1000) {
         this.horseGoDrink(h);
@@ -881,6 +935,40 @@ export default class PaddockScene extends Phaser.Scene {
     }
 
     return false;
+  }
+
+  // Waypoints from (fromX,fromY) to (tx,ty). If the path crosses the pasture
+  // fence, it's routed through the gate opening so movers never clip the fence.
+  _gatePath(fromX, fromY, tx, ty) {
+    const insideFrom = this._inPasture(fromX, fromY);
+    const insideTo   = this._inPasture(tx, ty);
+    if (insideFrom === insideTo) return [{ x: tx, y: ty }];
+
+    const gateLine = PASTURE_BOUNDS.minY;        // top fence line
+    const inPoint  = { x: GATE_X, y: gateLine + 24 };  // just inside the gate
+    const outPoint = { x: GATE_X, y: gateLine - 24 };  // just outside the gate
+    return insideFrom
+      ? [inPoint, outPoint, { x: tx, y: ty }]    // leaving the pasture
+      : [outPoint, inPoint, { x: tx, y: ty }];   // entering the pasture
+  }
+
+  // Move a horse along a list of waypoints with walk tweens, then call onArrive.
+  _runHorsePath(h, points, onArrive) {
+    const step = (i) => {
+      if (!h.sprite.active) return;
+      if (i >= points.length) { h.wanderTween = null; onArrive?.(); return; }
+      const { x: tx, y: ty } = points[i];
+      const dist = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, tx, ty);
+      h.sprite.setFlipX(tx < h.sprite.x);
+      h.sprite.play(`walk_${h.key}`, true);
+      h.wanderTween = this.tweens.add({
+        targets: h.sprite, x: tx, y: ty,
+        duration: Math.max(300, dist * 10),
+        ease: 'Sine.easeInOut',
+        onComplete: () => step(i + 1),
+      });
+    };
+    step(0);
   }
 
   horseGoEat(h, pile) {
@@ -895,36 +983,29 @@ export default class PaddockScene extends Phaser.Scene {
     const facingRight = pile.x >= h.sprite.x;
     const tx = pile.x + (facingRight ? -50 : 50);
     const ty = pile.y;
-    const dist = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, tx, ty);
 
-    h.sprite.setFlipX(!facingRight);
-    h.sprite.play(`walk_${h.key}`, true);
+    // Route through the gate if the hay is on the far side of the fence
+    const path = this._gatePath(h.sprite.x, h.sprite.y, tx, ty);
 
-    h.wanderTween = this.tweens.add({
-      targets: h.sprite,
-      x: tx, y: ty,
-      duration: Math.max(500, dist * 10),
-      ease: 'Sine.easeInOut',
-      onComplete: () => {
+    this._runHorsePath(h, path, () => {
+      if (h.state !== 'eating') return;
+      h.sprite.setFlipX(!facingRight);
+      h.sprite.play(`eat_${h.key}`, true);
+
+      playEat();
+      h.eatTimer = this.time.delayedCall(1800, () => {
+        h.eatTimer = null;
         if (h.state !== 'eating') return;
-        h.wanderTween = null;
-        h.sprite.play(`eat_${h.key}`, true);
-
-        playEat();
-        h.eatTimer = this.time.delayedCall(1800, () => {
-          h.eatTimer = null;
-          if (h.state !== 'eating') return;
-          const allHorses = this.registry.get('allHorses');
-          allHorses[h.key]?.feed();
-          this.game.events.emit('stats-changed');
-          pile.sprite.destroy();
-          this.props.hayPiles = this.props.hayPiles.filter(p => p !== pile);
-          h._eatPile = null;
-          h.sprite.play(`idle_${h.key}`, true);
-          h.state = 'idle';
-          this.scheduleWander(h, 1500);
-        });
-      }
+        const allHorses = this.registry.get('allHorses');
+        allHorses[h.key]?.feed();
+        this.game.events.emit('stats-changed');
+        pile.sprite.destroy();
+        this.props.hayPiles = this.props.hayPiles.filter(p => p !== pile);
+        h._eatPile = null;
+        h.sprite.play(`idle_${h.key}`, true);
+        h.state = 'idle';
+        this.scheduleWander(h, 1500);
+      });
     });
   }
 
@@ -943,20 +1024,14 @@ export default class PaddockScene extends Phaser.Scene {
     const spread = (slot === 0 ? -30 : 30);
     const tx = trough.x + spread + (facingRight ? -70 : 70);
     const ty = trough.y;
-    const dist = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, tx, ty);
 
-    h.sprite.setFlipX(!facingRight);
-    h.sprite.play(`walk_${h.key}`, true);
+    // Route through the gate if the horse is currently outside the pasture
+    const path = this._gatePath(h.sprite.x, h.sprite.y, tx, ty);
 
-    h.wanderTween = this.tweens.add({
-      targets: h.sprite,
-      x: tx, y: ty,
-      duration: Math.max(500, dist * 10),
-      ease: 'Sine.easeInOut',
-      onComplete: () => {
+    this._runHorsePath(h, path, () => {
         if (h.state !== 'drinking') return;
         if (!trough.filled) { h.state = 'idle'; this.scheduleWander(h, 500); return; }
-        h.wanderTween = null;
+        h.sprite.setFlipX(!facingRight);
         h.sprite.play(`eat_${h.key}`, true);
 
         playDrink();
@@ -983,7 +1058,6 @@ export default class PaddockScene extends Phaser.Scene {
             }
           }
         });
-      }
     });
   }
 
@@ -1048,6 +1122,7 @@ export default class PaddockScene extends Phaser.Scene {
 
   handleTap(pointer) {
     if (this.scene.isActive('PortraitScene')) return;
+    if (this.scene.isActive('ChickenInfoScene')) return;
     if (this.scene.get('HotbarScene')?.invOpen) return;
     if (pointer.button !== 0) return;
     if (this.riding) return;
@@ -1068,8 +1143,22 @@ export default class PaddockScene extends Phaser.Scene {
           if (cur?.action === 'ride')      { this.mountHorse(h); return; }
           if (cur?.action === 'lead')      { this.toggleLead(h); return; }
           if (cur?.action === 'interact')  { this.openPortrait(h.key); return; }
-          if (cur && cur.action !== 'seed') { this.useItemOnHorse(cur, h); return; }
+          if (cur?.action === 'feed')      { this.placeFood(cur); return; }
+          // Water and seeds aren't used directly on horses — just open the portrait.
+          if (cur && cur.action !== 'seed' && cur.action !== 'water') { this.useItemOnHorse(cur, h); return; }
           this.openPortrait(h.key);
+        });
+        return;
+      }
+    }
+
+    // Animal (chicken) tap
+    for (const a of this.animals) {
+      const d = Phaser.Math.Distance.Between(world.x, world.y, a.sprite.x, a.sprite.y);
+      if (d < 60) {
+        const tx = a.sprite.x + (world.x < a.sprite.x ? -40 : 40);
+        this.tapMoveTo(tx, a.sprite.y, () => {
+          this.openChickenInfo(a.key);
         });
         return;
       }
@@ -1086,15 +1175,9 @@ export default class PaddockScene extends Phaser.Scene {
       }
     }
 
-    // Walk and drop hay at destination
-    if (item?.action === 'feed') {
-      this.tapMoveTo(world.x, world.y, () => this.placeHay());
-      return;
-    }
-
-    // Walk and scatter seeds at destination
-    if (item?.action === 'seed') {
-      this.tapMoveTo(world.x, world.y, () => this.placeSeeds());
+    // Walk and drop food at destination (hay, apple, carrot, seeds — all the same)
+    if (item?.action === 'feed' || item?.action === 'seed') {
+      this.tapMoveTo(world.x, world.y, () => this.placeFood(item));
       return;
     }
 
@@ -1148,7 +1231,7 @@ export default class PaddockScene extends Phaser.Scene {
 
   mountHorse(h) {
     if (this.riding) this.dismount();
-    if (this.leading === h) this.stopLeading();
+    if (this.leadHorses.includes(h)) this.stopLeadingHorse(h);
 
     // Interrupt any current behavior
     if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
@@ -1246,79 +1329,104 @@ export default class PaddockScene extends Phaser.Scene {
   // ─── Leading ─────────────────────────────────────────────────────────────
 
   toggleLead(h) {
-    if (this.leading === h) { this.stopLeading(); return; }
-    if (this.leading) this.stopLeading();
+    // Toggle this horse off if already led
+    if (this.leadHorses.includes(h)) { this.stopLeadingHorse(h); return; }
 
     if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
     if (h.eatTimer) { h.eatTimer.remove(); h.eatTimer = null; }
     h.state = 'led';
-    this.leading = h;
+    this.leadHorses.push(h);
+  }
+
+  stopLeadingHorse(h) {
+    const i = this.leadHorses.indexOf(h);
+    if (i === -1) return;
+    this.leadHorses.splice(i, 1);
+    h.state = 'idle';
+    this.scheduleWander(h, 1500);
+    if (this.leadHorses.length === 0) this.leadRope.clear();
   }
 
   stopLeading() {
-    if (!this.leading) return;
-    this.leading.state = 'idle';
-    this.scheduleWander(this.leading, 1500);
-    this.leading = null;
-    this.leadRope.clear();
+    // Release every led horse
+    for (const h of [...this.leadHorses]) this.stopLeadingHorse(h);
   }
 
   updateLeading(delta) {
-    if (!this.leading) { this.leadRope.clear(); return; }
+    if (this.leadHorses.length === 0) { this.leadRope.clear(); return; }
 
-    const h = this.leading;
     const p = this.player.sprite;
-
-    // Target: behind the player based on facing direction
-    const behind = 100;
-    let tx = p.x, ty = p.y;
     const { facing } = this.player;
-    if      (facing === 'right') tx = p.x - behind;
-    else if (facing === 'left')  tx = p.x + behind;
-    else if (facing === 'down')  ty = p.y - behind;
-    else                         ty = p.y + behind;
 
-    const dx = tx - h.sprite.x;
-    const dy = ty - h.sprite.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-
-    if (dist > 30) {
-      const speed = PLAYER_SPEED * 1.15 * (delta / 1000);
-      const ratio = Math.min(1, speed / dist);
-      h.sprite.x += dx * ratio;
-      h.sprite.y += dy * ratio;
-      h.sprite.setFlipX(dx < 0);
-      h.sprite.play(`walk_${h.key}`, true);
-    } else {
-      h.sprite.stop();
-      h.sprite.setTexture(`${h.key}_idle_0`);
-    }
-
-    // Draw rope
     this.leadRope.clear();
     this.leadRope.lineStyle(3, 0xc8a040, 0.85);
-    this.leadRope.beginPath();
-    this.leadRope.moveTo(p.x, p.y - 16);
-    this.leadRope.lineTo(h.sprite.x, h.sprite.y - 32);
-    this.leadRope.strokePath();
+
+    // Each led horse trails further behind, forming a line. The rope chains from
+    // the player to the first horse, then horse-to-horse.
+    let prevX = p.x, prevY = p.y - 16;
+    this.leadHorses.forEach((h, idx) => {
+      const behind = 100 + idx * 70;
+      let tx = p.x, ty = p.y;
+      if      (facing === 'right') tx = p.x - behind;
+      else if (facing === 'left')  tx = p.x + behind;
+      else if (facing === 'down')  ty = p.y - behind;
+      else                         ty = p.y + behind;
+
+      const dx = tx - h.sprite.x;
+      const dy = ty - h.sprite.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist > 30) {
+        const speed = PLAYER_SPEED * 1.15 * (delta / 1000);
+        const ratio = Math.min(1, speed / dist);
+        // Axis-separated move with collision so a led horse slides along the
+        // fence and can only cross the pasture boundary through the open gate.
+        const nx = h.sprite.x + dx * ratio;
+        const ny = h.sprite.y + dy * ratio;
+        if (!this._collides(nx, h.sprite.y, 16)) h.sprite.x = nx;
+        if (!this._collides(h.sprite.x, ny, 16)) h.sprite.y = ny;
+        h.sprite.setFlipX(dx < 0);
+        h.sprite.play(`walk_${h.key}`, true);
+      } else {
+        h.sprite.stop();
+        h.sprite.setTexture(`${h.key}_idle_0`);
+      }
+
+      // Draw rope segment from previous point to this horse
+      this.leadRope.beginPath();
+      this.leadRope.moveTo(prevX, prevY);
+      this.leadRope.lineTo(h.sprite.x, h.sprite.y - 32);
+      this.leadRope.strokePath();
+      prevX = h.sprite.x;
+      prevY = h.sprite.y - 32;
+    });
   }
 
-  // ─── Hay placement ───────────────────────────────────────────────────────
+  // ─── Food placement ──────────────────────────────────────────────────────
 
-  placeHay() {
+  // Ground sprite for each food item dropped by the player.
+  static FOOD_GROUND_TEX = {
+    hay: 'hayPile', apple: 'applePile', carrot: 'carrotPile', seed: 'seedPile',
+  };
+
+  // Generic food drop — identical placement for every food. Seeds feed chickens
+  // (seedPiles); all other foods feed horses (hayPiles).
+  placeFood(item) {
+    if (!item) return;
     const { sprite, facing } = this.player;
     let px = sprite.x, py = sprite.y;
     if      (facing === 'right') px += 70;
     else if (facing === 'left')  px -= 70;
     else if (facing === 'down')  py += 50;
     else                         py -= 50;
-    px = Phaser.Math.Clamp(px + Phaser.Math.Between(-15, 15), BOUNDS.minX, BOUNDS.maxX);
-    py = Phaser.Math.Clamp(py + Phaser.Math.Between(-10, 10), BOUNDS.minY, BOUNDS.maxY);
+    px = Phaser.Math.Clamp(px + Phaser.Math.Between(-15, 15), PLAYER_BOUNDS.minX, PLAYER_BOUNDS.maxX);
+    py = Phaser.Math.Clamp(py + Phaser.Math.Between(-10, 10), PLAYER_BOUNDS.minY, PLAYER_BOUNDS.maxY);
 
-    const pileSprite = this.add.image(px, py, 'hayPile')
-      .setScale(S).setDepth(py);
+    const tex = PaddockScene.FOOD_GROUND_TEX[item.key] || 'hayPile';
+    const pileSprite = this.add.image(px, py, tex).setScale(S).setDepth(py);
     const pile = { x: px, y: py, sprite: pileSprite, feedsLeft: 3 };
-    this.props.hayPiles.push(pile);
+    if (item.key === 'seed') this.props.seedPiles.push(pile);
+    else                     this.props.hayPiles.push(pile);
   }
 
   fillTrough() {
@@ -1337,25 +1445,27 @@ export default class PaddockScene extends Phaser.Scene {
     gate.open = !gate.open;
     gate.sprite.setTexture(gate.open ? 'gateOpen' : 'gateClosed');
 
-    // Update gate obstacle
-    if (this.gateObstacleIndex !== undefined) {
-      const gateObs = this.obstacles[this.gateObstacleIndex];
-      if (gate.open && gateObs) {
-        // Remove gate obstacle when open
-        this.obstacles.splice(this.gateObstacleIndex, 1);
-      } else if (!gate.open && !gateObs) {
-        // Add gate obstacle when closed
-        this.obstacles.splice(this.gateObstacleIndex, 0, { x: 1500 - 56, y: 1068 - 48, w: 112, h: 96, isGate: true });
+    // Update gate obstacle — open gate is passable for everyone, closed gate blocks everyone
+    const gateInList = this.obstacles.includes(this.gateObstacle);
+    if (gate.open && gateInList) {
+      // Remove gate from obstacles so player and horses can pass through
+      this.obstacles = this.obstacles.filter(o => o !== this.gateObstacle);
+    } else if (!gate.open && !gateInList) {
+      // Add gate to obstacles to block passage
+      this.obstacles.push(this.gateObstacle);
+      // If the player is standing inside the gate footprint, nudge them out to
+      // whichever side (farm-north or pasture-south) is closer so they don't get trapped.
+      const p = this.player?.sprite;
+      const g = this.gateObstacle;
+      if (p && this._hits(p.x, p.y, 14, g)) {
+        // Strongly favor nudging the player north (toward the farm). Only push
+        // them south into the pasture if they're clearly in the bottom portion.
+        const nudgeSouth = p.y > g.y + g.h * 0.8;
+        p.y = nudgeSouth ? g.y + g.h + 15 : g.y - 15;
+        p.y = Phaser.Math.Clamp(p.y, PLAYER_BOUNDS.minY, PLAYER_BOUNDS.maxY);
+        if (this.player.shadow) this.player.shadow.y = p.y;
       }
     }
-
-    const icon = this.add.image(gate.x, gate.y - 60, gate.open ? 'iconApple' : 'iconStable')
-      .setScale(S).setDepth(10000);
-    this.tweens.add({
-      targets: icon, y: icon.y - 40, alpha: 0,
-      duration: 900, ease: 'Sine.easeOut',
-      onComplete: () => icon.destroy(),
-    });
   }
 
   // ─── Item use ────────────────────────────────────────────────────────────
@@ -1810,12 +1920,16 @@ export default class PaddockScene extends Phaser.Scene {
       );
       if (d < nearestDist) { nearestDist = d; nearest = h; }
     }
-    const inRange = nearest && nearestDist < INTERACT_DIST && item?.action !== 'seed' && item?.action !== 'basket';
+    // Food and water are placement-only (no direct use on horses). Treats
+    // (action 'pet') and tools (brush/ride/lead) can still be used directly.
+    const inRange = nearest && nearestDist < INTERACT_DIST &&
+      item?.action !== 'seed' && item?.action !== 'basket' &&
+      item?.action !== 'feed' && item?.action !== 'water';
 
     if (inRange) {
       let verb;
       if (item?.action === 'ride')      verb = 'Mount';
-      else if (item?.action === 'lead') verb = this.leading === nearest ? 'Detach Lead' : 'Attach Lead';
+      else if (item?.action === 'lead') verb = this.leadHorses.includes(nearest) ? 'Detach Lead' : 'Attach Lead';
       else if (item?.action === 'interact') verb = 'Info';
       else if (item) verb = `Use ${item.label}`;
       else verb = `Info  •  [ A ] Pet`;
@@ -1878,9 +1992,8 @@ export default class PaddockScene extends Phaser.Scene {
 
     this.interactPrompt.setVisible(false);
 
-    // Place hay / seeds when not near anything
-    if (useJust && item?.action === 'feed') this.placeHay();
-    if (useJust && item?.action === 'seed') this.placeSeeds();
+    // Drop food when not near anything (hay, apple, carrot, seeds — all the same)
+    if (useJust && (item?.action === 'feed' || item?.action === 'seed')) this.placeFood(item);
   }
 
   _showAnimalInfo(a) {

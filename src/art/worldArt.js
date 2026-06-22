@@ -237,6 +237,27 @@ export function buildWorldTextures(scene) {
     g.fillRect(3, 3, 1, 1); g.fillRect(7, 2, 1, 1); g.fillRect(11, 4, 1, 1);
     g.fillRect(15, 2, 1, 1); g.fillRect(5, 5, 1, 1);
   });
+  tex(scene, 'applePile', 26, 14, (g) => { // a couple of apples on the ground
+    // Apple 1
+    g.fillStyle(0xd64545, 1); g.fillCircle(8, 9, 5);
+    g.fillStyle(0xe87a7a, 1); g.fillCircle(6, 7, 1.5);
+    g.fillStyle(0x6a3d1a, 1); g.fillRect(8, 3, 1, 3);
+    g.fillStyle(0x3b6d11, 1); g.fillEllipse(11, 4, 4, 2);
+    // Apple 2
+    g.fillStyle(0xc23b3b, 1); g.fillCircle(18, 10, 4.5);
+    g.fillStyle(0xe87a7a, 1); g.fillCircle(16, 8, 1.2);
+    g.fillStyle(0x6a3d1a, 1); g.fillRect(18, 5, 1, 3);
+  });
+  tex(scene, 'carrotPile', 28, 14, (g) => { // a couple of carrots on the ground
+    // Carrot 1 (lying diagonally)
+    g.fillStyle(0xf07830, 1); g.fillTriangle(3, 11, 14, 6, 14, 10);
+    g.fillStyle(0xff9a5a, 1); g.fillRect(6, 8, 4, 1);
+    g.fillStyle(0x3b8a1c, 1); g.fillRect(14, 4, 1, 4); g.fillRect(16, 5, 1, 3); g.fillRect(12, 5, 1, 3);
+    // Carrot 2
+    g.fillStyle(0xe06a26, 1); g.fillTriangle(14, 12, 24, 9, 24, 12);
+    g.fillStyle(0xff9a5a, 1); g.fillRect(17, 11, 4, 1);
+    g.fillStyle(0x3b8a1c, 1); g.fillRect(24, 7, 1, 4); g.fillRect(26, 8, 1, 3);
+  });
   tex(scene, 'iconHeart', 20, 20, (g) => { // heart for the Love button
     g.fillStyle(0xe06a86, 1);
     g.fillCircle(7, 8, 4.5);

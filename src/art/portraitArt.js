@@ -80,46 +80,39 @@ export function buildPortraitTexture(scene, key, coat) {
 export function buildChickenPortraitTexture(scene, key, coat) {
   const { body, bodyHi, bodyLo, wing, wingLo, tail, tailDark } = coat;
   const g = scene.make.graphics({ x: 0, y: 0, add: false });
+  const s = 5.5; // scale factor to match in-world proportions
 
   // Legs
   g.fillStyle(0xe0c030, 1);
-  g.fillRect(35, 85, 8, 20); g.fillRect(77, 85, 8, 20);
+  g.fillRect(4*s, 16*s, 2*s, 5*s-2*s); g.fillRect(9*s, 16*s, 2*s, 5*s-2*s);
   g.fillStyle(0xb89820, 1);
-  g.fillRect(32, 105, 14, 3); g.fillRect(74, 105, 14, 3);
+  g.fillRect(2*s, 21*s, 5*s, 1*s); g.fillRect(7*s, 21*s, 5*s, 1*s);
 
   // Tail
-  g.fillStyle(tail, 1); g.fillRect(8, 40, 12, 20);
-  g.fillStyle(tailDark, 1); g.fillRect(8, 50, 8, 15);
+  g.fillStyle(tail, 1); g.fillRect(1*s, 9*s, 3*s, 5*s);
+  g.fillStyle(tailDark, 1); g.fillRect(1*s, 12*s, 2*s, 4*s);
 
   // Body
-  g.fillStyle(body, 1); g.fillRect(25, 50, 50, 35);
-  g.fillStyle(bodyHi, 1); g.fillRect(25, 50, 50, 8);
-  g.fillStyle(bodyLo, 1); g.fillRect(25, 75, 50, 10);
-  g.fillStyle(wing, 1); g.fillRect(30, 55, 35, 18);
-  g.fillStyle(wingLo, 1); g.fillRect(30, 65, 35, 8);
+  g.fillStyle(body, 1); g.fillRect(2*s, 10*s, 12*s, 8*s);
+  g.fillStyle(bodyHi, 1); g.fillRect(2*s, 10*s, 12*s, 2*s);
+  g.fillStyle(bodyLo, 1); g.fillRect(2*s, 15*s, 12*s, 3*s);
+  g.fillStyle(wing, 1); g.fillRect(3*s, 11*s, 9*s, 5*s);
+  g.fillStyle(wingLo, 1); g.fillRect(3*s, 14*s, 9*s, 2*s);
 
-  // Neck
-  g.fillStyle(body, 1); g.fillRect(55, 35, 16, 18);
-  g.fillStyle(bodyHi, 1); g.fillRect(55, 35, 16, 5);
+  // Neck and head
+  g.fillStyle(body, 1); g.fillRect(11*s, 7*s, 4*s, 6*s);
+  g.fillStyle(body, 1); g.fillRect(10*s, 2*s, 6*s, 7*s);
+  g.fillStyle(bodyHi, 1); g.fillRect(10*s, 2*s, 6*s, 2*s);
 
-  // Head
-  g.fillStyle(body, 1); g.fillRect(50, 10, 26, 26);
-  g.fillStyle(bodyHi, 1); g.fillRect(50, 10, 26, 6);
-
-  // Comb and wattle
+  // Comb and eye
   g.fillStyle(0xe03030, 1);
-  g.fillRect(58, 4, 6, 8);
-  g.fillRect(68, 6, 4, 6);
-
-  // Eye
-  g.fillStyle(0x1a0800, 1); g.fillCircle(68, 16, 3);
-  g.fillStyle(WHITE, 0.7); g.fillCircle(67, 15, 1);
+  g.fillRect(11*s, 0*s, 2*s, 3*s); g.fillRect(13*s, 1*s, 2*s, 2*s); g.fillRect(10*s, 1*s, 2*s, 2*s);
+  g.fillStyle(0xe03030, 1); g.fillRect(14*s, 6*s, 2*s, 3*s);
+  g.fillStyle(0x1a0800, 1); g.fillRect(13*s, 4*s, 1*s, 2*s);
+  g.fillStyle(0xffffff, 0.8); g.fillRect(12*s, 4*s, 1*s, 1*s);
 
   // Beak
-  g.fillStyle(0xe0c030, 1);
-  g.fillRect(75, 17, 8, 4);
-  g.fillStyle(0xb89820, 1);
-  g.fillRect(80, 19, 3, 2);
+  g.fillStyle(0xe0c030, 1); g.fillRect(15*s, 4*s, 1*s, 2*s);
 
   g.generateTexture(key, CHICKEN_SIZE, CHICKEN_SIZE);
   g.destroy();

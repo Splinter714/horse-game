@@ -19,8 +19,8 @@ const WALK_LEGS = [
   [0, 3, 3, 0]
 ];
 
-function leg(g, x, lift, tone, hoof, sock, featherColor) {
-  const topY = 35;
+function leg(g, x, lift, tone, hoof, sock, featherColor, offsetY = 0) {
+  const topY = 35 + offsetY;
   const fullH = 15;
   const h = fullH - lift;
   g.fillStyle(tone, 1);
@@ -126,58 +126,61 @@ function drawHorse(g, coat, bob, legLift) {
   g.fillStyle(m.lo, 1); g.fillRect(40, 24 + bob, 2, 6);
 }
 
-// Horse sleeping: laid out on side, head and neck relaxed
+// Horse sleeping: laid out on side, head and neck relaxed.
+// `dy` drops the whole pose toward the bottom of the frame so the resting
+// horse sits on the ground at the sprite anchor instead of hovering above it.
 function drawHorseSleep(g, coat, bob) {
   const b = coat.body;
   const m = coat.mane;
   const mk = coat.markings || {};
+  const dy = 11;
 
   // Legs tucked/bent (very short — sleeping position)
-  leg(g, 7,  10, b.lo,  coat.hoof, false);      // hind far (folded)
-  leg(g, 38, 10, b.lo,  coat.hoof, false);      // fore far (folded)
-  leg(g, 13, 10, b.mid, coat.hoof, false);      // hind near (folded)
-  leg(g, 44, 10, b.mid, coat.hoof, !!mk.sock);  // fore near (folded)
+  leg(g, 7,  10, b.lo,  coat.hoof, false,     undefined, dy); // hind far (folded)
+  leg(g, 38, 10, b.lo,  coat.hoof, false,     undefined, dy); // fore far (folded)
+  leg(g, 13, 10, b.mid, coat.hoof, false,     undefined, dy); // hind near (folded)
+  leg(g, 44, 10, b.mid, coat.hoof, !!mk.sock, undefined, dy); // fore near (folded)
 
   // Tail relaxed
-  g.fillStyle(m.mid, 1); g.fillRect(6, 22 + bob, 2, 2);
-  g.fillStyle(m.lo, 1);  g.fillRect(4, 24 + bob, 2, 4);
-  g.fillStyle(m.mid, 1); g.fillRect(3, 27 + bob, 2, 3);
+  g.fillStyle(m.mid, 1); g.fillRect(6, 22 + bob + dy, 2, 2);
+  g.fillStyle(m.lo, 1);  g.fillRect(4, 24 + bob + dy, 2, 4);
+  g.fillStyle(m.mid, 1); g.fillRect(3, 27 + bob + dy, 2, 3);
 
   // Rump — flatter/lower, showing side view
   g.fillStyle(b.mid, 1);
-  g.fillRect(8, 22 + bob, 8, 12);   // main rump
-  g.fillRect(7, 24 + bob, 1, 8);    // left strip
+  g.fillRect(8, 22 + bob + dy, 8, 12);   // main rump
+  g.fillRect(7, 24 + bob + dy, 1, 8);    // left strip
   g.fillStyle(b.hi, 1);
-  g.fillRect(8, 20 + bob, 8, 3);    // top highlight
-  g.fillRect(7, 22 + bob, 1, 1);    // left highlight
+  g.fillRect(8, 20 + bob + dy, 8, 3);    // top highlight
+  g.fillRect(7, 22 + bob + dy, 1, 1);    // left highlight
 
   // Body — horizontal, relaxed
   g.fillStyle(b.mid, 1);
-  g.fillRect(12, 22 + bob, 35, 12);   // main body (shorter height)
-  g.fillRect(47, 24 + bob, 1, 8);     // right strip
+  g.fillRect(12, 22 + bob + dy, 35, 12);   // main body (shorter height)
+  g.fillRect(47, 24 + bob + dy, 1, 8);     // right strip
   g.fillStyle(b.hi, 1);
-  g.fillRect(12, 20 + bob, 35, 3);    // top highlight
-  g.fillRect(47, 23 + bob, 1, 1);     // right highlight
+  g.fillRect(12, 20 + bob + dy, 35, 3);    // top highlight
+  g.fillRect(47, 23 + bob + dy, 1, 1);     // right highlight
   g.fillStyle(b.lo, 1);
-  g.fillRect(12, 32 + bob, 35, 2);    // belly shadow (thinner)
+  g.fillRect(12, 32 + bob + dy, 35, 2);    // belly shadow (thinner)
 
   if (mk.dapples) {
     g.fillStyle(b.hi, 0.6);
-    g.fillCircle(22, 27 + bob, 2.5);
-    g.fillCircle(31, 28 + bob, 2);
-    g.fillCircle(38, 25 + bob, 2);
+    g.fillCircle(22, 27 + bob + dy, 2.5);
+    g.fillCircle(31, 28 + bob + dy, 2);
+    g.fillCircle(38, 25 + bob + dy, 2);
   }
 
   // Neck angled back/down (horse on its side)
   g.fillStyle(b.mid, 1);
-  g.fillRect(42, 18 + bob, 8, 8);   // base
-  g.fillRect(43, 24 + bob, 8, 6);   // middle (slopes down)
+  g.fillRect(42, 18 + bob + dy, 8, 8);   // base
+  g.fillRect(43, 24 + bob + dy, 8, 6);   // middle (slopes down)
   g.fillStyle(b.hi, 1);
-  g.fillRect(43, 18 + bob, 3, 8);
-  g.fillRect(44, 24 + bob, 3, 5);
+  g.fillRect(43, 18 + bob + dy, 3, 8);
+  g.fillRect(44, 24 + bob + dy, 3, 5);
 
   // Head relaxed/resting
-  const headY = 28 + bob;
+  const headY = 28 + bob + dy;
   g.fillStyle(b.mid, 1); g.fillRect(48, headY, 12, 7);   // skull
   g.fillStyle(b.hi, 1);  g.fillRect(48, headY, 12, 1.5); // top highlight
   g.fillStyle(b.lo, 1);  g.fillRect(54, headY + 2, 6, 3); // muzzle
@@ -190,9 +193,9 @@ function drawHorseSleep(g, coat, bob) {
   g.fillStyle(coat.eye, 1);  g.fillRect(50, headY + 1, 1, 1);
 
   // Mane lying down
-  g.fillStyle(m.mid, 1); g.fillRect(42, 18 + bob, 2, 4);
-  g.fillStyle(m.lo, 1);  g.fillRect(41, 22 + bob, 2, 4);
-  g.fillStyle(m.mid, 1); g.fillRect(40, 26 + bob, 2, 3);
+  g.fillStyle(m.mid, 1); g.fillRect(42, 18 + bob + dy, 2, 4);
+  g.fillStyle(m.lo, 1);  g.fillRect(41, 22 + bob + dy, 2, 4);
+  g.fillStyle(m.mid, 1); g.fillRect(40, 26 + bob + dy, 2, 3);
 }
 
 // Horse eating/drinking: head drops to ground level, body stays the same.
