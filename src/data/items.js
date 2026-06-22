@@ -9,6 +9,7 @@ export const ALL_ITEMS = [
   { key: 'saddle', label: 'Saddle', icon: 'iconSaddle', action: 'ride',   category: 'tool' },
   { key: 'lead',   label: 'Lead',   icon: 'iconLead',   action: 'lead',   category: 'tool' },
   { key: 'basket', label: 'Basket', icon: 'iconBasket', action: 'basket', category: 'tool' },
+  { key: 'hand',   label: 'Hand',   icon: 'iconHand',   action: 'interact', category: 'tool' },
 ];
 
 export const ITEM_MAP = Object.fromEntries(ALL_ITEMS.map(i => [i.key, i]));

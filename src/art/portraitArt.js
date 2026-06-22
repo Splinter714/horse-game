@@ -3,7 +3,8 @@
 // since it never animates. Drawn from the same coat data.
 
 const WHITE = 0xf4efe6;
-const SIZE = 200;
+const HORSE_SIZE = 200;
+const CHICKEN_SIZE = 120;
 
 export function buildPortraitTexture(scene, key, coat) {
   const b = coat.body;
@@ -72,6 +73,54 @@ export function buildPortraitTexture(scene, key, coat) {
   g.fillEllipse(110, 150, 7, 9);
   g.fillStyle(0x7a4a1c, 1); g.fillRoundedRect(92, 160, 16, 2, 1);
 
-  g.generateTexture(key, SIZE, SIZE);
+  g.generateTexture(key, HORSE_SIZE, HORSE_SIZE);
+  g.destroy();
+}
+
+export function buildChickenPortraitTexture(scene, key, coat) {
+  const { body, bodyHi, bodyLo, wing, wingLo, tail, tailDark } = coat;
+  const g = scene.make.graphics({ x: 0, y: 0, add: false });
+
+  // Legs
+  g.fillStyle(0xe0c030, 1);
+  g.fillRect(35, 85, 8, 20); g.fillRect(77, 85, 8, 20);
+  g.fillStyle(0xb89820, 1);
+  g.fillRect(32, 105, 14, 3); g.fillRect(74, 105, 14, 3);
+
+  // Tail
+  g.fillStyle(tail, 1); g.fillRect(8, 40, 12, 20);
+  g.fillStyle(tailDark, 1); g.fillRect(8, 50, 8, 15);
+
+  // Body
+  g.fillStyle(body, 1); g.fillRect(25, 50, 50, 35);
+  g.fillStyle(bodyHi, 1); g.fillRect(25, 50, 50, 8);
+  g.fillStyle(bodyLo, 1); g.fillRect(25, 75, 50, 10);
+  g.fillStyle(wing, 1); g.fillRect(30, 55, 35, 18);
+  g.fillStyle(wingLo, 1); g.fillRect(30, 65, 35, 8);
+
+  // Neck
+  g.fillStyle(body, 1); g.fillRect(55, 35, 16, 18);
+  g.fillStyle(bodyHi, 1); g.fillRect(55, 35, 16, 5);
+
+  // Head
+  g.fillStyle(body, 1); g.fillRect(50, 10, 26, 26);
+  g.fillStyle(bodyHi, 1); g.fillRect(50, 10, 26, 6);
+
+  // Comb and wattle
+  g.fillStyle(0xe03030, 1);
+  g.fillRect(58, 4, 6, 8);
+  g.fillRect(68, 6, 4, 6);
+
+  // Eye
+  g.fillStyle(0x1a0800, 1); g.fillCircle(68, 16, 3);
+  g.fillStyle(WHITE, 0.7); g.fillCircle(67, 15, 1);
+
+  // Beak
+  g.fillStyle(0xe0c030, 1);
+  g.fillRect(75, 17, 8, 4);
+  g.fillStyle(0xb89820, 1);
+  g.fillRect(80, 19, 3, 2);
+
+  g.generateTexture(key, CHICKEN_SIZE, CHICKEN_SIZE);
   g.destroy();
 }

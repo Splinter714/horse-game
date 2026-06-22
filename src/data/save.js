@@ -9,7 +9,7 @@ const KEY = 'horse-care-save-v1';
 
 const GAME_STATE_KEY = 'horse-game-state-v1';
 
-const DEFAULT_HOTBAR = ['apple', 'hay', 'carrot', 'treat', 'seed', 'bucket', 'brush', 'saddle', 'lead', 'basket'];
+const DEFAULT_HOTBAR = ['hand', 'apple', 'hay', 'treat', 'seed', 'bucket', 'brush', 'saddle', 'lead', 'basket'];
 
 function defaultInventory() {
   // Food items start with quantities. Tools are infinite (not stored here).

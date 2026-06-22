@@ -126,6 +126,75 @@ function drawHorse(g, coat, bob, legLift) {
   g.fillStyle(m.lo, 1); g.fillRect(40, 24 + bob, 2, 6);
 }
 
+// Horse sleeping: laid out on side, head and neck relaxed
+function drawHorseSleep(g, coat, bob) {
+  const b = coat.body;
+  const m = coat.mane;
+  const mk = coat.markings || {};
+
+  // Legs tucked/bent (very short — sleeping position)
+  leg(g, 7,  10, b.lo,  coat.hoof, false);      // hind far (folded)
+  leg(g, 38, 10, b.lo,  coat.hoof, false);      // fore far (folded)
+  leg(g, 13, 10, b.mid, coat.hoof, false);      // hind near (folded)
+  leg(g, 44, 10, b.mid, coat.hoof, !!mk.sock);  // fore near (folded)
+
+  // Tail relaxed
+  g.fillStyle(m.mid, 1); g.fillRect(6, 22 + bob, 2, 2);
+  g.fillStyle(m.lo, 1);  g.fillRect(4, 24 + bob, 2, 4);
+  g.fillStyle(m.mid, 1); g.fillRect(3, 27 + bob, 2, 3);
+
+  // Rump — flatter/lower, showing side view
+  g.fillStyle(b.mid, 1);
+  g.fillRect(8, 22 + bob, 8, 12);   // main rump
+  g.fillRect(7, 24 + bob, 1, 8);    // left strip
+  g.fillStyle(b.hi, 1);
+  g.fillRect(8, 20 + bob, 8, 3);    // top highlight
+  g.fillRect(7, 22 + bob, 1, 1);    // left highlight
+
+  // Body — horizontal, relaxed
+  g.fillStyle(b.mid, 1);
+  g.fillRect(12, 22 + bob, 35, 12);   // main body (shorter height)
+  g.fillRect(47, 24 + bob, 1, 8);     // right strip
+  g.fillStyle(b.hi, 1);
+  g.fillRect(12, 20 + bob, 35, 3);    // top highlight
+  g.fillRect(47, 23 + bob, 1, 1);     // right highlight
+  g.fillStyle(b.lo, 1);
+  g.fillRect(12, 32 + bob, 35, 2);    // belly shadow (thinner)
+
+  if (mk.dapples) {
+    g.fillStyle(b.hi, 0.6);
+    g.fillCircle(22, 27 + bob, 2.5);
+    g.fillCircle(31, 28 + bob, 2);
+    g.fillCircle(38, 25 + bob, 2);
+  }
+
+  // Neck angled back/down (horse on its side)
+  g.fillStyle(b.mid, 1);
+  g.fillRect(42, 18 + bob, 8, 8);   // base
+  g.fillRect(43, 24 + bob, 8, 6);   // middle (slopes down)
+  g.fillStyle(b.hi, 1);
+  g.fillRect(43, 18 + bob, 3, 8);
+  g.fillRect(44, 24 + bob, 3, 5);
+
+  // Head relaxed/resting
+  const headY = 28 + bob;
+  g.fillStyle(b.mid, 1); g.fillRect(48, headY, 12, 7);   // skull
+  g.fillStyle(b.hi, 1);  g.fillRect(48, headY, 12, 1.5); // top highlight
+  g.fillStyle(b.lo, 1);  g.fillRect(54, headY + 2, 6, 3); // muzzle
+  // Ear flopped back (sleeping)
+  g.fillStyle(b.mid, 1);     g.fillRect(48, headY - 2, 2, 3);
+  g.fillStyle(EAR_PINK, 1);  g.fillRect(49, headY - 1, 1, 2);
+  // Nostril
+  g.fillStyle(coat.hoof, 0.6); g.fillRect(58, headY + 3, 1, 1);
+  // Closed/sleepy eye (smaller, different position)
+  g.fillStyle(coat.eye, 1);  g.fillRect(50, headY + 1, 1, 1);
+
+  // Mane lying down
+  g.fillStyle(m.mid, 1); g.fillRect(42, 18 + bob, 2, 4);
+  g.fillStyle(m.lo, 1);  g.fillRect(41, 22 + bob, 2, 4);
+  g.fillStyle(m.mid, 1); g.fillRect(40, 26 + bob, 2, 3);
+}
+
 // Horse eating/drinking: head drops to ground level, body stays the same.
 function drawHorseEat(g, coat, bob) {
   const b = coat.body;
@@ -215,6 +284,57 @@ function legFoal(g, x, lift, tone, hoof) {
   g.fillStyle(hoof, 1); g.fillRect(x, topY + h, 3, 2);
 }
 
+function drawFoalSleep(g, coat, bob) {
+  const b = coat.body;
+  const m = coat.mane;
+  const mk = coat.markings || {};
+
+  // Legs tucked/bent (sleeping position)
+  legFoal(g, 7,  7, b.lo,  coat.hoof);
+  legFoal(g, 27, 7, b.lo,  coat.hoof);
+  legFoal(g, 11, 7, b.mid, coat.hoof);
+  legFoal(g, 31, 7, b.mid, coat.hoof);
+
+  // Tail stub relaxed
+  g.fillStyle(m.mid, 1); g.fillRect(5, 17 + bob, 2, 2);
+  g.fillStyle(m.lo, 1);  g.fillRect(4, 19 + bob, 2, 3);
+
+  // Rump (flatter)
+  g.fillStyle(b.mid, 1); g.fillRect(7, 17 + bob, 5, 8); g.fillRect(6, 19 + bob, 1, 6);
+  g.fillStyle(b.hi, 1);  g.fillRect(7, 15 + bob, 5, 2);  g.fillRect(6, 17 + bob, 1, 1);
+
+  // Body (horizontal, relaxed)
+  g.fillStyle(b.mid, 1); g.fillRect(10, 17 + bob, 22, 8); g.fillRect(32, 19 + bob, 1, 5);
+  g.fillStyle(b.hi, 1);  g.fillRect(10, 15 + bob, 22, 2);  g.fillRect(32, 17 + bob, 1, 1);
+  g.fillStyle(b.lo, 1);  g.fillRect(10, 23 + bob, 22, 1);
+
+  if (mk.paint) {
+    g.fillStyle(WHITE, 1);
+    g.fillRect(12, 16 + bob, 8, 6);
+    g.fillRect(22, 18 + bob, 5, 4);
+  }
+
+  // Neck (relaxed, down)
+  g.fillStyle(b.mid, 1); g.fillRect(29, 12 + bob, 5, 6);
+  g.fillStyle(b.hi, 1);  g.fillRect(30, 12 + bob, 2, 6);
+
+  // Head (sleeping)
+  g.fillStyle(b.mid, 1); g.fillRect(30, 6 + bob, 10, 7);
+  g.fillStyle(b.hi, 1);  g.fillRect(30, 6 + bob, 10, 1.5);
+  g.fillStyle(b.lo, 1);  g.fillRect(35, 8 + bob, 5, 4);
+  // Ear (flopped)
+  g.fillStyle(b.mid, 1);     g.fillRect(30, 4 + bob, 2, 2);
+  g.fillStyle(EAR_PINK, 1);  g.fillRect(31, 4 + bob, 1, 1);
+  // Nostril
+  g.fillStyle(coat.hoof, 0.6); g.fillRect(38, 10 + bob, 1, 1);
+  // Sleepy eye
+  g.fillStyle(coat.eye, 1);  g.fillRect(32, 7 + bob, 2, 1.5);
+
+  // Mane (lying down, fluffy)
+  g.fillStyle(m.mid, 1); g.fillRect(29, 6 + bob, 2, 3);
+  g.fillStyle(m.lo, 1);  g.fillRect(28, 9 + bob, 2, 3);
+}
+
 function drawFoal(g, coat, bob, legLift) {
   const b = coat.body;
   const m = coat.mane;
@@ -276,16 +396,19 @@ export function buildFoalTextures(scene, baseKey, coat) {
     { name: 'walk_1', bob: 1, legs: FOAL_WALK_LEGS[1] },
     { name: 'walk_2', bob: 0, legs: FOAL_WALK_LEGS[2] },
     { name: 'walk_3', bob: 1, legs: FOAL_WALK_LEGS[3] },
+    { name: 'sleep_0', bob: 0, sleep: true },
+    { name: 'sleep_1', bob: 1, sleep: true },
   ];
   for (const f of frames) {
     const g = scene.make.graphics({ x: 0, y: 0, add: false });
-    drawFoal(g, coat, f.bob, f.legs);
+    if (f.sleep) drawFoalSleep(g, coat, f.bob);
+    else drawFoal(g, coat, f.bob, f.legs);
     g.generateTexture(`${baseKey}_${f.name}`, FOAL_W, FOAL_H);
     g.destroy();
   }
 }
 
-// Builds idle_0, idle_1, walk_0..3 textures under `${baseKey}_...`.
+// Builds idle_0, idle_1, walk_0..3, eat_0..1, sleep_0..1 textures under `${baseKey}_...`.
 export function buildHorseTextures(scene, baseKey, coat) {
   const frames = [
     { name: 'idle_0', bob: 0, legs: IDLE_LEGS },
@@ -298,12 +421,15 @@ export function buildHorseTextures(scene, baseKey, coat) {
 
   frames.push(
     { name: 'eat_0', bob: 0, eat: true },
-    { name: 'eat_1', bob: 1, eat: true }
+    { name: 'eat_1', bob: 1, eat: true },
+    { name: 'sleep_0', bob: 0, sleep: true },
+    { name: 'sleep_1', bob: 1, sleep: true }
   );
 
   for (const f of frames) {
     const g = scene.make.graphics({ x: 0, y: 0, add: false });
     if (f.eat) drawHorseEat(g, coat, f.bob);
+    else if (f.sleep) drawHorseSleep(g, coat, f.bob);
     else drawHorse(g, coat, f.bob, f.legs);
     g.generateTexture(`${baseKey}_${f.name}`, FRAME_W, FRAME_H);
     g.destroy();

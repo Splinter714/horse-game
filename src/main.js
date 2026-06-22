@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import BootScene from './scenes/BootScene.js';
 import PaddockScene from './scenes/PaddockScene.js';
 import PortraitScene from './scenes/PortraitScene.js';
+import ChickenInfoScene from './scenes/ChickenInfoScene.js';
 import HotbarScene from './scenes/HotbarScene.js';
 import DayNightScene from './scenes/DayNightScene.js';
 
@@ -16,7 +17,7 @@ const config = {
   input: {
     gamepad: true
   },
-  scene: [BootScene, PaddockScene, DayNightScene, PortraitScene, HotbarScene]
+  scene: [BootScene, PaddockScene, DayNightScene, PortraitScene, ChickenInfoScene, HotbarScene]
 };
 
 const game = new Phaser.Game(config);

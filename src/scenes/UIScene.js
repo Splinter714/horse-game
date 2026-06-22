@@ -26,6 +26,7 @@ export default class UIScene extends Phaser.Scene {
     this.buildStatPanel();
     this.buildTitle();
     this.buildButtons();
+    this.buildReloadButton();
     this.refresh();
 
     this.game.events.on('stats-changed', this.refresh, this);
@@ -89,6 +90,33 @@ export default class UIScene extends Phaser.Scene {
       this.makeButton(x, y, btnW, btnH, d.label, d.icon, d.action);
       x += btnW + gap;
     });
+  }
+
+  buildReloadButton() {
+    const r = 18;
+    const cx = W - 28;
+    const cy = 28;
+
+    const g = this.add.graphics();
+    const draw = (bg) => {
+      g.clear();
+      g.fillStyle(bg, 0.75);
+      g.fillCircle(cx, cy, r);
+    };
+    draw(0x1c2330);
+
+    this.add.text(cx, cy, '↺', {
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: '20px',
+      color: '#ffffff',
+    }).setOrigin(0.5, 0.5);
+
+    const zone = this.add.zone(cx - r, cy - r, r * 2, r * 2).setOrigin(0, 0)
+      .setInteractive({ useHandCursor: true });
+    zone.on('pointerover', () => draw(0x4a5d7d));
+    zone.on('pointerout',  () => draw(0x1c2330));
+    zone.on('pointerdown', () => draw(0x2c384c));
+    zone.on('pointerup',   () => window.location.reload());
   }
 
   makeButton(x, y, w, h, label, iconKey, onClick) {

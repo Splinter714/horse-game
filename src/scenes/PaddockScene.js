@@ -29,6 +29,7 @@ export default class PaddockScene extends Phaser.Scene {
     this.horses     = [];
     this.foals      = [];
     this.animals    = [];
+    this.registry.set('viewingChicken', null);
 
     // World interactables
     this.props = { trough: null, hayPiles: [], seedPiles: [], nests: [] };
@@ -141,6 +142,51 @@ export default class PaddockScene extends Phaser.Scene {
     const troughSprite = this.add.image(tx, ty, 'trough')
       .setScale(S).setDepth(ty).setOrigin(0.5, 0.5);
     this.props.trough = { x: tx, y: ty, sprite: troughSprite, filled: false, drinks: 0 };
+
+    // --- Pasture Fencing & Gate ---
+    this.buildPastureFence();
+  }
+
+  buildPastureFence() {
+    const BOUNDS = { minX: 180, maxX: 1740, minY: 360, maxY: 1060 };
+    const fenceH = 48, fenceW = 48;
+
+    // Left fence (vertical)
+    for (let y = BOUNDS.minY; y < BOUNDS.maxY; y += fenceH) {
+      this.add.image(BOUNDS.minX - 8, y + fenceH / 2, 'fence')
+        .setScale(S).setDepth(y + fenceH / 2).setOrigin(0.5, 0.5).setRotation(Math.PI / 2);
+    }
+
+    // Right fence (vertical)
+    for (let y = BOUNDS.minY; y < BOUNDS.maxY; y += fenceH) {
+      this.add.image(BOUNDS.maxX + 8, y + fenceH / 2, 'fence')
+        .setScale(S).setDepth(y + fenceH / 2).setOrigin(0.5, 0.5).setRotation(Math.PI / 2);
+    }
+
+    // Top fence (horizontal)
+    for (let x = BOUNDS.minX; x < BOUNDS.maxX; x += fenceW) {
+      this.add.image(x + fenceW / 2, BOUNDS.minY - 8, 'fence')
+        .setScale(S).setDepth(BOUNDS.minY - 8).setOrigin(0.5, 0.5);
+    }
+
+    // Bottom fence with gate opening - fence on left side of gate
+    const gateX = 1500, gateY = BOUNDS.maxY + 8;
+    for (let x = BOUNDS.minX; x < gateX - 60; x += fenceW) {
+      this.add.image(x + fenceW / 2, gateY, 'fence')
+        .setScale(S).setDepth(gateY).setOrigin(0.5, 0.5);
+    }
+
+    // Gate (interactive)
+    const gateSprite = this.add.image(gateX, gateY, 'gateClosed')
+      .setScale(S).setDepth(gateY).setOrigin(0.5, 0.5);
+
+    this.props.gate = { x: gateX, y: gateY, sprite: gateSprite, open: false };
+
+    // Fence on right side of gate (if needed)
+    for (let x = gateX + 70; x < BOUNDS.maxX; x += fenceW) {
+      this.add.image(x + fenceW / 2, gateY, 'fence')
+        .setScale(S).setDepth(gateY).setOrigin(0.5, 0.5);
+    }
   }
 
   // ─── Obstacles & collision ───────────────────────────────────────────────
@@ -161,6 +207,13 @@ export default class PaddockScene extends Phaser.Scene {
 
     // Chicken-specific list: same but without the coop (they're allowed in)
     this.chickenObstacles = this.obstacles.filter(o => o !== this.obstacles[1]);
+
+    // Gate obstacle (added when gate is closed)
+    // Gate sprite at 1500, 1068 (origin 0.5, 0.5); 56×48 at S=2 → 112×96
+    this.gateObstacleIndex = this.obstacles.length;
+    if (this.props.gate && !this.props.gate.open) {
+      this.obstacles.push({ x: 1500 - 56, y: 1068 - 48, w: 112, h: 96, isGate: true });
+    }
 
     // Nest obstacles added after nests are built (in buildWorld nests are created before this)
     // Each nest: origin 0.5,0.5 at (nx,ny); 18×12 at S=2 → 36×24
@@ -222,11 +275,13 @@ export default class PaddockScene extends Phaser.Scene {
     // this.spawnAnimal( 700,  570, 'dog',   0.44, 8, 10);
     // this.spawnAnimal(1100,  580, 'cat',   0.34, 7, 12);
 
-    // Chicken flock — 5 birds, each a different color coat
+    // Chicken flock — 5 birds, each with identity, name, and appearance
+    const allChickens = this.registry.get('allChickens');
     const cx = 560, cy = 760;
     const offsets = [[-40,-20],[30,-30],[0,30],[-60,20],[50,10]];
     offsets.forEach(([ox, oy], i) => {
-      this.spawnAnimal(cx + ox, cy + oy, `chicken${i}`, 0.25, 8, 10, cx, cy, 180, 6);
+      const chickenModel = allChickens[`chicken${i}`];
+      this.spawnAnimal(cx + ox, cy + oy, `chicken${i}`, 0.25, 8, 10, cx, cy, 180, 6, chickenModel);
     });
 
     this.time.addEvent({ delay: 2000, loop: true, callback: this.chickenTick, callbackScope: this });
@@ -424,7 +479,7 @@ export default class PaddockScene extends Phaser.Scene {
     });
   }
 
-  spawnAnimal(startX, startY, key, shadowScale, walkFps, tweenRate, homeX, homeY, wanderRadius, eatFps) {
+  spawnAnimal(startX, startY, key, shadowScale, walkFps, tweenRate, homeX, homeY, wanderRadius, eatFps, model = null) {
     if (!this.anims.exists(`idle_${key}`)) {
       this.anims.create({
         key: `idle_${key}`,
@@ -456,7 +511,7 @@ export default class PaddockScene extends Phaser.Scene {
 
     const a = { sprite, shadow, key, state: 'idle', wanderTween: null, tweenRate,
                 homeX: homeX ?? null, homeY: homeY ?? null, wanderRadius: wanderRadius ?? null,
-                _eatPile: null, eatTimer: null };
+                _eatPile: null, eatTimer: null, model };
     this.animals.push(a);
     this.scheduleAnimalWander(a, Phaser.Math.Between(500, 3000));
     return a;
@@ -655,6 +710,11 @@ export default class PaddockScene extends Phaser.Scene {
         ],
         frameRate: 8, repeat: -1
       });
+      this.anims.create({
+        key: `sleep_${key}`,
+        frames: [{ key: `${key}_sleep_0` }, { key: `${key}_sleep_1` }],
+        frameRate: 1, repeat: -1
+      });
     }
 
     const shadow = this.add.image(startX, startY, 'shadow')
@@ -687,6 +747,11 @@ export default class PaddockScene extends Phaser.Scene {
         key: `eat_${key}`,
         frames: [{ key: `${key}_eat_0` }, { key: `${key}_eat_1` }],
         frameRate: 2, repeat: -1
+      });
+      this.anims.create({
+        key: `sleep_${key}`,
+        frames: [{ key: `${key}_sleep_0` }, { key: `${key}_sleep_1` }],
+        frameRate: 1, repeat: -1
       });
     }
 
@@ -752,7 +817,7 @@ export default class PaddockScene extends Phaser.Scene {
       if (a.eatTimer)    { a.eatTimer.remove?.() ?? this.time.removeEvent(a.eatTimer); a.eatTimer = null; }
       a._eatPile = null;
       a.state = 'resting';
-      a.sprite.play(`idle_${a.key}`, true);
+      a.sprite.play(`sleep_${a.key}`, true);
     };
     for (const h of this.horses) stopOne(h);
     for (const a of this.animals) stopOne(a);
@@ -890,6 +955,7 @@ export default class PaddockScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
       onComplete: () => {
         if (h.state !== 'drinking') return;
+        if (!trough.filled) { h.state = 'idle'; this.scheduleWander(h, 500); return; }
         h.wanderTween = null;
         h.sprite.play(`eat_${h.key}`, true);
 
@@ -999,8 +1065,9 @@ export default class PaddockScene extends Phaser.Scene {
         const tx = h.sprite.x + (world.x < h.sprite.x ? -70 : 70);
         this.tapMoveTo(tx, h.sprite.y, () => {
           const cur = this.getActiveItem();
-          if (cur?.action === 'ride')  { this.mountHorse(h); return; }
-          if (cur?.action === 'lead')  { this.toggleLead(h); return; }
+          if (cur?.action === 'ride')      { this.mountHorse(h); return; }
+          if (cur?.action === 'lead')      { this.toggleLead(h); return; }
+          if (cur?.action === 'interact')  { this.openPortrait(h.key); return; }
           if (cur && cur.action !== 'seed') { this.useItemOnHorse(cur, h); return; }
           this.openPortrait(h.key);
         });
@@ -1261,8 +1328,28 @@ export default class PaddockScene extends Phaser.Scene {
     t.drinks = 3;
     t.sprite.setTexture('troughFull');
     playSplash();
+  }
 
-    const icon = this.add.image(t.x, t.y - 40, 'iconWater')
+  toggleGate() {
+    const gate = this.props.gate;
+    if (!gate) return;
+
+    gate.open = !gate.open;
+    gate.sprite.setTexture(gate.open ? 'gateOpen' : 'gateClosed');
+
+    // Update gate obstacle
+    if (this.gateObstacleIndex !== undefined) {
+      const gateObs = this.obstacles[this.gateObstacleIndex];
+      if (gate.open && gateObs) {
+        // Remove gate obstacle when open
+        this.obstacles.splice(this.gateObstacleIndex, 1);
+      } else if (!gate.open && !gateObs) {
+        // Add gate obstacle when closed
+        this.obstacles.splice(this.gateObstacleIndex, 0, { x: 1500 - 56, y: 1068 - 48, w: 112, h: 96, isGate: true });
+      }
+    }
+
+    const icon = this.add.image(gate.x, gate.y - 60, gate.open ? 'iconApple' : 'iconStable')
       .setScale(S).setDepth(10000);
     this.tweens.add({
       targets: icon, y: icon.y - 40, alpha: 0,
@@ -1324,6 +1411,20 @@ export default class PaddockScene extends Phaser.Scene {
     }
     this.scene.launch('PortraitScene');
     this.scene.bringToTop('PortraitScene');
+  }
+
+  openChickenInfo(key) {
+    const allChickens = this.registry.get('allChickens');
+    this.registry.set('viewingChicken', {
+      chicken:   allChickens[key],
+      chickenKey: key,
+    });
+    if (this.scene.isActive('ChickenInfoScene')) {
+      this.scene.get('ChickenInfoScene').refresh();
+      return;
+    }
+    this.scene.launch('ChickenInfoScene');
+    this.scene.bringToTop('ChickenInfoScene');
   }
 
   // ─── Actions (from PortraitScene buttons) ────────────────────────────────
@@ -1649,6 +1750,22 @@ export default class PaddockScene extends Phaser.Scene {
     const useJust = eJust || aJust;
     const useKey  = this.usingPad ? '[ A ]' : '[ E ]';
 
+    // Gate — open/close
+    const gate = this.props.gate;
+    if (gate) {
+      const gd = Phaser.Math.Distance.Between(
+        player.sprite.x, player.sprite.y, gate.x, gate.y
+      );
+      if (gd < 100) {
+        const gateState = gate.open ? 'Close' : 'Open';
+        this.interactPrompt.setText(`${useKey}  ${gateState} Gate`);
+        this.interactPrompt.setPosition(gate.x, gate.y - 80);
+        this.interactPrompt.setVisible(true);
+        if (useJust) this.toggleGate();
+        return;
+      }
+    }
+
     // Farm stand — deposit basket eggs
     if (this.farmStand) {
       const fd = Phaser.Math.Distance.Between(
@@ -1697,8 +1814,9 @@ export default class PaddockScene extends Phaser.Scene {
 
     if (inRange) {
       let verb;
-      if (item?.action === 'ride')  verb = 'Mount';
+      if (item?.action === 'ride')      verb = 'Mount';
       else if (item?.action === 'lead') verb = this.leading === nearest ? 'Detach Lead' : 'Attach Lead';
+      else if (item?.action === 'interact') verb = 'Info';
       else if (item) verb = `Use ${item.label}`;
       else verb = `Info  •  [ A ] Pet`;
 
@@ -1709,6 +1827,7 @@ export default class PaddockScene extends Phaser.Scene {
       if (useJust) {
         if (item?.action === 'ride')      this.mountHorse(nearest);
         else if (item?.action === 'lead') this.toggleLead(nearest);
+        else if (item?.action === 'interact') this.openPortrait(nearest.key);
         else if (item)                    this.useItemOnHorse(item, nearest);
         else                              this.openPortrait(nearest.key);
       }

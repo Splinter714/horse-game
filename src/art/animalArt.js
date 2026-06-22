@@ -284,7 +284,7 @@ function buildCatTextures(scene, key) {
 export const CHICKEN_W = 16, CHICKEN_H = 22;
 
 // Five feather coat variants
-const CHICKEN_COATS = [
+export const CHICKEN_COATS = [
   { body: 0xf0e8d8, bodyHi: 0xffffff, bodyLo: 0xd8d0c0, wing: 0xe0d8c8, wingLo: 0xc8c0b0, tail: 0xd4a050, tailDark: 0xb87830 }, // white
   { body: 0xa83820, bodyHi: 0xc04830, bodyLo: 0x882810, wing: 0x8c2c18, wingLo: 0x6c1c0c, tail: 0x7a2010, tailDark: 0x5a1408 }, // rhode island red
   { body: 0x282820, bodyHi: 0x404038, bodyLo: 0x181810, wing: 0x1c1c18, wingLo: 0x141410, tail: 0x303028, tailDark: 0x202018 }, // black

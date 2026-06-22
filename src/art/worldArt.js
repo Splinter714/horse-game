@@ -48,6 +48,35 @@ export function buildWorldTextures(scene) {
     g.fillStyle(0xc8924c, 1); g.fillRect(2, 2, 2, 20);
   });
 
+  // --- gate closed (blocks passage) ---
+  tex(scene, 'gateClosed', 56, 48, (g) => {
+    // Posts on left and right
+    g.fillStyle(0x8a5828, 1); g.fillRect(0, 0, 4, 48); g.fillRect(52, 0, 4, 48);
+    // Horizontal cross-beams
+    g.fillStyle(0xa8743a, 1); g.fillRect(0, 8, 56, 2);
+    g.fillStyle(0xc8924c, 1); g.fillRect(0, 12, 56, 2);
+    g.fillStyle(0xa8743a, 1); g.fillRect(0, 24, 56, 2);
+    g.fillStyle(0xc8924c, 1); g.fillRect(0, 28, 56, 2);
+    g.fillStyle(0xa8743a, 1); g.fillRect(0, 40, 56, 2);
+    // Vertical slats
+    g.fillStyle(0xa8743a, 1);
+    for (let x = 8; x < 52; x += 6) g.fillRect(x, 2, 3, 44);
+    g.fillStyle(0xc8924c, 1);
+    for (let x = 10; x < 52; x += 6) g.fillRect(x, 4, 1, 40);
+    // Gate latch pin
+    g.fillStyle(0x6a5030, 1); g.fillCircle(28, 24, 2);
+  });
+
+  // --- gate open (swung to the right side) ---
+  tex(scene, 'gateOpen', 56, 48, (g) => {
+    // Left post only (right post would have the swung gate against it)
+    g.fillStyle(0x8a5828, 1); g.fillRect(0, 0, 4, 48);
+    // Right post open
+    g.fillStyle(0x8a5828, 1); g.fillRect(52, 0, 4, 48);
+    // Open passage marked with lighter ground
+    g.fillStyle(0x9ad060, 0.5); g.fillRect(4, 20, 48, 8);
+  });
+
   // --- water trough (empty = dry dark interior) ---
   tex(scene, 'trough', 100, 26, (g) => {
     g.fillStyle(0x8a5a2e, 1); g.fillRect(0, 6, 100, 20);
@@ -301,17 +330,11 @@ export function buildWorldTextures(scene) {
     // Canopy poles
     g.fillStyle(0x7a4820, 1);
     g.fillRect(4, 8, 4, 34); g.fillRect(64, 8, 4, 34);
-    // Canopy (striped awning)
+    // Canopy (solid awning)
     g.fillStyle(0xd44030, 1); g.fillRect(0, 4, 72, 14);
-    g.fillStyle(0xf8f0e0, 1);
-    for (let x = 0; x < 72; x += 10) g.fillRect(x, 4, 5, 14);
     // Canopy scalloped edge
     g.fillStyle(0xd44030, 1);
-    for (let x = 0; x < 72; x += 10) g.fillRect(x + 5, 4, 5, 14);
-    g.fillStyle(0xf8f0e0, 1);
     for (let x = 0; x < 72; x += 12) { g.fillEllipse(x + 6, 18, 10, 6); }
-    g.fillStyle(0xd44030, 1);
-    for (let x = 6; x < 72; x += 12) { g.fillEllipse(x + 6, 18, 10, 6); }
     // Table top
     g.fillStyle(0xa0682c, 1); g.fillRect(4, 22, 64, 12);
     g.fillStyle(0xc07c38, 1); g.fillRect(4, 22, 64, 4);
@@ -348,6 +371,22 @@ export function buildWorldTextures(scene) {
     g.fillRect(5, 10, 1, 8); g.fillRect(9, 10, 1, 8); g.fillRect(13, 10, 1, 8);
     // Bottom curve
     g.fillStyle(0xc8943c, 1); g.fillRect(3, 18, 14, 1); g.fillRect(4, 19, 12, 1);
+  });
+
+  // --- hand icon (20 × 20) ---
+  tex(scene, 'iconHand', 20, 20, (g) => {
+    g.fillStyle(0xf0c080, 1); // skin tone
+    // Palm base
+    g.fillRect(6, 10, 8, 8);
+    // Thumb
+    g.fillRect(4, 10, 2, 5);
+    // Fingers (4 extended)
+    g.fillRect(6, 4, 2, 6); g.fillRect(9, 3, 2, 7);
+    g.fillRect(12, 4, 2, 6); g.fillRect(15, 7, 2, 4);
+    // Hand lines/definition
+    g.fillStyle(0xd4a080, 0.6);
+    g.fillRect(6, 14, 8, 1); // palm line
+    g.fillRect(6, 16, 8, 1); // palm line 2
   });
 
   // --- NPC customer sprite (16 × 24, same layout as player) ---
