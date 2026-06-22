@@ -212,16 +212,15 @@ export default class PaddockScene extends Phaser.Scene {
     this.obstacles = [
       // Barn walls (origin 0.5,1 at 240,280; sprite 84×66 at S=2 → 168×132; walls ~lower 90px)
       { x: 162, y: 192, w: 156, h: 88 },
-      // Coop (origin 0.5,1 at 930,400; sprite 64×52 at S=2 → 128×104)
-      { x: 868, y: 300, w: 124, h: 100 },
+      // Coop (origin 0.5,1 at 930,400; sprite 64×52 at S=2 → 128×104).
+      // home:'chicken' → the coop is the chickens' home, so it's excluded from
+      // their personal obstacle list (they're allowed to walk in). See _obstaclesFor.
+      { x: 868, y: 300, w: 124, h: 100, home: 'chicken' },
       // Trough (origin 0.5,0.5 at 740,1100; sprite 100×26 at S=2 → 200×52)
       { x: 652, y: 1078, w: 176, h: 44 },
       // Fence line (6 segments at y=320, origin 0,0.5; 96×48 each → x=300..876)
       { x: 300, y: 300, w: 576, h: 40 },
     ];
-
-    // Chicken-specific list: same but without the coop (they're allowed in)
-    this.chickenObstacles = this.obstacles.filter(o => o !== this.obstacles[1]);
 
     // ── Solid pasture fence ── (perimeter walls with a single gap at the gate)
     // The gate opening spans x ≈ [GATE_GAP_X0, GATE_GAP_X1] at the top edge.
@@ -249,14 +248,26 @@ export default class PaddockScene extends Phaser.Scene {
     for (const n of this.props.nests) {
       this.obstacles.push({ x: n.x - 18, y: n.y - 12, w: 36, h: 24, isNest: true });
     }
-    // Chickens avoid other nests too (but they approach the target nest directly)
-    this.chickenObstacles = this.obstacles.filter(o => o !== this.obstacles[1]);
   }
 
   // Point-vs-rect check with a character radius.
   _hits(x, y, r, obs) {
     return x + r > obs.x && x - r < obs.x + obs.w &&
            y + r > obs.y && y - r < obs.y + obs.h;
+  }
+
+  // Species key for a creature, stripping any trailing instance number
+  // ('chicken3' → 'chicken', 'ebony' → 'ebony').
+  _speciesOf(key) {
+    return key.replace(/[0-9]+$/, '');
+  }
+
+  // The obstacle list a given creature should respect: the shared obstacles
+  // minus any obstacle tagged as that species' home (e.g. the coop for chickens).
+  // Computed on demand so it always reflects the live gate state.
+  _obstaclesFor(key) {
+    const species = this._speciesOf(key);
+    return this.obstacles.filter(o => o.home !== species);
   }
 
   // Returns true if (x,y) with radius r overlaps any obstacle in the list.
@@ -557,7 +568,7 @@ export default class PaddockScene extends Phaser.Scene {
     if (!a.sprite.active || a.state !== 'idle') return;
     a.state = 'wandering';
 
-    const obsList = a.key.startsWith('chicken') ? this.chickenObstacles : this.obstacles;
+    const obsList = this._obstaclesFor(a.key);
     let tx, ty;
     if (a.homeX !== null) {
       // Try up to 12 angles to find a clear spot within home radius
@@ -575,6 +586,22 @@ export default class PaddockScene extends Phaser.Scene {
                                   obsList, a.sprite.x, a.sprite.y);
       tx = r.tx; ty = r.ty;
     }
+    const onArrive = () => {
+      if (!a.sprite.active) return;
+      a.wanderTween = null;
+      a.sprite.play(`idle_${a.key}`, true);
+      a.state = 'idle';
+      this.scheduleAnimalWander(a, Phaser.Math.Between(4000, 10000));
+    };
+
+    // Wander targets are always in the farm area, so if this animal is currently
+    // on the pasture side of the fence (e.g. a chicken that walked through the
+    // open gate to peck at seed), route it back out through the gate opening.
+    if (this._inPasture(a.sprite.x, a.sprite.y) !== this._inPasture(tx, ty)) {
+      this._runPath(a, this._gatePath(a.sprite.x, a.sprite.y, tx, ty), onArrive);
+      return;
+    }
+
     const dist = Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, tx, ty);
 
     a.sprite.setFlipX(tx < a.sprite.x);
@@ -584,25 +611,22 @@ export default class PaddockScene extends Phaser.Scene {
       targets: a.sprite, x: tx, y: ty,
       duration: Math.max(800, dist * a.tweenRate),
       ease: 'Sine.easeInOut',
-      onComplete: () => {
-        if (!a.sprite.active) return;
-        a.wanderTween = null;
-        a.sprite.play(`idle_${a.key}`, true);
-        a.state = 'idle';
-        this.scheduleAnimalWander(a, Phaser.Math.Between(4000, 10000));
-      },
+      onComplete: onArrive,
     });
   }
 
   chickenTick() {
     if (this.isNight) return;
     if (!this.props.seedPiles?.length) return;
+    const gateOpen = !!this.props.gate?.open;
     for (const a of this.animals) {
       if (!a.key.startsWith('chicken')) continue;
       if (a.state !== 'idle' && a.state !== 'wandering') continue;
       let closest = null, closestDist = Infinity;
       for (const pile of this.props.seedPiles) {
         if (this.animals.some(o => o !== a && o._eatPile === pile)) continue; // 1 chicken per pile
+        // Seed inside the pasture is only reachable when the gate is open
+        if (this._inPasture(pile.x, pile.y) && !gateOpen) continue;
         const d = Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, pile.x, pile.y);
         if (d < closestDist) { closestDist = d; closest = pile; }
       }
@@ -618,32 +642,27 @@ export default class PaddockScene extends Phaser.Scene {
     if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
 
     const facingRight = pile.x >= a.sprite.x;
-    a.sprite.setFlipX(!facingRight);
-    a.sprite.play(`walk_${a.key}`, true);
-
     const tx = pile.x + (facingRight ? -16 : 16);
-    const dist = Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, tx, pile.y);
+    const ty = pile.y;
 
-    a.wanderTween = this.tweens.add({
-      targets: a.sprite, x: tx, y: pile.y,
-      duration: Math.max(300, dist * a.tweenRate),
-      ease: 'Sine.easeInOut',
-      onComplete: () => {
+    const startPecking = () => {
+      if (a.state !== 'eating') return;
+      a.wanderTween = null;
+      a.sprite.play(`eat_${a.key}`, true); // pecking animation
+
+      a.eatTimer = this.time.delayedCall(2200, () => {
+        a.eatTimer = null;
         if (a.state !== 'eating') return;
-        a.wanderTween = null;
-        a.sprite.play(`eat_${a.key}`, true); // pecking animation
+        pile.sprite.destroy();
+        this.props.seedPiles = this.props.seedPiles.filter(p => p !== pile);
+        a._eatPile = null;
+        a.state = 'idle';
+        this.scheduleAnimalWander(a, Phaser.Math.Between(1000, 3000));
+      });
+    };
 
-        a.eatTimer = this.time.delayedCall(2200, () => {
-          a.eatTimer = null;
-          if (a.state !== 'eating') return;
-          pile.sprite.destroy();
-          this.props.seedPiles = this.props.seedPiles.filter(p => p !== pile);
-          a._eatPile = null;
-          a.state = 'idle';
-          this.scheduleAnimalWander(a, Phaser.Math.Between(1000, 3000));
-        });
-      },
-    });
+    // Route through the gate if the seed is on the far side of the pasture fence.
+    this._runPath(a, this._gatePath(a.sprite.x, a.sprite.y, tx, ty), startPecking);
   }
 
   eggLayTick() {
@@ -797,7 +816,7 @@ export default class PaddockScene extends Phaser.Scene {
     const isHorse = this.horses.includes(h);
     const bounds = isHorse ? PASTURE_BOUNDS : BOUNDS;
     const { tx, ty } = this._safeTarget(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY,
-                                         this.obstacles, h.sprite.x, h.sprite.y);
+                                         this._obstaclesFor(h.key), h.sprite.x, h.sprite.y);
 
     const onArrive = () => {
       if (!h.sprite.active) return;
@@ -810,7 +829,7 @@ export default class PaddockScene extends Phaser.Scene {
     // Route through the gate if the horse is wandering back across the fence
     // (e.g. it walked out to eat hay and now heads back into the pasture).
     if (isHorse) {
-      this._runHorsePath(h, this._gatePath(h.sprite.x, h.sprite.y, tx, ty), onArrive);
+      this._runPath(h, this._gatePath(h.sprite.x, h.sprite.y, tx, ty), onArrive);
       return;
     }
 
@@ -1028,23 +1047,51 @@ export default class PaddockScene extends Phaser.Scene {
       : [outPoint, inPoint, { x: tx, y: ty }];   // entering the pasture
   }
 
-  // Move a horse along a list of waypoints with walk tweens, then call onArrive.
-  _runHorsePath(h, points, onArrive) {
+  // Move any creature (horse or animal) along a list of waypoints with walk
+  // tweens, then call onArrive. tweenRate defaults to the horse pace (10).
+  // If a leg would carry the creature across the fence line while the gate is
+  // shut, the trip is abandoned and the creature settles on its home side — so
+  // nobody ever walks through a closed gate (e.g. it's shut mid-crossing).
+  _runPath(a, points, onArrive) {
+    const rate = a.tweenRate ?? 10;
+    const line = PASTURE_BOUNDS.minY;
     const step = (i) => {
-      if (!h.sprite.active) return;
-      if (i >= points.length) { h.wanderTween = null; onArrive?.(); return; }
+      if (!a.sprite.active) return;
+      if (i >= points.length) { a.wanderTween = null; onArrive?.(); return; }
       const { x: tx, y: ty } = points[i];
-      const dist = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, tx, ty);
-      h.sprite.setFlipX(tx < h.sprite.x);
-      h.sprite.play(`walk_${h.key}`, true);
-      h.wanderTween = this.tweens.add({
-        targets: h.sprite, x: tx, y: ty,
-        duration: Math.max(300, dist * 10),
+      if ((a.sprite.y - line) * (ty - line) < 0 && !this.props.gate?.open) {
+        a.wanderTween = null;
+        this._settleAtGate(a);
+        return;
+      }
+      const dist = Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, tx, ty);
+      a.sprite.setFlipX(tx < a.sprite.x);
+      a.sprite.play(`walk_${a.key}`, true);
+      a.wanderTween = this.tweens.add({
+        targets: a.sprite, x: tx, y: ty,
+        duration: Math.max(300, dist * rate),
         ease: 'Sine.easeInOut',
         onComplete: () => step(i + 1),
       });
     };
     step(0);
+  }
+
+  // Place a creature just clear of the gate on its home side (horses inside the
+  // pasture, other animals in the farm) and return it to normal life. Used when
+  // the gate shuts on a mover that was crossing or about to cross.
+  _settleAtGate(a) {
+    const isHorse = this.horses.includes(a);
+    const line = PASTURE_BOUNDS.minY;
+    a.sprite.x = Phaser.Math.Clamp(a.sprite.x, GATE_GAP_X0 + 12, GATE_GAP_X1 - 12);
+    a.sprite.y = isHorse ? line + 30 : line - 30;
+    a.shadow.setPosition(a.sprite.x, a.sprite.y).setDepth(a.sprite.y - 1);
+    a.sprite.setDepth(a.sprite.y).play(`idle_${a.key}`, true);
+    if (a.eatTimer) { this.time.removeEvent(a.eatTimer); a.eatTimer = null; }
+    a._eatPile = null;
+    a.state = 'idle';
+    if (isHorse) this.scheduleWander(a, Phaser.Math.Between(800, 2000));
+    else         this.scheduleAnimalWander(a, Phaser.Math.Between(800, 2000));
   }
 
   horseGoEat(h, pile) {
@@ -1063,7 +1110,7 @@ export default class PaddockScene extends Phaser.Scene {
     // Route through the gate if the hay is on the far side of the fence
     const path = this._gatePath(h.sprite.x, h.sprite.y, tx, ty);
 
-    this._runHorsePath(h, path, () => {
+    this._runPath(h, path, () => {
       if (h.state !== 'eating') return;
       h.sprite.setFlipX(!facingRight);
       h.sprite.play(`eat_${h.key}`, true);
@@ -1104,7 +1151,7 @@ export default class PaddockScene extends Phaser.Scene {
     // Route through the gate if the horse is currently outside the pasture
     const path = this._gatePath(h.sprite.x, h.sprite.y, tx, ty);
 
-    this._runHorsePath(h, path, () => {
+    this._runPath(h, path, () => {
         if (h.state !== 'drinking') return;
         if (!trough.filled) { h.state = 'idle'; this.scheduleWander(h, 500); return; }
         h.sprite.setFlipX(!facingRight);
@@ -1563,6 +1610,18 @@ export default class PaddockScene extends Phaser.Scene {
         p.y = nudgeSouth ? g.y + g.h + 15 : g.y - 15;
         p.y = Phaser.Math.Clamp(p.y, PLAYER_BOUNDS.minY, PLAYER_BOUNDS.maxY);
         if (this.player.shadow) this.player.shadow.y = p.y;
+      }
+
+      // Bounce any creature caught mid-stride in the gate doorway to its home
+      // side so it isn't left standing in (or walking through) the shut gate.
+      // Movers still approaching the gate are stopped by the _runPath guard.
+      for (const m of [...this.horses, ...this.animals]) {
+        if (!m.sprite?.active || !m.wanderTween) continue;
+        if (this._hits(m.sprite.x, m.sprite.y, 16, g)) {
+          m.wanderTween.stop();
+          m.wanderTween = null;
+          this._settleAtGate(m);
+        }
       }
     }
   }
