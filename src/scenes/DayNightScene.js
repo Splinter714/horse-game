@@ -9,6 +9,11 @@ const PHASES = [
 ];
 const DAY_MS = PHASES.reduce((s, p) => s + p.dur, 0);
 
+// Each phase holds its color/alpha steady, then crossfades to the next phase
+// over this window at the very end of the phase. (Clamped to half the phase's
+// duration so short phases still hold for a moment.)
+const TRANSITION_MS = 15_000;
+
 const PHASE_ICONS = ['🌅', '☀️', '🌇', '🌙'];
 
 export default class DayNightScene extends Phaser.Scene {
@@ -50,7 +55,14 @@ export default class DayNightScene extends Phaser.Scene {
       phaseIdx = i;
     }
     const nextIdx = (phaseIdx + 1) % PHASES.length;
-    const blend   = (this.elapsed - phaseStart) / PHASES[phaseIdx].dur;
+
+    // Hold the phase value steady, only crossfade during the trailing window.
+    const dur        = PHASES[phaseIdx].dur;
+    const transition = Math.min(TRANSITION_MS, dur / 2);
+    const intoPhase  = this.elapsed - phaseStart;
+    const blend      = intoPhase <= dur - transition
+      ? 0
+      : (intoPhase - (dur - transition)) / transition;
 
     const p0 = PHASES[phaseIdx];
     const p1 = PHASES[nextIdx];
