@@ -1,14 +1,17 @@
-// Hotbar items. null = empty slot.
-// action maps to Horse methods: feed / water / brush / pet
-export const ITEMS = [
-  { key: 'apple',  label: 'Apple',  icon: 'iconApple',  action: 'feed'  },
-  { key: 'hay',    label: 'Hay',    icon: 'iconHay',    action: 'feed'  },
-  { key: 'carrot', label: 'Carrot', icon: 'iconCarrot', action: 'feed'  },
-  { key: 'treat',  label: 'Treat',  icon: 'iconTreat',  action: 'pet'   },
-  { key: 'bucket', label: 'Water',  icon: 'iconWater',  action: 'water' },
-  { key: 'brush',  label: 'Brush',  icon: 'iconBrush',  action: 'brush' },
-  { key: 'saddle', label: 'Saddle', icon: 'iconSaddle', action: 'ride'  },
-  { key: 'lead',   label: 'Lead',   icon: 'iconLead',   action: 'lead'  },
-  { key: 'seed',   label: 'Seeds',  icon: 'iconSeed',   action: 'seed'  },
-  { key: 'basket', label: 'Basket', icon: 'iconBasket', action: 'basket' },
+export const ALL_ITEMS = [
+  { key: 'apple',  label: 'Apple',  icon: 'iconApple',  action: 'feed',   category: 'food' },
+  { key: 'hay',    label: 'Hay',    icon: 'iconHay',    action: 'feed',   category: 'food' },
+  { key: 'carrot', label: 'Carrot', icon: 'iconCarrot', action: 'feed',   category: 'food' },
+  { key: 'treat',  label: 'Treat',  icon: 'iconTreat',  action: 'pet',    category: 'food' },
+  { key: 'seed',   label: 'Seeds',  icon: 'iconSeed',   action: 'seed',   category: 'food' },
+  { key: 'bucket', label: 'Water',  icon: 'iconWater',  action: 'water',  category: 'tool' },
+  { key: 'brush',  label: 'Brush',  icon: 'iconBrush',  action: 'brush',  category: 'tool' },
+  { key: 'saddle', label: 'Saddle', icon: 'iconSaddle', action: 'ride',   category: 'tool' },
+  { key: 'lead',   label: 'Lead',   icon: 'iconLead',   action: 'lead',   category: 'tool' },
+  { key: 'basket', label: 'Basket', icon: 'iconBasket', action: 'basket', category: 'tool' },
 ];
+
+export const ITEM_MAP = Object.fromEntries(ALL_ITEMS.map(i => [i.key, i]));
+
+// backward compat
+export const ITEMS = ALL_ITEMS;

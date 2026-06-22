@@ -962,6 +962,8 @@ export default class PaddockScene extends Phaser.Scene {
     this.usingPad     = false;
     this.padAJustDown = false;
     this._prevRawButtons = {};
+    this._paused = false;
+    this._pauseOverlay = null;
 
     this.input.gamepad.on('connected', pad => { this.gamePad = pad; });
     if (this.input.gamepad.total > 0) this.gamePad = this.input.gamepad.getPad(0);
@@ -980,7 +982,7 @@ export default class PaddockScene extends Phaser.Scene {
 
   handleTap(pointer) {
     if (this.scene.isActive('PortraitScene')) return;
-    if (this.scene.get('RadialMenuScene')?.isOpen) return;
+    if (this.scene.get('HotbarScene')?.invOpen) return;
     if (pointer.button !== 0) return;
     if (this.riding) return;
 
@@ -1072,7 +1074,7 @@ export default class PaddockScene extends Phaser.Scene {
   }
 
   getActiveItem() {
-    return this.scene.get('RadialMenuScene')?.getActiveItem() ?? null;
+    return this.scene.get('HotbarScene')?.getActiveItem() ?? null;
   }
 
   // ─── Riding ──────────────────────────────────────────────────────────────
@@ -1388,6 +1390,7 @@ export default class PaddockScene extends Phaser.Scene {
 
   update(time, delta) {
     this._pollRawPad();
+    if (this._paused) return;
     this.updateRiding(delta);
     this.movePlayer(delta);
     this.updateLeading(delta);
@@ -1396,6 +1399,30 @@ export default class PaddockScene extends Phaser.Scene {
     this.depthSort();
     this.tickDecay(delta);
     this.tickAutosave(delta);
+  }
+
+  _togglePause() {
+    this._paused = !this._paused;
+    if (this._paused) {
+      const sw = this.scale.width, sh = this.scale.height;
+      const bg = this.add.graphics().setDepth(9990);
+      bg.fillStyle(0x000000, 0.55);
+      bg.fillRect(0, 0, sw, sh);
+      const lbl = this.add.text(sw / 2, sh / 2, 'PAUSED', {
+        fontFamily: 'system-ui, sans-serif',
+        fontSize: '32px',
+        color: '#ffffff',
+      }).setOrigin(0.5).setDepth(9991).setScrollFactor(0);
+      const hint = this.add.text(sw / 2, sh / 2 + 48, 'Press Start to resume', {
+        fontFamily: 'system-ui, sans-serif',
+        fontSize: '14px',
+        color: '#9aa0c0',
+      }).setOrigin(0.5).setDepth(9991).setScrollFactor(0);
+      this._pauseOverlay = [bg, lbl, hint];
+    } else {
+      this._pauseOverlay?.forEach(o => o.destroy());
+      this._pauseOverlay = null;
+    }
   }
 
   _pollRawPad() {
@@ -1416,26 +1443,59 @@ export default class PaddockScene extends Phaser.Scene {
     this._rawPad = {
       leftStickX:  axes[0] ?? 0,
       leftStickY:  axes[1] ?? 0,
-      dUp:    btns[12]?.pressed ?? false,
-      dDown:  btns[13]?.pressed ?? false,
-      dLeft:  btns[14]?.pressed ?? false,
-      dRight: btns[15]?.pressed ?? false,
-      btnA:   btns[0]?.pressed  ?? false,
-      btnB:   btns[1]?.pressed  ?? false,
+      dUp:     btns[12]?.pressed ?? false,
+      dDown:   btns[13]?.pressed ?? false,
+      dLeft:   btns[14]?.pressed ?? false,
+      dRight:  btns[15]?.pressed ?? false,
+      btnA:    btns[0]?.pressed  ?? false,
+      btnB:    btns[1]?.pressed  ?? false,
+      btnLT:   (btns[6]?.value ?? 0) > 0.3,
+      btnRT:   (btns[7]?.value ?? 0) > 0.3,
+      btnBack: btns[8]?.pressed  ?? false,
+      btnStart:btns[9]?.pressed  ?? false,
     };
 
-    // Edge-detect A (just-pressed this frame)
-    if (this._rawPad.btnA && !this._prevRawButtons.btnA) {
+    const prev    = this._prevRawButtons;
+    const hotbar  = this.scene.get('HotbarScene');
+
+    if (this._rawPad.btnA && !prev.btnA) {
       this.padAJustDown = true;
       this.usingPad = true;
     }
-    // B closes portrait
-    if (this._rawPad.btnB && !this._prevRawButtons.btnB) {
+    // B = close any open menu
+    if (this._rawPad.btnB && !prev.btnB) {
       this.usingPad = true;
-      if (this.scene.isActive('PortraitScene')) this.scene.stop('PortraitScene');
+      if (hotbar?.invOpen)                      hotbar._closeInventory();
+      else if (this.scene.isActive('PortraitScene')) this.scene.stop('PortraitScene');
+    }
+    // LT/RT = cycle hotbar (same as LB/RB)
+    if (this._rawPad.btnLT && !prev.btnLT) {
+      this.usingPad = true;
+      if (hotbar) hotbar._setActive((hotbar.activeSlot - 1 + NUM_SLOTS) % NUM_SLOTS);
+    }
+    if (this._rawPad.btnRT && !prev.btnRT) {
+      this.usingPad = true;
+      if (hotbar) hotbar._setActive((hotbar.activeSlot + 1) % NUM_SLOTS);
+    }
+    // Back = toggle inventory
+    if (this._rawPad.btnBack && !prev.btnBack) {
+      this.usingPad = true;
+      hotbar?._toggleInventory();
+    }
+    // Start = pause / unpause
+    if (this._rawPad.btnStart && !prev.btnStart) {
+      this.usingPad = true;
+      this._togglePause();
     }
 
-    this._prevRawButtons = { btnA: this._rawPad.btnA, btnB: this._rawPad.btnB };
+    this._prevRawButtons = {
+      btnA:     this._rawPad.btnA,
+      btnB:     this._rawPad.btnB,
+      btnLT:    this._rawPad.btnLT,
+      btnRT:    this._rawPad.btnRT,
+      btnBack:  this._rawPad.btnBack,
+      btnStart: this._rawPad.btnStart,
+    };
   }
 
   updateFoals(delta) {
@@ -1467,7 +1527,7 @@ export default class PaddockScene extends Phaser.Scene {
     if (this.riding) return;
 
     // Stop all movement while radial menu is open
-    if (this.scene.get('RadialMenuScene')?.isOpen) {
+    if (this.scene.get('HotbarScene')?.invOpen) {
       if (this.moveTween) { this.moveTween.stop(); this.moveTween = null; }
       if (this.player.moving) {
         const idleKey = this.player.facing === 'up'  ? 'player_up_0' :
@@ -1564,12 +1624,12 @@ export default class PaddockScene extends Phaser.Scene {
   }
 
   checkProximity() {
-    if (this.scene.get('RadialMenuScene')?.isOpen) {
+    if (this.scene.get('HotbarScene')?.invOpen) {
       this.interactPrompt.setVisible(false);
       return;
     }
 
-    // When riding, show dismount hint (handled in updateRiding)
+    // When riding, show dismount hint
     if (this.riding) {
       const h = this.riding.h;
       const btn = this.usingPad ? '[ A ]' : '[ E ]';
@@ -1580,63 +1640,16 @@ export default class PaddockScene extends Phaser.Scene {
     }
 
     const { player } = this;
-    const item = this.getActiveItem();
-    const eJust = Phaser.Input.Keyboard.JustDown(this.eKey);
-    const aJust = this.padAJustDown;
+    const item    = this.getActiveItem();
+    const eJust   = Phaser.Input.Keyboard.JustDown(this.eKey);
+    const aJust   = this.padAJustDown;
     this.padAJustDown = false;
 
-    // ── A button = pure context-sensitive interact ────────────────────────────
-    if (aJust) {
-      // Basket: deposit at stand or collect egg
-      if (item?.key === 'basket') {
-        if (this.farmStand && this.basketEggs > 0) {
-          const fd = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, this.farmStand.x, this.farmStand.y);
-          if (fd < 120) { this.stockStand(); return; }
-        }
-        for (const nest of this.props.nests) {
-          if (!nest.hasEgg) continue;
-          const nd = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, nest.x, nest.y);
-          if (nd < 80) { this.collectEgg(nest); return; }
-        }
-        return;
-      }
-      // Eggs (no basket — show hint only, actual collect gated in collectEgg)
-      for (const nest of this.props.nests) {
-        if (!nest.hasEgg) continue;
-        const nd = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, nest.x, nest.y);
-        if (nd < 80) { this.collectEgg(nest); return; }
-      }
-      // Nearest horse — pet + open portrait
-      let nearH = null, nearHD = Infinity;
-      for (const h of this.horses) {
-        const d = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, h.sprite.x, h.sprite.y);
-        if (d < nearHD) { nearHD = d; nearH = h; }
-      }
-      if (nearH && nearHD < INTERACT_DIST) {
-        this.showHeart(nearH.sprite);
-        const allHorses = this.registry.get('allHorses');
-        const hd = allHorses[nearH.key];
-        if (hd?.stats) hd.stats.happiness = Math.min(100, (hd.stats.happiness ?? 80) + 3);
-        this.openPortrait(nearH.key);
-        return;
-      }
-      // Foals
-      for (const foal of this.foals) {
-        const fd = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, foal.sprite.x, foal.sprite.y);
-        if (fd < 65) { this.showHeart(foal.sprite); this.hop(foal.sprite); return; }
-      }
-      // Chickens / other animals — pet and show floating info
-      for (const a of this.animals) {
-        const ad = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, a.sprite.x, a.sprite.y);
-        if (ad < 60) {
-          this.showHeart(a.sprite);
-          this._showAnimalInfo(a);
-          return;
-        }
-      }
-    }
+    // E (keyboard) and A (gamepad) both trigger item use / interact
+    const useJust = eJust || aJust;
+    const useKey  = this.usingPad ? '[ A ]' : '[ E ]';
 
-    // Farm stand proximity — deposit basket eggs
+    // Farm stand — deposit basket eggs
     if (this.farmStand) {
       const fd = Phaser.Math.Distance.Between(
         player.sprite.x, player.sprite.y, this.farmStand.x, this.farmStand.y
@@ -1644,7 +1657,7 @@ export default class PaddockScene extends Phaser.Scene {
       if (fd < 120) {
         const hasBasket = item?.key === 'basket';
         if (hasBasket && this.basketEggs > 0) {
-          this.interactPrompt.setText(`[ E ]  Place Eggs  (basket: ${this.basketEggs})`);
+          this.interactPrompt.setText(`${useKey}  Place Eggs  (basket: ${this.basketEggs})`);
         } else if (hasBasket) {
           this.interactPrompt.setText(`Farm Stand  •  ${this.farmStand.stock} egg${this.farmStand.stock !== 1 ? 's' : ''} for sale  (basket empty)`);
         } else {
@@ -1652,27 +1665,27 @@ export default class PaddockScene extends Phaser.Scene {
         }
         this.interactPrompt.setPosition(this.farmStand.x, this.farmStand.y - 100);
         this.interactPrompt.setVisible(true);
-        if (eJust && hasBasket && this.basketEggs > 0) this.stockStand();
+        if (useJust && hasBasket && this.basketEggs > 0) this.stockStand();
         return;
       }
     }
 
-    // Trough proximity — checked first so it wins over horse when both are in range
+    // Trough — fill with bucket
     const trough = this.props.trough;
     if (trough) {
       const td = Phaser.Math.Distance.Between(
         player.sprite.x, player.sprite.y, trough.x, trough.y
       );
       if (td < 130 && item?.key === 'bucket' && !trough.filled) {
-        this.interactPrompt.setText(`[ E ]  Fill Trough`);
+        this.interactPrompt.setText(`${useKey}  Fill Trough`);
         this.interactPrompt.setPosition(trough.x, trough.y - 40);
         this.interactPrompt.setVisible(true);
-        if (eJust) this.fillTrough();
+        if (useJust) this.fillTrough();
         return;
       }
     }
 
-    // Nearest horse
+    // Nearest horse — use item or open portrait
     let nearest = null, nearestDist = Infinity;
     for (const h of this.horses) {
       const d = Phaser.Math.Distance.Between(
@@ -1684,25 +1697,25 @@ export default class PaddockScene extends Phaser.Scene {
 
     if (inRange) {
       let verb;
-      if (item?.action === 'ride') verb = 'Mount';
+      if (item?.action === 'ride')  verb = 'Mount';
       else if (item?.action === 'lead') verb = this.leading === nearest ? 'Detach Lead' : 'Attach Lead';
       else if (item) verb = `Use ${item.label}`;
-      else verb = 'Info  •  [ A ] Pet';
+      else verb = `Info  •  [ A ] Pet`;
 
-      this.interactPrompt.setText(`[ E ]  ${verb}`);
+      this.interactPrompt.setText(`${useKey}  ${verb}`);
       this.interactPrompt.setPosition(nearest.sprite.x, nearest.sprite.y - 118);
       this.interactPrompt.setVisible(true);
 
-      if (eJust) {
-        if (item?.action === 'ride')        this.mountHorse(nearest);
-        else if (item?.action === 'lead')   this.toggleLead(nearest);
-        else if (item)                      this.useItemOnHorse(item, nearest);
-        else                                this.openPortrait(nearest.key);
+      if (useJust) {
+        if (item?.action === 'ride')      this.mountHorse(nearest);
+        else if (item?.action === 'lead') this.toggleLead(nearest);
+        else if (item)                    this.useItemOnHorse(item, nearest);
+        else                              this.openPortrait(nearest.key);
       }
       return;
     }
 
-    // Nest proximity — collect eggs (requires basket)
+    // Nest — collect eggs (requires basket)
     for (const nest of this.props.nests) {
       if (!nest.hasEgg) continue;
       const nd = Phaser.Math.Distance.Between(
@@ -1711,33 +1724,29 @@ export default class PaddockScene extends Phaser.Scene {
       if (nd < 80) {
         const hasBasket = item?.key === 'basket';
         this.interactPrompt.setText(hasBasket
-          ? `[ A ] or [ E ]  Collect Egg`
+          ? `${useKey}  Collect Egg`
           : `Egg in nest  •  equip Basket to collect`);
         this.interactPrompt.setPosition(nest.x, nest.y - 30);
         this.interactPrompt.setVisible(true);
-        if (eJust && hasBasket) this.collectEgg(nest);
+        if (useJust && hasBasket) this.collectEgg(nest);
         return;
       }
     }
 
-    // Foal proximity — pettable
+    // Foal proximity
     for (const foal of this.foals) {
       const fd = Phaser.Math.Distance.Between(
         player.sprite.x, player.sprite.y, foal.sprite.x, foal.sprite.y
       );
       if (fd < 65) {
-        this.interactPrompt.setText(`[ A ] or [ E ]  Pet`);
+        this.interactPrompt.setText(`[ A ]  Pet`);
         this.interactPrompt.setPosition(foal.sprite.x, foal.sprite.y - 78);
         this.interactPrompt.setVisible(true);
-        if (eJust) {
-          this.showHeart(foal.sprite);
-          this.hop(foal.sprite);
-        }
         return;
       }
     }
 
-    // Chicken / other animal proximity
+    // Animal proximity
     for (const a of this.animals) {
       const ad = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, a.sprite.x, a.sprite.y);
       if (ad < 60) {
@@ -1750,13 +1759,9 @@ export default class PaddockScene extends Phaser.Scene {
 
     this.interactPrompt.setVisible(false);
 
-    // Place hay on ground when pressing E with food item, not near anything
-    if (eJust && item?.action === 'feed') {
-      this.placeHay();
-    }
-    if (eJust && item?.action === 'seed') {
-      this.placeSeeds();
-    }
+    // Place hay / seeds when not near anything
+    if (useJust && item?.action === 'feed') this.placeHay();
+    if (useJust && item?.action === 'seed') this.placeSeeds();
   }
 
   _showAnimalInfo(a) {

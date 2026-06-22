@@ -77,7 +77,6 @@ export default class BootScene extends Phaser.Scene {
 
     this.scene.start('PaddockScene');
     this.scene.launch('DayNightScene');
-    this.scene.launch('RadialMenuScene');
-    this.scene.launch('InventoryScene');
+    this.scene.launch('HotbarScene');
   }
 }

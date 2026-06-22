@@ -5,6 +5,37 @@ import { Horse } from './horse.js';
 
 const KEY = 'horse-care-save-v1';
 
+// ── Game state (hotbar + inventory) ──────────────────────────────────────────
+
+const GAME_STATE_KEY = 'horse-game-state-v1';
+
+const DEFAULT_HOTBAR = ['apple', 'hay', 'carrot', 'treat', 'seed', 'bucket', 'brush', 'saddle', 'lead', 'basket'];
+
+function defaultInventory() {
+  // Food items start with quantities. Tools are infinite (not stored here).
+  return { apple: 20, hay: 15, carrot: 10, treat: 5, seed: 30 };
+}
+
+export function loadGameState() {
+  try {
+    const raw = localStorage.getItem(GAME_STATE_KEY);
+    if (!raw) return { hotbar: [...DEFAULT_HOTBAR], inventory: defaultInventory() };
+    const data = JSON.parse(raw);
+    return {
+      hotbar:    Array.isArray(data.hotbar) ? data.hotbar : [...DEFAULT_HOTBAR],
+      inventory: { ...defaultInventory(), ...(data.inventory ?? {}) },
+    };
+  } catch {
+    return { hotbar: [...DEFAULT_HOTBAR], inventory: defaultInventory() };
+  }
+}
+
+export function saveGameState({ hotbar, inventory }) {
+  try {
+    localStorage.setItem(GAME_STATE_KEY, JSON.stringify({ hotbar, inventory }));
+  } catch {}
+}
+
 export function loadHorse() {
   let raw = null;
   try {

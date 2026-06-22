@@ -413,7 +413,15 @@ function schedulerTick() {
   const c = getCtx();
   if (c.state === 'suspended') return;
 
-  const ahead = c.currentTime + LOOKAHEAD;
+  const now   = c.currentTime;
+  const ahead = now + LOOKAHEAD;
+
+  // If the scheduler fell behind (e.g. context was suspended on iOS while
+  // currentTime kept advancing), jump cursors to now so we don't try to
+  // schedule hundreds of back-notes in one burst — that freezes the browser.
+  if (nextMelodyTime < now) nextMelodyTime = now;
+  if (nextBassTime   < now) nextBassTime   = now;
+  if (nextChordTime  < now) nextChordTime  = now;
 
   // Melody voice
   while (nextMelodyTime < ahead) {

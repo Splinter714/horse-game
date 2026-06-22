@@ -3,9 +3,7 @@ import BootScene from './scenes/BootScene.js';
 import PaddockScene from './scenes/PaddockScene.js';
 import PortraitScene from './scenes/PortraitScene.js';
 import HotbarScene from './scenes/HotbarScene.js';
-import RadialMenuScene from './scenes/RadialMenuScene.js';
 import DayNightScene from './scenes/DayNightScene.js';
-import InventoryScene from './scenes/InventoryScene.js';
 
 const config = {
   type: Phaser.AUTO,
@@ -18,7 +16,7 @@ const config = {
   input: {
     gamepad: true
   },
-  scene: [BootScene, PaddockScene, DayNightScene, PortraitScene, HotbarScene, RadialMenuScene, InventoryScene]
+  scene: [BootScene, PaddockScene, DayNightScene, PortraitScene, HotbarScene]
 };
 
 const game = new Phaser.Game(config);
