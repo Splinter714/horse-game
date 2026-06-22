@@ -66,6 +66,7 @@ export default class PaddockScene extends Phaser.Scene {
     this.buildAnimals();
     this.buildPlayer();
     this.buildFarmStand();
+    this.buildInteractables();
 
     // Periodic AI tick: direct idle horses to food/water
     this.time.addEvent({ delay: 3000, loop: true, callback: this.horseTick, callbackScope: this });
@@ -375,30 +376,50 @@ export default class PaddockScene extends Phaser.Scene {
     const sx = 1680, sy = 360;
     const sprite = this.add.image(sx, sy, 'farmStand')
       .setScale(S).setDepth(sy).setOrigin(0.5, 1);
-    this.farmStand = { x: sx, y: sy, stock: 0, sprite };
+    this.farmStand = { x: sx, y: sy, stock: 0, sprite, eggSprites: [] };
 
-    // Sign above stand showing stock
-    this.farmStand.sign = this.add.text(sx, sy - 100, '', {
+    // Count badge floating just above the eggs on the counter.
+    this.farmStand.badge = this.add.text(sx, sy - 64, '', {
       fontFamily: 'system-ui, sans-serif',
       fontSize: '13px',
       color: '#fffde0',
       backgroundColor: '#1c1f2ecc',
-      padding: { x: 8, y: 5 },
+      padding: { x: 7, y: 3 },
     }).setOrigin(0.5, 1).setDepth(sy + 10).setVisible(false);
 
     // Obstacle: the solid table area (72*2=144 wide, ~22*2=44 tall, top-half of sprite)
     this.obstacles.push({ x: sx - 72, y: sy - 88, w: 144, h: 60, isFarmStand: true });
 
-    this._updateStandSign();
+    this._refreshStand();
   }
 
-  _updateStandSign() {
+  // Show the stand's stock as actual eggs on the counter, plus a small count
+  // badge. Re-run whenever stock changes (stocking, or a customer buying).
+  _refreshStand() {
     const s = this.farmStand;
+    s.eggSprites.forEach(e => e.destroy());
+    s.eggSprites = [];
+
+    const CAP = 8;                  // most eggs we draw before it's just the badge
+    const shown = Math.min(s.stock, CAP);
+    const perRow = 4, spacingX = 16, rowLift = 9;
+    const counterY = s.y - 30;      // table surface in world space
+    for (let i = 0; i < shown; i++) {
+      const row = Math.floor(i / perRow);
+      const col = i % perRow;
+      const rowCount = Math.min(perRow, shown - row * perRow);
+      const ex = s.x - ((rowCount - 1) * spacingX) / 2 + col * spacingX;
+      const ey = counterY - row * rowLift;
+      s.eggSprites.push(
+        this.add.image(ex, ey, 'egg').setScale(S).setOrigin(0.5, 1).setDepth(s.y + 1 + row)
+      );
+    }
+
     if (s.stock > 0) {
-      s.sign.setText(`🥚 ×${s.stock}  for sale`);
-      s.sign.setVisible(true);
+      s.badge.setText(`🥚 ×${s.stock}`);
+      s.badge.setVisible(true);
     } else {
-      s.sign.setVisible(false);
+      s.badge.setVisible(false);
     }
   }
 
@@ -409,7 +430,7 @@ export default class PaddockScene extends Phaser.Scene {
     const n = active.count;
     this.scene.get('HotbarScene')?.useActiveCarrier(n);
     this.farmStand.stock += n;
-    this._updateStandSign();
+    this._refreshStand();
 
     const icon = this.add.image(this.farmStand.x, this.farmStand.y - 60, 'iconEgg')
       .setScale(1.8).setDepth(10000);
@@ -494,7 +515,7 @@ export default class PaddockScene extends Phaser.Scene {
     const price = qty * 5; // $5 per egg
     stand.stock -= qty;
     this.money += price;
-    this._updateStandSign();
+    this._refreshStand();
     this.game.events.emit('money-changed', this.money);
 
     this._npcSpeech(npc, `$${price}!`);
@@ -1307,6 +1328,143 @@ export default class PaddockScene extends Phaser.Scene {
 
   }
 
+  // ─── World interactables (primary-action targets) ─────────────────────────
+  //
+  // Every static prop you activate with the primary action — by walking up and
+  // pressing the use key, or by tapping/clicking it — lives here. Both input
+  // paths (handleTap and checkProximity) share this one list, so adding a new
+  // activatable object is a single descriptor instead of two parallel blocks.
+  //
+  // A descriptor is a function instances(item) returning zero or more
+  // activatable instances for the currently held item/context. Each instance is
+  // fully self-describing:
+  //   { x, y, tapRadius, reachDist, promptOffsetY, canAct, label,
+  //     approach(world), activate() }
+  // Singletons return a one-element array; collections (sources, nests) return
+  // one entry per instance. canAct:false still shows a passive hint prompt
+  // (e.g. "carrier full", "equip a Basket") but can't be triggered.
+  buildInteractables() {
+    const gate = () => {
+      const g = this.props.gate;
+      if (!g) return [];
+      return [{
+        x: g.x, y: g.y, tapRadius: 90, reachDist: 100, promptOffsetY: 80,
+        canAct: true, label: `${g.open ? 'Close' : 'Open'} Gate`,
+        approach: () => ({ x: g.x, y: g.y + (this.player.sprite.y < g.y ? -70 : 70) }),
+        activate: () => this.toggleGate(),
+      }];
+    };
+
+    const barn = () => {
+      const b = this.props.barn;
+      if (!b) return [];
+      return [{
+        x: b.x, y: b.y, tapRadius: 130, reachDist: 150, promptOffsetY: 40,
+        canAct: true, label: 'Sleep',
+        approach: () => ({ x: b.x, y: b.y + 95 }), // walk to just below the barn
+        activate: () => this.sleep(),
+      }];
+    };
+
+    const trough = (item) => {
+      const t = this.props.trough;
+      if (!t || t.filled || item?.content !== 'water') return [];
+      return [{
+        x: t.x, y: t.y, tapRadius: 220, reachDist: 130, promptOffsetY: 40,
+        canAct: true, label: 'Fill Trough',
+        approach: (world) => {
+          const refX = world ? world.x : this.player.sprite.x;
+          return { x: t.x + (refX < t.x ? 1 : -1) * 110, y: t.y };
+        },
+        activate: () => this.fillTrough(),
+      }];
+    };
+
+    const sources = (item) => {
+      if (!item || item.type !== 'carrier') return [];
+      return this.props.sources
+        .filter(s => item.accepts.includes(s.content))
+        .map(s => {
+          const full = item.content === s.content && item.count >= item.capacity;
+          return {
+            x: s.x, y: s.y, tapRadius: 120, reachDist: s.reach, promptOffsetY: 80,
+            canAct: !full,
+            label: full ? `${s.label}  •  carrier full`
+                        : `Gather ${CONTENT_DEFS[s.content].label}`,
+            approach: (world) => {
+              const refX = world ? world.x : this.player.sprite.x;
+              return { x: s.x + (refX < s.x ? -1 : 1) * 70, y: s.y + 10 };
+            },
+            activate: () => this.gatherFrom(s),
+          };
+        });
+    };
+
+    const nests = (item) => {
+      const hasBasket = item?.carrier === 'basket';
+      return this.props.nests
+        .filter(n => n.hasEgg)
+        .map(n => ({
+          x: n.x, y: n.y, tapRadius: 100, reachDist: 80, promptOffsetY: 30,
+          canAct: hasBasket,
+          label: hasBasket ? 'Collect Egg' : 'Egg in nest  •  equip a Basket to collect',
+          approach: () => ({ x: n.x, y: n.y + 45 }),
+          activate: () => this.collectEgg(n),
+        }));
+    };
+
+    const farmStand = (item) => {
+      const s = this.farmStand;
+      const eggs = item?.content === 'egg' ? item.count : 0;
+      if (!s || eggs <= 0) return []; // stock is shown visually; only prompt to deposit
+      return [{
+        x: s.x, y: s.y, tapRadius: 160, reachDist: 120, promptOffsetY: 100,
+        canAct: true, label: `Place Eggs  (basket: ${eggs})`,
+        approach: (world) => {
+          const refX = world ? world.x : this.player.sprite.x;
+          return { x: s.x + (refX < s.x ? -1 : 1) * 90, y: s.y + 20 };
+        },
+        activate: () => this.stockStand(),
+      }];
+    };
+
+    this.interactables = [gate, barn, trough, sources, nests, farmStand];
+  }
+
+  // Nearest activatable instance to (x, y) across all interactables, within each
+  // instance's own radius (tapRadius for taps, reachDist for the keyboard).
+  _nearestInteractable(x, y, item, radiusKey) {
+    let best = null, bestDist = Infinity;
+    for (const instancesOf of this.interactables) {
+      for (const inst of instancesOf(item)) {
+        const d = Phaser.Math.Distance.Between(x, y, inst.x, inst.y);
+        if (d <= inst[radiusKey] && d < bestDist) { bestDist = d; best = inst; }
+      }
+    }
+    return best;
+  }
+
+  // Tap landed on a world interactable? Walk to it and activate on arrival.
+  _tapInteractable(world, item) {
+    const inst = this._nearestInteractable(world.x, world.y, item, 'tapRadius');
+    if (!inst || !inst.canAct) return false;
+    const dest = inst.approach(world);
+    this.tapMoveTo(dest.x, dest.y, () => inst.activate());
+    return true;
+  }
+
+  // Player standing next to a world interactable? Show its prompt; activate on
+  // key press. Non-actionable instances show a passive hint (no key prefix).
+  _proximityInteractable(item, useKey, useJust) {
+    const inst = this._nearestInteractable(this.player.sprite.x, this.player.sprite.y, item, 'reachDist');
+    if (!inst) return false;
+    this.interactPrompt.setText(inst.canAct ? `${useKey}  ${inst.label}` : inst.label);
+    this.interactPrompt.setPosition(inst.x, inst.y - inst.promptOffsetY);
+    this.interactPrompt.setVisible(true);
+    if (useJust && inst.canAct) inst.activate();
+    return true;
+  }
+
   handleTap(pointer) {
     if (this.scene.isActive('PortraitScene')) return;
     if (this.scene.isActive('ChickenInfoScene')) return;
@@ -1372,67 +1530,8 @@ export default class PaddockScene extends Phaser.Scene {
       }
     }
 
-    // Gate tap — walk to the gate, then toggle it open/closed
-    const gate = this.props.gate;
-    if (gate) {
-      const gd = Phaser.Math.Distance.Between(world.x, world.y, gate.x, gate.y);
-      if (gd < 90) {
-        const side = this.player.sprite.y < gate.y ? -1 : 1;
-        this.tapMoveTo(gate.x, gate.y + side * 70, () => this.toggleGate());
-        return;
-      }
-    }
-
-    // Gathering source tap — walk to a compatible source and fill the carrier.
-    if (item?.type === 'carrier') {
-      let bestSrc = null, bestSd = 120;
-      for (const s of this.props.sources) {
-        if (!item.accepts.includes(s.content)) continue;
-        const sd = Phaser.Math.Distance.Between(world.x, world.y, s.x, s.y);
-        if (sd < bestSd) { bestSd = sd; bestSrc = s; }
-      }
-      if (bestSrc) {
-        const side = world.x < bestSrc.x ? -1 : 1;
-        this.tapMoveTo(bestSrc.x + side * 70, bestSrc.y + 10, () => this.gatherFrom(bestSrc));
-        return;
-      }
-    }
-
-    // Basket tap — walk to a nest and collect its egg, or to the farm stand to
-    // deposit. The nest is an obstacle, so aim for a reachable spot just south of
-    // it; _stepNav fires the callback once the player is wedged up against it.
-    if (item?.carrier === 'basket') {
-      let bestNest = null, bestNd = 100;
-      for (const nest of this.props.nests) {
-        if (!nest.hasEgg) continue;
-        const nd = Phaser.Math.Distance.Between(world.x, world.y, nest.x, nest.y);
-        if (nd < bestNd) { bestNd = nd; bestNest = nest; }
-      }
-      if (bestNest) {
-        this.tapMoveTo(bestNest.x, bestNest.y + 45, () => this.collectEgg(bestNest));
-        return;
-      }
-      const stand = this.farmStand;
-      if (stand && item.content === 'egg' && item.count > 0) {
-        const sd = Phaser.Math.Distance.Between(world.x, world.y, stand.x, stand.y);
-        if (sd < 160) {
-          const side = world.x < stand.x ? -1 : 1;
-          this.tapMoveTo(stand.x + side * 90, stand.y + 20, () => this.stockStand());
-          return;
-        }
-      }
-    }
-
-    // Trough tap with a water bucket — walk to trough then fill
-    const trough = this.props.trough;
-    if (trough && item?.content === 'water' && !trough.filled) {
-      const td = Phaser.Math.Distance.Between(world.x, world.y, trough.x, trough.y);
-      if (td < 220) {
-        const side = world.x < trough.x ? 1 : -1;
-        this.tapMoveTo(trough.x + side * 110, trough.y, () => this.fillTrough());
-        return;
-      }
-    }
+    // Static world interactables — gate, barn, trough, etc. (see buildInteractables)
+    if (this._tapInteractable(world, item)) return;
 
     // Walk and drop food at destination (hay, apples, carrots — all the same)
     if (item?.action === 'feed') {
@@ -1731,21 +1830,6 @@ export default class PaddockScene extends Phaser.Scene {
 
   getActiveItem() {
     return this.scene.get('HotbarScene')?.getActiveItem() ?? null;
-  }
-
-  // ─── Gathering sources (issue #63) ─────────────────────────────────────────
-
-  // Nearest source whose content the active carrier could accept, within its
-  // reach of (x,y). Returns null if nothing compatible is in range.
-  _sourceInReach(x, y, item) {
-    if (!item || item.type !== 'carrier') return null;
-    let best = null, bestD = Infinity;
-    for (const s of this.props.sources) {
-      if (!item.accepts.includes(s.content)) continue;
-      const d = Phaser.Math.Distance.Between(x, y, s.x, s.y);
-      if (d < s.reach && d < bestD) { bestD = d; best = s; }
-    }
-    return best;
   }
 
   // Fill the active carrier from a source. Tops it up to capacity in one go
@@ -2485,84 +2569,8 @@ export default class PaddockScene extends Phaser.Scene {
     const useJust = eJust || aJust;
     const useKey  = this.usingPad ? '[ A ]' : '[ E ]';
 
-    // Gate — open/close
-    const gate = this.props.gate;
-    if (gate) {
-      const gd = Phaser.Math.Distance.Between(
-        player.sprite.x, player.sprite.y, gate.x, gate.y
-      );
-      if (gd < 100) {
-        const gateState = gate.open ? 'Close' : 'Open';
-        this.interactPrompt.setText(`${useKey}  ${gateState} Gate`);
-        this.interactPrompt.setPosition(gate.x, gate.y - 80);
-        this.interactPrompt.setVisible(true);
-        if (useJust) this.toggleGate();
-        return;
-      }
-    }
-
-    // Barn — sleep until morning (fades to black and back)
-    const barn = this.props.barn;
-    if (barn) {
-      const bd = Phaser.Math.Distance.Between(
-        player.sprite.x, player.sprite.y, barn.x, barn.y
-      );
-      if (bd < 150) {
-        this.interactPrompt.setText(`${useKey}  Sleep`);
-        this.interactPrompt.setPosition(barn.x, barn.y - 40);
-        this.interactPrompt.setVisible(true);
-        if (useJust) this.sleep();
-        return;
-      }
-    }
-
-    // Gathering source — fill the active carrier (issue #63)
-    const source = this._sourceInReach(player.sprite.x, player.sprite.y, item);
-    if (source) {
-      const full = item.content === source.content && item.count >= item.capacity;
-      this.interactPrompt.setText(full
-        ? `${source.label}  •  carrier full`
-        : `${useKey}  Gather ${CONTENT_DEFS[source.content].label}`);
-      this.interactPrompt.setPosition(source.x, source.y - 80);
-      this.interactPrompt.setVisible(true);
-      if (useJust && !full) this.gatherFrom(source);
-      return;
-    }
-
-    // Farm stand — deposit eggs from an egg-basket
-    if (this.farmStand) {
-      const fd = Phaser.Math.Distance.Between(
-        player.sprite.x, player.sprite.y, this.farmStand.x, this.farmStand.y
-      );
-      if (fd < 120) {
-        const eggs = item?.content === 'egg' ? item.count : 0;
-        const forSale = `${this.farmStand.stock} egg${this.farmStand.stock !== 1 ? 's' : ''} for sale`;
-        if (eggs > 0) {
-          this.interactPrompt.setText(`${useKey}  Place Eggs  (basket: ${eggs})`);
-        } else {
-          this.interactPrompt.setText(`Farm Stand  •  ${forSale}`);
-        }
-        this.interactPrompt.setPosition(this.farmStand.x, this.farmStand.y - 100);
-        this.interactPrompt.setVisible(true);
-        if (useJust && eggs > 0) this.stockStand();
-        return;
-      }
-    }
-
-    // Trough — fill from a water bucket
-    const trough = this.props.trough;
-    if (trough) {
-      const td = Phaser.Math.Distance.Between(
-        player.sprite.x, player.sprite.y, trough.x, trough.y
-      );
-      if (td < 130 && item?.content === 'water' && !trough.filled) {
-        this.interactPrompt.setText(`${useKey}  Fill Trough`);
-        this.interactPrompt.setPosition(trough.x, trough.y - 40);
-        this.interactPrompt.setVisible(true);
-        if (useJust) this.fillTrough();
-        return;
-      }
-    }
+    // Static world interactables — gate, barn, trough, etc. (see buildInteractables)
+    if (this._proximityInteractable(item, useKey, useJust)) return;
 
     // Nearest horse — use item or open portrait
     let nearest = null, nearestDist = Infinity;
@@ -2598,24 +2606,6 @@ export default class PaddockScene extends Phaser.Scene {
         else                              this.openPortrait(nearest.key);
       }
       return;
-    }
-
-    // Nest — collect eggs (requires a basket)
-    for (const nest of this.props.nests) {
-      if (!nest.hasEgg) continue;
-      const nd = Phaser.Math.Distance.Between(
-        player.sprite.x, player.sprite.y, nest.x, nest.y
-      );
-      if (nd < 80) {
-        const hasBasket = item?.carrier === 'basket';
-        this.interactPrompt.setText(hasBasket
-          ? `${useKey}  Collect Egg`
-          : `Egg in nest  •  equip a Basket to collect`);
-        this.interactPrompt.setPosition(nest.x, nest.y - 30);
-        this.interactPrompt.setVisible(true);
-        if (useJust && hasBasket) this.collectEgg(nest);
-        return;
-      }
     }
 
     // Foal proximity
