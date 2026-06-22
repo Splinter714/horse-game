@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { saveHorse } from '../data/save.js';
+import { CONTENT_DEFS } from '../data/items.js';
 import {
   playHoofbeat, playEat, playDrink, playBrush, playChime,
   playSplash, playBirdChirp, startWind, stopWind, startMusic, stopMusic,
@@ -38,9 +39,8 @@ export default class PaddockScene extends Phaser.Scene {
     this.registry.set('viewingChicken', null);
 
     // World interactables
-    this.props = { trough: null, hayPiles: [], seedPiles: [], nests: [] };
+    this.props = { trough: null, hayPiles: [], seedPiles: [], nests: [], sources: [] };
     this.inventory = {};
-    this.basketEggs = 0;
     this.money = 0;
     this.farmStand = null;
     this.npcs = [];
@@ -68,11 +68,9 @@ export default class PaddockScene extends Phaser.Scene {
     this.isNight = false;
     this.game.events.on('horse-action',    this.doAction,        this);
     this.game.events.on('phase-change',    this.onPhaseChange,   this);
-    this.game.events.on('basket-shortcut', this.doBasketAction,  this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.game.events.off('horse-action',    this.doAction,        this);
       this.game.events.off('phase-change',    this.onPhaseChange,   this);
-      this.game.events.off('basket-shortcut', this.doBasketAction,  this);
       stopWind();
       stopMusic();
     });
@@ -160,8 +158,32 @@ export default class PaddockScene extends Phaser.Scene {
       .setScale(S).setDepth(ty).setOrigin(0.5, 0.5);
     this.props.trough = { x: tx, y: ty, sprite: troughSprite, filled: false, drinks: 0 };
 
+    // Gathering sources (issue #63) — static, infinite props the player fills
+    // their carriers at. Each holds one content type. Placed across the open
+    // farm band (north of the pasture) so the gather→carry→use loop has room.
+    this.buildSources();
+
     // --- Pasture Fencing & Gate ---
     this.buildPastureFence();
+  }
+
+  // Static gathering props. Walk up + interact (or tap) with a compatible
+  // carrier equipped to fill it. No depletion — infinite for now. Each carries
+  // an `ob` solid footprint (centered on x, bottom at y) so you can't walk
+  // through it — obstacles are registered in buildObstacles.
+  buildSources() {
+    const defs = [
+      { x: 430,  y: 620, content: 'hay',    tex: 'haystack',     label: 'Hay Pile',      reach: 100, ob: { w: 84,  h: 36 } },
+      { x: 760,  y: 560, content: 'carrot', tex: 'carrotGarden', label: 'Carrot Garden', reach: 100, ob: { w: 104, h: 42 } },
+      { x: 1180, y: 560, content: 'apple',  tex: 'appleTree',    label: 'Apple Tree',    reach: 90,  ob: { w: 44,  h: 26 } },
+      { x: 1120, y: 470, content: 'seed',   tex: 'grainBin',     label: 'Grain Bin',     reach: 95,  ob: { w: 66,  h: 40 } },
+      { x: 1480, y: 640, content: 'water',  tex: 'stream',       label: 'Stream',        reach: 110, ob: { w: 118, h: 56 } },
+    ];
+    for (const d of defs) {
+      const sprite = this.add.image(d.x, d.y, d.tex)
+        .setScale(S).setDepth(d.y).setOrigin(0.5, 1);
+      this.props.sources.push({ ...d, sprite });
+    }
   }
 
   buildPastureFence() {
@@ -249,6 +271,12 @@ export default class PaddockScene extends Phaser.Scene {
     // Each nest: origin 0.5,0.5 at (nx,ny); 18×12 at S=2 → 36×24
     for (const n of this.props.nests) {
       this.obstacles.push({ x: n.x - 18, y: n.y - 12, w: 36, h: 24, isNest: true });
+    }
+
+    // Gathering source obstacles — solid base centered on x, bottom at y.
+    for (const s of this.props.sources) {
+      if (!s.ob) continue;
+      this.obstacles.push({ x: s.x - s.ob.w / 2, y: s.y - s.ob.h, w: s.ob.w, h: s.ob.h, isSource: true });
     }
   }
 
@@ -362,29 +390,13 @@ export default class PaddockScene extends Phaser.Scene {
     }
   }
 
-  doBasketAction() {
-    const { player } = this;
-    // Deposit at farm stand
-    if (this.farmStand && this.basketEggs > 0) {
-      const fd = Phaser.Math.Distance.Between(
-        player.sprite.x, player.sprite.y, this.farmStand.x, this.farmStand.y
-      );
-      if (fd < 120) { this.stockStand(); return; }
-    }
-    // Collect egg from nearest nest
-    for (const nest of this.props.nests) {
-      if (!nest.hasEgg) continue;
-      const nd = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, nest.x, nest.y);
-      if (nd < 80) { this.collectEgg(nest); return; }
-    }
-  }
-
+  // Deposit a full egg-basket's worth at the farm stand.
   stockStand() {
-    if (this.basketEggs <= 0) return;
-    const n = this.basketEggs;
-    this.basketEggs = 0;
+    const active = this.getActiveItem();
+    if (active?.content !== 'egg' || active.count <= 0) return;
+    const n = active.count;
+    this.scene.get('HotbarScene')?.useActiveCarrier(n);
     this.farmStand.stock += n;
-    this.game.events.emit('basket-changed', 0);
     this._updateStandSign();
 
     const icon = this.add.image(this.farmStand.x, this.farmStand.y - 60, 'iconEgg')
@@ -715,11 +727,12 @@ export default class PaddockScene extends Phaser.Scene {
   collectEgg(nest) {
     if (!nest.hasEgg) return;
     const item = this.getActiveItem();
-    if (item?.key !== 'basket') return;
+    if (item?.carrier !== 'basket') return;
+    // Strict contents: a basket already holding something else (or full) refuses.
+    const added = this.scene.get('HotbarScene')?.fillActiveCarrier('egg', 1) ?? 0;
+    if (added <= 0) return;
     nest.hasEgg = false;
     nest.sprite.setTexture('nest');
-    this.basketEggs++;
-    this.game.events.emit('basket-changed', this.basketEggs);
 
     // Floating egg icon feedback
     const icon = this.add.image(nest.x, nest.y - 20, 'iconEgg')
@@ -1314,8 +1327,8 @@ export default class PaddockScene extends Phaser.Scene {
           if (cur?.action === 'lead')      { this.toggleLead(h); return; }
           if (cur?.action === 'interact')  { this.openPortrait(h.key); return; }
           if (cur?.action === 'feed')      { this.placeFood(cur); return; }
-          // Water and seeds aren't used directly on horses — just open the portrait.
-          if (cur && cur.action !== 'seed' && cur.action !== 'water') { this.useItemOnHorse(cur, h); return; }
+          if (cur?.action === 'brush')     { this.useItemOnHorse(cur, h); return; }
+          // Water/eggs and empty carriers aren't used on horses — open the portrait.
           this.openPortrait(h.key);
         });
         return;
@@ -1346,10 +1359,25 @@ export default class PaddockScene extends Phaser.Scene {
       }
     }
 
+    // Gathering source tap — walk to a compatible source and fill the carrier.
+    if (item?.type === 'carrier') {
+      let bestSrc = null, bestSd = 120;
+      for (const s of this.props.sources) {
+        if (!item.accepts.includes(s.content)) continue;
+        const sd = Phaser.Math.Distance.Between(world.x, world.y, s.x, s.y);
+        if (sd < bestSd) { bestSd = sd; bestSrc = s; }
+      }
+      if (bestSrc) {
+        const side = world.x < bestSrc.x ? -1 : 1;
+        this.tapMoveTo(bestSrc.x + side * 70, bestSrc.y + 10, () => this.gatherFrom(bestSrc));
+        return;
+      }
+    }
+
     // Basket tap — walk to a nest and collect its egg, or to the farm stand to
     // deposit. The nest is an obstacle, so aim for a reachable spot just south of
     // it; _stepNav fires the callback once the player is wedged up against it.
-    if (item?.key === 'basket') {
+    if (item?.carrier === 'basket') {
       let bestNest = null, bestNd = 100;
       for (const nest of this.props.nests) {
         if (!nest.hasEgg) continue;
@@ -1361,7 +1389,7 @@ export default class PaddockScene extends Phaser.Scene {
         return;
       }
       const stand = this.farmStand;
-      if (stand && this.basketEggs > 0) {
+      if (stand && item.content === 'egg' && item.count > 0) {
         const sd = Phaser.Math.Distance.Between(world.x, world.y, stand.x, stand.y);
         if (sd < 160) {
           const side = world.x < stand.x ? -1 : 1;
@@ -1371,9 +1399,9 @@ export default class PaddockScene extends Phaser.Scene {
       }
     }
 
-    // Trough tap with bucket — walk to trough then fill
+    // Trough tap with a water bucket — walk to trough then fill
     const trough = this.props.trough;
-    if (trough && item?.key === 'bucket' && !trough.filled) {
+    if (trough && item?.content === 'water' && !trough.filled) {
       const td = Phaser.Math.Distance.Between(world.x, world.y, trough.x, trough.y);
       if (td < 220) {
         const side = world.x < trough.x ? 1 : -1;
@@ -1382,8 +1410,8 @@ export default class PaddockScene extends Phaser.Scene {
       }
     }
 
-    // Walk and drop food at destination (hay, apple, carrot, seeds — all the same)
-    if (item?.action === 'feed' || item?.action === 'seed') {
+    // Walk and drop food at destination (hay, apples, carrots — all the same)
+    if (item?.action === 'feed') {
       this.tapMoveTo(world.x, world.y, () => this.placeFood(item));
       return;
     }
@@ -1673,6 +1701,34 @@ export default class PaddockScene extends Phaser.Scene {
     return this.scene.get('HotbarScene')?.getActiveItem() ?? null;
   }
 
+  // ─── Gathering sources (issue #63) ─────────────────────────────────────────
+
+  // Nearest source whose content the active carrier could accept, within its
+  // reach of (x,y). Returns null if nothing compatible is in range.
+  _sourceInReach(x, y, item) {
+    if (!item || item.type !== 'carrier') return null;
+    let best = null, bestD = Infinity;
+    for (const s of this.props.sources) {
+      if (!item.accepts.includes(s.content)) continue;
+      const d = Phaser.Math.Distance.Between(x, y, s.x, s.y);
+      if (d < s.reach && d < bestD) { bestD = d; best = s; }
+    }
+    return best;
+  }
+
+  // Fill the active carrier from a source. Tops it up to capacity in one go
+  // (sources are infinite). Refuses if it already holds something else.
+  gatherFrom(source) {
+    const hot = this.scene.get('HotbarScene');
+    const item = this.getActiveItem();
+    if (!item || item.type !== 'carrier') return;
+    const space = item.capacity - (item.content === source.content ? item.count : 0);
+    const added = hot?.fillActiveCarrier(source.content, space || item.capacity) ?? 0;
+    if (added <= 0) return;
+    if (source.content === 'water') playSplash();
+    this.showIcon(CONTENT_DEFS[source.content].icon, this.player.sprite);
+  }
+
   // ─── Riding ──────────────────────────────────────────────────────────────
 
   mountHorse(h) {
@@ -1919,15 +1975,15 @@ export default class PaddockScene extends Phaser.Scene {
 
   // ─── Food placement ──────────────────────────────────────────────────────
 
-  // Ground sprite for each food item dropped by the player.
-  static FOOD_GROUND_TEX = {
-    hay: 'hayPile', apple: 'applePile', carrot: 'carrotPile', seed: 'seedPile',
-  };
-
-  // Generic food drop — identical placement for every food. Seeds feed chickens
-  // (seedPiles); all other foods feed horses (hayPiles).
+  // Drop one unit of food from the active basket onto the ground for horses to
+  // eat. Consumes a unit from the carrier; does nothing if it's empty.
   placeFood(item) {
-    if (!item) return;
+    if (!item || item.type !== 'carrier' || item.count <= 0) return;
+    const content = item.content;
+    const groundTex = CONTENT_DEFS[content]?.ground;
+    if (!groundTex) return; // only feed-type contents drop as food
+    if ((this.scene.get('HotbarScene')?.useActiveCarrier(1) ?? 0) <= 0) return;
+
     const { sprite, facing } = this.player;
     let px = sprite.x, py = sprite.y;
     if      (facing === 'right') px += 70;
@@ -1937,16 +1993,19 @@ export default class PaddockScene extends Phaser.Scene {
     px = Phaser.Math.Clamp(px + Phaser.Math.Between(-15, 15), PLAYER_BOUNDS.minX, PLAYER_BOUNDS.maxX);
     py = Phaser.Math.Clamp(py + Phaser.Math.Between(-10, 10), PLAYER_BOUNDS.minY, PLAYER_BOUNDS.maxY);
 
-    const tex = PaddockScene.FOOD_GROUND_TEX[item.key] || 'hayPile';
-    const pileSprite = this.add.image(px, py, tex).setScale(S).setDepth(py);
+    const pileSprite = this.add.image(px, py, groundTex).setScale(S).setDepth(py);
     const pile = { x: px, y: py, sprite: pileSprite, feedsLeft: 3 };
-    if (item.key === 'seed') this.props.seedPiles.push(pile);
-    else                     this.props.hayPiles.push(pile);
+    // Seed feeds chickens (seedPiles); everything else feeds horses (hayPiles).
+    if (CONTENT_DEFS[content]?.feeds === 'chicken') this.props.seedPiles.push(pile);
+    else                                            this.props.hayPiles.push(pile);
   }
 
   fillTrough() {
     const t = this.props.trough;
     if (!t || t.filled) return;
+    const item = this.getActiveItem();
+    if (item?.content !== 'water' || item.count <= 0) return;
+    this.scene.get('HotbarScene')?.useActiveCarrier(item.count); // empty the bucket
     t.filled = true;
     t.drinks = 3;
     t.sprite.setTexture('troughFull');
@@ -2397,34 +2456,46 @@ export default class PaddockScene extends Phaser.Scene {
       }
     }
 
-    // Farm stand — deposit basket eggs
+    // Gathering source — fill the active carrier (issue #63)
+    const source = this._sourceInReach(player.sprite.x, player.sprite.y, item);
+    if (source) {
+      const full = item.content === source.content && item.count >= item.capacity;
+      this.interactPrompt.setText(full
+        ? `${source.label}  •  carrier full`
+        : `${useKey}  Gather ${CONTENT_DEFS[source.content].label}`);
+      this.interactPrompt.setPosition(source.x, source.y - 80);
+      this.interactPrompt.setVisible(true);
+      if (useJust && !full) this.gatherFrom(source);
+      return;
+    }
+
+    // Farm stand — deposit eggs from an egg-basket
     if (this.farmStand) {
       const fd = Phaser.Math.Distance.Between(
         player.sprite.x, player.sprite.y, this.farmStand.x, this.farmStand.y
       );
       if (fd < 120) {
-        const hasBasket = item?.key === 'basket';
-        if (hasBasket && this.basketEggs > 0) {
-          this.interactPrompt.setText(`${useKey}  Place Eggs  (basket: ${this.basketEggs})`);
-        } else if (hasBasket) {
-          this.interactPrompt.setText(`Farm Stand  •  ${this.farmStand.stock} egg${this.farmStand.stock !== 1 ? 's' : ''} for sale  (basket empty)`);
+        const eggs = item?.content === 'egg' ? item.count : 0;
+        const forSale = `${this.farmStand.stock} egg${this.farmStand.stock !== 1 ? 's' : ''} for sale`;
+        if (eggs > 0) {
+          this.interactPrompt.setText(`${useKey}  Place Eggs  (basket: ${eggs})`);
         } else {
-          this.interactPrompt.setText(`Farm Stand  •  ${this.farmStand.stock} egg${this.farmStand.stock !== 1 ? 's' : ''} for sale`);
+          this.interactPrompt.setText(`Farm Stand  •  ${forSale}`);
         }
         this.interactPrompt.setPosition(this.farmStand.x, this.farmStand.y - 100);
         this.interactPrompt.setVisible(true);
-        if (useJust && hasBasket && this.basketEggs > 0) this.stockStand();
+        if (useJust && eggs > 0) this.stockStand();
         return;
       }
     }
 
-    // Trough — fill with bucket
+    // Trough — fill from a water bucket
     const trough = this.props.trough;
     if (trough) {
       const td = Phaser.Math.Distance.Between(
         player.sprite.x, player.sprite.y, trough.x, trough.y
       );
-      if (td < 130 && item?.key === 'bucket' && !trough.filled) {
+      if (td < 130 && item?.content === 'water' && !trough.filled) {
         this.interactPrompt.setText(`${useKey}  Fill Trough`);
         this.interactPrompt.setPosition(trough.x, trough.y - 40);
         this.interactPrompt.setVisible(true);
@@ -2441,11 +2512,11 @@ export default class PaddockScene extends Phaser.Scene {
       );
       if (d < nearestDist) { nearestDist = d; nearest = h; }
     }
-    // Food and water are placement-only (no direct use on horses). Treats
-    // (action 'pet') and tools (brush/ride/lead) can still be used directly.
-    const inRange = nearest && nearestDist < INTERACT_DIST &&
-      item?.action !== 'seed' && item?.action !== 'basket' &&
-      item?.action !== 'feed' && item?.action !== 'water';
+    // Carried food/water aren't used directly on a horse — feeding is drop-only
+    // and water goes to the trough. The brush (and ride/lead/info) work directly.
+    const horseUsable = !item || item.action === 'ride' || item.action === 'lead' ||
+      item.action === 'interact' || item.action === 'brush';
+    const inRange = nearest && nearestDist < INTERACT_DIST && horseUsable;
 
     if (inRange) {
       let verb;
@@ -2463,23 +2534,23 @@ export default class PaddockScene extends Phaser.Scene {
         if (item?.action === 'ride')      this.mountHorse(nearest);
         else if (item?.action === 'lead') this.toggleLead(nearest);
         else if (item?.action === 'interact') this.openPortrait(nearest.key);
-        else if (item)                    this.useItemOnHorse(item, nearest);
+        else if (item?.action === 'brush') this.useItemOnHorse(item, nearest);
         else                              this.openPortrait(nearest.key);
       }
       return;
     }
 
-    // Nest — collect eggs (requires basket)
+    // Nest — collect eggs (requires a basket)
     for (const nest of this.props.nests) {
       if (!nest.hasEgg) continue;
       const nd = Phaser.Math.Distance.Between(
         player.sprite.x, player.sprite.y, nest.x, nest.y
       );
       if (nd < 80) {
-        const hasBasket = item?.key === 'basket';
+        const hasBasket = item?.carrier === 'basket';
         this.interactPrompt.setText(hasBasket
           ? `${useKey}  Collect Egg`
-          : `Egg in nest  •  equip Basket to collect`);
+          : `Egg in nest  •  equip a Basket to collect`);
         this.interactPrompt.setPosition(nest.x, nest.y - 30);
         this.interactPrompt.setVisible(true);
         if (useJust && hasBasket) this.collectEgg(nest);
@@ -2513,8 +2584,8 @@ export default class PaddockScene extends Phaser.Scene {
 
     this.interactPrompt.setVisible(false);
 
-    // Drop food when not near anything (hay, apple, carrot, seeds — all the same)
-    if (useJust && (item?.action === 'feed' || item?.action === 'seed')) this.placeFood(item);
+    // Drop food when not near anything (hay, apples, carrots — all the same)
+    if (useJust && item?.action === 'feed') this.placeFood(item);
   }
 
   _showAnimalInfo(a) {

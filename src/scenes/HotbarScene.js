@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { ALL_ITEMS, ITEM_MAP } from '../data/items.js';
+import { ALL_ITEMS, ITEM_MAP, CARRIER_DEFS, CONTENT_DEFS } from '../data/items.js';
 import { loadGameState, saveGameState } from '../data/save.js';
 import { toggleMute, isMuted } from '../audio/sounds.js';
 
@@ -19,18 +19,17 @@ export default class HotbarScene extends Phaser.Scene {
     const saved      = loadGameState();
     this.hotbar      = saved.hotbar;
     this.inventory   = saved.inventory;
+    this.carriers    = saved.carriers;
     this.activeSlot  = 0;
     this.invOpen     = false;
     this.pauseOpen   = false;
     this._money      = 0;
-    this._basketEggs = 0;
     this._slots      = [];
     this._invNodes   = [];
     this._pauseNodes = [];
     this._pauseBtn   = null;
     this._muteRowLbl = null;
     this._moneyLbl   = null;
-    this._basketLbl  = null;
 
     this._buildHotbar();
 
@@ -54,17 +53,14 @@ export default class HotbarScene extends Phaser.Scene {
     };
     this.scale.on('resize', this._onResize, this);
 
-    // Update money/basket labels in-place — no full rebuild needed
-    this._onMoney  = v => { this._money = v;      this._updateStatusLabels(); };
-    this._onBasket = v => { this._basketEggs = v;  this._updateStatusLabels(); };
+    // Update money label in-place — no full rebuild needed
+    this._onMoney  = v => { this._money = v; this._updateStatusLabels(); };
     this.game.events.on('money-changed',  this._onMoney);
-    this.game.events.on('basket-changed', this._onBasket);
 
     // Clean up global listeners on scene shutdown
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.scale.off('resize', this._onResize, this);
       this.game.events.off('money-changed',  this._onMoney);
-      this.game.events.off('basket-changed', this._onBasket);
     });
   }
 
@@ -83,11 +79,9 @@ export default class HotbarScene extends Phaser.Scene {
     this._stripBg?.destroy();
     this._pauseBtn?.destroy();
     this._moneyLbl?.destroy();
-    this._basketLbl?.destroy();
     this._slots      = [];
     this._pauseBtn   = null;
     this._moneyLbl   = null;
-    this._basketLbl  = null;
     this._stripBg    = null;
 
     const sw = this.scale.width;
@@ -119,14 +113,10 @@ export default class HotbarScene extends Phaser.Scene {
     }).setOrigin(1, 0).setDepth(2).setInteractive({ useHandCursor: true });
     this._pauseBtn.on('pointerdown', () => this._togglePause());
 
-    // Status labels (money / basket) — created empty, filled by _updateStatusLabels
+    // Money label — created empty, filled by _updateStatusLabels
     const fontSize = `${Math.max(10, Math.floor(13 * fit))}px`;
     this._moneyLbl = this.add.text(sw - 12, slotY - 6, '', {
       fontFamily: 'system-ui, sans-serif', fontSize, color: '#f0d060',
-    }).setOrigin(1, 1).setDepth(2).setVisible(false);
-
-    this._basketLbl = this.add.text(0, slotY - 6, '', {
-      fontFamily: 'system-ui, sans-serif', fontSize, color: '#fffde0',
     }).setOrigin(1, 1).setDepth(2).setVisible(false);
 
     this._updateStatusLabels();
@@ -150,16 +140,17 @@ export default class HotbarScene extends Phaser.Scene {
       let icon = null, itemLbl = null, qtyLbl = null;
 
       if (item) {
+        const view = this._slotView(item, key);
         const iconSize = Math.max(14, Math.floor(26 * fit));
-        icon = this.add.image(x + ss / 2, slotY + ss * 0.38, item.icon)
+        icon = this.add.image(x + ss / 2, slotY + ss * 0.38, view.icon)
           .setDisplaySize(iconSize, iconSize).setDepth(3);
-        itemLbl = this.add.text(x + ss / 2, slotY + ss - 8, item.label, {
+        itemLbl = this.add.text(x + ss / 2, slotY + ss - 8, view.label, {
           fontFamily: 'system-ui, sans-serif',
           fontSize: `${Math.max(6, Math.floor(8 * fit))}px`,
           color: '#c8cce0',
         }).setOrigin(0.5, 0.5).setDepth(3);
 
-        const qty = this.inventory[key];
+        const qty = view.count;
         if (qty !== undefined) {
           qtyLbl = this.add.text(x + ss - 3, slotY + 3, `${qty}`, {
             fontFamily: 'system-ui, sans-serif',
@@ -181,28 +172,65 @@ export default class HotbarScene extends Phaser.Scene {
     }
   }
 
-  // Update just the money/basket text without rebuilding everything
+  // Update just the money text without rebuilding everything
   _updateStatusLabels() {
-    if (!this._moneyLbl || !this._basketLbl) return;
+    if (!this._moneyLbl) return;
+    if (this._money > 0) this._moneyLbl.setText(`$${this._money}`).setVisible(true);
+    else                 this._moneyLbl.setVisible(false);
+  }
 
-    const sw = this.scale.width;
+  // ── Carriers ─────────────────────────────────────────────────────────────
 
-    if (this._money > 0) {
-      this._moneyLbl.setText(`$${this._money}`).setVisible(true);
-      const rightEdge = sw - 12 - this._moneyLbl.width - 6;
-      if (this._basketEggs > 0) {
-        this._basketLbl.setText(`🥚×${this._basketEggs}`).setX(rightEdge).setVisible(true);
-      } else {
-        this._basketLbl.setVisible(false);
-      }
-    } else {
-      this._moneyLbl.setVisible(false);
-      if (this._basketEggs > 0) {
-        this._basketLbl.setText(`🥚×${this._basketEggs}`).setX(sw - 12).setVisible(true);
-      } else {
-        this._basketLbl.setVisible(false);
-      }
+  // Resolve how an item should render in a slot: icon, label, and count badge.
+  _slotView(item, key) {
+    if (item.type !== 'carrier') {
+      return { icon: item.icon, label: item.label, count: undefined };
     }
+    const st  = this.carriers[key] ?? { content: null, count: 0 };
+    const def = CARRIER_DEFS[item.carrier];
+    const cdef = st.count > 0 ? CONTENT_DEFS[st.content] : null;
+    return {
+      icon:  cdef ? cdef.icon  : def.emptyIcon,
+      label: cdef ? cdef.label : item.label,
+      count: st.count > 0 ? st.count : undefined,
+    };
+  }
+
+  _saveCarriers() {
+    saveGameState({ hotbar: this.hotbar, inventory: this.inventory, carriers: this.carriers });
+  }
+
+  // Add `amount` of `content` to the active carrier. Returns how many were added
+  // (0 if the carrier is incompatible, full, or already holds something else).
+  fillActiveCarrier(content, amount = 1) {
+    const key  = this.hotbar[this.activeSlot];
+    const item = key ? ITEM_MAP[key] : null;
+    if (!item || item.type !== 'carrier') return 0;
+    const def = CARRIER_DEFS[item.carrier];
+    if (!def.accepts.includes(content)) return 0;
+    const st = this.carriers[key];
+    if (st.count > 0 && st.content !== content) return 0; // strict: no mixing
+    const added = Math.min(def.capacity - st.count, amount);
+    if (added <= 0) return 0;
+    st.content = content;
+    st.count  += added;
+    this._saveCarriers();
+    this._buildHotbar();
+    return added;
+  }
+
+  // Remove `amount` from the active carrier; reverts it to empty at zero.
+  // Returns how many were actually removed.
+  useActiveCarrier(amount = 1) {
+    const key = this.hotbar[this.activeSlot];
+    const st  = key ? this.carriers[key] : null;
+    if (!st || st.count <= 0) return 0;
+    const used = Math.min(st.count, amount);
+    st.count -= used;
+    if (st.count <= 0) { st.content = null; st.count = 0; }
+    this._saveCarriers();
+    this._buildHotbar();
+    return used;
   }
 
   _drawSlot(g, x, y, ss, radius, active) {
@@ -299,17 +327,18 @@ export default class HotbarScene extends Phaser.Scene {
 
         if (!item) continue;
 
+        const view = this._slotView(item, item.key);
         const iconSize = Math.max(18, Math.floor(CELL * 0.44));
-        const ico = this.add.image(cx + CELL / 2, cy + CELL * 0.4, item.icon)
+        const ico = this.add.image(cx + CELL / 2, cy + CELL * 0.4, view.icon)
           .setDisplaySize(iconSize, iconSize).setDepth(104);
-        const lbl = this.add.text(cx + CELL / 2, cy + CELL * 0.78, item.label, {
+        const lbl = this.add.text(cx + CELL / 2, cy + CELL * 0.78, view.label, {
           fontFamily: 'system-ui, sans-serif',
           fontSize: `${Math.max(7, Math.floor(CELL * 0.14))}px`,
           color: '#c8cce0',
         }).setOrigin(0.5, 0.5).setDepth(104);
         this._invNodes.push(ico, lbl);
 
-        const qty = this.inventory[item.key];
+        const qty = view.count;
         if (qty !== undefined) {
           const qtyLbl = this.add.text(cx + CELL - 4, cy + 4, `${qty}`, {
             fontFamily: 'system-ui, sans-serif',
@@ -337,7 +366,7 @@ export default class HotbarScene extends Phaser.Scene {
 
   _assignToSlot(itemKey) {
     this.hotbar[this.activeSlot] = itemKey;
-    saveGameState({ hotbar: this.hotbar, inventory: this.inventory });
+    this._saveCarriers();
     this._closeInventory();
     this._buildHotbar();
   }
@@ -449,7 +478,26 @@ export default class HotbarScene extends Phaser.Scene {
   // ── Public API ─────────────────────────────────────────────────────────────
 
   getActiveItem() {
-    const key = this.hotbar[this.activeSlot];
-    return key ? (ITEM_MAP[key] ?? null) : null;
+    const key  = this.hotbar[this.activeSlot];
+    const item = key ? ITEM_MAP[key] : null;
+    if (!item) return null;
+    if (item.type !== 'carrier') return item;
+
+    // Resolve a carrier into a usable view: its current content drives the
+    // action (an empty carrier has no use-action, only gathering).
+    const def  = CARRIER_DEFS[item.carrier];
+    const st   = this.carriers[key] ?? { content: null, count: 0 };
+    const content = st.count > 0 ? st.content : null;
+    const cdef = content ? CONTENT_DEFS[content] : null;
+    return {
+      ...item,
+      content,
+      count:    st.count,
+      capacity: def.capacity,
+      accepts:  def.accepts,
+      action:   cdef ? cdef.action : null,
+      icon:     cdef ? cdef.icon   : def.emptyIcon,
+      label:    cdef ? cdef.label  : item.label,
+    };
   }
 }
