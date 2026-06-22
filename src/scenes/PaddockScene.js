@@ -133,6 +133,15 @@ export default class PaddockScene extends Phaser.Scene {
     const coopX = 930, coopY = 400;
     this.add.image(coopX, coopY, 'coop').setScale(S).setDepth(coopY).setOrigin(0.5, 1);
 
+    // Roost geometry: the pop-door and the foot of its ramp, in world space.
+    // (Coop sprite is 64×52, origin 0.5,1 at coopX,coopY, scale S; door ≈ local
+    // (17,39), ramp foot ≈ local (10,52).) Chickens file in here at nightfall.
+    this.props.coop = {
+      x: coopX, y: coopY,
+      doorX: coopX + (17 - 32) * S, doorY: coopY + (39 - 52) * S, // ≈ (900, 374)
+      rampX: coopX + (10 - 32) * S, rampY: coopY,                 // ≈ (886, 400)
+    };
+
     // Nests in front of (below) the coop
     const nestPositions = [[906, 410], [930, 416], [954, 410]];
     for (const [nx, ny] of nestPositions) {
@@ -840,7 +849,10 @@ export default class PaddockScene extends Phaser.Scene {
       this._scheduleLayDown(a);
     };
     for (const h of this.horses) stopOne(h);
-    for (const a of this.animals) stopOne(a);
+    for (const a of this.animals) {
+      if (a.key.startsWith('chicken')) this.chickenRoost(a);
+      else stopOne(a);
+    }
     // Send any visiting NPCs away at night
     for (const npc of [...this.npcs]) {
       if (npc.tween) { npc.tween.stop(); npc.tween = null; }
@@ -877,8 +889,72 @@ export default class PaddockScene extends Phaser.Scene {
     }
     for (const a of this.animals) {
       if (a._sleepTimer) { this.time.removeEvent(a._sleepTimer); a._sleepTimer = null; }
-      if (a.state === 'resting') { a.state = 'idle'; this.scheduleAnimalWander(a, Phaser.Math.Between(500, 3000)); }
+      if (a.key.startsWith('chicken')) {
+        if (a.state === 'roosting') this.chickenLeaveCoop(a);
+      } else if (a.state === 'resting') {
+        a.state = 'idle'; this.scheduleAnimalWander(a, Phaser.Math.Between(500, 3000));
+      }
     }
+  }
+
+  // Nightfall: walk a chicken to the coop ramp, then up into the pop-door,
+  // fading out of view (depth-sorting also tucks it behind the coop body).
+  chickenRoost(a) {
+    if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
+    if (a.eatTimer)    { a.eatTimer.remove?.() ?? this.time.removeEvent(a.eatTimer); a.eatTimer = null; }
+    if (a._sleepTimer) { this.time.removeEvent(a._sleepTimer); a._sleepTimer = null; }
+    a._eatPile = null;
+    a.state = 'roosting';
+    for (const n of this.props.nests) if (n.occupant === a) n.occupant = null;
+
+    const coop = this.props.coop;
+    a.sprite.setFlipX(coop.rampX < a.sprite.x);
+    a.sprite.play(`walk_${a.key}`, true);
+
+    const dist = Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, coop.rampX, coop.rampY);
+    a.wanderTween = this.tweens.add({
+      targets: a.sprite, x: coop.rampX, y: coop.rampY,
+      duration: Math.max(500, dist * a.tweenRate),
+      ease: 'Sine.easeInOut',
+      onComplete: () => {
+        a.wanderTween = null;
+        if (a.state !== 'roosting' || !a.sprite.active) return;
+        a.sprite.setFlipX(false);
+        a.shadow.setVisible(false);
+        a.wanderTween = this.tweens.add({
+          targets: a.sprite, x: coop.doorX, y: coop.doorY, alpha: 0,
+          duration: 600, ease: 'Sine.easeIn',
+          onComplete: () => {
+            a.wanderTween = null;
+            if (a.state === 'roosting') a.sprite.setVisible(false);
+          },
+        });
+      },
+    });
+  }
+
+  // Morning: chicken reappears at the pop-door and hops down the ramp to resume.
+  chickenLeaveCoop(a) {
+    if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
+    const coop = this.props.coop;
+    a.state = 'leaving';
+    a.sprite.setPosition(coop.doorX, coop.doorY).setAlpha(0).setVisible(true);
+    a.shadow.setPosition(coop.doorX, coop.doorY).setVisible(true);
+    a.sprite.setFlipX(true);
+    a.sprite.play(`walk_${a.key}`, true);
+
+    a.wanderTween = this.tweens.add({
+      targets: a.sprite, x: coop.rampX, y: coop.rampY, alpha: 1,
+      duration: 600, ease: 'Sine.easeOut',
+      onComplete: () => {
+        a.wanderTween = null;
+        if (!a.sprite.active) return;
+        a.sprite.setAlpha(1);
+        if (this.isNight) { this.chickenRoost(a); return; }
+        a.state = 'idle';
+        this.scheduleAnimalWander(a, Phaser.Math.Between(300, 2500));
+      },
+    });
   }
 
   _scheduleBirds() {
@@ -1163,6 +1239,7 @@ export default class PaddockScene extends Phaser.Scene {
 
     // Animal (chicken) tap
     for (const a of this.animals) {
+      if (!a.sprite.visible) continue; // tucked inside the coop at night
       const d = Phaser.Math.Distance.Between(world.x, world.y, a.sprite.x, a.sprite.y);
       if (d < 60) {
         const tx = a.sprite.x + (world.x < a.sprite.x ? -40 : 40);
