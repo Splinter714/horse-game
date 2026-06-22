@@ -9,30 +9,49 @@ const KEY = 'horse-care-save-v1';
 
 const GAME_STATE_KEY = 'horse-game-state-v1';
 
-const DEFAULT_HOTBAR = ['hand', 'apple', 'hay', 'treat', 'seed', 'bucket', 'brush', 'saddle', 'lead', 'basket'];
+// Carrier-based hotbar (issue #62): 3 baskets + 2 buckets alongside the tools.
+const DEFAULT_HOTBAR = ['hand', 'basket1', 'basket2', 'basket3', 'bucket1', 'bucket2', 'brush', 'saddle', 'lead', ''];
 
 function defaultInventory() {
-  // Food items start with quantities. Tools are infinite (not stored here).
-  return { apple: 20, hay: 15, carrot: 10, treat: 5, seed: 30 };
+  // Tools are infinite; carriers track their own contents. Nothing to stock.
+  return {};
+}
+
+// Each carrier holds one content type at a time: { content, count }. Empty to
+// start — the player fills them at gathering sources.
+function defaultCarriers() {
+  return {
+    basket1: { content: null, count: 0 },
+    basket2: { content: null, count: 0 },
+    basket3: { content: null, count: 0 },
+    bucket1: { content: null, count: 0 },
+    bucket2: { content: null, count: 0 },
+  };
 }
 
 export function loadGameState() {
+  const fresh = () => ({ hotbar: [...DEFAULT_HOTBAR], inventory: defaultInventory(), carriers: defaultCarriers() });
   try {
     const raw = localStorage.getItem(GAME_STATE_KEY);
-    if (!raw) return { hotbar: [...DEFAULT_HOTBAR], inventory: defaultInventory() };
+    if (!raw) return fresh();
     const data = JSON.parse(raw);
+    // Old saves used the discrete-item hotbar; reset to the carrier layout.
+    const hotbar = Array.isArray(data.hotbar) && data.hotbar.includes('basket1')
+      ? data.hotbar
+      : [...DEFAULT_HOTBAR];
     return {
-      hotbar:    Array.isArray(data.hotbar) ? data.hotbar : [...DEFAULT_HOTBAR],
+      hotbar,
       inventory: { ...defaultInventory(), ...(data.inventory ?? {}) },
+      carriers:  { ...defaultCarriers(),  ...(data.carriers ?? {}) },
     };
   } catch {
-    return { hotbar: [...DEFAULT_HOTBAR], inventory: defaultInventory() };
+    return fresh();
   }
 }
 
-export function saveGameState({ hotbar, inventory }) {
+export function saveGameState({ hotbar, inventory, carriers }) {
   try {
-    localStorage.setItem(GAME_STATE_KEY, JSON.stringify({ hotbar, inventory }));
+    localStorage.setItem(GAME_STATE_KEY, JSON.stringify({ hotbar, inventory, carriers }));
   } catch {}
 }
 

@@ -423,6 +423,137 @@ export function buildWorldTextures(scene) {
     g.fillStyle(0xc8943c, 1); g.fillRect(3, 18, 14, 1); g.fillRect(4, 19, 12, 1);
   });
 
+  // --- carrier icons (20 × 20) ---
+  // A reusable empty-basket body, drawn so the content variants can sit on top.
+  const drawBasketBody = (g) => {
+    g.fillStyle(0xb07828, 1); // handle arch
+    g.fillRect(6, 2, 2, 7); g.fillRect(12, 2, 2, 7); g.fillRect(6, 2, 8, 2);
+    g.fillStyle(0xdcaa50, 1); g.fillRect(2, 9, 16, 2); // rim
+    g.fillStyle(0xc8943c, 1); g.fillRect(2, 11, 16, 7); // body
+    g.fillStyle(0xa87228, 1);
+    g.fillRect(2, 13, 16, 1); g.fillRect(2, 15, 16, 1); g.fillRect(2, 17, 16, 1);
+    g.fillRect(5, 11, 1, 7); g.fillRect(9, 11, 1, 7); g.fillRect(13, 11, 1, 7);
+    g.fillStyle(0xc8943c, 1); g.fillRect(3, 18, 14, 1); g.fillRect(4, 19, 12, 1);
+  };
+
+  tex(scene, 'iconBasketHay', 20, 20, (g) => {
+    drawBasketBody(g);
+    g.fillStyle(0xe8cc6a, 1); g.fillRoundedRect(4, 4, 12, 7, 2); // hay mounded above rim
+    g.fillStyle(0xd9b94a, 1); g.fillRect(4, 7, 12, 1); g.fillRect(4, 9, 12, 1);
+    g.fillStyle(0xe8cc6a, 1); g.fillRect(5, 2, 1, 3); g.fillRect(10, 1, 1, 4); g.fillRect(14, 2, 1, 3);
+  });
+  tex(scene, 'iconBasketApple', 20, 20, (g) => {
+    drawBasketBody(g);
+    g.fillStyle(0xd64545, 1); g.fillCircle(7, 7, 3); g.fillCircle(13, 7, 3); g.fillCircle(10, 5, 3);
+    g.fillStyle(0xe87a7a, 1); g.fillCircle(6, 6, 1); g.fillCircle(9, 4, 1);
+    g.fillStyle(0x3b6d11, 1); g.fillRect(10, 2, 1, 2);
+  });
+  tex(scene, 'iconBasketCarrot', 20, 20, (g) => {
+    drawBasketBody(g);
+    g.fillStyle(0xf07830, 1);
+    g.fillTriangle(6, 9, 4, 3, 8, 3); g.fillTriangle(11, 9, 9, 3, 13, 3); g.fillTriangle(15, 8, 13, 4, 16, 4);
+    g.fillStyle(0x3b8a1c, 1); g.fillRect(5, 1, 1, 3); g.fillRect(10, 1, 1, 3); g.fillRect(14, 2, 1, 3);
+  });
+  tex(scene, 'iconBasketSeed', 20, 20, (g) => {
+    drawBasketBody(g);
+    g.fillStyle(0xd4a93c, 1); g.fillRoundedRect(4, 5, 12, 6, 2); // mound of grain
+    g.fillStyle(0xc8a030, 1);
+    g.fillRect(5, 7, 2, 2); g.fillRect(9, 6, 2, 2); g.fillRect(13, 7, 2, 2); g.fillRect(7, 9, 2, 2); g.fillRect(11, 9, 2, 2);
+    g.fillStyle(0xe8c050, 1); g.fillRect(6, 5, 1, 1); g.fillRect(10, 4, 1, 1); g.fillRect(14, 5, 1, 1);
+  });
+  tex(scene, 'iconBasketEgg', 20, 20, (g) => {
+    drawBasketBody(g);
+    g.fillStyle(0xfff8e0, 1);
+    g.fillEllipse(7, 7, 5, 6); g.fillEllipse(13, 7, 5, 6); g.fillEllipse(10, 5, 5, 6);
+    g.fillStyle(0xfffdf5, 1); g.fillEllipse(6, 5, 2, 2); g.fillEllipse(12, 5, 2, 2);
+  });
+
+  // Empty bucket (a metal pail)
+  tex(scene, 'iconBucket', 20, 20, (g) => {
+    g.fillStyle(0x8a93a6, 1); g.fillRect(5, 2, 10, 1); // handle
+    g.fillRect(4, 2, 1, 4); g.fillRect(15, 2, 1, 4);
+    g.fillStyle(0xb8c0d0, 1); g.fillRect(3, 6, 14, 2); // rim
+    g.fillStyle(0x9aa3b6, 1); // tapered body
+    g.fillTriangle(4, 8, 16, 8, 14, 18); g.fillTriangle(4, 8, 14, 18, 6, 18);
+    g.fillStyle(0xb8c0d0, 1); g.fillRect(5, 9, 1, 8); // highlight
+    g.fillStyle(0x7a8396, 1); g.fillRect(6, 17, 8, 1);
+  });
+  // Filled bucket — water visible at the brim
+  tex(scene, 'iconBucketWater', 20, 20, (g) => {
+    g.fillStyle(0x8a93a6, 1); g.fillRect(5, 2, 10, 1);
+    g.fillRect(4, 2, 1, 4); g.fillRect(15, 2, 1, 4);
+    g.fillStyle(0x5fa6d6, 1); g.fillRect(4, 7, 12, 2); // water surface
+    g.fillStyle(0x9ae0f8, 1); g.fillRect(5, 7, 6, 1);
+    g.fillStyle(0xb8c0d0, 1); g.fillRect(3, 6, 14, 1);
+    g.fillStyle(0x9aa3b6, 1);
+    g.fillTriangle(4, 9, 16, 9, 14, 18); g.fillTriangle(4, 9, 14, 18, 6, 18);
+    g.fillStyle(0xb8c0d0, 1); g.fillRect(5, 10, 1, 7);
+    g.fillStyle(0x7a8396, 1); g.fillRect(6, 17, 8, 1);
+  });
+
+  // --- gathering source props (issue #63) ---
+  // Haystack — a big mound to gather hay from
+  tex(scene, 'haystack', 48, 40, (g) => {
+    g.fillStyle(0xc4a43a, 1); g.fillEllipse(24, 36, 46, 10); // base shadow
+    g.fillStyle(0xd9b94a, 1); g.fillEllipse(24, 26, 44, 26); // body
+    g.fillStyle(0xe8cc6a, 1); g.fillEllipse(20, 18, 30, 16); // top highlight
+    g.fillStyle(0xc4a43a, 1);
+    for (let y = 18; y < 36; y += 5) g.fillRect(4, y, 40, 1); // layered straw lines
+    g.fillStyle(0xb08c2a, 1);
+    g.fillRect(10, 14, 1, 4); g.fillRect(26, 12, 1, 5); g.fillRect(38, 16, 1, 4); // stray stalks
+  });
+  // Apple tree — leafy crown over a trunk
+  tex(scene, 'appleTree', 52, 68, (g) => {
+    g.fillStyle(0x6a4424, 1); g.fillRect(23, 40, 6, 26); // trunk
+    g.fillStyle(0x83562e, 1); g.fillRect(23, 40, 2, 26);
+    g.fillStyle(0x2f6e1f, 1); g.fillCircle(26, 26, 24); // crown
+    g.fillStyle(0x3b8a26, 1); g.fillCircle(18, 20, 14); g.fillCircle(36, 22, 13);
+    g.fillStyle(0x4fa838, 1); g.fillCircle(20, 16, 8);
+    g.fillStyle(0xd64545, 1); // apples
+    g.fillCircle(14, 28, 3); g.fillCircle(30, 16, 3); g.fillCircle(38, 30, 3); g.fillCircle(24, 34, 3);
+    g.fillStyle(0xe87a7a, 1);
+    g.fillCircle(13, 27, 1); g.fillCircle(29, 15, 1); g.fillCircle(37, 29, 1); g.fillCircle(23, 33, 1);
+  });
+  // Carrot garden — a tilled plot with carrot tops poking out
+  tex(scene, 'carrotGarden', 56, 32, (g) => {
+    g.fillStyle(0x6a4a2a, 1); g.fillRoundedRect(0, 8, 56, 22, 4); // soil bed
+    g.fillStyle(0x5a3e22, 1);
+    for (let x = 4; x < 56; x += 8) g.fillRect(x, 10, 1, 18); // furrows
+    g.fillStyle(0x7a5632, 1); g.fillRect(0, 8, 56, 2);
+    // carrot tops in rows
+    const tops = [[8, 12], [20, 14], [32, 12], [44, 13], [14, 22], [27, 23], [39, 22], [50, 22]];
+    for (const [tx, ty] of tops) {
+      g.fillStyle(0xf07830, 1); g.fillTriangle(tx, ty + 5, tx - 2, ty, tx + 2, ty);
+      g.fillStyle(0x3b8a1c, 1);
+      g.fillRect(tx - 1, ty - 4, 1, 4); g.fillRect(tx, ty - 5, 1, 5); g.fillRect(tx + 1, ty - 4, 1, 4);
+    }
+  });
+  // Grain bin — an open sack of seed to fill baskets from (for the chickens)
+  tex(scene, 'grainBin', 40, 44, (g) => {
+    g.fillStyle(0xb98a4a, 1); g.fillRect(6, 14, 28, 28); // burlap sack body
+    g.fillStyle(0xa87a3c, 1); g.fillRect(6, 14, 28, 3);
+    g.fillStyle(0xcb9c58, 1); g.fillRect(8, 18, 3, 22); // fold highlight
+    g.fillStyle(0xa87a3c, 1); g.fillRect(20, 18, 1, 22); g.fillRect(28, 18, 1, 22); // seams
+    // rolled-down rim at the top
+    g.fillStyle(0xcb9c58, 1); g.fillEllipse(20, 14, 30, 8);
+    g.fillStyle(0x8a6430, 1); g.fillEllipse(20, 13, 22, 6); // opening
+    // grain heaped at the mouth
+    g.fillStyle(0xd4a93c, 1); g.fillEllipse(20, 11, 20, 7);
+    g.fillStyle(0xc8a030, 1);
+    g.fillRect(12, 9, 2, 2); g.fillRect(18, 8, 2, 2); g.fillRect(24, 9, 2, 2); g.fillRect(15, 11, 2, 2); g.fillRect(22, 11, 2, 2);
+    g.fillStyle(0xe8c050, 1); g.fillRect(16, 8, 1, 1); g.fillRect(21, 7, 1, 1);
+    // a little spilled grain at the foot
+    g.fillStyle(0xc8a030, 1); g.fillRect(3, 41, 2, 1); g.fillRect(35, 41, 2, 1); g.fillRect(30, 42, 2, 1);
+  });
+  // Water stream — a still pool/stream segment to fill buckets
+  tex(scene, 'stream', 64, 40, (g) => {
+    g.fillStyle(0x4a7a3a, 1); g.fillEllipse(32, 20, 64, 38); // muddy bank
+    g.fillStyle(0x3f7fb5, 1); g.fillEllipse(32, 20, 56, 30); // water
+    g.fillStyle(0x5fa6d6, 1); g.fillEllipse(30, 17, 44, 20);
+    g.fillStyle(0x9ae0f8, 0.8); // ripples
+    g.fillRect(14, 14, 12, 1); g.fillRect(34, 18, 14, 1); g.fillRect(20, 24, 10, 1); g.fillRect(40, 26, 8, 1);
+  });
+
   // --- hand icon (20 × 20) ---
   tex(scene, 'iconHand', 20, 20, (g) => {
     g.fillStyle(0xf0c080, 1); // skin tone
