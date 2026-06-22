@@ -1069,9 +1069,18 @@ export default class PaddockScene extends Phaser.Scene {
         this.anims.create({ key, frames, frameRate: rate, repeat: -1 });
       }
     };
-    makeAnim('player_walk_down', [{ key: 'player_down_0' }, { key: 'player_down_1' }], 7);
-    makeAnim('player_walk_up',   [{ key: 'player_up_0'   }, { key: 'player_up_1'   }], 7);
-    makeAnim('player_walk_side', [{ key: 'player_side_0' }, { key: 'player_side_1' }], 7);
+    makeAnim('player_walk_down', [
+      { key: 'player_down_0' }, { key: 'player_down_1' },
+      { key: 'player_down_2' }, { key: 'player_down_3' },
+    ], 8);
+    makeAnim('player_walk_up', [
+      { key: 'player_up_0' }, { key: 'player_up_1' },
+      { key: 'player_up_2' }, { key: 'player_up_3' },
+    ], 8);
+    makeAnim('player_walk_side', [
+      { key: 'player_side_0' }, { key: 'player_side_1' },
+      { key: 'player_side_2' }, { key: 'player_side_3' },
+    ], 8);
 
     const startX = WORLD_W / 2;
     const startY = WORLD_H / 2 + 60;
