@@ -24,8 +24,13 @@ export default class DayNightScene extends Phaser.Scene {
   create() {
     this.elapsed     = 0;
     this.currentPhase = -1; // triggers initial phase-change event
+    this._sleeping   = false;
 
     this.overlay = this.add.graphics().setDepth(500);
+
+    // Full-screen black used for the sleep fade. Sits above the day/night tint
+    // (and, while sleeping, above the UI scenes — see doSleep).
+    this.fade = this.add.graphics().setDepth(100_000).setScrollFactor(0);
     this.label   = this.add.text(0, 0, '', {
       fontFamily: 'system-ui, sans-serif',
       fontSize: '18px',
@@ -41,6 +46,51 @@ export default class DayNightScene extends Phaser.Scene {
     this.scale.on('resize', (gameSize) => {
       this._sw = gameSize.width;
       this._sh = gameSize.height;
+    });
+
+    this.game.events.on('sleep', this.doSleep, this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.game.events.off('sleep', this.doSleep, this);
+    });
+  }
+
+  // Fade to black, jump the clock to morning, then fade back in. The day/night
+  // tint normally renders below the UI scenes; for the fade we lift this scene
+  // to the top so the black covers everything, then restore the UI on top after.
+  doSleep() {
+    if (this._sleeping) return;
+    this._sleeping = true;
+    this.scene.bringToTop();
+
+    const a = { v: 0 };
+    const draw = () => {
+      this.fade.clear();
+      this.fade.fillStyle(0x000000, a.v);
+      this.fade.fillRect(0, 0, this._sw, this._sh);
+    };
+
+    this.tweens.add({
+      targets: a, v: 1, duration: 700, ease: 'Sine.easeIn', onUpdate: draw,
+      onComplete: () => {
+        // Jump to the start of Morning (first phase) and force a phase-change
+        // so the paddock wakes any sleeping animals.
+        this.elapsed = 0;
+        this.currentPhase = -1;
+        this.time.delayedCall(450, () => {
+          this.tweens.add({
+            targets: a, v: 0, duration: 800, ease: 'Sine.easeOut', onUpdate: draw,
+            onComplete: () => {
+              this.fade.clear();
+              this._sleeping = false;
+              // Put the UI scenes back above the day/night tint.
+              this.scene.bringToTop('PortraitScene');
+              this.scene.bringToTop('ChickenInfoScene');
+              this.scene.bringToTop('HotbarScene');
+              this.game.events.emit('sleep-done');
+            },
+          });
+        });
+      },
     });
   }
 

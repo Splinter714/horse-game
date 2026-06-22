@@ -11,12 +11,12 @@ export const EBONY_BASE_STATS = {
   stamina: 70,
 };
 
-// Per-second decay while playing. Tuned so a well-fed horse stays content for a
-// long play session; full depletion would take ~2 hours of continuous play.
+// Per-second decay while playing. Tuned so needs visibly tick down during play
+// (hunger fully depletes in ~30 min of continuous play) while still being gentle.
 const DECAY = {
-  hunger: 0.014,
-  thirst: 0.018,
-  grooming: 0.008
+  hunger: 0.05,
+  thirst: 0.06,
+  grooming: 0.03
 };
 
 // Offline decay is the same rates but capped, so coming back after days still
