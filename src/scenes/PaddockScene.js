@@ -1236,6 +1236,19 @@ export default class PaddockScene extends Phaser.Scene {
     this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
     this.input.on('pointerdown', this.handleTap, this);
+    this.input.on('pointermove', this.handlePointerMove, this);
+    this.input.on('pointerup', this.handlePointerUp, this);
+    this.input.on('pointerupoutside', this.handlePointerUp, this);
+
+    // Hold-to-move state: while the pointer is held, movement keeps re-targeting
+    // the live pointer position so you steer continuously instead of re-tapping.
+    this._pointerDown    = false;
+    this._holdMove       = false;
+    this._holdTarget     = null;
+    this._holdPathTarget = null;
+    this._holdDownAt     = 0;
+    this._holdMoved      = false;
+    this._holdRepathAt   = 0;
 
     this.gamePad      = null;
     this.usingPad     = false;
@@ -1270,9 +1283,23 @@ export default class PaddockScene extends Phaser.Scene {
 
     const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
 
-    // While mounted, a tap steers the horse to that spot (pathfinding around
-    // obstacles and through the open gate, just like on foot).
-    if (this.riding) { this._rideMoveTo(world.x, world.y); return; }
+    // Track the press so hold-to-move and tap-vs-hold release can be detected.
+    this._pointerDown = true;
+    this._holdDownAt  = this.time.now;
+    this._holdMoved   = false;
+    this._holdMove    = false;
+
+    // While mounted: tapping on the horse dismounts; tapping elsewhere steers it
+    // there (and holding keeps it heading toward your finger).
+    if (this.riding) {
+      const hs = this.riding.h.sprite;
+      if (Phaser.Math.Distance.Between(world.x, world.y, hs.x, hs.y) < 64) {
+        this.dismount();
+        return;
+      }
+      this._startHold(world.x, world.y);
+      return;
+    }
 
     const item  = this.getActiveItem();
 
@@ -1361,7 +1388,64 @@ export default class PaddockScene extends Phaser.Scene {
       return;
     }
 
-    if (!this._collides(world.x, world.y)) this.tapMoveTo(world.x, world.y);
+    // Plain locomotion — start a hold-capable move toward the point.
+    this._startHold(world.x, world.y);
+  }
+
+  // Begin (or re-aim) a hold-to-move trip toward (x,y). Works mounted or on foot.
+  _startHold(x, y) {
+    this._holdMove       = true;
+    this._holdTarget     = { x, y };
+    this._holdPathTarget = { x, y };
+    this._holdRepathAt   = this.time.now;
+    this._moveToward(x, y);
+  }
+
+  _moveToward(x, y) {
+    if (this.riding) this._rideMoveTo(x, y);
+    else             this.tapMoveTo(x, y);
+  }
+
+  handlePointerMove(pointer) {
+    if (!this._pointerDown || !this._holdMove) return;
+    if (!pointer.isDown) return;
+    const w = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+    this._holdTarget = { x: w.x, y: w.y };
+    this._holdMoved  = true;
+  }
+
+  handlePointerUp() {
+    if (this._holdMove) {
+      // A real hold (long press or dragged) stops on release. A quick tap keeps
+      // its route so you still walk all the way to where you tapped.
+      const held = this.time.now - this._holdDownAt;
+      if (held > 200 || this._holdMoved) {
+        if (this.riding) this._cancelRideNav();
+        else             this._cancelTapMove();
+      }
+    }
+    this._pointerDown = false;
+    this._holdMove    = false;
+    this._holdTarget  = null;
+  }
+
+  // While the pointer is held, keep the active route pointed at the live finger
+  // position — re-pathing only when it drifts a cell or the route runs out, and
+  // throttled so the A* search doesn't run every frame.
+  _updateHold() {
+    if (!this._pointerDown || !this._holdMove || !this._holdTarget) return;
+    const now = this.time.now;
+    if (now - this._holdRepathAt < 100) return;
+
+    const t = this._holdTarget;
+    const drifted = !this._holdPathTarget ||
+      Phaser.Math.Distance.Between(t.x, t.y, this._holdPathTarget.x, this._holdPathTarget.y) > 24;
+    const routeEmpty = this.riding ? !this.rideNav : !this.navPath;
+    if (drifted || routeEmpty) {
+      this._holdRepathAt   = now;
+      this._holdPathTarget = { x: t.x, y: t.y };
+      this._moveToward(t.x, t.y);
+    }
   }
 
   tapMoveTo(tx, ty, onArrive) {
@@ -2045,6 +2129,7 @@ export default class PaddockScene extends Phaser.Scene {
   update(time, delta) {
     this._pollRawPad();
     if (this._paused) return;
+    this._updateHold();
     this.updateRiding(delta);
     this.movePlayer(delta);
     this.updateLeading(delta);
