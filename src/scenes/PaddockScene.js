@@ -32,6 +32,16 @@ const GATE_GAP_X1 = 1020;
 
 const S = 2;
 
+// What the farm stand can sell. Each product type has a sale price (per unit),
+// a counter texture (with its own scale), an emoji for the count badge, and the
+// floating icon shown when the player stocks it.
+const STAND_DEFS = {
+  egg:    { price: 5, tex: 'egg',        scale: S,   emoji: '🥚', floatIcon: 'iconEgg' },
+  apple:  { price: 4, tex: 'iconApple',  scale: 0.9, emoji: '🍎', floatIcon: 'iconApple' },
+  carrot: { price: 3, tex: 'iconCarrot', scale: 0.9, emoji: '🥕', floatIcon: 'iconCarrot' },
+};
+const STAND_TYPES = Object.keys(STAND_DEFS);
+
 export default class PaddockScene extends Phaser.Scene {
   constructor() {
     super('PaddockScene');
@@ -376,7 +386,8 @@ export default class PaddockScene extends Phaser.Scene {
     const sx = 1680, sy = 360;
     const sprite = this.add.image(sx, sy, 'farmStand')
       .setScale(S).setDepth(sy).setOrigin(0.5, 1);
-    this.farmStand = { x: sx, y: sy, stock: 0, sprite, eggSprites: [] };
+    const stock = Object.fromEntries(STAND_TYPES.map(t => [t, 0]));
+    this.farmStand = { x: sx, y: sy, stock, sprite, itemSprites: [] };
 
     // Count badge floating just above the eggs on the counter.
     this.farmStand.badge = this.add.text(sx, sy - 64, '', {
@@ -393,46 +404,61 @@ export default class PaddockScene extends Phaser.Scene {
     this._refreshStand();
   }
 
-  // Show the stand's stock as actual eggs on the counter, plus a small count
+  // Total units across every product the stand is holding.
+  _standTotal() {
+    const s = this.farmStand;
+    return STAND_TYPES.reduce((sum, t) => sum + s.stock[t], 0);
+  }
+
+  // Show the stand's stock as actual produce on the counter, plus a small count
   // badge. Re-run whenever stock changes (stocking, or a customer buying).
   _refreshStand() {
     const s = this.farmStand;
-    s.eggSprites.forEach(e => e.destroy());
-    s.eggSprites = [];
+    s.itemSprites.forEach(e => e.destroy());
+    s.itemSprites = [];
 
-    const CAP = 8;                  // most eggs we draw before it's just the badge
-    const shown = Math.min(s.stock, CAP);
+    // Flatten the per-type stock into a single list of items to draw.
+    const queue = [];
+    for (const type of STAND_TYPES) {
+      for (let i = 0; i < s.stock[type]; i++) queue.push(STAND_DEFS[type]);
+    }
+
+    const CAP = 8;                  // most items we draw before it's just the badge
+    const shown = Math.min(queue.length, CAP);
     const perRow = 4, spacingX = 16, rowLift = 9;
     const counterY = s.y - 30;      // table surface in world space
     for (let i = 0; i < shown; i++) {
+      const def = queue[i];
       const row = Math.floor(i / perRow);
       const col = i % perRow;
       const rowCount = Math.min(perRow, shown - row * perRow);
       const ex = s.x - ((rowCount - 1) * spacingX) / 2 + col * spacingX;
       const ey = counterY - row * rowLift;
-      s.eggSprites.push(
-        this.add.image(ex, ey, 'egg').setScale(S).setOrigin(0.5, 1).setDepth(s.y + 1 + row)
+      s.itemSprites.push(
+        this.add.image(ex, ey, def.tex).setScale(def.scale).setOrigin(0.5, 1).setDepth(s.y + 1 + row)
       );
     }
 
-    if (s.stock > 0) {
-      s.badge.setText(`🥚 ×${s.stock}`);
+    if (this._standTotal() > 0) {
+      s.badge.setText(STAND_TYPES.filter(t => s.stock[t] > 0)
+        .map(t => `${STAND_DEFS[t].emoji}×${s.stock[t]}`).join('  '));
       s.badge.setVisible(true);
     } else {
       s.badge.setVisible(false);
     }
   }
 
-  // Deposit a full egg-basket's worth at the farm stand.
+  // Deposit a full basket's worth of produce at the farm stand.
   stockStand() {
     const active = this.getActiveItem();
-    if (active?.content !== 'egg' || active.count <= 0) return;
+    const type = active?.content;
+    if (!STAND_DEFS[type] || active.count <= 0) return;
     const n = active.count;
     this.scene.get('HotbarScene')?.useActiveCarrier(n);
-    this.farmStand.stock += n;
+    this.farmStand.stock[type] += n;
     this._refreshStand();
 
-    const icon = this.add.image(this.farmStand.x, this.farmStand.y - 60, 'iconEgg')
+    const icon = this.add.image(this.farmStand.x, this.farmStand.y - 60, STAND_DEFS[type].floatIcon)
       .setScale(1.8).setDepth(10000);
     this.tweens.add({
       targets: icon, y: icon.y - 40, alpha: 0,
@@ -452,7 +478,7 @@ export default class PaddockScene extends Phaser.Scene {
   }
 
   _spawnCustomer() {
-    if (!this.farmStand || this.farmStand.stock <= 0) {
+    if (!this.farmStand || this._standTotal() <= 0) {
       // No stock — NPC shows up but leaves disappointed
     }
 
@@ -503,17 +529,19 @@ export default class PaddockScene extends Phaser.Scene {
     npc.state = 'shopping';
     const stand = this.farmStand;
 
-    if (stand.stock <= 0) {
+    if (this._standTotal() <= 0) {
       // Nothing to buy — show sad bubble and leave
       this._npcSpeech(npc, ':(');
       this.time.delayedCall(1200, () => this._npcLeave(npc));
       return;
     }
 
-    // Buy 1–3 eggs (up to what's in stock)
-    const qty = Math.min(stand.stock, Phaser.Math.Between(1, 3));
-    const price = qty * 5; // $5 per egg
-    stand.stock -= qty;
+    // Pick a random product the stand has and buy 1–3 of it.
+    const available = STAND_TYPES.filter(t => stand.stock[t] > 0);
+    const type = Phaser.Utils.Array.GetRandom(available);
+    const qty = Math.min(stand.stock[type], Phaser.Math.Between(1, 3));
+    const price = qty * STAND_DEFS[type].price;
+    stand.stock[type] -= qty;
     this.money += price;
     this._refreshStand();
     this.game.events.emit('money-changed', this.money);
@@ -1415,11 +1443,12 @@ export default class PaddockScene extends Phaser.Scene {
 
     const farmStand = (item) => {
       const s = this.farmStand;
-      const eggs = item?.content === 'egg' ? item.count : 0;
-      if (!s || eggs <= 0) return []; // stock is shown visually; only prompt to deposit
+      const type = item?.content;
+      const sellable = s && STAND_DEFS[type] && item.count > 0;
+      if (!sellable) return []; // stock is shown visually; only prompt to deposit
       return [{
         x: s.x, y: s.y, tapRadius: 160, reachDist: 120, promptOffsetY: 100,
-        canAct: true, label: `Place Eggs  (basket: ${eggs})`,
+        canAct: true, label: `Sell ${CONTENT_DEFS[type].label}  (basket: ${item.count})`,
         approach: (world) => {
           const refX = world ? world.x : this.player.sprite.x;
           return { x: s.x + (refX < s.x ? -1 : 1) * 90, y: s.y + 20 };
