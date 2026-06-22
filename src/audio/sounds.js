@@ -348,6 +348,48 @@ const CHORDS = [
 
 const PATTERN_BEATS = 32; // 8 bars × 4 beats
 
+// ── Nighttime music — warm, peaceful lullaby in C major ──────────────────────
+// Gentle major-key phrasing (C–F–G–Am, resolving home to C), longer notes and
+// soft rests for a starry, restful feel rather than a spooky minor one.
+const NIGHT_MELODY = [
+  [G4,1],[C5,1],[E5,0.5],[D5,0.5],[C5,1],          // bar 1 — soft rise, lands warm
+  [G4,1],[E4,1],[G4,2],                            // bar 2 — settle gently
+  [A4,1],[C5,1],[D5,0.5],[C5,0.5],[A4,1],          // bar 3
+  [G4,1],[E4,1],[0,2],                             // bar 4 — breath
+  [E4,1],[G4,1],[C5,0.5],[E5,0.5],[D5,1],          // bar 5 — soft peak
+  [C5,1],[A4,1],[G4,2],                            // bar 6 — descend
+  [F4,1],[A4,1],[G4,0.5],[E4,0.5],[D4,1],          // bar 7
+  [E4,1],[G4,1],[C5,2],                            // bar 8 — resolve home to C
+];
+
+const NIGHT_BASS = [
+  [C3,4],          // bar 1 — long sustained roots, C major
+  [F3,4],          // bar 2 — F
+  [A3,4],          // bar 3 — Am (gentle, not dark)
+  [G3,4],          // bar 4 — G
+  [C3,4],          // bar 5 — C
+  [F3,4],          // bar 6 — F
+  [G3,2],[A3,2],   // bar 7 — G → Am
+  [C3,4],          // bar 8 — home
+];
+
+const NIGHT_CHORDS = [
+  [[C4,E4,G4], 0.5],   // beat 1  — C
+  [[F3,A3,C4], 0.5],   // beat 5  — F
+  [[A3,C4,E4], 0.5],   // beat 9  — Am
+  [[G3,B3,D4], 0.5],   // beat 13 — G
+  [[C4,E4,G4], 0.5],   // beat 17 — C
+  [[F3,A3,C4], 0.5],   // beat 21 — F
+  [[G3,B3,D4], 0.5],   // beat 25 — G
+  [[C4,E4,G4], 0.5],   // beat 29 — C, home
+];
+
+// Active patterns the scheduler reads — swapped by setMusicMode().
+let activeMelody = MELODY;
+let activeBass   = BASS;
+let activeChords = CHORDS;
+let nightMode    = false;
+
 let musicGain      = null;
 let musicTimer     = null;
 let nextMelodyTime = 0;
@@ -426,34 +468,39 @@ function schedulerTick() {
 
   // Melody voice
   while (nextMelodyTime < ahead) {
-    const [freq, dur] = MELODY[melodyIdx];
+    const [freq, dur] = activeMelody[melodyIdx % activeMelody.length];
     scheduleMelodyNote(nextMelodyTime, freq, dur);
     nextMelodyTime += dur * BEAT;
-    melodyIdx = (melodyIdx + 1) % MELODY.length;
+    melodyIdx = (melodyIdx + 1) % activeMelody.length;
   }
 
   // Bass voice (independent cursor)
   while (nextBassTime < ahead) {
-    const [freq, dur] = BASS[bassIdx];
+    const [freq, dur] = activeBass[bassIdx % activeBass.length];
     scheduleBassNote(nextBassTime, freq, dur);
     nextBassTime += dur * BEAT;
-    bassIdx = (bassIdx + 1) % BASS.length;
+    bassIdx = (bassIdx + 1) % activeBass.length;
   }
 
   // Chord stabs every 4 beats
   while (nextChordTime < ahead) {
-    const [freqs] = CHORDS[chordIdx];
+    const [freqs] = activeChords[chordIdx % activeChords.length];
     scheduleChord(nextChordTime, freqs);
     nextChordTime += 4 * BEAT;
-    chordIdx = (chordIdx + 1) % CHORDS.length;
+    chordIdx = (chordIdx + 1) % activeChords.length;
   }
+}
+
+// Base music volume depends on day/night — night is quieter and gentler.
+function musicVolume() {
+  return nightMode ? 0.05 : 0.07;
 }
 
 export function startMusic() {
   if (musicTimer) return;
   const c = getCtx();
   musicGain = c.createGain();
-  musicGain.gain.value = muted ? 0 : 0.07;
+  musicGain.gain.value = muted ? 0 : musicVolume();
   musicGain.connect(c.destination);
 
   const start = c.currentTime + 0.1;
@@ -478,12 +525,26 @@ export function stopMusic() {
   }
 }
 
+// Switch between the daytime and nighttime tracks. Swaps the active patterns
+// and resets the voice cursors so the new track starts cleanly from its top.
+export function setMusicMode(isNight) {
+  if (isNight === nightMode) return;
+  nightMode = isNight;
+  activeMelody = isNight ? NIGHT_MELODY : MELODY;
+  activeBass   = isNight ? NIGHT_BASS   : BASS;
+  activeChords = isNight ? NIGHT_CHORDS : CHORDS;
+  melodyIdx = 0;
+  bassIdx   = 0;
+  chordIdx  = 0;
+  if (musicGain && !muted) musicGain.gain.value = musicVolume();
+}
+
 // ─── Mute toggle ─────────────────────────────────────────────────────────────
 
 export function toggleMute() {
   muted = !muted;
   if (windGain)  windGain.gain.value  = muted ? 0 : 0.07;
-  if (musicGain) musicGain.gain.value = muted ? 0 : 0.07;
+  if (musicGain) musicGain.gain.value = muted ? 0 : musicVolume();
   return muted;
 }
 
