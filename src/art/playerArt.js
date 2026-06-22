@@ -21,27 +21,27 @@ const STRIDE = [0, -1, 0, 1];
 
 // Draw the two legs + shoes for the front/back views given the stride lead.
 function drawLegsVert(g, lead) {
-  // Base (passing) positions.
-  let llY = 17, rlY = 17;   // leg-top y
+  // Base (passing) positions. Legs narrower (2px) and more centered.
+  let llY = 16, rlY = 16;   // leg-top y (moved up to y=16 for better pelvis connection)
   let lsY = 21, rsY = 21;   // shoe y
-  let llX = 4,  rlX = 9;    // leg x
-  let lsX = 3,  rsX = 9;    // shoe x
+  let llX = 5,  rlX = 9;    // leg x (left leg centered around x=6, right around x=10)
+  let lsX = 4,  rsX = 9;    // shoe x
   if (lead === -1) {        // left foot forward, right trailing
-    llY = 18; lsY = 22;
-    rlY = 16; rsY = 20;
+    llY = 17; lsY = 22;
+    rlY = 15; rsY = 20;
   } else if (lead === 1) {  // right foot forward, left trailing
-    rlY = 18; rsY = 22;
-    llY = 16; lsY = 20;
+    rlY = 17; rsY = 22;
+    llY = 15; lsY = 20;
   }
   g.fillStyle(PANTS, 1);
-  g.fillRect(llX, llY, 3, 21 - llY + 3);
-  g.fillRect(rlX, rlY, 3, 21 - rlY + 3);
+  g.fillRect(llX, llY, 2, 21 - llY + 3);  // narrower legs (2px)
+  g.fillRect(rlX, rlY, 2, 21 - rlY + 3);
   g.fillStyle(PANTS_D, 1);
   g.fillRect(llX + 1, llY + 2, 1, 2);
   g.fillRect(rlX + 1, rlY + 2, 1, 2);
   g.fillStyle(SHOE, 1);
-  g.fillRect(lsX, lsY, 4, 3);
-  g.fillRect(rsX, rsY, 4, 3);
+  g.fillRect(lsX, lsY, 3, 3);  // narrower shoes to match legs
+  g.fillRect(rsX, rsY, 3, 3);
 }
 
 // Hands for the front/back views. Arms swing opposite the same-side leg, so a
@@ -166,28 +166,28 @@ function drawSide(g, frame) {
 
   // Legs — near leg under body center (x=7), far leg behind (x=6). On a step the
   // leading leg reaches forward (+x) and plants lower; the trailing leg pulls
-  // back (−x) and lifts.
-  let nearX = 7, nearY = 17, nearShoeX = 6, nearShoeY = 21;
-  let farX = 6,  farY = 18,  farShoeX = 5,  farShoeY = 21;
+  // back (−x) and lifts. Legs narrower (2px) and better anchored.
+  let nearX = 7, nearY = 16, nearShoeX = 7, nearShoeY = 21;
+  let farX = 6,  farY = 16,  farShoeX = 6,  farShoeY = 21;
   let farShoeVisible = true;
   if (lead === -1) {          // near leg forward
     nearX = 8; nearShoeX = 8; nearShoeY = 21;
-    farX = 5;  farY = 17;     farShoeX = 4; farShoeY = 20; // back leg lifted
+    farX = 5;  farY = 17;     farShoeX = 5; farShoeY = 20; // back leg lifted
   } else if (lead === 1) {    // far leg forward, near leg pulled back/lifted
-    nearX = 6; nearY = 16;    nearShoeX = 5; nearShoeY = 20;
-    farX = 9;  farY = 17;     farShoeX = 9; farShoeY = 21;
+    nearX = 6; nearY = 17;    nearShoeX = 6; nearShoeY = 20;
+    farX = 8;  farY = 16;     farShoeX = 8; farShoeY = 21;
   }
 
   g.fillStyle(PANTS, 1);
-  g.fillRect(farX, farY, 2, 24 - farY);    // far leg (drawn first, behind)
-  g.fillRect(nearX, nearY, 3, 24 - nearY); // near leg
+  g.fillRect(farX, farY, 2, 24 - farY);    // far leg (drawn first, behind) — 2px width
+  g.fillRect(nearX, nearY, 2, 24 - nearY); // near leg — 2px width
   g.fillStyle(PANTS_D, 1);
   g.fillRect(nearX + 1, nearY + 2, 1, 2);
 
   // Shoes
   g.fillStyle(SHOE, 1);
-  if (farShoeVisible) g.fillRect(farShoeX, farShoeY, 3, 2); // far shoe (behind)
-  g.fillRect(nearShoeX, nearShoeY, 4, 3);                   // near shoe
+  if (farShoeVisible) g.fillRect(farShoeX, farShoeY, 2, 2); // far shoe (behind) — narrower
+  g.fillRect(nearShoeX, nearShoeY, 3, 3);                   // near shoe — narrower
 }
 
 export function buildPlayerTextures(scene) {
