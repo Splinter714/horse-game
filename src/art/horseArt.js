@@ -203,12 +203,13 @@ function drawHorseEat(g, coat, bob) {
   const b = coat.body;
   const m = coat.mane;
   const mk = coat.markings || {};
+  const feather = mk.feather ? m.mid : undefined;
 
   // Legs all planted
-  leg(g, 7,  0, b.lo,  coat.hoof, false);
-  leg(g, 38, 0, b.lo,  coat.hoof, false);
-  leg(g, 13, 0, b.mid, coat.hoof, false);
-  leg(g, 44, 0, b.mid, coat.hoof, !!mk.sock);
+  leg(g, 7,  0, b.lo,  coat.hoof, false,      feather);
+  leg(g, 38, 0, b.lo,  coat.hoof, false,      feather);
+  leg(g, 13, 0, b.mid, coat.hoof, false,      feather);
+  leg(g, 44, 0, b.mid, coat.hoof, !!mk.sock,  feather);
 
   // Tail
   g.fillStyle(m.mid, 1); g.fillRect(6, 22 + bob, 2, 4);
