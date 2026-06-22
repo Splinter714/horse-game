@@ -382,9 +382,10 @@ function scheduleBassNote(time, freq, dur) {
   const env = c.createGain();
   osc.type = 'triangle';
   osc.frequency.value = freq;
-  const noteDur = dur * BEAT * 0.75;
+  const noteDur = dur * BEAT * 0.8;
   env.gain.setValueAtTime(0.001, time);
-  env.gain.linearRampToValueAtTime(0.13, time + 0.02);
+  env.gain.linearRampToValueAtTime(0.26, time + 0.02);
+  env.gain.setValueAtTime(0.22, time + noteDur * 0.5);
   env.gain.exponentialRampToValueAtTime(0.001, time + noteDur);
   osc.connect(env);
   env.connect(musicGain);

@@ -13,6 +13,14 @@ const INTERACT_DIST = 100;
 const PLAYER_SPEED  = 210;
 const RIDE_SPEED    = 340;
 
+// Press shorter than this (without dragging) is a plain tap → walk all the way to
+// the tapped point. Once the press passes this, live "hold-to-move" steering kicks
+// in and releasing stops you where you are.
+const HOLD_MS = 250;
+// The finger must travel at least this far (screen px) before a press counts as a
+// drag — keeps tiny tap jitter from being read as intentional hold-to-move.
+const HOLD_DRAG_PX = 28;
+
 const BOUNDS      = { minX: 180, maxX: 1740, minY: 200, maxY: 900 };
 const PLAYER_BOUNDS = { minX: 40, maxX: 1880, minY: 80, maxY: 1550 };
 const PASTURE_BOUNDS = { minX: 180, maxX: 1740, minY: 910, maxY: 1450 };
@@ -1272,6 +1280,8 @@ export default class PaddockScene extends Phaser.Scene {
     this._holdTarget     = null;
     this._holdPathTarget = null;
     this._holdDownAt     = 0;
+    this._holdDownX      = 0;
+    this._holdDownY      = 0;
     this._holdMoved      = false;
     this._holdRepathAt   = 0;
 
@@ -1311,6 +1321,8 @@ export default class PaddockScene extends Phaser.Scene {
     // Track the press so hold-to-move and tap-vs-hold release can be detected.
     this._pointerDown = true;
     this._holdDownAt  = this.time.now;
+    this._holdDownX   = pointer.x;
+    this._holdDownY   = pointer.y;
     this._holdMoved   = false;
     this._holdMove    = false;
 
@@ -1451,7 +1463,12 @@ export default class PaddockScene extends Phaser.Scene {
     if (!pointer.isDown) return;
     const w = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
     this._holdTarget = { x: w.x, y: w.y };
-    this._holdMoved  = true;
+    // Only treat it as a drag once the finger has actually travelled — a couple of
+    // pixels of tap jitter shouldn't short-circuit the hold delay.
+    if (Phaser.Math.Distance.Between(pointer.x, pointer.y,
+                                     this._holdDownX, this._holdDownY) > HOLD_DRAG_PX) {
+      this._holdMoved = true;
+    }
   }
 
   handlePointerUp() {
@@ -1459,7 +1476,7 @@ export default class PaddockScene extends Phaser.Scene {
       // A real hold (long press or dragged) stops on release. A quick tap keeps
       // its route so you still walk all the way to where you tapped.
       const held = this.time.now - this._holdDownAt;
-      if (held > 200 || this._holdMoved) {
+      if (held > HOLD_MS || this._holdMoved) {
         if (this.riding) this._cancelRideNav();
         else             this._cancelTapMove();
       }
@@ -1475,6 +1492,9 @@ export default class PaddockScene extends Phaser.Scene {
   _updateHold() {
     if (!this._pointerDown || !this._holdMove || !this._holdTarget) return;
     const now = this.time.now;
+    // Don't engage live steering until the press has been held a beat (unless the
+    // finger is being dragged) — a brief press stays a plain walk-to-tap.
+    if (!this._holdMoved && now - this._holdDownAt < HOLD_MS) return;
     if (now - this._holdRepathAt < 100) return;
 
     const t = this._holdTarget;
