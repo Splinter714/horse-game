@@ -39,7 +39,7 @@ export default class PaddockScene extends Phaser.Scene {
     this.registry.set('viewingChicken', null);
 
     // World interactables
-    this.props = { trough: null, hayPiles: [], seedPiles: [], nests: [], sources: [] };
+    this.props = { trough: null, hayPiles: [], seedPiles: [], nests: [], sources: [], barn: null };
     this.inventory = {};
     this.money = 0;
     this.farmStand = null;
@@ -66,11 +66,14 @@ export default class PaddockScene extends Phaser.Scene {
     this._scheduleNextCustomer();
 
     this.isNight = false;
+    this._sleeping = false;
     this.game.events.on('horse-action',    this.doAction,        this);
     this.game.events.on('phase-change',    this.onPhaseChange,   this);
+    this.game.events.on('sleep-done',      this._onSleepDone,    this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.game.events.off('horse-action',    this.doAction,        this);
       this.game.events.off('phase-change',    this.onPhaseChange,   this);
+      this.game.events.off('sleep-done',      this._onSleepDone,    this);
       stopWind();
       stopMusic();
     });
@@ -121,8 +124,9 @@ export default class PaddockScene extends Phaser.Scene {
         .setScale(S).setDepth(y);
     });
 
-    // Barn (decorative)
+    // Barn — interactive: walk up and sleep until morning
     this.add.image(240, 280, 'barn').setScale(S).setDepth(279).setOrigin(0.5, 1);
+    this.props.barn = { x: 240, y: 250 };
 
     // Fence line near barn
     for (let i = 0; i < 6; i++) {
@@ -1029,8 +1033,11 @@ export default class PaddockScene extends Phaser.Scene {
         const d = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, pile.x, pile.y);
         if (d < closestDist) { closestDist = d; closest = pile; }
       }
-      if (closest && closestDist < 700) {
-        this.horseGoEat(h, closest);
+      // Only claim the tick if the horse actually started heading to eat.
+      // (horseGoEat bails if another horse already took this pile — in which
+      // case we must fall through so the horse still wanders, never stranding
+      // it idle with no pending move. Same idea for the trough below.)
+      if (closest && closestDist < 700 && this.horseGoEat(h, closest)) {
         return true;
       }
     }
@@ -1038,8 +1045,7 @@ export default class PaddockScene extends Phaser.Scene {
     if (horseData.stats.thirst < 95 && this.props.trough?.filled &&
         this._inPasture(this.props.trough.x, this.props.trough.y)) {
       const td = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, this.props.trough.x, this.props.trough.y);
-      if (td < 1000) {
-        this.horseGoDrink(h);
+      if (td < 1000 && this.horseGoDrink(h)) {
         return true;
       }
     }
@@ -1109,10 +1115,12 @@ export default class PaddockScene extends Phaser.Scene {
     else         this.scheduleAnimalWander(a, Phaser.Math.Between(800, 2000));
   }
 
+  // Returns true if the horse committed to eating, false if it bailed (e.g.
+  // another horse already claimed this pile) so the caller can wander instead.
   horseGoEat(h, pile) {
     // Only one horse per hay pile
     const alreadyEating = this.horses.some(o => o !== h && o.state === 'eating' && o._eatPile === pile);
-    if (alreadyEating) return;
+    if (alreadyEating) return false;
 
     h.state = 'eating';
     h._eatPile = pile;
@@ -1145,13 +1153,16 @@ export default class PaddockScene extends Phaser.Scene {
         this.scheduleWander(h, 1500);
       });
     });
+    return true;
   }
 
+  // Returns true if the horse committed to drinking, false if it bailed (e.g.
+  // the trough is already busy) so the caller can wander instead.
   horseGoDrink(h) {
     const trough = this.props.trough;
     // Limit to 2 horses at the trough at once
     const atTrough = this.horses.filter(o => o !== h && o.state === 'drinking').length;
-    if (atTrough >= 2) return;
+    if (atTrough >= 2) return false;
 
     h.state = 'drinking';
     if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
@@ -1197,6 +1208,7 @@ export default class PaddockScene extends Phaser.Scene {
           }
         });
     });
+    return true;
   }
 
   // ─── Player ──────────────────────────────────────────────────────────────
@@ -2187,7 +2199,7 @@ export default class PaddockScene extends Phaser.Scene {
 
   update(time, delta) {
     this._pollRawPad();
-    if (this._paused) return;
+    if (this._paused || this._sleeping) return;
     this._updateHold();
     this.updateRiding(delta);
     this.movePlayer(delta);
@@ -2197,6 +2209,19 @@ export default class PaddockScene extends Phaser.Scene {
     this.depthSort();
     this.tickDecay(delta);
     this.tickAutosave(delta);
+  }
+
+  // Sleep: freeze the world, hand off to DayNightScene for the fade-to-black /
+  // advance-to-morning / fade-back-in, and resume when it signals 'sleep-done'.
+  sleep() {
+    if (this._sleeping) return;
+    this._sleeping = true;
+    this.interactPrompt?.setVisible(false);
+    this.game.events.emit('sleep');
+  }
+
+  _onSleepDone() {
+    this._sleeping = false;
   }
 
   _togglePause() {
@@ -2456,6 +2481,21 @@ export default class PaddockScene extends Phaser.Scene {
       }
     }
 
+    // Barn — sleep until morning (fades to black and back)
+    const barn = this.props.barn;
+    if (barn) {
+      const bd = Phaser.Math.Distance.Between(
+        player.sprite.x, player.sprite.y, barn.x, barn.y
+      );
+      if (bd < 150) {
+        this.interactPrompt.setText(`${useKey}  Sleep`);
+        this.interactPrompt.setPosition(barn.x, barn.y - 40);
+        this.interactPrompt.setVisible(true);
+        if (useJust) this.sleep();
+        return;
+      }
+    }
+
     // Gathering source — fill the active carrier (issue #63)
     const source = this._sourceInReach(player.sprite.x, player.sprite.y, item);
     if (source) {
@@ -2639,7 +2679,13 @@ export default class PaddockScene extends Phaser.Scene {
   tickDecay(delta) {
     this.decayAccum += delta;
     if (this.decayAccum >= 1000) {
-      this.horse.applyDecay(this.decayAccum / 1000, false);
+      const secs = this.decayAccum / 1000;
+      // Decay every horse in the pasture (not just the player's) so the whole
+      // herd gets hungry/thirsty over time and the feeding loop stays live.
+      // Only the player's horse is persisted (see tickAutosave); companions
+      // decay in-memory for the session.
+      const allHorses = this.registry.get('allHorses');
+      for (const h of this.horses) allHorses[h.key]?.applyDecay(secs, false);
       this.decayAccum = 0;
       this.game.events.emit('stats-changed');
     }
