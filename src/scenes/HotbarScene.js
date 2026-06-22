@@ -3,6 +3,9 @@ import { ALL_ITEMS, ITEM_MAP } from '../data/items.js';
 import { loadGameState, saveGameState } from '../data/save.js';
 import { toggleMute, isMuted } from '../audio/sounds.js';
 
+// Gameplay scenes frozen while the pause menu is open
+const PAUSABLE_SCENES = ['PaddockScene', 'DayNightScene', 'PortraitScene', 'ChickenInfoScene'];
+
 const SLOT_SIZE = 52;
 const SLOT_GAP  = 6;
 const NUM_SLOTS = 10;
@@ -18,11 +21,14 @@ export default class HotbarScene extends Phaser.Scene {
     this.inventory   = saved.inventory;
     this.activeSlot  = 0;
     this.invOpen     = false;
+    this.pauseOpen   = false;
     this._money      = 0;
     this._basketEggs = 0;
     this._slots      = [];
     this._invNodes   = [];
-    this._muteBtn    = null;
+    this._pauseNodes = [];
+    this._pauseBtn   = null;
+    this._muteRowLbl = null;
     this._moneyLbl   = null;
     this._basketLbl  = null;
 
@@ -33,10 +39,8 @@ export default class HotbarScene extends Phaser.Scene {
       this.input.keyboard.on(`keydown-${name}`, () => this._setActive(i));
     });
     this.input.keyboard.on('keydown-I', () => this._toggleInventory());
-    this.input.keyboard.on('keydown-M', () => {
-      const nowMuted = toggleMute();
-      this._muteBtn?.setText(nowMuted ? '🔇' : '🔊');
-    });
+    this.input.keyboard.on('keydown-M', () => this._toggleMute());
+    this.input.keyboard.on('keydown-ESC', () => this._togglePause());
 
     this.input.gamepad.on('down', (_pad, button) => {
       if (button.index === 4) this._setActive((this.activeSlot - 1 + NUM_SLOTS) % NUM_SLOTS);
@@ -45,7 +49,8 @@ export default class HotbarScene extends Phaser.Scene {
 
     this._onResize = () => {
       this._buildHotbar();
-      if (this.invOpen) this._openInventory();
+      if (this.invOpen)   this._openInventory();
+      if (this.pauseOpen) this._openPause();
     };
     this.scale.on('resize', this._onResize, this);
 
@@ -76,13 +81,11 @@ export default class HotbarScene extends Phaser.Scene {
       o.zone?.destroy();
     }
     this._stripBg?.destroy();
-    this._muteBtn?.destroy();
-    this._invBtn?.destroy();
+    this._pauseBtn?.destroy();
     this._moneyLbl?.destroy();
     this._basketLbl?.destroy();
     this._slots      = [];
-    this._muteBtn    = null;
-    this._invBtn     = null;
+    this._pauseBtn   = null;
     this._moneyLbl   = null;
     this._basketLbl  = null;
     this._stripBg    = null;
@@ -106,20 +109,15 @@ export default class HotbarScene extends Phaser.Scene {
     this._stripBg.fillStyle(0x111622, 0.72);
     this._stripBg.fillRoundedRect(startX - 8, slotY - 8, totalW + 16, ss + 16, radius + 2);
 
-    this._invBtn = this.add.text(12, slotY + ss / 2, '🎒', {
+    // Pause / settings menu button — top-right corner. Mute lives inside it.
+    this._pauseBtn = this.add.text(sw - 14, 14, '⏸', {
       fontFamily: 'system-ui, sans-serif',
-      fontSize: `${Math.max(14, Math.floor(20 * fit))}px`,
-    }).setOrigin(0, 0.5).setDepth(2).setInteractive({ useHandCursor: true });
-    this._invBtn.on('pointerdown', () => this._toggleInventory());
-
-    this._muteBtn = this.add.text(sw - 12, slotY + ss / 2, isMuted() ? '🔇' : '🔊', {
-      fontFamily: 'system-ui, sans-serif',
-      fontSize: `${Math.max(14, Math.floor(20 * fit))}px`,
-    }).setOrigin(1, 0.5).setDepth(2).setInteractive({ useHandCursor: true });
-    this._muteBtn.on('pointerdown', () => {
-      const nowMuted = toggleMute();
-      this._muteBtn.setText(nowMuted ? '🔇' : '🔊');
-    });
+      fontSize: `${Math.max(16, Math.floor(22 * fit))}px`,
+      color: '#dfe4f5',
+      backgroundColor: '#111622cc',
+      padding: { x: 6, y: 3 },
+    }).setOrigin(1, 0).setDepth(2).setInteractive({ useHandCursor: true });
+    this._pauseBtn.on('pointerdown', () => this._togglePause());
 
     // Status labels (money / basket) — created empty, filled by _updateStatusLabels
     const fontSize = `${Math.max(10, Math.floor(13 * fit))}px`;
@@ -235,6 +233,9 @@ export default class HotbarScene extends Phaser.Scene {
     this._invNodes = [];
     this.invOpen   = true;
 
+    // Inventory and pause are mutually exclusive overlays
+    if (this.pauseOpen) this._closePause();
+
     const sw = this.scale.width;
     const sh = this.scale.height;
 
@@ -339,6 +340,110 @@ export default class HotbarScene extends Phaser.Scene {
     saveGameState({ hotbar: this.hotbar, inventory: this.inventory });
     this._closeInventory();
     this._buildHotbar();
+  }
+
+  // ── Pause menu ───────────────────────────────────────────────────────────────
+
+  _togglePause() {
+    if (this.pauseOpen) this._closePause();
+    else                this._openPause();
+  }
+
+  _toggleMute() {
+    const nowMuted = toggleMute();
+    this._muteRowLbl?.setText(`Sound: ${nowMuted ? 'Off 🔇' : 'On 🔊'}`);
+  }
+
+  _openPause() {
+    for (const o of this._pauseNodes) o.destroy();
+    this._pauseNodes = [];
+    this.pauseOpen   = true;
+
+    // Inventory and pause are mutually exclusive overlays
+    if (this.invOpen) this._closeInventory();
+
+    // Actually freeze the world while paused
+    for (const key of PAUSABLE_SCENES) {
+      if (this.scene.isActive(key)) this.scene.pause(key);
+    }
+
+    const sw = this.scale.width;
+    const sh = this.scale.height;
+
+    const panelW = Math.min(320, sw - 40);
+    const rowH   = 48;
+    const panelH = 56 + rowH; // title area + one row
+    const px = Math.round((sw - panelW) / 2);
+    const py = Math.round((sh - panelH) / 2);
+
+    const dim = this.add.rectangle(0, 0, sw, sh, 0x000000, 0.6)
+      .setOrigin(0, 0).setInteractive().setDepth(100);
+    dim.on('pointerdown', () => this._closePause());
+    this._pauseNodes.push(dim);
+
+    const bg = this.add.graphics().setDepth(101);
+    bg.fillStyle(0x0d1020, 0.98);
+    bg.fillRoundedRect(px, py, panelW, panelH, 12);
+    bg.lineStyle(2, 0x3a4060, 1);
+    bg.strokeRoundedRect(px, py, panelW, panelH, 12);
+    this._pauseNodes.push(bg);
+
+    // Absorb clicks inside the panel so they don't fall through to the dim
+    const absorb = this.add.zone(px, py, panelW, panelH)
+      .setOrigin(0, 0).setInteractive().setDepth(102);
+    this._pauseNodes.push(absorb);
+
+    const title = this.add.text(px + panelW / 2, py + 14, 'Paused', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '16px', color: '#c8cce0',
+    }).setOrigin(0.5, 0).setDepth(103);
+    this._pauseNodes.push(title);
+
+    const closeBtn = this.add.text(px + panelW - 12, py + 10, '✕', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '16px', color: '#8090b0',
+    }).setOrigin(1, 0).setDepth(104).setInteractive({ useHandCursor: true });
+    closeBtn.on('pointerdown', () => this._closePause());
+    this._pauseNodes.push(closeBtn);
+
+    // Mute toggle row
+    const rowY = py + 50;
+    const rowX = px + 12;
+    const rowW = panelW - 24;
+
+    const rowG = this.add.graphics().setDepth(103);
+    const drawRow = (bg2) => {
+      rowG.clear();
+      rowG.fillStyle(bg2, 0.9);
+      rowG.fillRoundedRect(rowX, rowY, rowW, rowH - 8, 8);
+      rowG.lineStyle(2, 0x2a3060, 1);
+      rowG.strokeRoundedRect(rowX, rowY, rowW, rowH - 8, 8);
+    };
+    drawRow(0x1a1e30);
+    this._pauseNodes.push(rowG);
+
+    this._muteRowLbl = this.add.text(rowX + rowW / 2, rowY + (rowH - 8) / 2,
+      `Sound: ${isMuted() ? 'Off 🔇' : 'On 🔊'}`, {
+      fontFamily: 'system-ui, sans-serif', fontSize: '15px', color: '#dfe4f5',
+    }).setOrigin(0.5, 0.5).setDepth(104);
+    this._pauseNodes.push(this._muteRowLbl);
+
+    const rowZone = this.add.zone(rowX, rowY, rowW, rowH - 8)
+      .setOrigin(0, 0).setInteractive({ useHandCursor: true }).setDepth(105);
+    rowZone.on('pointerover', () => drawRow(0x2a3050));
+    rowZone.on('pointerout',  () => drawRow(0x1a1e30));
+    rowZone.on('pointerdown', () => this._toggleMute());
+    this._pauseNodes.push(rowZone);
+  }
+
+  _closePause() {
+    this.pauseOpen   = false;
+    this._muteRowLbl = null;
+    for (const o of this._pauseNodes) o.destroy();
+    this._pauseNodes = [];
+
+    // Resume the world
+    for (const key of PAUSABLE_SCENES) {
+      if (this.scene.isPaused(key)) this.scene.resume(key);
+    }
   }
 
   // ── Public API ─────────────────────────────────────────────────────────────
