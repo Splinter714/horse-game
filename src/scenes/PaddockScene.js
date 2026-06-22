@@ -47,6 +47,8 @@ export default class PaddockScene extends Phaser.Scene {
 
     // Riding / leading state
     this.riding   = null; // { h, saddleImg }
+    this.rideNav  = null; // tap-to-move waypoints while mounted
+    this._rideStuck = 0;
     this.leadHorses = [];  // horses currently being led (in order, trailing the player)
     this.leadRope = null; // Graphics line
 
@@ -1214,7 +1216,12 @@ export default class PaddockScene extends Phaser.Scene {
       .setOrigin(0.5, 1).setScale(3).setDepth(startY);
 
     this.player    = { sprite, shadow, facing: 'down', moving: false };
-    this.moveTween = null;
+    // Tap-to-move walks the player along navPath, sliding against obstacles each
+    // frame (so the gate/fence can't be walked through). navOnArrive fires once
+    // the last waypoint is reached.
+    this.navPath     = null;
+    this.navOnArrive = null;
+    this._navStuck   = 0;
 
     this.cameras.main.setBounds(0, 0, WORLD_W, WORLD_H);
     this.cameras.main.startFollow(sprite, true, 0.12, 0.12);
@@ -1229,6 +1236,19 @@ export default class PaddockScene extends Phaser.Scene {
     this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
     this.input.on('pointerdown', this.handleTap, this);
+    this.input.on('pointermove', this.handlePointerMove, this);
+    this.input.on('pointerup', this.handlePointerUp, this);
+    this.input.on('pointerupoutside', this.handlePointerUp, this);
+
+    // Hold-to-move state: while the pointer is held, movement keeps re-targeting
+    // the live pointer position so you steer continuously instead of re-tapping.
+    this._pointerDown    = false;
+    this._holdMove       = false;
+    this._holdTarget     = null;
+    this._holdPathTarget = null;
+    this._holdDownAt     = 0;
+    this._holdMoved      = false;
+    this._holdRepathAt   = 0;
 
     this.gamePad      = null;
     this.usingPad     = false;
@@ -1257,12 +1277,30 @@ export default class PaddockScene extends Phaser.Scene {
     if (this.scene.isActive('ChickenInfoScene')) return;
     if (this.scene.get('HotbarScene')?.invOpen) return;
     if (pointer.button !== 0) return;
-    if (this.riding) return;
 
     // Ignore taps in the badge area at the bottom of the canvas
     if (pointer.y > this.scale.height - 72) return;
 
     const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+
+    // Track the press so hold-to-move and tap-vs-hold release can be detected.
+    this._pointerDown = true;
+    this._holdDownAt  = this.time.now;
+    this._holdMoved   = false;
+    this._holdMove    = false;
+
+    // While mounted: tapping on the horse dismounts; tapping elsewhere steers it
+    // there (and holding keeps it heading toward your finger).
+    if (this.riding) {
+      const hs = this.riding.h.sprite;
+      if (Phaser.Math.Distance.Between(world.x, world.y, hs.x, hs.y) < 64) {
+        this.dismount();
+        return;
+      }
+      this._startHold(world.x, world.y);
+      return;
+    }
+
     const item  = this.getActiveItem();
 
     // Horse tap
@@ -1297,13 +1335,49 @@ export default class PaddockScene extends Phaser.Scene {
       }
     }
 
+    // Gate tap — walk to the gate, then toggle it open/closed
+    const gate = this.props.gate;
+    if (gate) {
+      const gd = Phaser.Math.Distance.Between(world.x, world.y, gate.x, gate.y);
+      if (gd < 90) {
+        const side = this.player.sprite.y < gate.y ? -1 : 1;
+        this.tapMoveTo(gate.x, gate.y + side * 70, () => this.toggleGate());
+        return;
+      }
+    }
+
+    // Basket tap — walk to a nest and collect its egg, or to the farm stand to
+    // deposit. The nest is an obstacle, so aim for a reachable spot just south of
+    // it; _stepNav fires the callback once the player is wedged up against it.
+    if (item?.key === 'basket') {
+      let bestNest = null, bestNd = 100;
+      for (const nest of this.props.nests) {
+        if (!nest.hasEgg) continue;
+        const nd = Phaser.Math.Distance.Between(world.x, world.y, nest.x, nest.y);
+        if (nd < bestNd) { bestNd = nd; bestNest = nest; }
+      }
+      if (bestNest) {
+        this.tapMoveTo(bestNest.x, bestNest.y + 45, () => this.collectEgg(bestNest));
+        return;
+      }
+      const stand = this.farmStand;
+      if (stand && this.basketEggs > 0) {
+        const sd = Phaser.Math.Distance.Between(world.x, world.y, stand.x, stand.y);
+        if (sd < 160) {
+          const side = world.x < stand.x ? -1 : 1;
+          this.tapMoveTo(stand.x + side * 90, stand.y + 20, () => this.stockStand());
+          return;
+        }
+      }
+    }
+
     // Trough tap with bucket — walk to trough then fill
     const trough = this.props.trough;
     if (trough && item?.key === 'bucket' && !trough.filled) {
       const td = Phaser.Math.Distance.Between(world.x, world.y, trough.x, trough.y);
       if (td < 220) {
         const side = world.x < trough.x ? 1 : -1;
-        this.tapMoveTo(trough.x + side * 90, trough.y, () => this.fillTrough());
+        this.tapMoveTo(trough.x + side * 110, trough.y, () => this.fillTrough());
         return;
       }
     }
@@ -1314,46 +1388,285 @@ export default class PaddockScene extends Phaser.Scene {
       return;
     }
 
-    if (!this._collides(world.x, world.y)) this.tapMoveTo(world.x, world.y);
+    // Plain locomotion — start a hold-capable move toward the point.
+    this._startHold(world.x, world.y);
+  }
+
+  // Begin (or re-aim) a hold-to-move trip toward (x,y). Works mounted or on foot.
+  _startHold(x, y) {
+    this._holdMove       = true;
+    this._holdTarget     = { x, y };
+    this._holdPathTarget = { x, y };
+    this._holdRepathAt   = this.time.now;
+    this._moveToward(x, y);
+  }
+
+  _moveToward(x, y) {
+    if (this.riding) this._rideMoveTo(x, y);
+    else             this.tapMoveTo(x, y);
+  }
+
+  handlePointerMove(pointer) {
+    if (!this._pointerDown || !this._holdMove) return;
+    if (!pointer.isDown) return;
+    const w = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+    this._holdTarget = { x: w.x, y: w.y };
+    this._holdMoved  = true;
+  }
+
+  handlePointerUp() {
+    if (this._holdMove) {
+      // A real hold (long press or dragged) stops on release. A quick tap keeps
+      // its route so you still walk all the way to where you tapped.
+      const held = this.time.now - this._holdDownAt;
+      if (held > 200 || this._holdMoved) {
+        if (this.riding) this._cancelRideNav();
+        else             this._cancelTapMove();
+      }
+    }
+    this._pointerDown = false;
+    this._holdMove    = false;
+    this._holdTarget  = null;
+  }
+
+  // While the pointer is held, keep the active route pointed at the live finger
+  // position — re-pathing only when it drifts a cell or the route runs out, and
+  // throttled so the A* search doesn't run every frame.
+  _updateHold() {
+    if (!this._pointerDown || !this._holdMove || !this._holdTarget) return;
+    const now = this.time.now;
+    if (now - this._holdRepathAt < 100) return;
+
+    const t = this._holdTarget;
+    const drifted = !this._holdPathTarget ||
+      Phaser.Math.Distance.Between(t.x, t.y, this._holdPathTarget.x, this._holdPathTarget.y) > 24;
+    const routeEmpty = this.riding ? !this.rideNav : !this.navPath;
+    if (drifted || routeEmpty) {
+      this._holdRepathAt   = now;
+      this._holdPathTarget = { x: t.x, y: t.y };
+      this._moveToward(t.x, t.y);
+    }
   }
 
   tapMoveTo(tx, ty, onArrive) {
-    if (this.moveTween) { this.moveTween.stop(); this.moveTween = null; }
+    this._cancelTapMove();
 
     const { sprite } = this.player;
     tx = Phaser.Math.Clamp(tx, PLAYER_BOUNDS.minX, PLAYER_BOUNDS.maxX);
     ty = Phaser.Math.Clamp(ty, PLAYER_BOUNDS.minY, PLAYER_BOUNDS.maxY);
 
-    const dist = Phaser.Math.Distance.Between(sprite.x, sprite.y, tx, ty);
-    if (dist < 8) { onArrive?.(); return; }
+    if (Phaser.Math.Distance.Between(sprite.x, sprite.y, tx, ty) < 8) {
+      onArrive?.();
+      return;
+    }
 
-    const dx = tx - sprite.x;
-    const dy = ty - sprite.y;
-    const facing = Math.abs(dx) >= Math.abs(dy)
+    // Find a route that steers around obstacles (the trough, fences, nests…) and
+    // through the gate opening when it's open. If nothing connects (e.g. the gate
+    // is shut and the target is on the far side), head straight and let _stepNav's
+    // collision stop us where we can't proceed.
+    const path = this._findPath(sprite.x, sprite.y, tx, ty);
+    this.navPath     = (path && path.length) ? path : [{ x: tx, y: ty }];
+    this.navDest     = { x: tx, y: ty };
+    this.navOnArrive = onArrive ?? null;
+    this._navStuck = 0;
+  }
+
+  // True if a straight segment from (x0,y0) to (x1,y1) stays clear of obstacles
+  // for a body of radius R, sampled densely enough to not skip thin walls.
+  _clearLine(x0, y0, x1, y1, R) {
+    const dist = Math.hypot(x1 - x0, y1 - y0);
+    const steps = Math.max(1, Math.ceil(dist / 12));
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      if (this._collides(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, R)) return false;
+    }
+    return true;
+  }
+
+  // Grid A* across the walkable area, returning a smoothed list of world-space
+  // waypoints from just after (fromX,fromY) to (toX,toY), or null if unreachable.
+  // Used by tap-to-move so the player walks around obstacles instead of into them.
+  _findPath(fromX, fromY, toX, toY) {
+    const R = 16; // clearance — a touch more than the player's collision radius
+    // Straight shot? Skip the grid search entirely.
+    if (this._clearLine(fromX, fromY, toX, toY, R)) return [{ x: toX, y: toY }];
+
+    const CELL = 24;
+    const { minX, maxX, minY, maxY } = PLAYER_BOUNDS;
+    const cols = Math.floor((maxX - minX) / CELL) + 1;
+    const rows = Math.floor((maxY - minY) / CELL) + 1;
+    const N = cols * rows;
+    const wx = c => minX + c * CELL;
+    const wy = r => minY + r * CELL;
+    const toC = x => Phaser.Math.Clamp(Math.round((x - minX) / CELL), 0, cols - 1);
+    const toR = y => Phaser.Math.Clamp(Math.round((y - minY) / CELL), 0, rows - 1);
+
+    const blocked = new Uint8Array(N);
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++)
+        blocked[r * cols + c] = this._collides(wx(c), wy(r), R) ? 1 : 0;
+
+    const startC = toC(fromX), startR = toR(fromY);
+    let goalC = toC(toX), goalR = toR(toY);
+
+    // Snap a blocked goal (e.g. tapping the trough itself) to the nearest free cell.
+    if (blocked[goalR * cols + goalC]) {
+      let best = -1, bestD = Infinity;
+      for (let r = 0; r < rows; r++)
+        for (let c = 0; c < cols; c++) {
+          if (blocked[r * cols + c]) continue;
+          const d = (c - goalC) ** 2 + (r - goalR) ** 2;
+          if (d < bestD) { bestD = d; best = r * cols + c; }
+        }
+      if (best < 0) return null;
+      goalC = best % cols; goalR = Math.floor(best / cols);
+    }
+    const startIdx = startR * cols + startC;
+    const goalIdx  = goalR * cols + goalC;
+    blocked[startIdx] = 0; // never trap the search at the player's own cell
+
+    const g = new Float64Array(N).fill(Infinity);
+    const f = new Float64Array(N).fill(Infinity);
+    const came = new Int32Array(N).fill(-1);
+    const h = (c, r) => {
+      const dc = Math.abs(c - goalC), dr = Math.abs(r - goalR);
+      return (dc + dr) + (Math.SQRT2 - 2) * Math.min(dc, dr); // octile
+    };
+    g[startIdx] = 0;
+    f[startIdx] = h(startC, startR);
+    const open = new Set([startIdx]);
+    const DIRS = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+
+    let found = false;
+    while (open.size) {
+      let cur = -1, curF = Infinity;
+      for (const idx of open) if (f[idx] < curF) { curF = f[idx]; cur = idx; }
+      if (cur === goalIdx) { found = true; break; }
+      open.delete(cur);
+      const cc = cur % cols, cr = (cur - cc) / cols;
+      for (const [dc, dr] of DIRS) {
+        const nc = cc + dc, nr = cr + dr;
+        if (nc < 0 || nr < 0 || nc >= cols || nr >= rows) continue;
+        const nidx = nr * cols + nc;
+        if (blocked[nidx]) continue;
+        // Don't cut across an obstacle corner on diagonal moves.
+        if (dc !== 0 && dr !== 0 && (blocked[cr * cols + nc] || blocked[nr * cols + cc])) continue;
+        const ng = g[cur] + ((dc !== 0 && dr !== 0) ? Math.SQRT2 : 1);
+        if (ng < g[nidx]) {
+          g[nidx] = ng;
+          came[nidx] = cur;
+          f[nidx] = ng + h(nc, nr);
+          open.add(nidx);
+        }
+      }
+    }
+    if (!found) return null;
+
+    // Reconstruct, then string-pull: keep only waypoints we can't see past.
+    const cells = [];
+    for (let i = goalIdx; i !== -1; i = came[i]) cells.push(i);
+    cells.reverse();
+    const pts = cells.map(i => ({ x: wx(i % cols), y: wy(Math.floor(i / cols)) }));
+    pts[0] = { x: fromX, y: fromY };
+    const last = pts[pts.length - 1];
+    if (this._clearLine(last.x, last.y, toX, toY, R)) pts.push({ x: toX, y: toY });
+
+    const smooth = [pts[0]];
+    let i = 0;
+    while (i < pts.length - 1) {
+      let j = pts.length - 1;
+      const tail = smooth[smooth.length - 1];
+      while (j > i + 1 && !this._clearLine(tail.x, tail.y, pts[j].x, pts[j].y, R)) j--;
+      smooth.push(pts[j]);
+      i = j;
+    }
+    smooth.shift(); // drop the player's current position
+    return smooth.length ? smooth : [{ x: toX, y: toY }];
+  }
+
+  // Stop any in-progress tap-to-move and drop its arrival callback.
+  _cancelTapMove() {
+    this.navPath = null;
+    this.navDest = null;
+    this.navOnArrive = null;
+    this._navStuck = 0;
+  }
+
+  // Drop the player onto an idle frame matching their current facing.
+  _stopWalkAnim() {
+    const player = this.player;
+    if (!player.moving) return;
+    const idleKey = player.facing === 'up'  ? 'player_up_0' :
+                    player.facing === 'down' ? 'player_down_0' : 'player_side_0';
+    player.sprite.setFlipX(player.facing === 'left');
+    player.sprite.stop();
+    player.sprite.setTexture(idleKey);
+    player.moving = false;
+  }
+
+  // Advance the player one frame along navPath, sliding against obstacles like
+  // keyboard movement. Reaching the last waypoint fires navOnArrive; getting
+  // wedged (e.g. against a closed gate) abandons the trip.
+  _stepNav(delta) {
+    const { player } = this;
+    const sprite = player.sprite;
+
+    let wp = this.navPath[0];
+    while (wp && Phaser.Math.Distance.Between(sprite.x, sprite.y, wp.x, wp.y) < 8) {
+      this.navPath.shift();
+      wp = this.navPath[0];
+    }
+    if (!wp) { this._stopWalkAnim(); this._finishNav(); return; }
+
+    const dx = wp.x - sprite.x, dy = wp.y - sprite.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    const step = PLAYER_SPEED * (delta / 1000);
+    const nx = Phaser.Math.Clamp(sprite.x + (dx / dist) * step, PLAYER_BOUNDS.minX, PLAYER_BOUNDS.maxX);
+    const ny = Phaser.Math.Clamp(sprite.y + (dy / dist) * step, PLAYER_BOUNDS.minY, PLAYER_BOUNDS.maxY);
+
+    const beforeX = sprite.x, beforeY = sprite.y;
+    if (!this._collides(nx, sprite.y)) sprite.x = nx;
+    if (!this._collides(sprite.x, ny)) sprite.y = ny;
+
+    // If barely any progress was made, we're wedged against an obstacle — bail
+    // after a short grace period rather than scrubbing in place forever. If we
+    // wedged right next to the destination (e.g. the trough or a nest, which are
+    // themselves obstacles), treat it as an arrival so the interaction still fires.
+    if (Math.hypot(sprite.x - beforeX, sprite.y - beforeY) < step * 0.25) {
+      this._navStuck += delta;
+      if (this._navStuck > 350) {
+        this._stopWalkAnim();
+        const dest = this.navDest;
+        if (dest && Phaser.Math.Distance.Between(sprite.x, sprite.y, dest.x, dest.y) < 60) {
+          this._finishNav();
+        } else {
+          this._cancelTapMove();
+        }
+        return;
+      }
+    } else {
+      this._navStuck = 0;
+    }
+
+    const newFacing = Math.abs(dx) >= Math.abs(dy)
       ? (dx < 0 ? 'left' : 'right')
       : (dy < 0 ? 'up' : 'down');
+    if (!player.moving || newFacing !== player.facing) {
+      player.facing = newFacing;
+      const animKey = newFacing === 'up' ? 'player_walk_up' :
+                      newFacing === 'down' ? 'player_walk_down' : 'player_walk_side';
+      sprite.setFlipX(newFacing === 'left');
+      sprite.play(animKey, true);
+    }
+    player.moving = true;
+  }
 
-    this.player.facing = facing;
-    sprite.setFlipX(facing === 'left');
-    const animKey = facing === 'up' ? 'player_walk_up' :
-                    facing === 'down' ? 'player_walk_down' : 'player_walk_side';
-    sprite.play(animKey, true);
-    this.player.moving = true;
-
-    this.moveTween = this.tweens.add({
-      targets: sprite, x: tx, y: ty,
-      duration: (dist / PLAYER_SPEED) * 1000,
-      ease: 'Linear',
-      onComplete: () => {
-        this.moveTween = null;
-        this.player.moving = false;
-        const idleKey = facing === 'up'  ? 'player_up_0' :
-                        facing === 'down' ? 'player_down_0' : 'player_side_0';
-        sprite.stop();
-        sprite.setTexture(idleKey);
-        onArrive?.();
-      },
-    });
+  _finishNav() {
+    const cb = this.navOnArrive;
+    this.navPath = null;
+    this.navDest = null;
+    this.navOnArrive = null;
+    cb?.();
   }
 
   getActiveItem() {
@@ -1379,9 +1692,10 @@ export default class PaddockScene extends Phaser.Scene {
     this.player.sprite.stop();
     this.player.sprite.setTexture('player_side_0');
     this.player.shadow.setVisible(false);
-    if (this.moveTween) { this.moveTween.stop(); this.moveTween = null; }
+    this._cancelTapMove();
     this.player.moving = false;
 
+    this._cancelRideNav();
     this.riding = { h, saddleImg };
     this.cameras.main.startFollow(h.sprite, true, 0.12, 0.12);
   }
@@ -1400,6 +1714,7 @@ export default class PaddockScene extends Phaser.Scene {
 
     h.state = 'idle';
     this.riding = null;
+    this._cancelRideNav();
     this.cameras.main.startFollow(this.player.sprite, true, 0.12, 0.12);
     this.scheduleWander(h, 2000);
   }
@@ -1425,16 +1740,20 @@ export default class PaddockScene extends Phaser.Scene {
     }
     vx = Phaser.Math.Clamp(vx, -1, 1);
     vy = Phaser.Math.Clamp(vy, -1, 1);
+    const manual = vx !== 0 || vy !== 0;
+    if (manual) this._cancelRideNav();
 
-    if (vx !== 0 || vy !== 0) {
+    const step = RIDE_SPEED * (delta / 1000);
+    let moving = false;
+    if (manual) {
       if (vx !== 0 && vy !== 0) { vx *= 0.707; vy *= 0.707; }
-      h.sprite.x = Phaser.Math.Clamp(h.sprite.x + vx * RIDE_SPEED * (delta / 1000), BOUNDS.minX, BOUNDS.maxX);
-      h.sprite.y = Phaser.Math.Clamp(h.sprite.y + vy * RIDE_SPEED * (delta / 1000), BOUNDS.minY, BOUNDS.maxY);
-      h.sprite.setFlipX(vx < 0);
-      h.sprite.play(`walk_${h.key}`, true);
-    } else {
-      h.sprite.play(`idle_${h.key}`, true);
+      moving = this._moveHorseBy(h, vx * step, vy * step);
+      if (vx !== 0) h.sprite.setFlipX(vx < 0);
+    } else if (this.rideNav) {
+      moving = this._stepRideNav(delta);
     }
+
+    h.sprite.play(moving ? `walk_${h.key}` : `idle_${h.key}`, true);
 
     saddleImg.x = h.sprite.x;
     saddleImg.y = h.sprite.y;
@@ -1457,6 +1776,56 @@ export default class PaddockScene extends Phaser.Scene {
       this.padAJustDown = false;
       this.dismount();
     }
+  }
+
+  // Slide the ridden horse by (dx,dy), blocked by fences/gate and clamped to the
+  // walkable world. Axis-separated so it slides along walls. Returns true if it
+  // actually moved.
+  _moveHorseBy(h, dx, dy) {
+    const r = 16, s = h.sprite;
+    const bx = s.x, by = s.y;
+    const nx = Phaser.Math.Clamp(s.x + dx, PLAYER_BOUNDS.minX, PLAYER_BOUNDS.maxX);
+    const ny = Phaser.Math.Clamp(s.y + dy, PLAYER_BOUNDS.minY, PLAYER_BOUNDS.maxY);
+    if (!this._collides(nx, s.y, r)) s.x = nx;
+    if (!this._collides(s.x, ny, r)) s.y = ny;
+    return Math.hypot(s.x - bx, s.y - by) > 0.5;
+  }
+
+  // Tap-to-ride: route the mounted horse to (tx,ty) around obstacles.
+  _rideMoveTo(tx, ty) {
+    const s = this.riding.h.sprite;
+    tx = Phaser.Math.Clamp(tx, PLAYER_BOUNDS.minX, PLAYER_BOUNDS.maxX);
+    ty = Phaser.Math.Clamp(ty, PLAYER_BOUNDS.minY, PLAYER_BOUNDS.maxY);
+    const path = this._findPath(s.x, s.y, tx, ty);
+    this.rideNav = (path && path.length) ? path : [{ x: tx, y: ty }];
+    this._rideStuck = 0;
+  }
+
+  _cancelRideNav() { this.rideNav = null; this._rideStuck = 0; }
+
+  // Advance the ridden horse one frame along rideNav; abandons if wedged.
+  _stepRideNav(delta) {
+    const s = this.riding.h.sprite;
+    let wp = this.rideNav[0];
+    while (wp && Phaser.Math.Distance.Between(s.x, s.y, wp.x, wp.y) < 10) {
+      this.rideNav.shift();
+      wp = this.rideNav[0];
+    }
+    if (!wp) { this._cancelRideNav(); return false; }
+
+    const dx = wp.x - s.x, dy = wp.y - s.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    const step = RIDE_SPEED * (delta / 1000);
+    const moved = this._moveHorseBy(this.riding.h, (dx / dist) * step, (dy / dist) * step);
+    if (Math.abs(dx) > 1) s.setFlipX(dx < 0);
+
+    if (!moved) {
+      this._rideStuck += delta;
+      if (this._rideStuck > 350) { this._cancelRideNav(); return false; }
+    } else {
+      this._rideStuck = 0;
+    }
+    return moved;
   }
 
   // ─── Leading ─────────────────────────────────────────────────────────────
@@ -1760,6 +2129,7 @@ export default class PaddockScene extends Phaser.Scene {
   update(time, delta) {
     this._pollRawPad();
     if (this._paused) return;
+    this._updateHold();
     this.updateRiding(delta);
     this.movePlayer(delta);
     this.updateLeading(delta);
@@ -1897,14 +2267,8 @@ export default class PaddockScene extends Phaser.Scene {
 
     // Stop all movement while radial menu is open
     if (this.scene.get('HotbarScene')?.invOpen) {
-      if (this.moveTween) { this.moveTween.stop(); this.moveTween = null; }
-      if (this.player.moving) {
-        const idleKey = this.player.facing === 'up'  ? 'player_up_0' :
-                        this.player.facing === 'down' ? 'player_down_0' : 'player_side_0';
-        this.player.sprite.stop();
-        this.player.sprite.setTexture(idleKey);
-        this.player.moving = false;
-      }
+      this._cancelTapMove();
+      this._stopWalkAnim();
       return;
     }
 
@@ -1939,12 +2303,11 @@ export default class PaddockScene extends Phaser.Scene {
     if (kbActive)  this.usingPad = false;
     if (padActive) this.usingPad = true;
 
-    if ((kbActive || padActive) && this.moveTween) {
-      this.moveTween.stop();
-      this.moveTween = null;
-    }
+    // Manual input cancels any tap-to-move trip in progress.
+    if (kbActive || padActive) this._cancelTapMove();
 
-    if (this.moveTween) {
+    if (this.navPath) {
+      this._stepNav(delta);
       player.shadow.x = player.sprite.x;
       player.shadow.y = player.sprite.y;
       return;
