@@ -17,6 +17,11 @@ GitHub Pages under base `/horse-game/`.
 - `npm run smoke` — **headless-browser smoke test** (boots the real game, asserts
   runtime state). Requires the dev server running. See "Verification" below.
 - `npm run build` — production build (also the fastest check that all modules resolve)
+- `npm run sprites <key> [key…]` — **art preview**: renders a creature's runtime-generated
+  sprite frames side-by-side to a PNG (`/tmp/sprite-preview.png`) so you can eyeball the
+  art while iterating. Requires the dev server running. Works for any creature — reads the
+  live textures and auto-detects frames/sizes. E.g. `npm run sprites cat horse chicken0 foal1`.
+  Override with `SPRITE_SCALE` / `SPRITE_OUT`.
 
 **Always run `npm test` and `npm run smoke` after changes** — they're the safety
 net that lets us ship without the owner manually playing.

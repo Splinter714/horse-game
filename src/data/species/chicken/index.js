@@ -20,6 +20,14 @@ export const CHICKEN = {
   optionalAttrs: [],
   capabilities: { saddleable: false, rideable: false, leadable: false, laysEggs: true },
 
+  // Paddock "feel" knobs read by the scene movement primitives (creatures.js).
+  // ms delay range between wanders — chickens potter around their coop fairly
+  // often. (No `roll`: only horses roll in the dirt.)
+  movement: {
+    wanderMin: 4000,
+    wanderMax: 10000,
+  },
+
   // Info-panel presentation: static portrait, an italic personality line, no stat
   // bars or action buttons (chickens are identity-only for now).
   panel: { portrait: 'static', traitLine: 'personality', fixedAttrs: false },

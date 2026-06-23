@@ -1,7 +1,11 @@
 // Procedural pixel-art horse sprite. Draws the elegant side-view body from a coat's
 // 3-tone ramp into Phaser textures: 2 idle frames (breathing bob) and 4 walk frames
 // (stepping legs). These are the "placeholder" sprites from the plan — swap in
-// hand-drawn art later by replacing these texture keys.
+// hand-drawn art later by replacing these texture keys. Shares the texture-snapshot
+// helper (`gen`) and the simple two-rect leg (`makeLeg`) from _frames.js; the horse's
+// own `leg` is kept local because it adds socks and feathering.
+
+import { gen, makeLeg } from './_frames.js';
 
 export const FRAME_W = 64;
 export const FRAME_H = 54;
@@ -281,12 +285,9 @@ const FOAL_WALK_LEGS = [
   [0, 2, 2, 0],
 ];
 
-function legFoal(g, x, lift, tone, hoof) {
-  const topY = 24, fullH = 10;
-  const h = fullH - lift;
-  g.fillStyle(tone, 1); g.fillRect(x, topY, 3, h);
-  g.fillStyle(hoof, 1); g.fillRect(x, topY + h, 3, 2);
-}
+// Foal leg: same simple shin+hoof shape as the barnyard quadrupeds, but hooves take
+// the coat's own tone (passed per call), so reuse makeLeg with a hoof override.
+const legFoal = makeLeg({ topY: 24, w: 3, h: 10, hoofY: 34 });
 
 function drawFoalSleep(g, coat, bob) {
   const b = coat.body;
@@ -294,10 +295,10 @@ function drawFoalSleep(g, coat, bob) {
   const mk = coat.markings || {};
 
   // Legs tucked/bent (sleeping position)
-  legFoal(g, 7,  7, b.lo,  coat.hoof);
-  legFoal(g, 27, 7, b.lo,  coat.hoof);
-  legFoal(g, 11, 7, b.mid, coat.hoof);
-  legFoal(g, 31, 7, b.mid, coat.hoof);
+  legFoal(g, 7,  7, b.lo,  0, coat.hoof);
+  legFoal(g, 27, 7, b.lo,  0, coat.hoof);
+  legFoal(g, 11, 7, b.mid, 0, coat.hoof);
+  legFoal(g, 31, 7, b.mid, 0, coat.hoof);
 
   // Tail stub relaxed
   g.fillStyle(m.mid, 1); g.fillRect(5, 17 + bob, 2, 2);
@@ -345,10 +346,10 @@ function drawFoal(g, coat, bob, legLift) {
   const mk = coat.markings || {};
 
   // Legs — long relative to body (classic foal proportion)
-  legFoal(g, 7,  legLift[0], b.lo,  coat.hoof);
-  legFoal(g, 27, legLift[2], b.lo,  coat.hoof);
-  legFoal(g, 11, legLift[1], b.mid, coat.hoof);
-  legFoal(g, 31, legLift[3], b.mid, coat.hoof);
+  legFoal(g, 7,  legLift[0], b.lo,  0, coat.hoof);
+  legFoal(g, 27, legLift[2], b.lo,  0, coat.hoof);
+  legFoal(g, 11, legLift[1], b.mid, 0, coat.hoof);
+  legFoal(g, 31, legLift[3], b.mid, 0, coat.hoof);
 
   // Tail stub
   g.fillStyle(m.mid, 1); g.fillRect(5, 17 + bob, 2, 3);
@@ -404,11 +405,10 @@ export function buildFoalTextures(scene, baseKey, coat) {
     { name: 'sleep_1', bob: 1, sleep: true },
   ];
   for (const f of frames) {
-    const g = scene.make.graphics({ x: 0, y: 0, add: false });
-    if (f.sleep) drawFoalSleep(g, coat, f.bob);
-    else drawFoal(g, coat, f.bob, f.legs);
-    g.generateTexture(`${baseKey}_${f.name}`, FOAL_W, FOAL_H);
-    g.destroy();
+    gen(scene, `${baseKey}_${f.name}`, FOAL_W, FOAL_H, g => {
+      if (f.sleep) drawFoalSleep(g, coat, f.bob);
+      else drawFoal(g, coat, f.bob, f.legs);
+    });
   }
 }
 
@@ -431,11 +431,10 @@ export function buildHorseTextures(scene, baseKey, coat) {
   );
 
   for (const f of frames) {
-    const g = scene.make.graphics({ x: 0, y: 0, add: false });
-    if (f.eat) drawHorseEat(g, coat, f.bob);
-    else if (f.sleep) drawHorseSleep(g, coat, f.bob);
-    else drawHorse(g, coat, f.bob, f.legs);
-    g.generateTexture(`${baseKey}_${f.name}`, FRAME_W, FRAME_H);
-    g.destroy();
+    gen(scene, `${baseKey}_${f.name}`, FRAME_W, FRAME_H, g => {
+      if (f.eat) drawHorseEat(g, coat, f.bob);
+      else if (f.sleep) drawHorseSleep(g, coat, f.bob);
+      else drawHorse(g, coat, f.bob, f.legs);
+    });
   }
 }
