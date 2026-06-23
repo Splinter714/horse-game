@@ -166,6 +166,11 @@ export const WithWorld = (Base) => class extends Base {
       if (y < 40) continue;
       this.streamObstacles.push({ x: x - 42, y: y - 30, w: 84, h: 60, isStream: true });
     }
+
+    // Bucket-fill point on the stream's south bank (no sprite/obstacle of its
+    // own — the river graphics is the visual, its rects do the blocking). Sits
+    // just below the bank so both side-approaches land on open grass.
+    this.props.sources.push({ x: 1760, y: 440, content: 'water', label: 'Stream', reach: 100 });
   }
 
   // Static gathering props. Walk up + interact (or tap) with a compatible
