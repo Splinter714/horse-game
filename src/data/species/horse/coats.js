@@ -68,6 +68,49 @@ export const COATS = {
     hoof: 0x000000,
     eye: 0x000000,
     markings: { star: false, sock: false, feather: true }
+  },
+  // ── More real-world coats (#2 Phase 1) ──────────────────────────────────────
+  buckskin: {
+    label: 'Buckskin',
+    body: { hi: 0xd8b466, mid: 0xc09a48, lo: 0x9c7c34 },
+    mane: { hi: 0x241810, mid: 0x120a04, lo: 0x040200 }, // black points
+    hoof: 0x161008, eye: 0x0a0604,
+    markings: { sock: true }
+  },
+  grey: {
+    label: 'Grey',
+    body: { hi: 0xcacac6, mid: 0xb2b2ae, lo: 0x919190 },
+    mane: { hi: 0xbcbcb8, mid: 0xa2a2a0, lo: 0x868684 },
+    hoof: 0x33322f, eye: 0x1a1a18,
+    markings: {}
+  },
+  sealBrown: {
+    label: 'Seal Brown',
+    body: { hi: 0x4a3826, mid: 0x342416, lo: 0x1e140a },
+    mane: { hi: 0x1a1410, mid: 0x0c0805, lo: 0x020100 },
+    hoof: 0x0a0604, eye: 0x0a0402,
+    markings: { star: true }
+  },
+  flaxenChestnut: {
+    label: 'Flaxen Chestnut',
+    body: { hi: 0xb86838, mid: 0x9c5226, lo: 0x7c3c18 },
+    mane: { hi: 0xe8d8b0, mid: 0xd0bc90, lo: 0xb09c70 }, // pale flaxen mane
+    hoof: 0x2a1408, eye: 0x1a0804,
+    markings: { star: true, stripe: true }
+  },
+  blueRoan: {
+    label: 'Blue Roan',
+    body: { hi: 0x4a4a52, mid: 0x363640, lo: 0x24242c },
+    mane: { hi: 0x161416, mid: 0x0a080a, lo: 0x020002 },
+    hoof: 0x080608, eye: 0x080608,
+    markings: { roan: true, sock: true }
+  },
+  redRoan: {
+    label: 'Red Roan',
+    body: { hi: 0xb05838, mid: 0x984828, lo: 0x76341c },
+    mane: { hi: 0x8c4626, mid: 0x70361c, lo: 0x562810 },
+    hoof: 0x2a1408, eye: 0x1a0804,
+    markings: { roan: true, star: true }
   }
 };
 

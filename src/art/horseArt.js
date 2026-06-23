@@ -14,6 +14,34 @@ const WHITE = 0xf4efe6;
 const SOCK = 0xf0ead0;
 const EAR_PINK = 0xe0a890;
 
+// Fixed scatter of single-pixel white flecks over the body for a roan coat (#2) —
+// blue/red roan = base colour shot through with white hairs.
+const ROAN_FLECKS = [
+  [15, 23], [19, 27], [23, 22], [27, 29], [31, 24], [35, 28], [39, 23], [43, 27],
+  [17, 31], [25, 32], [33, 31], [41, 31], [13, 26], [37, 26], [21, 33], [45, 29],
+  [29, 21], [16, 29],
+];
+
+// Face markings (real-world: star / stripe / snip / blaze), white on the face of a
+// right-facing horse (#2). A blaze is the broad connected band; otherwise star,
+// stripe, and snip are drawn independently per flag.
+function faceMarkings(g, mk, bob) {
+  g.fillStyle(WHITE, 1);
+  if (mk.blaze) {
+    g.fillRect(51, 4 + bob, 2, 2);   // forehead
+    g.fillRect(52, 6 + bob, 2, 2);
+    g.fillRect(54, 8 + bob, 2, 2);
+    g.fillRect(56, 9 + bob, 3, 2);   // down onto the muzzle
+    return;
+  }
+  if (mk.star) g.fillRect(51, 4 + bob, 2, 2);            // forehead spot
+  if (mk.stripe) {                                        // thin line down the nose
+    g.fillRect(53, 6 + bob, 1, 1); g.fillRect(54, 7 + bob, 1, 1);
+    g.fillRect(55, 8 + bob, 1, 1); g.fillRect(56, 9 + bob, 1, 1);
+  }
+  if (mk.snip) g.fillRect(58, 10 + bob, 2, 1);           // muzzle spot
+}
+
 // Leg lift patterns per frame: [hindFar, hindNear, foreFar, foreNear]
 const IDLE_LEGS = [0, 0, 0, 0];
 const WALK_LEGS = [
@@ -101,6 +129,12 @@ function drawHorse(g, coat, bob, legLift) {
     g.fillCircle(44, 29 + bob, 2);
   }
 
+  // optional roan — white flecks mixed through the body (blue / red roan)
+  if (mk.roan) {
+    g.fillStyle(WHITE, 0.45);
+    for (const [sx, sy] of ROAN_FLECKS) g.fillRect(sx, sy + bob, 1, 1);
+  }
+
   // --- neck ---
   g.fillStyle(b.mid, 1); g.fillRect(42, 14 + bob, 8, 12);
   g.fillStyle(b.mid, 1); g.fillRect(45, 8 + bob, 8, 8);
@@ -115,9 +149,9 @@ function drawHorse(g, coat, bob, legLift) {
   // nostril
   g.fillStyle(coat.hoof, 0.6); g.fillRect(60, 10 + bob, 1, 1);
 
-  // markings on face (disabled until art is more refined)
-  // if (mk.blaze) { g.fillStyle(WHITE, 1); g.fillRect(52, 4 + bob, 2, 9); }
-  // else if (mk.star) { g.fillStyle(WHITE, 1); g.fillRect(53, 5 + bob, 2, 3); }
+  // face markings (star / stripe / snip / blaze), drawn before the eye so the eye
+  // stays on top
+  faceMarkings(g, mk, bob);
 
   // eye
   g.fillStyle(coat.eye, 1); g.fillRect(50, 7 + bob, 2, 2);
