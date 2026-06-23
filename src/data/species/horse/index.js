@@ -20,8 +20,10 @@ export const HORSE = {
     thirst:   { decay: 0.06, default: 75, label: 'Water', color: 0x378add },
     grooming: { decay: 0.03, default: 60, label: 'Brush', color: 0xba7517 },
   },
-  // Derived: drifts toward the average of the needs above.
-  happiness: { default: 85, driftRate: 0.02, label: 'Happy', color: 0x1d9e75 },
+  // Derived: drifts toward the average of the needs above. The drift is gentle
+  // (slow) so a pet's happiness bump lingers and feels rewarding instead of being
+  // erased within a minute (#105).
+  happiness: { default: 85, driftRate: 0.006, label: 'Happy', color: 0x1d9e75 },
 
   // Care actions: stat to bump, amount, the daily-care flag it satisfies, the UI
   // button label, and the sound/floating-icon feedback. `pet` is special-cased by

@@ -9,13 +9,22 @@ export const CAT = {
     id: () => `cat-${Math.random().toString(36).slice(2, 9)}`,
     name: 'Mittens', breed: 'Barn Cat', coat: 0, age: 2,
   },
-  // Identity-only for now (no needs/decay yet). Needs can be added here later
-  // without touching the model.
+  // No survival needs yet, but a love/happiness stat so petting the cat lands on
+  // something and completes (#104). No needs to average, so happiness eases toward
+  // `baseline` and petting tops it up; slow `driftRate` keeps a pet rewarding (#105).
   needs: {},
-  happiness: null,
-  actions: {},
-  dailyCare: { track: [], requiredForContentment: [] },
-  mood: null,
+  happiness: { default: 65, baseline: 50, driftRate: 0.004, label: 'Happy', color: 0x1d9e75 },
+  // A cat takes a bit more winning over — a slightly smaller bump per pet.
+  actions: {
+    pet: { stat: 'happiness', amount: 12, care: 'loved', label: 'Love', sound: 'chime', icon: 'iconHeart' },
+  },
+  dailyCare: { track: ['loved'], requiredForContentment: [] },
+  mood: [
+    [75, 'purring'],
+    [50, 'content'],
+    [25, 'aloof'],
+    [0,  'wants attention'],
+  ],
   traits: { personality: 'curious' },
   optionalAttrs: [],
   capabilities: { saddleable: false, rideable: false, leadable: false, laysEggs: false },

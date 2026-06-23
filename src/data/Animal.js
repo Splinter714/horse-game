@@ -74,14 +74,18 @@ export class Animal {
     this.recomputeHappiness(seconds, offline);
   }
 
-  // Happiness drifts toward how well the animal's needs are being met. No-op for
-  // species without happiness (or without any needs to average).
+  // Happiness eases toward how well the animal's needs are being met (species with
+  // needs), or toward a resting `baseline` (needs-less companions like chickens /
+  // the cat) so a pet's cheer gently fades and petting stays meaningful and
+  // renewable (#104/#105). No-op for species without happiness, or a needs-less
+  // species that sets no baseline (happiness then only moves when petted).
   recomputeHappiness(seconds, offline = false) {
     const hap = this._spec.happiness;
     if (!hap) return;
     const keys = Object.keys(this._spec.needs);
-    if (!keys.length) return;
-    const target = keys.reduce((s, k) => s + this.stats[k], 0) / keys.length;
+    const target = keys.length
+      ? keys.reduce((s, k) => s + this.stats[k], 0) / keys.length
+      : (hap.baseline ?? this.stats.happiness);
     const rate = hap.driftRate * seconds;
     let next = this.stats.happiness + (target - this.stats.happiness) * Math.min(1, rate);
     if (offline) next = Math.max(OFFLINE_FLOOR, next);

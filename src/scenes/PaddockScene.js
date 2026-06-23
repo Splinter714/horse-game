@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { saveAllHorses, loadUiSettings } from '../data/save.js';
+import { saveAllHorses, saveAllChickens, loadUiSettings } from '../data/save.js';
 import { CONTENT_DEFS } from '../data/items.js';
 import { EVENTS } from '../data/events.js';
 import {
@@ -284,27 +284,43 @@ export default class PaddockScene
   // Only once it's BOTH full and already loved is there nothing to add. Capless
   // animals (chickens/cat) have no happiness/daily-care, so a pet is always pure
   // affection and always available.
-  _canPetHorse(horse) {
-    if (!horse) return true; // capless animal — affection always lands
-    return (horse.stats?.happiness ?? 0) < 99.5 || !horse.caredToday?.loved;
+  _canPetAnimal(model) {
+    if (!model) return true; // no care model (a foal) — affection always lands
+    if (!model.actionDef?.('pet')) return true; // no love stat — pure affection
+    return (model.stats?.happiness ?? 0) < 99.5 || !model.caredToday?.loved;
+  }
+
+  // Resolve the care model for any animal key: horses live in the allHorses
+  // registry; chickens and the cat carry their model on the in-world entity.
+  _animalModel(key) {
+    return this.registry.get('allHorses')?.[key]
+        ?? this.animals?.find(a => a.key === key)?.model
+        ?? null;
   }
 
   petAnimal(key, sprite) {
-    const horse = this.registry.get('allHorses')?.[key];
-    if (!this._canPetHorse(horse)) return false; // nothing to add (#98 / loved)
+    const model = this._animalModel(key);
+    if (!this._canPetAnimal(model)) return false; // nothing to add (#98 / loved)
 
     // Every pet nudges happiness up (clamped, so it no-ops at full) and records
-    // 'loved' for today's care cycle — so petting both cheers the horse and keeps
-    // it from going grumpy. Capless animals just get the affectionate heart.
-    if (horse?.actionDef?.('pet')) {
-      horse.applyAction('pet');
-      this._saveHorses();
+    // 'loved' for today. Works for any species with a `pet` action now — horses,
+    // chickens, and the cat (#104). A model without one just gets the heart.
+    if (model?.actionDef?.('pet')) {
+      model.applyAction('pet');
+      this._saveAnimal(model);
       this.game.events.emit(EVENTS.STATS_CHANGED);
     }
 
     playChime();
     this.showHeart(sprite);
     return true;
+  }
+
+  // Persist whichever roster a freshly-changed model belongs to. The cat is
+  // in-memory only (no roster yet), so it isn't saved.
+  _saveAnimal(model) {
+    if (model.species === 'horse')        this._saveHorses();
+    else if (model.species === 'chicken') saveAllChickens(this.registry.get('allChickens'));
   }
 
   // Pet the current proximity target (foals just get a heart — they have no
@@ -348,7 +364,7 @@ export default class PaddockScene
       // group. canPet gates availability (#98 / still owed today's love).
       cands.push({
         key: h.key, sprite: h.sprite, d, name: model?.name ?? null,
-        canPet: this._canPetHorse(model),
+        canPet: this._canPetAnimal(model),
         needScore: (lovedToday ? 0 : 1000) + (100 - hap),
         open: () => this.openPortrait(h.key),
       });
@@ -357,11 +373,12 @@ export default class PaddockScene
       if (!a.sprite.visible) continue; // tucked in the coop at night
       const d = dist(a.sprite);
       if (d >= CARE_DIST) continue;
-      // Chickens/cat have no happiness/daily-care — a pet is pure affection, always
-      // available, lowest priority (no grumpiness to head off).
+      // Chickens/cat now have a love stat (#104): offer a pet until they're full
+      // and already loved, just like horses. needScore keeps them lowest priority
+      // (they never go grumpy), so the herd's daily love still comes first.
       cands.push({
         key: a.key, sprite: a.sprite, d, name: a.model?.name ?? null,
-        canPet: true, needScore: 0,
+        canPet: this._canPetAnimal(a.model), needScore: 0,
         open: () => this.openCreatureInfo(a),
       });
     }
@@ -1005,6 +1022,9 @@ export default class PaddockScene
       // decay in-memory for the session.
       const allHorses = this.registry.get('allHorses');
       for (const h of this.horses) allHorses[h.key]?.applyDecay(secs, false);
+      // Chickens/cat have no survival needs, but applyDecay eases their happiness
+      // back toward its resting baseline so a pet's cheer fades over time (#104/#105).
+      for (const a of this.animals) a.model?.applyDecay(secs, false);
       this.decayAccum = 0;
       this.game.events.emit(EVENTS.STATS_CHANGED);
     }

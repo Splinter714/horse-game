@@ -9,13 +9,24 @@ export const CHICKEN = {
     id: () => `chicken-${Math.random().toString(36).slice(2, 9)}`,
     name: 'Hen', breed: 'Chicken', coat: 0, age: 1,
   },
-  // Chickens are currently identity-only (no needs/decay yet). Needs can be added
-  // here later without touching the model.
+  // Chickens have no survival needs (no hunger/thirst decay yet), but they do have
+  // a love/happiness stat so petting lands on something and the interaction
+  // completes (#104). With no needs to average, happiness eases toward `baseline`
+  // and petting tops it up — slow `driftRate` so a pet stays rewarding (#105).
   needs: {},
-  happiness: null,
-  actions: {},
-  dailyCare: { track: [], requiredForContentment: [] },
-  mood: null,
+  happiness: { default: 70, baseline: 55, driftRate: 0.004, label: 'Happy', color: 0x1d9e75 },
+  // Petting raises happiness a good chunk (chickens have nothing else to satisfy).
+  actions: {
+    pet: { stat: 'happiness', amount: 14, care: 'loved', label: 'Love', sound: 'chime', icon: 'iconHeart' },
+  },
+  // Track 'loved' so the pet records (chickens never go grumpy — nothing required).
+  dailyCare: { track: ['loved'], requiredForContentment: [] },
+  mood: [
+    [75, 'delighted'],
+    [50, 'content'],
+    [25, 'a bit lonely'],
+    [0,  'wants attention'],
+  ],
   traits: { personality: 'friendly' },
   optionalAttrs: [],
   capabilities: { saddleable: false, rideable: false, leadable: false, laysEggs: true },
