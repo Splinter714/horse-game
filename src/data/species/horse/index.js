@@ -72,5 +72,5 @@ export const HORSE = {
   // AI priority list, highest first. The dispatcher walks these in order; the first
   // whose condition fires and successfully claims the horse wins. Wander is the
   // implicit fallback. Modules: ./behaviors.js.
-  behaviors: ['seekFood', 'seekWater', 'begPlayer', 'graze'],
+  behaviors: ['seekFood', 'seekWater', 'seekStream', 'begPlayer', 'graze'],
 };

@@ -268,6 +268,56 @@ export const WithHorseAI = (Base) => class extends Base {
     return true;
   }
 
+  // Desperately thirsty with no usable trough → drink at the nearest stream bank
+  // (#99). Walks to the water's edge, faces it, and laps a couple of times
+  // (restoring thirst), then ambles home. The edge anchor — each stream source
+  // carries a bank centreline + field-ward normal — stands the horse just
+  // field-side of the water facing it, so it doesn't read as head-down over the
+  // grassy bank (cf. #76).
+  horseGoToStream(h) {
+    const source = this._nearestReachableWater(h);
+    if (!source?.bank) return false;
+
+    h.state = 'drinking';
+    if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
+    if (h._begTimer)   { this.time.removeEvent(h._begTimer); h._begTimer = null; }
+
+    // Stand ≈48px down the field normal from the water centreline and face the
+    // water (which lies opposite the field-ward normal).
+    const [bx, by] = source.bank;
+    const [nx, ny] = source.nrm;
+    const tx = bx + nx * 48, ty = by + ny * 48;
+    const faceLeft = nx > 0;
+
+    this.moveCreatureTo(h, tx, ty, () => {
+      if (h.state !== 'drinking') return;
+      h.sprite.setFlipX(faceLeft);
+      h.sprite.play(`eat_${h.key}`, true); // head-down drinking pose
+      playDrink();
+
+      let sips = 0;
+      h.eatTimer = this.time.addEvent({
+        delay: 2500, repeat: 1, // two unhurried laps
+        callback: () => {
+          if (h.state !== 'drinking') {
+            if (h.eatTimer) { this.time.removeEvent(h.eatTimer); h.eatTimer = null; }
+            return;
+          }
+          playDrink();
+          this.registry.get('allHorses')?.[h.key]?.water();
+          this.game.events.emit(EVENTS.STATS_CHANGED);
+          if (++sips >= 2) {
+            if (h.eatTimer) { this.time.removeEvent(h.eatTimer); h.eatTimer = null; }
+            h.sprite.play(`idle_${h.key}`, true);
+            h.state = 'idle';
+            this.scheduleWander(h, 1500);
+          }
+        },
+      });
+    });
+    return true;
+  }
+
   // Ambient grazing (#86): a peckish horse lowers its head and nibbles the grass
   // right where it stands, passively restoring a little hunger over a few unhurried
   // mouthfuls. No walking and no pile needed — the world is grass. Lowest feeding

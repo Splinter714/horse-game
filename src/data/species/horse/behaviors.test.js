@@ -9,7 +9,7 @@ import { chooseBehavior } from '../index.js';
 // A content horse with everything topped up and nothing nearby — wanders.
 const BASE = {
   hunger: 100, thirst: 100, temperament: 'calm',
-  nearestHayDist: Infinity, troughDist: Infinity,
+  nearestHayDist: Infinity, troughDist: Infinity, streamDist: Infinity,
   hasPlayer: true, gateOpen: false, playerDist: 9999,
   now: 100000, lastSeek: null,
   begHunger: 50, begNoticeDist: 520, begThrottleMs: 8000,
@@ -48,6 +48,24 @@ describe('horse chooseBehavior', () => {
   it('food wins over water when both available (priority order)', () => {
     const c = { ...BASE, hunger: 60, nearestHayDist: 300, thirst: 60, troughDist: 500 };
     expect(chooseBehavior('horse', c)).toBe('seekFood');
+  });
+
+  it('desperately thirsty, no trough, stream in range → seekStream (#99)', () => {
+    expect(chooseBehavior('horse', { ...BASE, thirst: 20, streamDist: 400 })).toBe('seekStream');
+  });
+
+  it('only mildly thirsty does not trek to the stream (waits for the trough)', () => {
+    // thirst 40 is above THIRST_DESPERATE (25): no stream trip, nothing else fires.
+    expect(chooseBehavior('horse', { ...BASE, thirst: 40, streamDist: 400 })).toBe(null);
+  });
+
+  it('desperately thirsty but the stream is out of range → no seekStream', () => {
+    expect(chooseBehavior('horse', { ...BASE, thirst: 20, streamDist: 1500 })).toBe(null);
+  });
+
+  it('a filled trough is always preferred over the stream', () => {
+    const c = { ...BASE, thirst: 20, troughDist: 600, streamDist: 200 };
+    expect(chooseBehavior('horse', c)).toBe('seekWater');
   });
 
   it('very hungry, no hay, player near, non-lazy → begPlayer', () => {

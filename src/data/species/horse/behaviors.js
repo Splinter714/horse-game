@@ -17,6 +17,10 @@ const HUNGER_SEEK = 95;   // eat hay while hunger is below this
 const HAY_RANGE   = 700;  // …and the nearest reachable pile is within this many px
 const THIRST_SEEK = 95;   // drink while thirst is below this
 const TROUGH_RANGE = 1000; // …and the filled trough is within this many px
+const THIRST_DESPERATE = 25; // very thirsty → fall back to the stream (#99)
+const STREAM_RANGE = 1300;   // …if a reachable stream bank is within this (the
+                             // stream's in the far corner, so this is generous —
+                             // but still short of a whole-map trek, per the issue)
 const GRAZE_HUNGER = 70;  // peckish below this → nibble the grass (ambient, #86)
 
 // Hungry → walk to the nearest reachable hay pile and eat. ctx.nearestHayDist is
@@ -37,6 +41,20 @@ export const seekWater = {
   id: 'seekWater',
   test: (ctx) => ctx.thirst < THIRST_SEEK && ctx.troughDist < TROUGH_RANGE,
   run: (scene, h) => scene.horseGoDrink(h),
+};
+
+// Desperately thirsty with the trough unusable (empty, or none in the pasture) →
+// fall back to the nearest reachable stream bank and drink at its edge (#99).
+// ctx.streamDist is Infinity unless the stream is reachable (gate-aware) and
+// within range, so a horse never treks the whole map; the trough (seekWater,
+// higher priority) is always preferred when it's filled.
+export const seekStream = {
+  id: 'seekStream',
+  test: (ctx) =>
+    ctx.thirst < THIRST_DESPERATE &&
+    ctx.troughDist === Infinity &&
+    ctx.streamDist < STREAM_RANGE,
+  run: (scene, h) => scene.horseGoToStream(h),
 };
 
 // Hungry → go find the player and beg. Lazy horses can't be bothered. With the gate

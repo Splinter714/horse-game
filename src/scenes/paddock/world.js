@@ -182,6 +182,10 @@ export const WithWorld = (Base) => class extends Base {
       if (ny < 0) { nx = -nx; ny = -ny; } // …pointing toward the field (downward)
       this.props.sources.push({
         x: x + nx * 72, y: y + ny * 72, content: 'water', label: 'Stream', reach: 90,
+        // Drink anchor for horses (#99): the water centreline + field-ward normal,
+        // so a thirsty horse can stand at the edge and face the water rather than
+        // head-down over the grassy bank (cf. #76).
+        bank: [x, y], nrm: [nx, ny],
       });
     }
   }

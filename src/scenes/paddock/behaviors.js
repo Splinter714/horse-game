@@ -39,7 +39,7 @@ export const WithBehaviors = (Base) => class extends Base {
   _horseContext(h) {
     const horse = this.registry.get('allHorses')?.[h.key];
     if (!horse) {
-      return { hunger: 100, thirst: 100, nearestHayDist: Infinity, troughDist: Infinity, hasPlayer: false };
+      return { hunger: 100, thirst: 100, nearestHayDist: Infinity, troughDist: Infinity, streamDist: Infinity, hasPlayer: false };
     }
     const pile = this._nearestReachableHay(h);
     const nearestHayDist = pile
@@ -49,6 +49,11 @@ export const WithBehaviors = (Base) => class extends Base {
     const t = this.props.trough;
     const troughDist = (t?.filled && this._inPasture(t.x, t.y))
       ? Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, t.x, t.y)
+      : Infinity;
+
+    const water = this._nearestReachableWater(h);
+    const streamDist = water
+      ? Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, water.x, water.y)
       : Infinity;
 
     const hasPlayer = !!this.player;
@@ -62,6 +67,7 @@ export const WithBehaviors = (Base) => class extends Base {
       temperament: horse.temperament,
       nearestHayDist,
       troughDist,
+      streamDist,
       hasPlayer,
       gateOpen: this._gateOpen(),
       playerDist,
@@ -102,6 +108,24 @@ export const WithBehaviors = (Base) => class extends Base {
       if (!this._inPasture(pile.x, pile.y) && !gateOpen) continue;
       const d = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, pile.x, pile.y);
       if (d < closestDist) { closestDist = d; closest = pile; }
+    }
+    return closest;
+  }
+
+  // Nearest stream bank point this horse can actually reach — the stream is the
+  // only natural water horses drink from (the well is for buckets, not muzzles),
+  // and it's outside the fence so it needs the gate open (#99). Stream sources
+  // are the water sources that carry a `bank` drink-anchor. Mirrors
+  // _nearestReachableHay; the trough is handled separately (props.trough).
+  _nearestReachableWater(h) {
+    const srcs = this.props.sources?.filter(s => s.content === 'water' && s.bank);
+    if (!srcs?.length) return null;
+    const gateOpen = this._gateOpen();
+    let closest = null, closestDist = Infinity;
+    for (const s of srcs) {
+      if (!this._inPasture(s.x, s.y) && !gateOpen) continue;
+      const d = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, s.x, s.y);
+      if (d < closestDist) { closestDist = d; closest = s; }
     }
     return closest;
   }
