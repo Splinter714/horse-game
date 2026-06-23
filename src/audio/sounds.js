@@ -136,7 +136,9 @@ export function playEat() {
 
   for (let i = 0; i < 3; i++) {
     // Slight organic jitter in the chew spacing so it doesn't sound mechanical.
-    const t = now + i * 0.115 + (Math.random() - 0.5) * 0.02;
+    // Positive-only so `t` can never fall before `now` (a fresh/suspended audio
+    // context has currentTime ~0, and a negative absolute time throws).
+    const t = now + i * 0.115 + Math.random() * 0.02;
     const dur = 0.09;
 
     const buf = c.createBuffer(1, Math.ceil(c.sampleRate * dur), c.sampleRate);
