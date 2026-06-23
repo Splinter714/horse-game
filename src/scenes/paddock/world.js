@@ -7,9 +7,39 @@ import { WORLD_W, WORLD_H, PASTURE_BOUNDS, GATE_GAP_X0, GATE_GAP_X1, S } from '.
 export const WithWorld = (Base) => class extends Base {
   // ─── World ───────────────────────────────────────────────────────────────
 
+  // A worn dirt path linking the main spots — barn ↔ farm stand ↔ gate (#85).
+  // Purely cosmetic (no collision): a ground layer just above the grass and below
+  // props/animals, drawn by stamping circles along each route — a darker worn edge
+  // first, then a lighter trodden centre on top.
+  buildPath() {
+    const g = this.add.graphics().setDepth(-95);
+    const fromBarn = [[235, 322], [470, 500], [700, 610], [900, 700]]; // barn → junction
+    const toGate   = [[900, 700], [935, 800], [960, 895]];             // junction → pasture gate
+    const toStand  = [[900, 700], [1150, 740], [1390, 780], [1590, 802]]; // junction → farm stand
+    const routes = [fromBarn, toGate, toStand];
+    const stamp = (radius, color, alpha) => {
+      g.fillStyle(color, alpha);
+      for (const pts of routes) {
+        for (let i = 0; i < pts.length - 1; i++) {
+          const [x0, y0] = pts[i], [x1, y1] = pts[i + 1];
+          const dist = Math.hypot(x1 - x0, y1 - y0);
+          const steps = Math.max(1, Math.ceil(dist / (radius * 0.5)));
+          for (let s = 0; s <= steps; s++) {
+            const t = s / steps;
+            g.fillCircle(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, radius);
+          }
+        }
+      }
+    };
+    stamp(27, 0x977f52, 0.9);   // worn earthy edge
+    stamp(18, 0xc3a87b, 0.95);  // lighter trodden centre
+  }
+
   buildWorld() {
     this.add.tileSprite(0, 0, WORLD_W, WORLD_H, 'grass')
       .setOrigin(0, 0).setTileScale(S, S).setDepth(-100);
+
+    this.buildPath(); // worn path linking barn ↔ farm stand ↔ gate (#85)
 
     [
       [160, 300], [480, 200], [800, 450], [1100, 300], [1400, 180],
