@@ -260,11 +260,15 @@ export default class PaddockScene
 
     // How dirty the coat is *before* this brush stroke, for dust-puff intensity.
     const preDirt = (100 - (horse.stats.grooming ?? 100)) / 100;
+    // A fully-clean coat can't get cleaner, so brushing it becomes a bonding
+    // gesture instead — it raises happiness like a pet, but keeps the brush sound
+    // and shows a heart with no dust (#116). Brushing is therefore always allowed.
+    const brushClean = item.action === 'brush' && (horse.stats.grooming ?? 100) >= 99.5;
 
     switch (item.action) {
       case 'feed':  horse.feed();  break;
       case 'water': horse.water(); break;
-      case 'brush': horse.brush(); break;
+      case 'brush': if (brushClean) horse.pet(); else horse.brush(); break;
       case 'pet':   horse.pet();   break;
       case 'saddle': this.toggleSaddle(h); return;
       case 'lead':  this.toggleLead(h); return;
@@ -278,7 +282,8 @@ export default class PaddockScene
       this.showHeart(h.sprite);
     } else if (item.action === 'brush') {
       playBrush();
-      this.showDustPuff(h.sprite, preDirt); // dust off the coat, not a brush icon
+      if (brushClean) this.showHeart(h.sprite);   // clean coat → affection (#116)
+      else this.showDustPuff(h.sprite, preDirt);  // dirty coat → groom out dust
     } else {
       if (item.action === 'feed')  playEat();
       if (item.action === 'water') playDrink();
@@ -498,17 +503,20 @@ export default class PaddockScene
 
     // Dirtiness before the action is applied, for brush dust-puff intensity.
     const preDirt = (100 - (horseData.stats.grooming ?? 100)) / 100;
+    // Brushing a fully-clean coat is a bonding gesture (#116): raise happiness
+    // like a pet (apply 'pet'), but keep the brush sound and a heart, no dust.
+    const brushClean = type === 'brush' && (horseData.stats.grooming ?? 100) >= 99.5;
 
-    if (!horseData.applyAction(type)) return; // unknown action for this species
+    if (!horseData.applyAction(brushClean ? 'pet' : type)) return; // unknown action
 
     this._saveHorses();
 
     const def = horseData.actionDef(type);
-    SOUND_FNS[def.sound]?.();
+    SOUND_FNS[def.sound]?.();   // brush sound for brush (clean or dirty)
 
     const h = this.horses.find(h => h.key === horseKey);
     if (h) {
-      if (type === 'pet') {
+      if (type === 'pet' || brushClean) {
         this.showHeart(h.sprite);
       } else if (type === 'brush') {
         this.showDustPuff(h.sprite, preDirt); // dust off the coat, not a brush icon

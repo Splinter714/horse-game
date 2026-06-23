@@ -601,9 +601,14 @@ export const WithPlayer = (Base) => class extends Base {
 
     if (item.action === 'brush') {
       const grooming = (h) => allHorses[h.key]?.stats.grooming ?? 100;
-      const dirtyInReach = this.horses.filter(h => dist(h) <= USE_REACH && grooming(h) < 99.5);
-      if (!dirtyInReach.length) return null; // nothing in reach needs brushing (#98)
-      return dirtyInReach.sort((a, b) => (grooming(a) - grooming(b)) || (dist(a) - dist(b)))[0];
+      const inReach = this.horses.filter(h => dist(h) <= USE_REACH);
+      if (!inReach.length) return null; // no horse in reach to brush
+      // Prefer a horse that still needs brushing (#96); but if every in-reach
+      // horse is already clean, brush the nearest one anyway — brushing is always
+      // available as a bonding activity (#116, revises the #98 maxed-out disable).
+      const dirty = inReach.filter(h => grooming(h) < 99.5);
+      const pool = dirty.length ? dirty : inReach;
+      return pool.sort((a, b) => (grooming(a) - grooming(b)) || (dist(a) - dist(b)))[0];
     }
 
     let best = null, bestD = Infinity;
