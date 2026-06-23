@@ -27,7 +27,6 @@ const PLAYER_BOUNDS = { minX: 40, maxX: 1880, minY: 80, maxY: 1550 };
 const PASTURE_BOUNDS = { minX: 180, maxX: 1740, minY: 910, maxY: 1450 };
 
 // Gate opening in the top pasture fence (the only gap; gate sits here)
-const GATE_X = 960;
 const GATE_GAP_X0 = 900;
 const GATE_GAP_X1 = 1020;
 
@@ -291,9 +290,12 @@ export default class PaddockScene extends Phaser.Scene {
     }
 
     // Nest obstacles added after nests are built (in buildWorld nests are created before this)
-    // Each nest: origin 0.5,0.5 at (nx,ny); 18×12 at S=2 → 36×24
+    // Each nest: origin 0.5,0.5 at (nx,ny); 18×12 at S=2 → 36×24.
+    // home:'chicken' → nests are part of the chickens' home (like the coop), so
+    // they're excluded from the chickens' obstacle list and a hen can walk onto
+    // a nest to lay. Other creatures still treat nests as solid.
     for (const n of this.props.nests) {
-      this.obstacles.push({ x: n.x - 18, y: n.y - 12, w: 36, h: 24, isNest: true });
+      this.obstacles.push({ x: n.x - 18, y: n.y - 12, w: 36, h: 24, isNest: true, home: 'chicken' });
     }
 
     // Gathering source obstacles — solid base centered on x, bottom at y.
@@ -631,69 +633,74 @@ export default class PaddockScene extends Phaser.Scene {
 
     const a = { sprite, shadow, key, state: 'idle', wanderTween: null, tweenRate,
                 homeX: homeX ?? null, homeY: homeY ?? null, wanderRadius: wanderRadius ?? null,
+                homeBounds: BOUNDS, bodyR: 11, wanderMin: 4000, wanderMax: 10000, tick: null,
                 _eatPile: null, eatTimer: null, model };
     this.animals.push(a);
-    this.scheduleAnimalWander(a, Phaser.Math.Between(500, 3000));
+    this.scheduleCreatureWander(a, Phaser.Math.Between(500, 3000));
     return a;
   }
 
-  scheduleAnimalWander(a, delay) {
-    this.time.delayedCall(delay, () => {
-      if (this.isNight || a.state !== 'idle') return;
-      this.animalWander(a);
-    });
+  // ─── Shared creature movement & wandering ────────────────────────────────
+  // Every animal — horses, chickens, and anything spawned later — moves through
+  // these helpers, so they all share the same obstacle avoidance, gate handling,
+  // and pathfinding the player uses. Per-creature differences (body size, home,
+  // pace, goals) live as fields on the creature object, set at spawn.
+
+  // Walk a creature to (tx,ty), steering around obstacles via the A* pathfinder
+  // (the same one tap-to-move uses), then call onArrive. The creature's own
+  // obstacle list is used, so it ignores its own home (e.g. a chicken's coop).
+  moveCreatureTo(a, tx, ty, onArrive) {
+    const path = this._findPath(a.sprite.x, a.sprite.y, tx, ty,
+      { R: a.bodyR ?? 16, obstacles: this._obstaclesFor(a.key) });
+    this._runPath(a, (path && path.length) ? path : [{ x: tx, y: ty }], onArrive);
   }
 
-  animalWander(a) {
-    if (!a.sprite.active || a.state !== 'idle') return;
-    a.state = 'wandering';
-
+  // Pick a wander destination for a creature: a clear spot within its home
+  // radius if it has one (chickens stay near the coop), otherwise anywhere in
+  // its home bounds (horses roam the whole pasture).
+  _pickWanderTarget(a) {
     const obsList = this._obstaclesFor(a.key);
-    let tx, ty;
-    if (a.homeX !== null) {
-      // Try up to 12 angles to find a clear spot within home radius
-      let found = false;
+    const b = a.homeBounds ?? BOUNDS;
+    if (a.homeX != null && a.wanderRadius != null) {
       for (let i = 0; i < 12; i++) {
         const angle = Math.random() * Math.PI * 2;
         const r = Math.random() * a.wanderRadius;
-        const cx = Phaser.Math.Clamp(a.homeX + Math.cos(angle) * r, BOUNDS.minX, BOUNDS.maxX);
-        const cy = Phaser.Math.Clamp(a.homeY + Math.sin(angle) * r, BOUNDS.minY, BOUNDS.maxY);
-        if (!this._collides(cx, cy, 18, obsList)) { tx = cx; ty = cy; found = true; break; }
+        const cx = Phaser.Math.Clamp(a.homeX + Math.cos(angle) * r, b.minX, b.maxX);
+        const cy = Phaser.Math.Clamp(a.homeY + Math.sin(angle) * r, b.minY, b.maxY);
+        if (!this._collides(cx, cy, 18, obsList)) return { x: cx, y: cy };
       }
-      if (!found) { tx = a.homeX; ty = a.homeY; }
-    } else {
-      const r = this._safeTarget(BOUNDS.minX, BOUNDS.maxX, BOUNDS.minY, BOUNDS.maxY,
-                                  obsList, a.sprite.x, a.sprite.y);
-      tx = r.tx; ty = r.ty;
+      return { x: a.homeX, y: a.homeY };
     }
-    const onArrive = () => {
-      if (!a.sprite.active) return;
-      a.wanderTween = null;
-      a.sprite.play(`idle_${a.key}`, true);
-      a.state = 'idle';
-      this.scheduleAnimalWander(a, Phaser.Math.Between(4000, 10000));
-    };
+    const { tx, ty } = this._safeTarget(b.minX, b.maxX, b.minY, b.maxY,
+                                        obsList, a.sprite.x, a.sprite.y);
+    return { x: tx, y: ty };
+  }
 
-    // Wander targets are always in the farm area, so if this animal is currently
-    // on the pasture side of the fence (e.g. a chicken that walked through the
-    // open gate to peck at seed), route it back out through the gate opening.
-    if (this._inPasture(a.sprite.x, a.sprite.y) !== this._inPasture(tx, ty)) {
-      this._runPath(a, this._gatePath(a.sprite.x, a.sprite.y, tx, ty), onArrive);
-      return;
-    }
-
-    const dist = Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, tx, ty);
-
-    a.sprite.setFlipX(tx < a.sprite.x);
-    a.sprite.play(`walk_${a.key}`, true);
-
-    a.wanderTween = this.tweens.add({
-      targets: a.sprite, x: tx, y: ty,
-      duration: Math.max(800, dist * a.tweenRate),
-      ease: 'Sine.easeInOut',
-      onComplete: onArrive,
+  // Queue a creature's next wander. On firing, give its optional goal-tick a
+  // chance to redirect it (horses head for hay/water); otherwise it wanders.
+  scheduleCreatureWander(a, delay) {
+    this.time.delayedCall(delay, () => {
+      if (this.isNight || a.state !== 'idle') return;
+      if (a.tick && a.tick(a)) return;
+      this.creatureWander(a);
     });
   }
+
+  creatureWander(a) {
+    if (!a.sprite.active || a.state !== 'idle') return;
+    a.state = 'wandering';
+    const { x: tx, y: ty } = this._pickWanderTarget(a);
+    this.moveCreatureTo(a, tx, ty, () => {
+      if (!a.sprite.active) return;
+      a.sprite.play(`idle_${a.key}`, true);
+      a.state = 'idle';
+      this.scheduleCreatureWander(a, Phaser.Math.Between(a.wanderMin ?? 4000, a.wanderMax ?? 10000));
+    });
+  }
+
+  // Back-compat aliases — older call sites still say schedule(Animal)Wander.
+  scheduleAnimalWander(a, delay) { this.scheduleCreatureWander(a, delay); }
+  scheduleWander(h, delay)       { this.scheduleCreatureWander(h, delay); }
 
   chickenTick() {
     if (this.isNight) return;
@@ -741,8 +748,8 @@ export default class PaddockScene extends Phaser.Scene {
       });
     };
 
-    // Route through the gate if the seed is on the far side of the pasture fence.
-    this._runPath(a, this._gatePath(a.sprite.x, a.sprite.y, tx, ty), startPecking);
+    // Pathfind to the seed, steering around obstacles and through the gate.
+    this.moveCreatureTo(a, tx, ty, startPecking);
   }
 
   eggLayTick() {
@@ -764,29 +771,21 @@ export default class PaddockScene extends Phaser.Scene {
     nest.occupant = a;
     if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
 
-    a.sprite.setFlipX(nest.x < a.sprite.x);
-    a.sprite.play(`walk_${a.key}`, true);
+    // Pathfind to the nest. Nests are tagged home:'chicken', so they're absent
+    // from the chicken's obstacle list — it can settle right onto the nest.
+    this.moveCreatureTo(a, nest.x, nest.y, () => {
+      if (a.state !== 'laying') { nest.occupant = null; return; }
+      a.sprite.play(`idle_${a.key}`, true);
 
-    const dist = Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, nest.x, nest.y);
-    a.wanderTween = this.tweens.add({
-      targets: a.sprite, x: nest.x, y: nest.y,
-      duration: Math.max(400, dist * a.tweenRate),
-      ease: 'Sine.easeInOut',
-      onComplete: () => {
+      // After a pause, lay the egg
+      this.time.delayedCall(2800, () => {
         if (a.state !== 'laying') { nest.occupant = null; return; }
-        a.wanderTween = null;
-        a.sprite.play(`idle_${a.key}`, true);
-
-        // After a pause, lay the egg
-        this.time.delayedCall(2800, () => {
-          if (a.state !== 'laying') { nest.occupant = null; return; }
-          nest.hasEgg = true;
-          nest.occupant = null;
-          nest.sprite.setTexture('nestEgg');
-          a.state = 'idle';
-          this.scheduleAnimalWander(a, Phaser.Math.Between(2000, 5000));
-        });
-      },
+        nest.hasEgg = true;
+        nest.occupant = null;
+        nest.sprite.setTexture('nestEgg');
+        a.state = 'idle';
+        this.scheduleCreatureWander(a, Phaser.Math.Between(2000, 5000));
+      });
     });
   }
 
@@ -878,54 +877,17 @@ export default class PaddockScene extends Phaser.Scene {
       .play(`idle_${key}`);
 
     const model = this.registry.get('allHorses')[key];
+    // Horses share the same movement/wander helpers as every other animal; their
+    // "home" is the whole pasture (no fixed point), and they get a goal-tick that
+    // sends them to hay/water before falling back to a plain wander.
     const h = { sprite, shadow, key, state: 'idle', wanderTween: null, eatTimer: null,
-                saddled: model?.saddled ?? false, saddleImg: null };
+                saddled: model?.saddled ?? false, saddleImg: null,
+                homeX: null, homeY: null, wanderRadius: null, homeBounds: PASTURE_BOUNDS,
+                bodyR: 16, tweenRate: 11, wanderMin: 2000, wanderMax: 5000,
+                tick: (c) => this.horseTickForHorse(c) };
     this.horses.push(h);
-    this.scheduleWander(h, wanderDelay);
+    this.scheduleCreatureWander(h, wanderDelay);
     return h;
-  }
-
-  scheduleWander(h, delay) {
-    this.time.delayedCall(delay, () => {
-      if (this.isNight || h.state !== 'idle') return;
-      if (!this.horseTickForHorse(h)) this.wander(h);
-    });
-  }
-
-  wander(h) {
-    if (!h.sprite.active || h.state !== 'idle') return;
-    h.state = 'wandering';
-    // Horses wander in the pasture, other animals in the farm area
-    const isHorse = this.horses.includes(h);
-    const bounds = isHorse ? PASTURE_BOUNDS : BOUNDS;
-    const { tx, ty } = this._safeTarget(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY,
-                                         this._obstaclesFor(h.key), h.sprite.x, h.sprite.y);
-
-    const onArrive = () => {
-      if (!h.sprite.active) return;
-      h.wanderTween = null;
-      h.sprite.play(`idle_${h.key}`, true);
-      h.state = 'idle';
-      this.scheduleWander(h, Phaser.Math.Between(2000, 5000));
-    };
-
-    // Route through the gate if the horse is wandering back across the fence
-    // (e.g. it walked out to eat hay and now heads back into the pasture).
-    if (isHorse) {
-      this._runPath(h, this._gatePath(h.sprite.x, h.sprite.y, tx, ty), onArrive);
-      return;
-    }
-
-    const dist = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, tx, ty);
-    h.sprite.setFlipX(tx < h.sprite.x);
-    h.sprite.play(`walk_${h.key}`, true);
-    h.wanderTween = this.tweens.add({
-      targets: h.sprite,
-      x: tx, y: ty,
-      duration: Math.max(600, dist * 11),
-      ease: 'Sine.easeInOut',
-      onComplete: onArrive,
-    });
   }
 
   // ─── Day / Night ─────────────────────────────────────────────────────────
@@ -1118,21 +1080,6 @@ export default class PaddockScene extends Phaser.Scene {
     return false;
   }
 
-  // Waypoints from (fromX,fromY) to (tx,ty). If the path crosses the pasture
-  // fence, it's routed through the gate opening so movers never clip the fence.
-  _gatePath(fromX, fromY, tx, ty) {
-    const insideFrom = this._inPasture(fromX, fromY);
-    const insideTo   = this._inPasture(tx, ty);
-    if (insideFrom === insideTo) return [{ x: tx, y: ty }];
-
-    const gateLine = PASTURE_BOUNDS.minY;        // top fence line
-    const inPoint  = { x: GATE_X, y: gateLine + 24 };  // just inside the gate
-    const outPoint = { x: GATE_X, y: gateLine - 24 };  // just outside the gate
-    return insideFrom
-      ? [inPoint, outPoint, { x: tx, y: ty }]    // leaving the pasture
-      : [outPoint, inPoint, { x: tx, y: ty }];   // entering the pasture
-  }
-
   // Move any creature (horse or animal) along a list of waypoints with walk
   // tweens, then call onArrive. tweenRate defaults to the horse pace (10).
   // If a leg would carry the creature across the fence line while the gate is
@@ -1195,10 +1142,8 @@ export default class PaddockScene extends Phaser.Scene {
     const tx = pile.x + (facingRight ? -50 : 50);
     const ty = pile.y;
 
-    // Route through the gate if the hay is on the far side of the fence
-    const path = this._gatePath(h.sprite.x, h.sprite.y, tx, ty);
-
-    this._runPath(h, path, () => {
+    // Pathfind to the hay, around obstacles and through the gate if it's outside.
+    this.moveCreatureTo(h, tx, ty, () => {
       if (h.state !== 'eating') return;
       h.sprite.setFlipX(!facingRight);
       h.sprite.play(`eat_${h.key}`, true);
@@ -1239,10 +1184,8 @@ export default class PaddockScene extends Phaser.Scene {
     const tx = trough.x + spread + (facingRight ? -70 : 70);
     const ty = trough.y;
 
-    // Route through the gate if the horse is currently outside the pasture
-    const path = this._gatePath(h.sprite.x, h.sprite.y, tx, ty);
-
-    this._runPath(h, path, () => {
+    // Pathfind to the trough, around obstacles and through the gate if outside.
+    this.moveCreatureTo(h, tx, ty, () => {
         if (h.state !== 'drinking') return;
         if (!trough.filled) { h.state = 'idle'; this.scheduleWander(h, 500); return; }
         h.sprite.setFlipX(!facingRight);
@@ -1673,23 +1616,28 @@ export default class PaddockScene extends Phaser.Scene {
 
   // True if a straight segment from (x0,y0) to (x1,y1) stays clear of obstacles
   // for a body of radius R, sampled densely enough to not skip thin walls.
-  _clearLine(x0, y0, x1, y1, R) {
+  // `obs` is the obstacle list to test against (defaults to all obstacles).
+  _clearLine(x0, y0, x1, y1, R, obs = this.obstacles) {
     const dist = Math.hypot(x1 - x0, y1 - y0);
     const steps = Math.max(1, Math.ceil(dist / 12));
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
-      if (this._collides(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, R)) return false;
+      if (this._collides(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, R, obs)) return false;
     }
     return true;
   }
 
   // Grid A* across the walkable area, returning a smoothed list of world-space
   // waypoints from just after (fromX,fromY) to (toX,toY), or null if unreachable.
-  // Used by tap-to-move so the player walks around obstacles instead of into them.
-  _findPath(fromX, fromY, toX, toY) {
-    const R = 16; // clearance — a touch more than the player's collision radius
+  // Used by every mover (player, ridden horse, and wandering animals) so they
+  // walk around obstacles instead of into them. `opts.R` is the body clearance
+  // and `opts.obstacles` is the obstacle list to avoid (e.g. a chicken's list
+  // omits its own coop/nests — its "home"). See _obstaclesFor.
+  _findPath(fromX, fromY, toX, toY, opts = {}) {
+    const R = opts.R ?? 16; // clearance — a touch more than the body's collision radius
+    const obs = opts.obstacles ?? this.obstacles;
     // Straight shot? Skip the grid search entirely.
-    if (this._clearLine(fromX, fromY, toX, toY, R)) return [{ x: toX, y: toY }];
+    if (this._clearLine(fromX, fromY, toX, toY, R, obs)) return [{ x: toX, y: toY }];
 
     const CELL = 24;
     const { minX, maxX, minY, maxY } = PLAYER_BOUNDS;
@@ -1704,7 +1652,7 @@ export default class PaddockScene extends Phaser.Scene {
     const blocked = new Uint8Array(N);
     for (let r = 0; r < rows; r++)
       for (let c = 0; c < cols; c++)
-        blocked[r * cols + c] = this._collides(wx(c), wy(r), R) ? 1 : 0;
+        blocked[r * cols + c] = this._collides(wx(c), wy(r), R, obs) ? 1 : 0;
 
     const startC = toC(fromX), startR = toR(fromY);
     let goalC = toC(toX), goalR = toR(toY);
@@ -1769,14 +1717,14 @@ export default class PaddockScene extends Phaser.Scene {
     const pts = cells.map(i => ({ x: wx(i % cols), y: wy(Math.floor(i / cols)) }));
     pts[0] = { x: fromX, y: fromY };
     const last = pts[pts.length - 1];
-    if (this._clearLine(last.x, last.y, toX, toY, R)) pts.push({ x: toX, y: toY });
+    if (this._clearLine(last.x, last.y, toX, toY, R, obs)) pts.push({ x: toX, y: toY });
 
     const smooth = [pts[0]];
     let i = 0;
     while (i < pts.length - 1) {
       let j = pts.length - 1;
       const tail = smooth[smooth.length - 1];
-      while (j > i + 1 && !this._clearLine(tail.x, tail.y, pts[j].x, pts[j].y, R)) j--;
+      while (j > i + 1 && !this._clearLine(tail.x, tail.y, pts[j].x, pts[j].y, R, obs)) j--;
       smooth.push(pts[j]);
       i = j;
     }
@@ -2166,14 +2114,34 @@ export default class PaddockScene extends Phaser.Scene {
 
   // ─── Food placement ──────────────────────────────────────────────────────
 
+  // A clear spot to drop food near (x,y) — never on an obstacle (trough, coop,
+  // nests, fences, farm stand…) where animals couldn't reach it. Tries the point
+  // itself, then widening rings around it; returns null if nothing nearby is free.
+  _freeFoodSpot(x, y, R = 16) {
+    const clamp = (px, py) => ({
+      x: Phaser.Math.Clamp(px, PLAYER_BOUNDS.minX, PLAYER_BOUNDS.maxX),
+      y: Phaser.Math.Clamp(py, PLAYER_BOUNDS.minY, PLAYER_BOUNDS.maxY),
+    });
+    let c = clamp(x, y);
+    if (!this._collides(c.x, c.y, R)) return c;
+    for (let r = 24; r <= 72; r += 24) {
+      for (let a = 0; a < 8; a++) {
+        const ang = (a / 8) * Math.PI * 2;
+        c = clamp(x + Math.cos(ang) * r, y + Math.sin(ang) * r);
+        if (!this._collides(c.x, c.y, R)) return c;
+      }
+    }
+    return null;
+  }
+
   // Drop one unit of food from the active basket onto the ground for horses to
-  // eat. Consumes a unit from the carrier; does nothing if it's empty.
+  // eat. Consumes a unit from the carrier; does nothing if it's empty or if
+  // there's no clear ground in front of the player to drop it on.
   placeFood(item) {
     if (!item || item.type !== 'carrier' || item.count <= 0) return;
     const content = item.content;
     const groundTex = CONTENT_DEFS[content]?.ground;
     if (!groundTex) return; // only feed-type contents drop as food
-    if ((this.scene.get('HotbarScene')?.useActiveCarrier(1) ?? 0) <= 0) return;
 
     const { sprite, facing } = this.player;
     let px = sprite.x, py = sprite.y;
@@ -2181,11 +2149,17 @@ export default class PaddockScene extends Phaser.Scene {
     else if (facing === 'left')  px -= 70;
     else if (facing === 'down')  py += 50;
     else                         py -= 50;
-    px = Phaser.Math.Clamp(px + Phaser.Math.Between(-15, 15), PLAYER_BOUNDS.minX, PLAYER_BOUNDS.maxX);
-    py = Phaser.Math.Clamp(py + Phaser.Math.Between(-10, 10), PLAYER_BOUNDS.minY, PLAYER_BOUNDS.maxY);
+    px += Phaser.Math.Between(-15, 15);
+    py += Phaser.Math.Between(-10, 10);
 
-    const pileSprite = this.add.image(px, py, groundTex).setScale(S).setDepth(py);
-    const pile = { x: px, y: py, sprite: pileSprite, feedsLeft: 3 };
+    // Refuse to drop onto an obstacle — find clear ground first, and only spend
+    // the unit once we know we have somewhere valid to put it.
+    const spot = this._freeFoodSpot(px, py);
+    if (!spot) return;
+    if ((this.scene.get('HotbarScene')?.useActiveCarrier(1) ?? 0) <= 0) return;
+
+    const pileSprite = this.add.image(spot.x, spot.y, groundTex).setScale(S).setDepth(spot.y);
+    const pile = { x: spot.x, y: spot.y, sprite: pileSprite, feedsLeft: 3 };
     // Seed feeds chickens (seedPiles); everything else feeds horses (hayPiles).
     if (CONTENT_DEFS[content]?.feeds === 'chicken') this.props.seedPiles.push(pile);
     else                                            this.props.hayPiles.push(pile);
