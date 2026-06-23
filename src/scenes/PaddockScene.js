@@ -375,7 +375,12 @@ export default class PaddockScene
       ? needy.sort((a, b) => (b.deficit - a.deficit) || (a.d - b.d))
       : cands.sort((a, b) => a.d - b.d);
     const t = pool[0];
-    this._proxAnimal = t; // remembered for the separate Info input (C / Y / double-tap)
+
+    // The Info input (C / gamepad Y) targets the *nearest* animal by plain
+    // proximity — viewing info has nothing to do with stats, so it deliberately
+    // does NOT use the need-based pet target above (#97). Foals have no panel, so
+    // pick the nearest animal that actually has one.
+    this._proxAnimal = cands.filter(c => c.open).sort((a, b) => a.d - b.d)[0] ?? null;
 
     // Interact always pets now; Info is its own input. Show both (foals have no
     // panel, so no Info hint for them).
