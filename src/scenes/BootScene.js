@@ -21,16 +21,22 @@ export default class BootScene extends Phaser.Scene {
     // Companion horses — fixed, always content, not saved.
     const companions = [
       new Horse({ id: 'horse-2', name: 'Clover', breed: 'Bay', coat: 'bay', age: 5,
+        temperament: 'needy',
         stats: { hunger: 90, thirst: 85, grooming: 80, happiness: 92 } }),
       new Horse({ id: 'horse-3', name: 'Ash', breed: 'Dapple Grey', coat: 'dappleGrey', age: 7,
+        temperament: 'lazy',
         stats: { hunger: 78, thirst: 82, grooming: 95, happiness: 88 } }),
       new Horse({ id: 'horse-4', name: 'Splash', breed: 'Paint', coat: 'paint', age: 4,
+        temperament: 'spirited',
         stats: { hunger: 85, thirst: 80, grooming: 70, happiness: 90 } }),
       new Horse({ id: 'horse-5', name: 'Ember', breed: 'Chestnut', coat: 'chestnut', age: 6,
+        temperament: 'spirited',
         stats: { hunger: 82, thirst: 88, grooming: 75, happiness: 86 } }),
       new Horse({ id: 'horse-6', name: 'Pearl', breed: 'Cremello', coat: 'cremello', age: 2,
+        temperament: 'shy',
         stats: { hunger: 88, thirst: 76, grooming: 90, happiness: 94 } }),
       new Horse({ id: 'horse-friesian-ebony', name: 'Ebony', breed: 'Friesian', coat: 'friesian', age: 5,
+        temperament: 'calm',
         stats: { hunger: 86, thirst: 82, grooming: 88, happiness: 91 },
         health: EBONY_BASE_STATS.health, speed: EBONY_BASE_STATS.speed, stamina: EBONY_BASE_STATS.stamina }),
     ];

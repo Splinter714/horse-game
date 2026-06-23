@@ -34,6 +34,10 @@ export class Horse {
     this.breed = data.breed ?? 'Palomino';
     this.coat = data.coat ?? 'palomino';
     this.age = data.age ?? 3;
+    // Temperament shapes how the horse behaves in the paddock (how eagerly it
+    // greets you, how often it rolls, etc.). Groundwork for herd personalities
+    // (#31). 'calm' | 'spirited' | 'lazy' | 'shy' | 'needy'.
+    this.temperament = data.temperament ?? 'calm';
     this.stats = {
       hunger: data.stats?.hunger ?? 80,
       thirst: data.stats?.thirst ?? 75,
@@ -45,6 +49,13 @@ export class Horse {
     if (data.speed   !== undefined) this.speed   = data.speed;
     if (data.stamina !== undefined) this.stamina = data.stamina;
     this.lastSeen = data.lastSeen ?? Date.now();
+
+    // ── Daily care cycle (runtime only — not serialized) ───────────────────
+    // What the horse received today; reset each morning by rollNewDay(). If it
+    // didn't get fed AND watered yesterday it starts the new day `neglected`
+    // and greets you grumpily until you tend it (recovers fast — see _tended).
+    this.caredToday = { fed: false, watered: false, brushed: false };
+    this.neglected  = false;
   }
 
   // Apply time-based decay for `seconds` of elapsed time. `offline` caps how far
@@ -67,10 +78,25 @@ export class Horse {
     this.stats.happiness = clamp(next);
   }
 
-  feed() { this.stats.hunger = clamp(this.stats.hunger + 35); }
-  water() { this.stats.thirst = clamp(this.stats.thirst + 40); }
-  brush() { this.stats.grooming = clamp(this.stats.grooming + 30); }
-  pet() { this.stats.happiness = clamp(this.stats.happiness + 8); }
+  feed() { this.stats.hunger = clamp(this.stats.hunger + 35); this._tended('fed'); }
+  water() { this.stats.thirst = clamp(this.stats.thirst + 40); this._tended('watered'); }
+  brush() { this.stats.grooming = clamp(this.stats.grooming + 30); this._tended('brushed'); }
+  pet() { this.stats.happiness = clamp(this.stats.happiness + 8); this._tended('pet'); }
+
+  // Record care for today's cycle. Any attention soothes a grumpy horse
+  // immediately ("recovers fast"); whether it's neglected *tomorrow* still
+  // depends on getting both fed and watered today (see rollNewDay).
+  _tended(kind) {
+    if (kind in this.caredToday) this.caredToday[kind] = true;
+    this.neglected = false;
+  }
+
+  // Advance to a new day: a horse that missed food or water yesterday wakes up
+  // neglected (grumpy on interaction). Then clear the day's care record.
+  rollNewDay() {
+    this.neglected = !(this.caredToday.fed && this.caredToday.watered);
+    this.caredToday = { fed: false, watered: false, brushed: false };
+  }
 
   // Overall mood label for friendly feedback.
   mood() {

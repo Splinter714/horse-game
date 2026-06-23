@@ -258,6 +258,77 @@ export function playBirdChirp() {
   }
 }
 
+// ─── Horse nicker (friendly greeting) ────────────────────────────────────────
+
+// A soft, low, pulsing whinny — the "hello / I'm pleased to see you" sound a
+// content or well-tended horse makes when you come over.
+export function playNicker() {
+  const c = getCtx();
+  const now = c.currentTime;
+  // A short voiced tone that flutters (the rhythmic "rrr" of a nicker) and
+  // settles lower, run through a formant-ish bandpass so it reads as a voice.
+  const osc = c.createOscillator();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(240, now);
+  osc.frequency.linearRampToValueAtTime(300, now + 0.06);
+  osc.frequency.exponentialRampToValueAtTime(150, now + 0.55);
+
+  // Amplitude flutter ~22 Hz gives the pulsing nicker texture.
+  const flutter = c.createOscillator();
+  flutter.type = 'sine';
+  flutter.frequency.value = 22;
+  const flutterGain = c.createGain();
+  flutterGain.gain.value = 0.10;
+  flutter.connect(flutterGain);
+
+  const band = c.createBiquadFilter();
+  band.type = 'bandpass';
+  band.frequency.value = 700;
+  band.Q.value = 1.2;
+
+  const env = c.createGain();
+  env.gain.setValueAtTime(0.001, now);
+  env.gain.linearRampToValueAtTime(0.22, now + 0.05);
+  env.gain.setValueAtTime(0.22, now + 0.4);
+  env.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+  flutterGain.connect(env.gain); // pulse the amplitude
+
+  osc.connect(band);
+  band.connect(env);
+  env.connect(master(1));
+  osc.start(now);   osc.stop(now + 0.6);
+  flutter.start(now); flutter.stop(now + 0.6);
+}
+
+// ─── Horse squeal (grumpy / neglected reaction) ──────────────────────────────
+
+// A short, sharp, higher squeal — the irritated sound a horse that wasn't
+// cared for makes when you interact with it.
+export function playSqueal() {
+  const c = getCtx();
+  const now = c.currentTime;
+  const osc = c.createOscillator();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(520, now);
+  osc.frequency.exponentialRampToValueAtTime(360, now + 0.22);
+
+  const band = c.createBiquadFilter();
+  band.type = 'bandpass';
+  band.frequency.value = 1100;
+  band.Q.value = 2.0;
+
+  const env = c.createGain();
+  env.gain.setValueAtTime(0.001, now);
+  env.gain.linearRampToValueAtTime(0.22, now + 0.02);
+  env.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+
+  osc.connect(band);
+  band.connect(env);
+  env.connect(master(1));
+  osc.start(now);
+  osc.stop(now + 0.3);
+}
+
 // ─── Wind (ambient, looping via scheduled chunks) ────────────────────────────
 
 let windNode = null;
