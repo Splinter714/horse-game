@@ -25,17 +25,19 @@ export const CONTENT_DEFS = {
   water:  { label: 'Water',   icon: 'iconBucketWater',  action: 'water' },
 };
 
-// Hotbar items: 3 baskets + 2 buckets, plus the existing tools.
+// Hotbar items: 3 baskets + 3 buckets, plus the tools. (There's no "hand" tool —
+// interacting/petting is the universal default on tap/click/E/controller; tools
+// are applied via the Use button / F / controller-X.)
 export const ALL_ITEMS = [
   { key: 'basket1', label: 'Basket', type: 'carrier', carrier: 'basket' },
   { key: 'basket2', label: 'Basket', type: 'carrier', carrier: 'basket' },
   { key: 'basket3', label: 'Basket', type: 'carrier', carrier: 'basket' },
   { key: 'bucket1', label: 'Bucket', type: 'carrier', carrier: 'bucket' },
   { key: 'bucket2', label: 'Bucket', type: 'carrier', carrier: 'bucket' },
+  { key: 'bucket3', label: 'Bucket', type: 'carrier', carrier: 'bucket' },
   { key: 'brush',  label: 'Brush',  icon: 'iconBrush',  action: 'brush',    type: 'tool' },
   { key: 'saddle', label: 'Saddle', icon: 'iconSaddle', action: 'saddle',   type: 'tool' },
   { key: 'lead',   label: 'Lead',   icon: 'iconLead',   action: 'lead',     type: 'tool' },
-  { key: 'hand',   label: 'Hand',   icon: 'iconHand',   action: 'interact', type: 'tool' },
 ];
 
 export const ITEM_MAP = Object.fromEntries(ALL_ITEMS.map(i => [i.key, i]));

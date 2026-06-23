@@ -79,8 +79,9 @@ export function saveAllChickens(allChickens) {
 
 const GAME_STATE_KEY = 'horse-game-state-v1';
 
-// Carrier-based hotbar (issue #62): 3 baskets + 2 buckets alongside the tools.
-const DEFAULT_HOTBAR = ['hand', 'basket1', 'basket2', 'basket3', 'bucket1', 'bucket2', 'brush', 'saddle', 'lead', ''];
+// Carrier-based hotbar (issue #62): 3 baskets + 3 buckets alongside the tools.
+// No "hand" slot — interacting is the universal default (tap/click/E).
+const DEFAULT_HOTBAR = ['basket1', 'basket2', 'basket3', 'bucket1', 'bucket2', 'bucket3', 'brush', 'saddle', 'lead', ''];
 
 function defaultInventory() {
   // Tools are infinite; carriers track their own contents. Nothing to stock.
@@ -96,6 +97,7 @@ function defaultCarriers() {
     basket3: { content: null, count: 0 },
     bucket1: { content: null, count: 0 },
     bucket2: { content: null, count: 0 },
+    bucket3: { content: null, count: 0 },
   };
 }
 
@@ -105,9 +107,12 @@ export function loadGameState() {
     const raw = localStorage.getItem(GAME_STATE_KEY);
     if (!raw) return fresh();
     const data = JSON.parse(raw);
-    // Old saves used the discrete-item hotbar; reset to the carrier layout.
-    const hotbar = Array.isArray(data.hotbar) && data.hotbar.includes('basket1')
-      ? data.hotbar
+    // Reset to the default layout for old saves: the pre-carrier discrete-item
+    // hotbar (no basket1), or any hotbar still carrying the retired "hand" tool.
+    // Otherwise keep the player's customized carrier-layout hotbar.
+    const saved = Array.isArray(data.hotbar) ? data.hotbar : [];
+    const hotbar = (saved.includes('basket1') && !saved.includes('hand'))
+      ? saved
       : [...DEFAULT_HOTBAR];
     return {
       hotbar,

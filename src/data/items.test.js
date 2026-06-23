@@ -28,16 +28,16 @@ describe('content definitions', () => {
 });
 
 describe('hotbar items', () => {
-  it('exposes 3 baskets + 2 buckets + the tools', () => {
+  it('exposes 3 baskets + 3 buckets + the tools', () => {
     const carriers = ALL_ITEMS.filter((i) => i.type === 'carrier');
     const tools = ALL_ITEMS.filter((i) => i.type === 'tool');
-    expect(carriers.map((c) => c.key)).toEqual(['basket1', 'basket2', 'basket3', 'bucket1', 'bucket2']);
-    expect(tools.map((t) => t.key)).toEqual(['brush', 'saddle', 'lead', 'hand']);
+    expect(carriers.map((c) => c.key)).toEqual(['basket1', 'basket2', 'basket3', 'bucket1', 'bucket2', 'bucket3']);
+    expect(tools.map((t) => t.key)).toEqual(['brush', 'saddle', 'lead']);
   });
 
   it('ITEM_MAP keys every item and ITEMS aliases ALL_ITEMS', () => {
     expect(ITEM_MAP.brush.action).toBe('brush');
-    expect(ITEM_MAP.hand.action).toBe('interact');
+    expect(ITEM_MAP.hand).toBeUndefined(); // the hand tool was retired
     expect(ITEMS).toBe(ALL_ITEMS);
   });
 });

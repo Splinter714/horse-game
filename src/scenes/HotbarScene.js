@@ -191,7 +191,7 @@ export default class HotbarScene extends Phaser.Scene {
 
   // The "Use" button — applies the armed tool (interact stays on tap/click/E).
   // Sits just above the right end of the hotbar strip. Dimmed when the active
-  // slot is the empty hand (nothing to use). Mirrors F / controller-X.
+  // slot is empty (nothing to use). Mirrors F / controller-X.
   _buildUseButton(startX, totalW, slotY, ss, radius, fit) {
     const useW = Math.max(60, Math.floor(88 * fit));
     const useH = Math.max(26, Math.floor(38 * fit));
@@ -227,8 +227,8 @@ export default class HotbarScene extends Phaser.Scene {
     if (!u) return;
     const key  = this.hotbar[this.activeSlot];
     const item = key ? ITEM_MAP[key] : null;
-    // Hand (interact) and empty slots aren't "used"; everything else is.
-    const usable = !!item && item.action !== 'interact';
+    // Empty slots aren't "used"; every tool/carrier is.
+    const usable = !!item;
 
     u.g.clear();
     u.g.fillStyle(usable ? 0x3b4a63 : 0x2a2f3c, usable ? 0.95 : 0.6);
