@@ -113,7 +113,7 @@ export default class InfoPanelScene extends Phaser.Scene {
     // Sex with a ♀/♂ glyph (#113) — identity now carried on every animal.
     const sexStr = animal.sex ? `  ·  ${animal.sex === 'male' ? '♂ Male' : '♀ Female'}` : '';
     this.panel.add(this.add.text(CARD_W / 2, 168, `${animal.breed}  ·  ${ageStr}${sexStr}`, {
-      fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: '#6a6860',
+      fontFamily: 'system-ui, sans-serif', fontSize: '13px', color: '#57554f',
     }).setOrigin(0.5, 0));
 
     let infoY = 188;
@@ -131,15 +131,15 @@ export default class InfoPanelScene extends Phaser.Scene {
     if (cfg.fixedAttrs && animal.health !== undefined) {
       this.panel.add(this.add.text(CARD_W / 2, infoY,
         `Health ${animal.health}  ·  Speed ${animal.speed}  ·  Stamina ${animal.stamina}`, {
-          fontFamily: 'system-ui, sans-serif', fontSize: '11px', color: '#8a6a3a',
+          fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: '#6e5226',
         }).setOrigin(0.5, 0));
-      infoY += 20;
+      infoY += 21;
     }
 
     // ── Mood line (species with happiness) ─────────────────────────────
     if (spec.mood) {
       this.moodText = this.add.text(CARD_W / 2, infoY, `Feeling ${animal.mood()}`, {
-        fontFamily: 'system-ui, sans-serif', fontSize: '13px', color: '#1d9e75',
+        fontFamily: 'system-ui, sans-serif', fontSize: '14px', color: '#178a66', fontStyle: 'bold',
       }).setOrigin(0.5, 0);
       this.panel.add(this.moodText);
       infoY += 22;
@@ -152,7 +152,7 @@ export default class InfoPanelScene extends Phaser.Scene {
     let barY = infoY + 16;
     for (const s of rows) {
       this.panel.add(this.add.text(14, barY, s.label, {
-        fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: '#6a6860',
+        fontFamily: 'system-ui, sans-serif', fontSize: '13px', color: '#4f4d47',
       }).setOrigin(0, 0.5));
 
       const trackX = 62;

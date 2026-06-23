@@ -18,10 +18,10 @@ export const WithFarmStand = (Base) => class extends Base {
     // Count badge floating just above the eggs on the counter.
     this.farmStand.badge = this.add.text(sx, sy - 64, '', {
       fontFamily: 'system-ui, sans-serif',
-      fontSize: '13px',
+      fontSize: '15px',
       color: '#fffde0',
-      backgroundColor: '#1c1f2ecc',
-      padding: { x: 7, y: 3 },
+      backgroundColor: '#1c1f2eee',
+      padding: { x: 9, y: 5 },
     }).setOrigin(0.5, 1).setDepth(sy + 10).setVisible(false);
 
     // Obstacle: the solid table/counter the player actually bumps into — NOT the
@@ -192,9 +192,9 @@ export const WithFarmStand = (Base) => class extends Base {
   _npcSpeech(npc, text) {
     const bubble = this.add.text(npc.sprite.x, npc.sprite.y - 60, text, {
       fontFamily: 'system-ui, sans-serif',
-      fontSize: '14px', color: '#fffde0',
-      backgroundColor: '#2a3050ee',
-      padding: { x: 8, y: 5 },
+      fontSize: '16px', color: '#fffef5',
+      backgroundColor: '#2a3050f2',
+      padding: { x: 10, y: 6 },
     }).setOrigin(0.5, 1).setDepth(10001);
     this.tweens.add({
       targets: bubble, y: bubble.y - 24, alpha: 0,

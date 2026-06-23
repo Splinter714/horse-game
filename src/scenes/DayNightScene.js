@@ -35,10 +35,11 @@ export default class DayNightScene extends Phaser.Scene {
     this.fade = this.add.graphics().setDepth(100_000).setScrollFactor(0);
     this.label   = this.add.text(0, 0, '', {
       fontFamily: 'system-ui, sans-serif',
-      fontSize: '18px',
+      fontSize: '22px',
+      fontStyle: 'bold',
       color: '#ffffff',
-      backgroundColor: '#00000066',
-      padding: { x: 10, y: 6 },
+      backgroundColor: '#000000bf', // more opaque box so it reads over the bright world (#120)
+      padding: { x: 12, y: 8 },
     }).setDepth(501).setOrigin(1, 0).setScrollFactor(0);
 
     // Dev only: tap the time-of-day display to skip to the next phase. Gated to

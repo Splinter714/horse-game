@@ -114,10 +114,10 @@ export const WithPlayer = (Base) => class extends Base {
     // per-frame _promptLines the proximity passes accumulate.
     this.promptPanel = this.add.text(0, 0, '', {
       fontFamily: 'system-ui, sans-serif',
-      fontSize: '14px', color: '#ffffff',
-      backgroundColor: '#1c1f2ed9',
-      padding: { x: 9, y: 7 },
-      lineSpacing: 4, align: 'left',
+      fontSize: '16px', color: '#ffffff',
+      backgroundColor: '#1c1f2eea',
+      padding: { x: 11, y: 8 },
+      lineSpacing: 5, align: 'left',
     }).setOrigin(0, 1).setScrollFactor(0).setDepth(9999).setVisible(false);
     this._promptLines = [];
 

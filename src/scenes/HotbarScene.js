@@ -179,10 +179,12 @@ export default class HotbarScene extends Phaser.Scene {
     growHitArea(this._pauseBtn); // comfortable tap target (#100)
     this._pauseBtn.on('pointerdown', () => this._togglePause());
 
-    // Money label — created empty, filled by _updateStatusLabels
-    const fontSize = `${Math.max(10, Math.floor(13 * fit))}px`;
+    // Money label — created empty, filled by _updateStatusLabels. Bigger, bolder,
+    // and dark-stroked so it stays legible over the bright world (#120).
+    const fontSize = `${Math.max(14, Math.round(ss * 0.2))}px`;
     this._moneyLbl = this.add.text(sw - 12, slotY - 6, '', {
-      fontFamily: 'system-ui, sans-serif', fontSize, color: '#f0d060',
+      fontFamily: 'system-ui, sans-serif', fontSize, color: '#ffe14d',
+      fontStyle: 'bold', stroke: '#1a1408', strokeThickness: 4,
     }).setOrigin(1, 1).setDepth(2).setVisible(false);
 
     this._updateStatusLabels();
@@ -632,14 +634,14 @@ export default class HotbarScene extends Phaser.Scene {
     this._invNodes.push(absorb);
 
     const title = this.add.text(px + panelW / 2, py + 14, 'Inventory', {
-      fontFamily: 'system-ui, sans-serif', fontSize: '15px', color: '#c8cce0',
+      fontFamily: 'system-ui, sans-serif', fontSize: '18px', color: '#dfe2f0', fontStyle: 'bold',
     }).setOrigin(0.5, 0).setDepth(103);
     this._invNodes.push(title);
 
     const slotNum = this.activeSlot + 1 === 10 ? 10 : (this.activeSlot + 1) % 10;
     const hint = this.add.text(px + panelW / 2, py + panelH - 8,
       `Tap item → assign to slot ${slotNum}`, {
-      fontFamily: 'system-ui, sans-serif', fontSize: '10px', color: '#6a7090',
+      fontFamily: 'system-ui, sans-serif', fontSize: '13px', color: '#9298b8',
     }).setOrigin(0.5, 1).setDepth(103);
     this._invNodes.push(hint);
 
@@ -674,8 +676,8 @@ export default class HotbarScene extends Phaser.Scene {
           .setDisplaySize(iconSize, iconSize).setDepth(104);
         const lbl = this.add.text(cx + CELL / 2, cy + CELL * 0.78, view.label, {
           fontFamily: 'system-ui, sans-serif',
-          fontSize: `${Math.max(7, Math.floor(CELL * 0.14))}px`,
-          color: '#c8cce0',
+          fontSize: `${Math.max(11, Math.round(CELL * 0.17))}px`,
+          color: '#dde1f0',
         }).setOrigin(0.5, 0.5).setDepth(104);
         this._invNodes.push(ico, lbl);
 
@@ -683,7 +685,7 @@ export default class HotbarScene extends Phaser.Scene {
         if (qty !== undefined) {
           const qtyLbl = this.add.text(cx + CELL - 4, cy + 4, `${qty}`, {
             fontFamily: 'system-ui, sans-serif',
-            fontSize: `${Math.max(7, Math.floor(CELL * 0.13))}px`,
+            fontSize: `${Math.max(11, Math.round(CELL * 0.16))}px`,
             color: '#ffdd66',
             backgroundColor: '#000a',
             padding: { x: 2, y: 0 },
