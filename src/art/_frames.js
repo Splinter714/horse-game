@@ -3,10 +3,19 @@
 // share a standard 6-frame idle/walk sheet and a simple two-rect (shin + hoof) leg.
 // Species-specific art (horseArt.js, chickenArt.js, cowArt.js, …) builds on these.
 
-// Snapshot one draw fn into a texture under `key`.
+// Snapshot one draw fn into a texture under `key`. Safe to call again on an existing
+// key to RE-SKIN in place (e.g. the customization panel): generateTexture redraws
+// into the existing texture's canvas without clearing it first, so we clear it
+// ourselves — otherwise old pixels (a removed marking) would ghost through. Redrawing
+// in place keeps the Texture object (and any animations referencing it) valid, so
+// running animations just show the new art with no rebuild.
 export function gen(scene, key, w, h, drawFn) {
   const g = scene.make.graphics({ x: 0, y: 0, add: false });
   drawFn(g);
+  if (scene.textures.exists(key)) {
+    const src = scene.textures.get(key).getSourceImage();
+    src.getContext?.('2d')?.clearRect(0, 0, src.width, src.height);
+  }
   g.generateTexture(key, w, h);
   g.destroy();
 }

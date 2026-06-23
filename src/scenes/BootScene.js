@@ -7,7 +7,7 @@ import { buildCatTextures } from '../art/catArt.js';
 import { buildHorseTextures, buildFoalTextures } from '../art/horseArt.js';
 import { buildPortraitTexture, buildChickenPortraitTexture } from '../art/portraitArt.js';
 import { buildPlayerTextures } from '../art/playerArt.js';
-import { getCoat } from '../data/species/horse/coats.js';
+import { getCoat, composeCoat } from '../data/species/horse/coats.js';
 import { loadAllHorses, loadAllChickens, loadAudioSettings, saveAudioSettings } from '../data/save.js';
 import { applyAudioSettings } from '../audio/sounds.js';
 
@@ -40,7 +40,7 @@ export default class BootScene extends Phaser.Scene {
     buildCatTextures(this, 'cat');
     buildPlayerTextures(this);
     for (const key of Object.keys(allHorses)) {
-      const coat = getCoat(allHorses[key].coat);
+      const coat = composeCoat(allHorses[key].coat, allHorses[key].markings);
       buildHorseTextures(this, key, coat);
       buildPortraitTexture(this, `portrait_${key}`, coat);
     }

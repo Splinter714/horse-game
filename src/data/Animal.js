@@ -30,6 +30,10 @@ export class Animal {
     this.name = data.name ?? def.name;
     this.breed = data.breed ?? def.breed;
     this.coat = data.coat ?? def.coat;
+    // Optional per-animal marking overrides set by the customization panel (#2/#17):
+    // an object of marking flags merged over the coat colour's defaults. null = use
+    // the coat preset's own markings.
+    this.markings = data.markings ?? null;
     this.age = data.age ?? def.age;
     // Biological sex ('female' | 'male') — shown in the info panel and used by
     // breeding later (#113/#15). Falls back to the species default for older
@@ -149,6 +153,7 @@ export class Animal {
       sex: this.sex,
       lastSeen: this.lastSeen,
     };
+    if (this.markings) out.markings = this.markings;
     for (const key of Object.keys(this._spec.traits ?? {})) out[key] = this[key];
     for (const key of this._spec.optionalAttrs ?? []) {
       if (this[key] !== undefined) out[key] = this[key];

@@ -117,3 +117,19 @@ export const COATS = {
 export function getCoat(key) {
   return COATS[key] || COATS.palomino;
 }
+
+// The list of toggleable markings, with display labels — drives the customization
+// panel's marking chips and keeps terminology real-world (#2).
+export const MARKING_LABELS = {
+  star: 'Star', stripe: 'Stripe', snip: 'Snip', blaze: 'Blaze',
+  sock: 'Sock', dapples: 'Dapples', roan: 'Roan', paint: 'Paint', feather: 'Feather',
+};
+
+// Compose a horse's drawable coat from its colour preset plus optional per-animal
+// marking overrides (the customization panel, #2/#17). With no overrides it's just
+// the preset; otherwise the overrides are merged over the preset's own markings.
+export function composeCoat(colorKey, markingsOverride) {
+  const base = getCoat(colorKey);
+  if (!markingsOverride) return base;
+  return { ...base, markings: { ...base.markings, ...markingsOverride } };
+}

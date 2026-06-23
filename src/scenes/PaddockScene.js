@@ -1,6 +1,9 @@
 import Phaser from 'phaser';
 import { saveAllHorses, saveAllChickens, loadUiSettings } from '../data/save.js';
 import { CONTENT_DEFS } from '../data/items.js';
+import { composeCoat } from '../data/species/horse/coats.js';
+import { buildHorseTextures } from '../art/horseArt.js';
+import { buildPortraitTexture } from '../art/portraitArt.js';
 import { EVENTS } from '../data/events.js';
 import {
   playHoofbeat, playEat, playDrink, playBrush, playChime,
@@ -604,6 +607,18 @@ export default class PaddockScene
 
   _saveHorses() {
     saveAllHorses(this.registry.get('allHorses'));
+  }
+
+  // Re-skin a horse live from its current coat + marking data (#2/#17). gen()
+  // redraws the frame + portrait textures in place, so the existing sprite and its
+  // running animations show the new coat with no rebuild. Used by the customization
+  // panel (ManagementPanelScene).
+  reskinHorse(key) {
+    const data = this.registry.get('allHorses')?.[key];
+    if (!data) return;
+    const coat = composeCoat(data.coat, data.markings);
+    buildHorseTextures(this, key, coat);
+    buildPortraitTexture(this, `portrait_${key}`, coat);
   }
 
   update(time, delta) {
