@@ -2005,14 +2005,14 @@ export default class PaddockScene extends Phaser.Scene {
     saddleImg.x = h.sprite.x;
     saddleImg.y = h.sprite.y;
     saddleImg.setFlipX(h.sprite.flipX);
-    saddleImg.setDepth(h.sprite.depth + 1);
+    saddleImg.setDepth(h.sprite.y + 1);
 
     // Position rider on horse's back (saddle is ~55px above horse feet at scale 2)
     const riderXOff = h.sprite.flipX ? 10 : -10;
     this.player.sprite.x = h.sprite.x + riderXOff;
     this.player.sprite.y = h.sprite.y - 55;
     this.player.sprite.setFlipX(h.sprite.flipX);
-    this.player.sprite.setDepth(h.sprite.depth + 2);
+    this.player.sprite.setDepth(h.sprite.y + 2);
 
     // Keep player shadow hidden under horse
     this.player.shadow.x = h.sprite.x;
@@ -2385,7 +2385,10 @@ export default class PaddockScene extends Phaser.Scene {
       h.saddleImg.x = h.sprite.x;
       h.saddleImg.y = h.sprite.y;
       h.saddleImg.setFlipX(h.sprite.flipX);
-      h.saddleImg.setDepth(h.sprite.depth + 1);
+      // Depth must track the sprite's *current* y (what depthSort uses), not the
+      // stale h.sprite.depth from last frame — otherwise moving south drops the
+      // saddle behind the horse for a frame.
+      h.saddleImg.setDepth(h.sprite.y + 1);
     }
   }
 
