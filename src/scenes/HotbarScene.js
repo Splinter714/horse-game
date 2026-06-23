@@ -20,10 +20,12 @@ const INV_COLS  = 5;
 const INV_ROWS  = 10;
 // The carrier fly-out is now a deliberate "show all instances" picker: a quick
 // press/tap just selects or cycles, while a HOLD this long opens the fly-out (#75).
-const HOLD_FLYOUT_MS = 350;
-// Once open, it auto-dismisses after this long if untouched (a generous fallback —
-// you normally close it by picking, selecting another slot, or holding away).
-const FLYOUT_CLOSE_MS = 1500;
+// Kept short so the hold feels responsive — a normal tap/click is well under this.
+const HOLD_FLYOUT_MS = 200;
+// Once open, it auto-dismisses after this long if untouched. Generous, since the
+// fly-out is now opened deliberately (a hold) — and every cycle while it's open
+// refreshes this timer, so it only lapses once you actually stop interacting.
+const FLYOUT_CLOSE_MS = 4000;
 
 export default class HotbarScene extends Phaser.Scene {
   constructor() { super('HotbarScene'); }
@@ -44,6 +46,7 @@ export default class HotbarScene extends Phaser.Scene {
     this._flyoutSlot  = null;
     this._flyoutTimer = null; // auto-dismiss timer for the fly-out
     this._slotHold    = null; // in-progress press/tap on a slot (tap vs hold, #75)
+    this._slotFlash   = null; // transient "slot changed" blink overlay (#75)
     this._pauseNodes = [];
     this._pauseBtn   = null;
     this._muteRowLbl = null;
@@ -497,7 +500,8 @@ export default class HotbarScene extends Phaser.Scene {
 
   // Quick press/tap: select the slot; re-selecting the active carrier group cycles
   // to the next instance. Never opens the fly-out (that's the hold gesture). If the
-  // fly-out happens to be open, cycling keeps it in sync.
+  // fly-out happens to be open, cycling keeps it open and refreshes its timer; if
+  // it's closed, a brief flash makes the slot change read (#75).
   _selectOrCycle(i) {
     if (this.invOpen) this._closeInventory();
     const wasActive = i === this.activeSlot;
@@ -506,15 +510,40 @@ export default class HotbarScene extends Phaser.Scene {
     this._setActive(i); // selects, closes any open fly-out
     if (this._isGroup(key) && wasActive) {
       this._cycleMember(key);
-      if (wasOpen) this._openFlyout(i); // refresh the picker only if it was already open
+      if (wasOpen) { this._openFlyout(i); return; } // keep the picker open + refresh
     }
+    this._flashSlot(i); // no fly-out showing the change → blink the slot instead
   }
 
-  // Open the active slot's fly-out picker (the hold gesture / controller LT).
+  // Brief white blink over a slot: feedback that the active slot / instance changed
+  // when no fly-out is open to show it (#75). At most one is alive at a time.
+  _flashSlot(i) {
+    const slot = this._slots[i];
+    if (!slot) return;
+    this._slotFlash?.destroy();
+    const { x, slotY, ss, radius } = slot;
+    const flash = this.add.graphics().setDepth(6);
+    flash.fillStyle(0xffffff, 0.5);
+    flash.fillRoundedRect(x, slotY, ss, ss, radius);
+    this._slotFlash = flash;
+    this.tweens.add({
+      targets: flash, alpha: 0,
+      duration: 200, ease: 'Quad.easeOut',
+      onComplete: () => { if (this._slotFlash === flash) this._slotFlash = null; flash.destroy(); },
+    });
+  }
+
+  // Open the active slot's fly-out picker (the hold gesture / controller LT hold).
   _openActiveFlyout() {
     if (this.invOpen || this.pauseOpen) return;
     if (this._isGroup(this.hotbar[this.activeSlot])) this._openFlyout(this.activeSlot);
   }
+
+  // Controller left trigger mirrors a number key: a short pull selects/cycles the
+  // active slot, a hold opens its fly-out (#75). Routed through the same press/hold
+  // machinery as keys/taps so behaviour stays identical across inputs.
+  _padTriggerDown() { this._slotDown(this.activeSlot, 'pad'); }
+  _padTriggerUp()   { if (this._slotHold?.src === 'pad') this._slotUp(this._slotHold.i, 'pad'); }
 
   // Step the active member of a carrier group by `dir` (default forward), wrapping.
   _cycleMember(groupKey, dir = 1) {
@@ -537,6 +566,7 @@ export default class HotbarScene extends Phaser.Scene {
     const wasOpen = this._flyoutSlot === this.activeSlot;
     this._cycleMember(key, dir);
     if (wasOpen) this._openFlyout(this.activeSlot);
+    else         this._flashSlot(this.activeSlot);
   }
 
   // Gamepad slot navigation (driven by PaddockScene's raw-pad poller, #121): step

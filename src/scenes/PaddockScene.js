@@ -724,8 +724,8 @@ export default class PaddockScene
     // Hotbar navigation (#121): the D-pad drives the hotbar (it no longer moves the
     // player — see movePlayer). D-pad left/right and the bumpers step between slots;
     // D-pad up/down cycle the instances inside a carrier group (no fly-out). The
-    // left trigger opens the fly-out picker for the active slot — the controller's
-    // equivalent of a long-press (#75). RT is still free.
+    // left trigger mirrors a number key: a short pull selects/cycles the active
+    // slot, a hold opens its fly-out picker (#75). RT is still free.
     const rp = this._rawPad;
     if (rp.dLeft  && !prev.dLeft)  { this.usingPad = true; hotbar?.navSlot(-1); }
     if (rp.dRight && !prev.dRight) { this.usingPad = true; hotbar?.navSlot(+1); }
@@ -733,7 +733,8 @@ export default class PaddockScene
     if (rp.btnRB  && !prev.btnRB)  { this.usingPad = true; hotbar?.navSlot(+1); }
     if (rp.dUp    && !prev.dUp)    { this.usingPad = true; hotbar?._padCycleMember(-1); }
     if (rp.dDown  && !prev.dDown)  { this.usingPad = true; hotbar?._padCycleMember(+1); }
-    if (rp.btnLT  && !prev.btnLT)  { this.usingPad = true; hotbar?._openActiveFlyout(); }
+    if (rp.btnLT  && !prev.btnLT)  { this.usingPad = true; hotbar?._padTriggerDown(); }
+    if (!rp.btnLT && prev.btnLT)   { hotbar?._padTriggerUp(); }
     // Back = toggle inventory
     if (this._rawPad.btnBack && !prev.btnBack) {
       this.usingPad = true;
