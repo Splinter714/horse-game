@@ -239,6 +239,9 @@ export default class PaddockScene
     const horse = allHorses[h.key];
     if (!horse) return;
 
+    // How dirty the coat is *before* this brush stroke, for dust-puff intensity.
+    const preDirt = (100 - (horse.stats.grooming ?? 100)) / 100;
+
     switch (item.action) {
       case 'feed':  horse.feed();  break;
       case 'water': horse.water(); break;
@@ -254,10 +257,12 @@ export default class PaddockScene
     if (item.action === 'pet') {
       playChime();
       this.showHeart(h.sprite);
+    } else if (item.action === 'brush') {
+      playBrush();
+      this.showDustPuff(h.sprite, preDirt); // dust off the coat, not a brush icon
     } else {
       if (item.action === 'feed')  playEat();
       if (item.action === 'water') playDrink();
-      if (item.action === 'brush') playBrush();
       this.showIcon(item.icon, h.sprite);
     }
 
@@ -389,6 +394,9 @@ export default class PaddockScene
     const horseData = allHorses[horseKey];
     if (!horseData) return;
 
+    // Dirtiness before the action is applied, for brush dust-puff intensity.
+    const preDirt = (100 - (horseData.stats.grooming ?? 100)) / 100;
+
     if (!horseData.applyAction(type)) return; // unknown action for this species
 
     this._saveHorses();
@@ -400,6 +408,8 @@ export default class PaddockScene
     if (h) {
       if (type === 'pet') {
         this.showHeart(h.sprite);
+      } else if (type === 'brush') {
+        this.showDustPuff(h.sprite, preDirt); // dust off the coat, not a brush icon
       } else if (def.icon) {
         this.showIcon(def.icon, h.sprite);
       }
@@ -424,6 +434,37 @@ export default class PaddockScene
       duration: 1000, ease: 'Sine.easeOut',
       onComplete: () => icon.destroy(),
     });
+  }
+
+  // Brushing feedback (#95): little puffs of dust/dirt coming off the coat,
+  // instead of a brush icon — reads as actually grooming the dirt out. Dirtier
+  // coats (lower grooming) kick up more, bigger puffs. `dirtiness` is 0..1.
+  showDustPuff(sprite, dirtiness = 0.6) {
+    const d = Phaser.Math.Clamp(dirtiness, 0, 1);
+    const n = 4 + Math.round(d * 6); // 4..10 puffs
+    const baseY = sprite.y - 44;     // around the horse's body/back
+    for (let i = 0; i < n; i++) {
+      // Dusty tan-to-brown, slightly varied per puff.
+      const tint = Phaser.Display.Color.GetColor(
+        150 + Math.floor(Math.random() * 45),
+        120 + Math.floor(Math.random() * 35),
+        80  + Math.floor(Math.random() * 35));
+      const r = 2.5 + Math.random() * (3 + d * 3);
+      const puff = this.add.circle(
+        sprite.x + (Math.random() - 0.5) * 80,
+        baseY    + (Math.random() - 0.5) * 46,
+        r, tint, 0.5).setDepth(10000);
+      this.tweens.add({
+        targets: puff,
+        x: puff.x + (Math.random() - 0.5) * 56,
+        y: puff.y - 18 - Math.random() * 40, // drift up as it disperses
+        alpha: 0,
+        scale: 1.7 + Math.random(),
+        duration: 600 + Math.random() * 400,
+        ease: 'Sine.easeOut',
+        onComplete: () => puff.destroy(),
+      });
+    }
   }
 
   hop(sprite) {
