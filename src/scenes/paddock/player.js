@@ -9,6 +9,9 @@ import { WORLD_W, WORLD_H, CARE_DIST, PLAYER_SPEED, HOLD_MS, HOLD_DRAG_PX, PLAYE
 // In-place reach for using a tool on a horse (brush/saddle/lead). Use never
 // walks you anywhere — the horse has to already be within this range.
 const USE_REACH = 110;
+// How close (to the stand centre) counts as "at the farm stand" for depositing
+// produce. Matches the farm-stand interactable's reachDist.
+const FARM_STAND_REACH = 120;
 
 export const WithPlayer = (Base) => class extends Base {
   // ─── Player ──────────────────────────────────────────────────────────────
@@ -372,8 +375,15 @@ export const WithPlayer = (Base) => class extends Base {
       return;
     }
 
-    // Feed: drop the food right where the player is standing.
-    if (item.action === 'feed') { this.placeFood(item); return; }
+    // Feed: drop the food right where the player is standing — UNLESS we're at the
+    // farm stand and this produce is sellable there (apples/carrots), in which case
+    // deposit it on the stand instead of dropping it (#80). Hay isn't sellable, so
+    // it still drops as feed even at the stand.
+    if (item.action === 'feed') {
+      if (STAND_DEFS[item.content] && this._atFarmStand()) this.stockStand();
+      else this.placeFood(item);
+      return;
+    }
 
     // Everything else (fill trough, gather, collect egg, sell) is a world spot —
     // activate the nearest valid one only if we're already within its reach.
@@ -420,9 +430,15 @@ export const WithPlayer = (Base) => class extends Base {
       return;
     }
 
-    // Feed: dropped at the player's feet — always usable when carrying food.
+    // Feed: dropped at the player's feet — or, at the farm stand, sold there if
+    // the produce is sellable (apples/carrots), matching useActiveTool (#80).
     if (item.action === 'feed') {
-      this._showToolPrompt(`${useKey}  Drop ${item.label}`, player.sprite.x, player.sprite.y - 70);
+      if (STAND_DEFS[item.content] && this._atFarmStand()) {
+        const s = this.farmStand;
+        this._showToolPrompt(`${useKey}  Sell ${item.label}`, s.x, s.y - 100);
+      } else {
+        this._showToolPrompt(`${useKey}  Drop ${item.label}`, player.sprite.x, player.sprite.y - 70);
+      }
       return;
     }
 
@@ -447,6 +463,14 @@ export const WithPlayer = (Base) => class extends Base {
     this.toolPrompt.setText(text);
     this.toolPrompt.setPosition(x, y);
     this.toolPrompt.setVisible(true);
+  }
+
+  // True when the player is close enough to the farm stand to deposit produce.
+  _atFarmStand() {
+    const s = this.farmStand;
+    if (!s) return false;
+    return Phaser.Math.Distance.Between(
+      this.player.sprite.x, this.player.sprite.y, s.x, s.y) <= FARM_STAND_REACH;
   }
 
   // Pick the horse a tool should act on: nearest within CARE_DIST, but for the
