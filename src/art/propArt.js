@@ -6,11 +6,39 @@ import { gen } from './_frames.js';
 
 export function buildPropTextures(scene) {
   // --- hay bale ---
+  // A baled block of straw: chamfered corners, packed straw striations, a sunlit
+  // top, two binding twines, and a few loose stalks poking out.
   gen(scene, 'hay', 28, 18, (g) => {
-    g.fillStyle(0xd9b94a, 1); g.fillRect(0, 0, 28, 18);
-    g.fillStyle(0xc4a43a, 1);
-    g.fillRect(0, 5, 28, 1); g.fillRect(0, 11, 28, 1);
-    g.fillStyle(0x9a7c2a, 1); g.fillRect(6, 0, 1, 18); g.fillRect(20, 0, 1, 18);
+    const base = 0xd9b94a, hi = 0xefd877, hi2 = 0xf7e58c, mid = 0xc4a43a;
+    const lo = 0xa9892b, twine = 0x6f5520, twineHi = 0x9a7a2e;
+    // soft ground shadow
+    g.fillStyle(0x000000, 0.12); g.fillEllipse(14, 17, 26, 4);
+    // body with faux-rounded sides (chamfered corners)
+    g.fillStyle(base, 1);
+    g.fillRect(2, 2, 24, 14);
+    g.fillRect(1, 4, 26, 10);
+    // sunlit top
+    g.fillStyle(hi, 1); g.fillRect(2, 2, 24, 2); g.fillRect(1, 4, 26, 1);
+    g.fillStyle(hi2, 1); g.fillRect(3, 2, 19, 1);
+    // shaded underside
+    g.fillStyle(lo, 1); g.fillRect(1, 13, 26, 1); g.fillRect(2, 14, 24, 2);
+    // packed straw layers
+    g.fillStyle(mid, 1);
+    for (let y = 6; y < 14; y += 3) g.fillRect(2, y, 24, 1);
+    // straw flecks for texture (light + dark)
+    g.fillStyle(hi, 1);
+    g.fillRect(4, 7, 3, 1); g.fillRect(12, 8, 4, 1); g.fillRect(22, 7, 3, 1);
+    g.fillRect(6, 10, 3, 1); g.fillRect(15, 11, 4, 1); g.fillRect(23, 10, 2, 1);
+    g.fillStyle(lo, 1);
+    g.fillRect(9, 9, 2, 1); g.fillRect(17, 7, 2, 1); g.fillRect(11, 12, 3, 1); g.fillRect(24, 12, 2, 1);
+    // two binding twines with a highlit edge
+    g.fillStyle(twine, 1); g.fillRect(8, 2, 2, 14); g.fillRect(19, 2, 2, 14);
+    g.fillStyle(twineHi, 1); g.fillRect(8, 2, 1, 14); g.fillRect(19, 2, 1, 14);
+    // loose straw poking out the top
+    g.fillStyle(hi2, 1); g.fillRect(5, 0, 1, 2); g.fillRect(13, 0, 1, 2); g.fillRect(25, 1, 1, 1);
+    g.fillStyle(hi, 1); g.fillRect(6, 1, 1, 1); g.fillRect(14, 1, 1, 1); g.fillRect(3, 1, 1, 1);
+    // a couple stray stalks at the sides
+    g.fillStyle(base, 1); g.fillRect(0, 12, 1, 1); g.fillRect(27, 11, 1, 1);
   });
 
   // --- flowers ---
@@ -87,14 +115,24 @@ export function buildPropTextures(scene) {
     g.fillCircle(7, 5, 2.5);
   });
 
-  gen(scene, 'hayPile', 36, 12, (g) => { // hay spread on ground
-    g.fillStyle(0xd9b94a, 1); g.fillRect(2, 5, 32, 7);
-    g.fillStyle(0xc4a43a, 1); g.fillRect(2, 8, 32, 3);
-    g.fillStyle(0xd9b94a, 1);
-    g.fillRect(4, 2, 1, 4); g.fillRect(8, 1, 1, 5); g.fillRect(13, 2, 1, 4);
-    g.fillRect(18, 1, 1, 5); g.fillRect(22, 2, 1, 4); g.fillRect(27, 1, 1, 5);
-    g.fillStyle(0xe8cc6a, 1);
-    g.fillRect(6, 3, 1, 3); g.fillRect(15, 2, 1, 4); g.fillRect(24, 3, 1, 3);
+  gen(scene, 'hayPile', 36, 12, (g) => { // loose hay spread on ground
+    const base = 0xd9b94a, hi = 0xefd877, mid = 0xc4a43a, lo = 0xa9892b;
+    g.fillStyle(0x000000, 0.1); g.fillEllipse(18, 11, 34, 3);
+    // rounded mound
+    g.fillStyle(mid, 1); g.fillEllipse(18, 8, 34, 7);
+    g.fillStyle(base, 1); g.fillEllipse(17, 7, 30, 6);
+    g.fillStyle(hi, 1); g.fillEllipse(15, 6, 20, 3);
+    g.fillStyle(lo, 1); g.fillRect(3, 9, 30, 1);
+    // straw stalks of varied height sticking up
+    g.fillStyle(base, 1);
+    g.fillRect(4, 2, 1, 4); g.fillRect(8, 1, 1, 5); g.fillRect(13, 3, 1, 3);
+    g.fillRect(18, 1, 1, 5); g.fillRect(22, 2, 1, 4); g.fillRect(27, 1, 1, 5); g.fillRect(31, 3, 1, 3);
+    g.fillStyle(hi, 1);
+    g.fillRect(6, 3, 1, 3); g.fillRect(10, 2, 1, 3); g.fillRect(15, 2, 1, 4);
+    g.fillRect(20, 3, 1, 3); g.fillRect(24, 2, 1, 3); g.fillRect(29, 3, 1, 3);
+    // scattered straw flecks across the mound
+    g.fillStyle(lo, 1);
+    g.fillRect(7, 7, 2, 1); g.fillRect(16, 8, 3, 1); g.fillRect(25, 7, 2, 1);
   });
 
   gen(scene, 'saddleOverlay', 64, 54, (g) => { // drawn at horse-back position (x=19-38, y=16-22)
@@ -138,15 +176,67 @@ export function buildPropTextures(scene) {
   });
 
   // --- gathering source props (issue #63) ---
-  // Haystack — a big mound to gather hay from
+  // Haystack — a low stack of rectangular straw bales to gather hay from,
+  // with loose fuzzy straw poking out around the edges.
   gen(scene, 'haystack', 48, 40, (g) => {
-    g.fillStyle(0xc4a43a, 1); g.fillEllipse(24, 36, 46, 10); // base shadow
-    g.fillStyle(0xd9b94a, 1); g.fillEllipse(24, 26, 44, 26); // body
-    g.fillStyle(0xe8cc6a, 1); g.fillEllipse(20, 18, 30, 16); // top highlight
-    g.fillStyle(0xc4a43a, 1);
-    for (let y = 18; y < 36; y += 5) g.fillRect(4, y, 40, 1); // layered straw lines
-    g.fillStyle(0xb08c2a, 1);
-    g.fillRect(10, 14, 1, 4); g.fillRect(26, 12, 1, 5); g.fillRect(38, 16, 1, 4); // stray stalks
+    const base = 0xd9b94a, hi = 0xefd877, hi2 = 0xf7e58c, mid = 0xc4a43a;
+    const lo = 0xa9892b, twine = 0x6f5520, twineHi = 0x9a7a2e;
+    // a tuft of loose straw stalks fanning up from (x, y)
+    const tuft = (x, y) => {
+      g.fillStyle(base, 1);
+      g.fillRect(x - 2, y - 3, 1, 4); g.fillRect(x, y - 4, 1, 5); g.fillRect(x + 2, y - 3, 1, 4);
+      g.fillStyle(hi, 1);
+      g.fillRect(x - 1, y - 4, 1, 4); g.fillRect(x + 1, y - 3, 1, 3);
+    };
+    // draw one rectangular bale at (x,y) of size w×h, with twine + texture
+    const bale = (x, y, w, h) => {
+      g.fillStyle(base, 1); g.fillRect(x, y, w, h);          // body
+      g.fillStyle(hi, 1); g.fillRect(x, y, w, 2);            // sunlit top
+      g.fillStyle(hi2, 1); g.fillRect(x + 1, y, w - 4, 1);
+      g.fillStyle(mid, 1);                                    // packed straw layers
+      for (let yy = y + 4; yy < y + h - 1; yy += 3) g.fillRect(x, yy, w, 1);
+      g.fillStyle(lo, 1); g.fillRect(x, y + h - 2, w, 2);    // shaded underside
+      // straw flecks
+      g.fillStyle(hi, 1); g.fillRect(x + 3, y + 5, 2, 1); g.fillRect(x + w - 7, y + 6, 2, 1);
+      g.fillStyle(lo, 1); g.fillRect(x + 5, y + 8, 2, 1);
+      // ragged loose straw whiskers along the top
+      g.fillStyle(base, 1);
+      g.fillRect(x + 2, y - 1, 1, 1); g.fillRect(x + w - 5, y - 1, 1, 1);
+      g.fillStyle(hi, 1); g.fillRect(x + w - 4, y - 1, 1, 1);
+      // fuzzy cut-straw whiskers poking out the left & right ends — long,
+      // irregular & janky: each is [yOffset, length], lengths all over the place
+      const leftW  = [[2, 3], [4, 5], [6, 2], [8, 4], [10, 1], [11, 5], [13, 3], [15, 4]];
+      const rightW = [[3, 4], [5, 2], [7, 5], [9, 3], [10, 5], [12, 1], [14, 4], [16, 2]];
+      g.fillStyle(base, 1);
+      for (const [dy, len] of leftW)  g.fillRect(x - len, y + dy, len, 1);
+      for (const [dy, len] of rightW) g.fillRect(x + w, y + dy, len, 1);
+      g.fillStyle(hi, 1); // bright frayed tips
+      for (const [dy, len] of leftW)  g.fillRect(x - len, y + dy, 1, 1);
+      for (const [dy, len] of rightW) g.fillRect(x + w + len - 1, y + dy, 1, 1);
+      g.fillStyle(lo, 1); // a few darker strands
+      g.fillRect(x - 3, y + 9, 2, 1); g.fillRect(x + w, y + 6, 2, 1);
+      // two binding twines
+      const t1 = x + Math.round(w * 0.28), t2 = x + Math.round(w * 0.68);
+      g.fillStyle(twine, 1); g.fillRect(t1, y, 2, h); g.fillRect(t2, y, 2, h);
+      g.fillStyle(twineHi, 1); g.fillRect(t1, y, 1, h); g.fillRect(t2, y, 1, h);
+    };
+    // ground shadow
+    g.fillStyle(0x000000, 0.12); g.fillEllipse(24, 38, 48, 6);
+    // bottom row: three bales side by side; top row: two bales offset
+    // (inset ~6px each side so the long end whiskers have room to poke out)
+    bale(6, 21, 12, 18);
+    bale(18, 21, 12, 18);
+    bale(30, 21, 12, 18);
+    bale(12, 5, 12, 16);
+    bale(24, 5, 12, 16);
+    // fuzzy loose straw tufts poking out around the stack
+    tuft(18, 6); tuft(30, 6);     // along the seam of the top bales
+    tuft(8, 24); tuft(40, 24);    // tucked between the rows at the sides
+    tuft(24, 5);                  // a wisp off the very top
+    // scattered loose straw at the base
+    g.fillStyle(base, 1);
+    g.fillRect(2, 38, 3, 1); g.fillRect(20, 39, 4, 1); g.fillRect(40, 38, 4, 1);
+    g.fillStyle(hi, 1); g.fillRect(10, 39, 2, 1); g.fillRect(34, 39, 2, 1);
   });
   // Apple tree — leafy crown over a trunk
   gen(scene, 'appleTree', 52, 68, (g) => {
