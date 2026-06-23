@@ -91,7 +91,7 @@ describe('loadAllHorses (offline decay)', () => {
     const all = save.loadAllHorses();
     expect(all.horse.stats.hunger).toBe(30);
     expect(all.horse.stats.thirst).toBe(30);
-    expect(all.horse.stats.grooming).toBe(30);
+    expect(all.horse.stats.grooming).toBe(100); // grooming is action-only — never decays offline (#123)
   });
 
   it('refreshes lastSeen to now on load', () => {

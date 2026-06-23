@@ -64,7 +64,7 @@ describe('Horse.applyDecay', () => {
     h.applyDecay(10); // 10 seconds
     expect(h.stats.hunger).toBeCloseTo(99.5, 5);   // 0.05/s
     expect(h.stats.thirst).toBeCloseTo(99.4, 5);   // 0.06/s
-    expect(h.stats.grooming).toBeCloseTo(99.7, 5); // 0.03/s
+    expect(h.stats.grooming).toBe(100);            // 0/s — grooming is action-only now (#123)
   });
 
   it('never falls below 0 while playing', () => {
@@ -72,7 +72,7 @@ describe('Horse.applyDecay', () => {
     h.applyDecay(10000);
     expect(h.stats.hunger).toBe(0);
     expect(h.stats.thirst).toBe(0);
-    expect(h.stats.grooming).toBe(0);
+    expect(h.stats.grooming).toBe(1); // unchanged — grooming doesn't decay passively (#123)
   });
 
   it('offline decay is capped at the forgiving floor of 30', () => {
@@ -80,8 +80,10 @@ describe('Horse.applyDecay', () => {
     h.applyDecay(10_000_000, true); // ages forever, offline
     expect(h.stats.hunger).toBe(30);
     expect(h.stats.thirst).toBe(30);
-    expect(h.stats.grooming).toBe(30);
-    expect(h.stats.happiness).toBe(30);
+    expect(h.stats.grooming).toBe(100); // grooming never decays, so nothing to floor (#123)
+    // Happiness eases toward the needs average (30+30+100)/3 — grooming staying
+    // satisfied keeps it above the 30 floor (#123).
+    expect(h.stats.happiness).toBeCloseTo(160 / 3, 5);
   });
 
   it('offline absence floors a below-30 stat back UP to the forgiving floor', () => {

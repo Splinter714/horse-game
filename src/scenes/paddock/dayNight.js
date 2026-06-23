@@ -2,10 +2,26 @@
 // chicken roosting, ambient birds. Applied as a functional mixin.
 
 import Phaser from 'phaser';
+import { EVENTS } from '../../data/events.js';
 import { playBirdChirp, setMusicMode } from '../../audio/sounds.js';
+
+// Grooming only ever drops from actions now (#123). A horse gets a touch dirtier
+// each time it lies down to rest, and a bit more for a night passing.
+const LAY_DOWN_DIRTY = 2;
+const OVERNIGHT_DIRTY = 10;
 
 export const WithDayNight = (Base) => class extends Base {
   // ─── Day / Night ─────────────────────────────────────────────────────────
+
+  // Knock a horse's grooming down by `amount` (clamped at 0) and refresh anything
+  // watching. No-op for non-horses (they have no grooming stat). Used for the
+  // action-based dirtying — lying down and a night passing (#123).
+  _dirtyHorse(key, amount) {
+    const horse = this.registry.get('allHorses')?.[key];
+    if (horse?.stats?.grooming === undefined) return;
+    horse.stats.grooming = Math.max(0, horse.stats.grooming - amount);
+    this.game.events.emit(EVENTS.STATS_CHANGED);
+  }
 
   onPhaseChange({ isNight, phase }) {
     this._phase = phase;
@@ -52,9 +68,14 @@ export const WithDayNight = (Base) => class extends Base {
     this._chickensFedToday = false;
     if (!this._sawFirstMorning) { this._sawFirstMorning = true; return; }
     // rollNewDay() flags any horse that missed required care yesterday (now
-    // including daily love) as neglected, then clears the day's care record.
+    // including daily love) as neglected, then clears the day's care record. A night
+    // passing also leaves a horse a little dirtier (#123) — the steady part of the
+    // grooming need now that it no longer decays passively.
     const allHorses = this.registry.get('allHorses');
-    for (const h of this.horses) allHorses[h.key]?.rollNewDay();
+    for (const h of this.horses) {
+      allHorses[h.key]?.rollNewDay();
+      this._dirtyHorse(h.key, OVERNIGHT_DIRTY);
+    }
   }
 
   restAllAnimals() {
@@ -92,6 +113,7 @@ export const WithDayNight = (Base) => class extends Base {
 
       if (Math.random() < 0.5) {
         a.sprite.play(`sleep_${a.key}`, true);
+        this._dirtyHorse(a.key, LAY_DOWN_DIRTY); // lying down gets them a touch dirty (#123)
         const layDownTime = Phaser.Math.Between(3000, 7000);
         this.time.delayedCall(layDownTime, () => {
           if (a.state === 'resting') {

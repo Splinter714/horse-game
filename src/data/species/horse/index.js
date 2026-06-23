@@ -15,10 +15,14 @@ export const HORSE = {
   // Per-second decay while playing. Tuned gentle (hunger fully depletes in ~30 min
   // of continuous play). `default` is the fresh-animal starting value. `label`/
   // `color` drive the info-panel stat bar.
+  // Grooming does NOT decay passively (#123): a horse gets dirty only from actions —
+  // rolling in the dirt (creatures.js), lying down to rest, and a bit overnight
+  // (both in dayNight.js). So a horse that stays clean and never rolls won't slowly
+  // turn grubby on its own.
   needs: {
     hunger:   { decay: 0.05, default: 80, label: 'Food',  color: 0x63a31d },
     thirst:   { decay: 0.06, default: 75, label: 'Water', color: 0x378add },
-    grooming: { decay: 0.03, default: 60, label: 'Brush', color: 0xba7517 },
+    grooming: { decay: 0,    default: 60, label: 'Brush', color: 0xba7517 },
   },
   // Derived: drifts toward the average of the needs above. The drift is gentle
   // (slow) so a pet's happiness bump lingers and feels rewarding instead of being
