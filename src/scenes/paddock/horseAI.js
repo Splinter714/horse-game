@@ -4,7 +4,7 @@
 import Phaser from 'phaser';
 import { EVENTS } from '../../data/events.js';
 import { playEat, playDrink } from '../../audio/sounds.js';
-import { PLAYER_BOUNDS, PASTURE_BOUNDS, GATE_X, GATE_GAP_X0, GATE_GAP_X1 } from './constants.js';
+import { PLAYER_BOUNDS, PASTURE_BOUNDS, GATE_X, GATE_GAP_X0, GATE_GAP_X1, BEG } from './constants.js';
 
 export const WithHorseAI = (Base) => class extends Base {
   // ─── Horse AI — eat / drink ───────────────────────────────────────────────
@@ -54,35 +54,59 @@ export const WithHorseAI = (Base) => class extends Base {
       }
     }
 
-    // Gate left open + hungry → wander out to come find the player and beg for
-    // food, instead of just standing at the open gate. Throttled per horse, and
-    // only for horses that bother (not lazy). (issue #26 tweak)
-    if (this.props.gate?.open && horseData.stats.hunger < 50 &&
-        horseData.temperament !== 'lazy' && this.player) {
-      const now = this.time.now;
-      if (!h._lastSeek || now - h._lastSeek > 11000) {
-        if (this._horseSeekPlayer(h)) { h._lastSeek = now; return true; }
+    // Hungry → go find the player and beg for food. With the gate open the horse
+    // walks all the way out to wherever you are; with it shut it walks to the gate
+    // (the choke point) and waits there — same intent, the gate just decides how
+    // far it gets. Lazy horses can't be bothered. When the gate's shut we only
+    // bother if the player is fairly near, so they read as "here comes breakfast"
+    // rather than pressing the fence forever. Throttled per horse. (issue #26)
+    if (horseData.stats.hunger < BEG.HUNGER && horseData.temperament !== 'lazy' && this.player) {
+      const gateOpen = !!this.props.gate?.open;
+      const pd = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, this.player.sprite.x, this.player.sprite.y);
+      if (gateOpen || pd < BEG.NOTICE_DIST) {
+        const now = this.time.now;
+        if (!h._lastSeek || now - h._lastSeek > BEG.THROTTLE_MS) {
+          if (this._horseBeg(h)) { h._lastSeek = now; return true; }
+        }
       }
     }
 
     return false;
   }
 
-  // Hungry horse heads out the open gate toward the player to beg for food, then
-  // resumes wandering. Pathfinds (around obstacles, through the gate) and stops a
-  // short distance away so the herd doesn't pile onto the player. Returns true if
-  // it set off.
-  _horseSeekPlayer(h) {
+  // Hungry horse goes to beg the player for food. If the gate is open it walks all
+  // the way out to the player; if the gate is shut and the player is on the far
+  // side of the fence it can't reach them, so it walks to the gate gap and waits
+  // there instead. Either way it pathfinds around obstacles, stops a short way off
+  // so the herd doesn't pile onto the player, and then *lingers* (see _begWait)
+  // rather than wandering straight off again. Returns true if it's begging.
+  _horseBeg(h) {
     const px = this.player.sprite.x, py = this.player.sprite.y;
-    const dx = h.sprite.x - px, dy = h.sprite.y - py;
-    const dist = Math.hypot(dx, dy) || 1;
-    if (dist < 150) return false; // already right by the player
+    const line = PASTURE_BOUNDS.minY;
+    const gateOpen = !!this.props.gate?.open;
+    const blocked = !gateOpen && h.sprite.y > line && py < line; // player past a shut fence
 
-    const stand = 120;
-    let tx = px + (dx / dist) * stand;
-    let ty = py + (dy / dist) * stand;
-    tx = Phaser.Math.Clamp(tx, PLAYER_BOUNDS.minX, PLAYER_BOUNDS.maxX);
-    ty = Phaser.Math.Clamp(ty, PLAYER_BOUNDS.minY, PLAYER_BOUNDS.maxY);
+    let tx, ty;
+    if (blocked) {
+      // Already loitering at the gate? Don't restart the trip every tick — just
+      // keep the begging loop alive so the stale wander chain can't drag it off.
+      if (Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, GATE_X, line + 42) < BEG.AT_GATE) {
+        if (!h._begTimer) this._begWait(h);
+        return true;
+      }
+      tx = Phaser.Math.Clamp(GATE_X + Phaser.Math.Between(-30, 30), GATE_GAP_X0 + 14, GATE_GAP_X1 - 14);
+      ty = line + Phaser.Math.Between(28, 56);
+    } else {
+      const dx = h.sprite.x - px, dy = h.sprite.y - py;
+      const dist = Math.hypot(dx, dy) || 1;
+      if (dist < BEG.AT_PLAYER) { // already right by the player
+        if (!h._begTimer) this._begWait(h);
+        return true;
+      }
+      const stand = BEG.STANDOFF;
+      tx = Phaser.Math.Clamp(px + (dx / dist) * stand, PLAYER_BOUNDS.minX, PLAYER_BOUNDS.maxX);
+      ty = Phaser.Math.Clamp(py + (dy / dist) * stand, PLAYER_BOUNDS.minY, PLAYER_BOUNDS.maxY);
+    }
 
     h.state = 'wandering';
     if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
@@ -91,9 +115,31 @@ export const WithHorseAI = (Base) => class extends Base {
       h.sprite.play(`idle_${h.key}`, true);
       h.state = 'idle';
       this._maybeNickerAtPlayer(h);
-      this.scheduleCreatureWander(h, Phaser.Math.Between(2000, 4000));
+      this._begWait(h);
     });
     return true;
+  }
+
+  // Keep a horse that came to beg loitering and nickering near the player (or the
+  // gate) until it's been fed or the player walks off, instead of wandering away a
+  // couple seconds after arriving. Re-checks itself on a timer; hands the horse
+  // back to the normal wander chain once it's no longer begging. While _begTimer
+  // is pending the wander scheduler stands down (see scheduleCreatureWander), so a
+  // stale wander can't yank a begging horse away.
+  _begWait(h) {
+    h._begTimer = null;
+    if (h.state !== 'idle' || this.isNight) return; // something else owns it now
+    const horse = this.registry.get('allHorses')?.[h.key];
+    const stillHungry = horse && horse.stats.hunger < BEG.KEEP_HUNGER;
+    const near = this.player &&
+      Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, this.player.sprite.x, this.player.sprite.y) < BEG.LINGER_DIST;
+    if (stillHungry && near) {
+      h.sprite.setFlipX(this.player.sprite.x < h.sprite.x); // face the player
+      this._maybeNickerAtPlayer(h);
+      h._begTimer = this.time.delayedCall(Phaser.Math.Between(2500, 4200), () => this._begWait(h));
+    } else {
+      this.scheduleCreatureWander(h, Phaser.Math.Between(1500, 3000));
+    }
   }
 
   // Move any creature (horse or animal) along a list of waypoints with walk
@@ -116,10 +162,20 @@ export const WithHorseAI = (Base) => class extends Base {
       const dist = Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, tx, ty);
       a.sprite.setFlipX(tx < a.sprite.x);
       a.sprite.play(`walk_${a.key}`, true);
+      // Hold a constant pace across a multi-leg path so the creature flows through
+      // tight turns (e.g. the gate) instead of easing to a near-stop at every
+      // waypoint — the per-leg Sine.easeInOut + 300ms floor was what made horses
+      // visibly lurch at the gate. Ease in on the first leg and out on the last
+      // for a gentle start/stop; a single straight leg keeps the relaxed amble.
+      const single = points.length === 1;
+      const ease = single ? 'Sine.easeInOut'
+        : i === 0 ? 'Sine.easeIn'
+        : i === points.length - 1 ? 'Sine.easeOut'
+        : 'Linear';
       a.wanderTween = this.tweens.add({
         targets: a.sprite, x: tx, y: ty,
-        duration: Math.max(300, dist * rate),
-        ease: 'Sine.easeInOut',
+        duration: Math.max(80, dist * rate),
+        ease,
         onComplete: () => step(i + 1),
       });
     };
@@ -137,9 +193,12 @@ export const WithHorseAI = (Base) => class extends Base {
     a.shadow.setPosition(a.sprite.x, a.sprite.y).setDepth(a.sprite.y - 1);
     a.sprite.setDepth(a.sprite.y).play(`idle_${a.key}`, true);
     if (a.eatTimer) { this.time.removeEvent(a.eatTimer); a.eatTimer = null; }
+    if (a._begTimer) { this.time.removeEvent(a._begTimer); a._begTimer = null; }
     a._eatPile = null;
     a.state = 'idle';
-    if (isHorse) this.scheduleWander(a, Phaser.Math.Between(800, 2000));
+    // A horse that hit the shut gate on its way to beg is at the choke point —
+    // let it nicker for the player it can see but can't reach.
+    if (isHorse) { this._maybeNickerAtPlayer(a); this.scheduleWander(a, Phaser.Math.Between(800, 2000)); }
     else         this.scheduleAnimalWander(a, Phaser.Math.Between(800, 2000));
   }
 
@@ -153,6 +212,7 @@ export const WithHorseAI = (Base) => class extends Base {
     h.state = 'eating';
     h._eatPile = pile;
     if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
+    if (h._begTimer) { this.time.removeEvent(h._begTimer); h._begTimer = null; }
 
     const facingRight = pile.x >= h.sprite.x;
     const tx = pile.x + (facingRight ? -50 : 50);
@@ -192,6 +252,7 @@ export const WithHorseAI = (Base) => class extends Base {
 
     h.state = 'drinking';
     if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
+    if (h._begTimer) { this.time.removeEvent(h._begTimer); h._begTimer = null; }
 
     // Spread horses along the trough length so they don't stack
     const slot = atTrough; // 0 or 1

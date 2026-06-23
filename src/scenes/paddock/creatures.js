@@ -5,7 +5,7 @@
 import Phaser from 'phaser';
 import { EVENTS } from '../../data/events.js';
 import { playNicker, playSqueal } from '../../audio/sounds.js';
-import { BOUNDS, PASTURE_BOUNDS, GATE_X, S } from './constants.js';
+import { BOUNDS, PASTURE_BOUNDS, S } from './constants.js';
 
 export const WithCreatures = (Base) => class extends Base {
   // ─── Other animals ───────────────────────────────────────────────────────
@@ -122,7 +122,7 @@ export const WithCreatures = (Base) => class extends Base {
   // chance to redirect it (horses head for hay/water); otherwise it wanders.
   scheduleCreatureWander(a, delay) {
     this.time.delayedCall(delay, () => {
-      if (this.isNight || a.state !== 'idle') return;
+      if (this.isNight || a.state !== 'idle' || a._begTimer) return;
       if (a.tick && a.tick(a)) return;
       this.creatureWander(a);
     });
@@ -434,7 +434,6 @@ export const WithCreatures = (Base) => class extends Base {
   _needTarget(h) {
     const horse = this.registry.get('allHorses')?.[h.key];
     if (!horse) return null;
-    const temp = horse.temperament;
     const pb = PASTURE_BOUNDS;
 
     // Neglected → sulk off alone in a corner, away from the herd.
@@ -446,24 +445,11 @@ export const WithCreatures = (Base) => class extends Base {
       };
     }
 
-    // Food comes first: hungry (or first thing in the morning) → gather at the
-    // gate to "wait to be fed," especially when the player is up north by the
-    // food sources. Lazy horses can't be bothered. Checked before the trough so
-    // the morning beat is the herd gathering for breakfast. (Coming out through
-    // an OPEN gate to find the player is handled in horseTickForHorse so it can
-    // path beyond the fence.)
-    const morning = this._phase === 'Morning';
-    if ((horse.stats.hunger < 45 || morning) && temp !== 'lazy') {
-      const eager = temp === 'needy' || temp === 'spirited';
-      const playerNorth = this.player && this.player.sprite.y < pb.minY + 80;
-      if (eager || playerNorth) {
-        return {
-          tx: GATE_X + Phaser.Math.Between(-45, 45),
-          ty: pb.minY + Phaser.Math.Between(24, 64),
-          nicker: true,
-        };
-      }
-    }
+    // Hunger no longer biases the wander target: a hungry horse actively goes to
+    // beg the player / gather at the gate via horseTickForHorse → _horseBeg, which
+    // can path beyond the fence and lingers once it arrives. Keeping it out of the
+    // wander target means an idle hungry horse no longer drifts to the gate on its
+    // own when the player's nowhere near.
 
     // Thirsty with no water out → linger expectantly at the (empty) trough.
     // (When the trough is filled, horseTickForHorse already routes them to drink.)
