@@ -12,6 +12,7 @@ import {
   HOLD_MS, HOLD_DRAG_PX, BOUNDS, PLAYER_BOUNDS, PASTURE_BOUNDS,
   GATE_X, GATE_GAP_X0, GATE_GAP_X1, S,
   DUST_CLEAN_AT, DUST_MAX_ALPHA, STINK_AT, STAND_DEFS, STAND_TYPES,
+  TROUGH_CAP, TROUGH_PER_BUCKET,
 } from './paddock/constants.js';
 import { WithWorld } from './paddock/world.js';
 import { WithCreatures } from './paddock/creatures.js';
@@ -180,14 +181,32 @@ export default class PaddockScene
 
   fillTrough() {
     const t = this.props.trough;
-    if (!t || t.filled) return;
+    if (!t || t.level >= TROUGH_CAP) return; // already brim-full
     const item = this.getActiveItem();
     if (item?.content !== 'water' || item.count <= 0) return;
     this.scene.get('HotbarScene')?.useActiveCarrier(item.count); // empty the bucket
-    t.filled = true;
-    t.drinks = 3;
-    t.sprite.setTexture('troughFull');
+    this._setTroughLevel(t.level + TROUGH_PER_BUCKET); // pour raises the level (#103)
     playSplash();
+  }
+
+  // The trough sprite for a given water level (#103): empty → low → half → full,
+  // in even thirds of capacity.
+  _troughTexture(level) {
+    if (level <= 0) return 'trough';
+    if (level <= TROUGH_CAP / 3) return 'troughLow';
+    if (level <= (TROUGH_CAP * 2) / 3) return 'troughHalf';
+    return 'troughFull';
+  }
+
+  // Set the trough's water level (clamped), keep the `filled` flag (read in lots
+  // of places) in sync, and swap the sprite to match. The single owner of trough
+  // level changes — both pouring (fillTrough) and drinking (horseGoDrink) go here.
+  _setTroughLevel(level) {
+    const t = this.props.trough;
+    if (!t) return;
+    t.level  = Phaser.Math.Clamp(level, 0, TROUGH_CAP);
+    t.filled = t.level > 0;
+    t.sprite.setTexture(this._troughTexture(t.level));
   }
 
   toggleGate() {

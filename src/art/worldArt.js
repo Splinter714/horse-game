@@ -96,6 +96,27 @@ export function buildWorldTextures(scene) {
     g.fillRect(8, 12, 10, 1); g.fillRect(30, 14, 12, 1); g.fillRect(60, 11, 8, 1); g.fillRect(78, 13, 10, 1);
     g.fillStyle(0x6a3c18, 1); g.fillRect(47, 4, 4, 22); g.fillRect(49, 2, 2, 4);
   });
+  // Partial fills (#103): the interior runs y=8..18 (10px). Water sits in the
+  // lower band — about two-thirds for half, a shallow sliver for low — with the
+  // dry dark interior showing above it.
+  gen(scene, 'troughHalf', 100, 26, (g) => {
+    g.fillStyle(0x8a5a2e, 1); g.fillRect(0, 6, 100, 20);
+    g.fillStyle(0xa06c38, 1); g.fillRect(0, 2, 100, 5);
+    g.fillStyle(0x3a2410, 1); g.fillRect(4, 8, 92, 10);   // dry interior
+    g.fillStyle(0x5fa6d6, 1); g.fillRect(4, 12, 92, 6);   // water (lower ~two-thirds)
+    g.fillStyle(0x9ae0f8, 1); g.fillRect(4, 12, 92, 2);   // surface highlight
+    g.fillStyle(0x7cc8e8, 0.7); g.fillRect(8, 15, 10, 1); g.fillRect(34, 16, 12, 1); g.fillRect(64, 14, 8, 1);
+    g.fillStyle(0x6a3c18, 1); g.fillRect(47, 4, 4, 22); g.fillRect(49, 2, 2, 4);
+  });
+  gen(scene, 'troughLow', 100, 26, (g) => {
+    g.fillStyle(0x8a5a2e, 1); g.fillRect(0, 6, 100, 20);
+    g.fillStyle(0xa06c38, 1); g.fillRect(0, 2, 100, 5);
+    g.fillStyle(0x3a2410, 1); g.fillRect(4, 8, 92, 10);   // dry interior
+    g.fillStyle(0x2a1a08, 1); g.fillRect(4, 15, 92, 3);   // damp shadow
+    g.fillStyle(0x4a86b0, 1); g.fillRect(4, 16, 92, 2);   // shallow water at the bottom
+    g.fillStyle(0x7cc8e8, 0.55); g.fillRect(10, 16, 9, 1); g.fillRect(62, 16, 8, 1);
+    g.fillStyle(0x6a3c18, 1); g.fillRect(47, 4, 4, 22); g.fillRect(49, 2, 2, 4);
+  });
 
   // --- chicken coop (64 × 52) ---
   // A raised hen-house: short legs, a chicken-sized pop-door with a ramp, a

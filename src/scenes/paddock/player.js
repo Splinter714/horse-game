@@ -5,7 +5,7 @@ import Phaser from 'phaser';
 import { CONTENT_DEFS } from '../../data/items.js';
 import { EVENTS } from '../../data/events.js';
 import { playGather } from '../../audio/sounds.js';
-import { WORLD_W, WORLD_H, CARE_DIST, PLAYER_SPEED, HOLD_MS, HOLD_DRAG_PX, PLAYER_BOUNDS, S, STAND_DEFS } from './constants.js';
+import { WORLD_W, WORLD_H, CARE_DIST, PLAYER_SPEED, HOLD_MS, HOLD_DRAG_PX, PLAYER_BOUNDS, S, STAND_DEFS, TROUGH_CAP } from './constants.js';
 
 // In-place reach for using a tool on a horse (brush/saddle/lead). Use never
 // walks you anywhere — the horse has to already be within this range.
@@ -166,7 +166,9 @@ export const WithPlayer = (Base) => class extends Base {
 
     const trough = (item) => {
       const t = this.props.trough;
-      if (!t || t.filled || item?.content !== 'water') return [];
+      // Offer "Fill Trough" until it's brim-full, so you can pour bucket after
+      // bucket to top it up (#103) — not just when it's bone dry.
+      if (!t || t.level >= TROUGH_CAP || item?.content !== 'water') return [];
       return [{
         x: t.x, y: t.y, tapRadius: 220, reachDist: 130, promptOffsetY: 40,
         canAct: true, label: 'Fill Trough',

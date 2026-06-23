@@ -29,6 +29,12 @@ export const BOUNDS         = { minX: 180, maxX: 1740, minY: 200, maxY: 900 };
 export const PLAYER_BOUNDS  = { minX: 40, maxX: 1880, minY: 80, maxY: 1550 };
 export const PASTURE_BOUNDS = { minX: 180, maxX: 1740, minY: 910, maxY: 1450 };
 
+// Water trough capacity, in "drinks" (#103). The trough holds a numeric water
+// level 0..TROUGH_CAP; each poured bucket raises it by TROUGH_PER_BUCKET and each
+// horse drink lowers it by one. CAP/PER_BUCKET = 3 buckets to fill from empty.
+export const TROUGH_CAP = 9;
+export const TROUGH_PER_BUCKET = 3;
+
 // Gate opening in the top pasture fence (the only gap; gate sits here).
 export const GATE_X = 960;
 export const GATE_GAP_X0 = 900;

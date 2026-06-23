@@ -251,11 +251,7 @@ export const WithHorseAI = (Base) => class extends Base {
             allHorses[h.key]?.water();
             this.game.events.emit('stats-changed');
             drinksDone++;
-            trough.drinks = Math.max(0, (trough.drinks ?? 3) - 1);
-            if (trough.drinks <= 0) {
-              trough.filled = false;
-              trough.sprite.setTexture('trough');
-            }
+            this._setTroughLevel(trough.level - 1); // a sip lowers the water (#103)
             if (drinksDone >= 1) {
               if (h.eatTimer) { this.time.removeEvent(h.eatTimer); h.eatTimer = null; }
               h.sprite.play(`idle_${h.key}`, true);
