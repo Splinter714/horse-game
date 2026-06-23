@@ -3,7 +3,7 @@
 
 import Phaser from 'phaser';
 import { CONTENT_DEFS } from '../../data/items.js';
-import { playSplash } from '../../audio/sounds.js';
+import { playGather } from '../../audio/sounds.js';
 import { WORLD_W, WORLD_H, CARE_DIST, PLAYER_SPEED, HOLD_MS, HOLD_DRAG_PX, PLAYER_BOUNDS, S, STAND_DEFS } from './constants.js';
 
 // In-place reach for using a tool on a horse (brush/saddle/lead). Use never
@@ -685,7 +685,7 @@ export const WithPlayer = (Base) => class extends Base {
     const space = item.capacity - (item.content === source.content ? item.count : 0);
     const added = hot?.fillActiveCarrier(source.content, space || item.capacity) ?? 0;
     if (added <= 0) return;
-    if (source.content === 'water') playSplash();
+    playGather(source.content); // distinct per-source pickup sound (water → splash)
     this.showIcon(CONTENT_DEFS[source.content].icon, this.player.sprite);
   }
 

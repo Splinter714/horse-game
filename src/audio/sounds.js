@@ -299,6 +299,131 @@ export function playPeck() {
   osc.stop(now + 0.03);
 }
 
+// ─── Gathering (per-source pickup) ───────────────────────────────────────────
+
+// Small noise burst helper used by the gather sounds: `shape` is the bandpass/
+// lowpass/highpass type, `freq` the centre, `q` the resonance, and the gain
+// envelope ramps up over `attack` then decays to silence by `dur`.
+function gatherBurst(now, dur, shape, freq, q, vol, attack = 0.01) {
+  const c = getCtx();
+  const buf = c.createBuffer(1, Math.ceil(c.sampleRate * dur), c.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+
+  const src = c.createBufferSource();
+  src.buffer = buf;
+
+  const filt = c.createBiquadFilter();
+  filt.type = shape;
+  filt.frequency.value = freq;
+  filt.Q.value = q;
+
+  const env = c.createGain();
+  env.gain.setValueAtTime(0.001, now);
+  env.gain.linearRampToValueAtTime(vol, now + attack);
+  env.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+  src.connect(filt);
+  filt.connect(env);
+  env.connect(master(1));
+  src.start(now);
+  src.stop(now + dur);
+}
+
+// A distinct pickup sound per gather source so the action reads by ear.
+// Routed (like everything) through the effects bus via master().
+export function playGather(content) {
+  const c = getCtx();
+  const now = c.currentTime;
+
+  switch (content) {
+    case 'water':
+      // Water keeps its existing splash.
+      playSplash();
+      return;
+
+    case 'carrot': {
+      // Pull-from-soil: a low gritty earthy tug that swells then releases with
+      // a soft thud as it comes free.
+      const filt = c.createBiquadFilter();
+      filt.type = 'lowpass';
+      filt.frequency.setValueAtTime(220, now);
+      filt.frequency.linearRampToValueAtTime(600, now + 0.16);
+      filt.Q.value = 0.6;
+      const buf = c.createBuffer(1, Math.ceil(c.sampleRate * 0.22), c.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      const env = c.createGain();
+      env.gain.setValueAtTime(0.001, now);
+      env.gain.linearRampToValueAtTime(0.26, now + 0.13);
+      env.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+      src.connect(filt); filt.connect(env); env.connect(master(1));
+      src.start(now); src.stop(now + 0.22);
+      // Soft low thud on release.
+      const osc = c.createOscillator();
+      const g = c.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(150, now + 0.13);
+      osc.frequency.exponentialRampToValueAtTime(70, now + 0.24);
+      g.gain.setValueAtTime(0.18, now + 0.13);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+      osc.connect(g); g.connect(master(1));
+      osc.start(now + 0.13); osc.stop(now + 0.26);
+      return;
+    }
+
+    case 'apple': {
+      // Pluck from tree: a quick taut snap (plucked tone) with a little leaf rustle.
+      const osc = c.createOscillator();
+      const g = c.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(260, now + 0.07);
+      g.gain.setValueAtTime(0.22, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.10);
+      osc.connect(g); g.connect(master(1));
+      osc.start(now); osc.stop(now + 0.10);
+      // Leafy rustle just after the snap.
+      gatherBurst(now + 0.02, 0.14, 'highpass', 3500, 0.7, 0.10, 0.03);
+      return;
+    }
+
+    case 'hay': {
+      // Rustle/gather of dry straw: a few overlapping airy highpass noise
+      // sweeps, soft and dry.
+      gatherBurst(now,        0.26, 'highpass', 3000, 0.6, 0.14, 0.06);
+      gatherBurst(now + 0.05, 0.22, 'bandpass', 4200, 0.8, 0.10, 0.05);
+      gatherBurst(now + 0.11, 0.18, 'highpass', 2600, 0.6, 0.09, 0.05);
+      return;
+    }
+
+    case 'egg': {
+      // Soft pick-up / gentle clink: a tiny soft thunk plus a delicate two-note clink.
+      gatherBurst(now, 0.06, 'lowpass', 500, 0.7, 0.10, 0.01);
+      [1318.5, 1760].forEach((freq, i) => {
+        const t = now + 0.03 + i * 0.05;
+        const osc = c.createOscillator();
+        const g = c.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        g.gain.setValueAtTime(0.001, t);
+        g.gain.linearRampToValueAtTime(0.10, t + 0.006);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.10);
+        osc.connect(g); g.connect(master(1));
+        osc.start(t); osc.stop(t + 0.10);
+      });
+      return;
+    }
+
+    default:
+      // Seed and any other content: a light dry scatter.
+      gatherBurst(now, 0.14, 'highpass', 2200, 0.6, 0.10, 0.03);
+      return;
+  }
+}
+
 // ─── Happiness chime (pet / care action) ─────────────────────────────────────
 
 export function playChime() {

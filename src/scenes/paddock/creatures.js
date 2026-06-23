@@ -5,7 +5,7 @@
 
 import Phaser from 'phaser';
 import { EVENTS } from '../../data/events.js';
-import { playNicker, playSqueal, playPeck } from '../../audio/sounds.js';
+import { playNicker, playSqueal, playPeck, playGather } from '../../audio/sounds.js';
 import { BOUNDS, PASTURE_BOUNDS, S, HERD } from './constants.js';
 import { SPECIES } from '../../data/species/index.js';
 
@@ -353,6 +353,7 @@ export const WithCreatures = (Base) => class extends Base {
     // Strict contents: a basket already holding something else (or full) refuses.
     const added = this.scene.get('HotbarScene')?.fillActiveCarrier('egg', 1) ?? 0;
     if (added <= 0) return;
+    playGather('egg'); // soft pick-up / gentle clink
     nest.hasEgg = false;
     nest.sprite.setTexture('nest');
 
