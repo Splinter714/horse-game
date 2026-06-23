@@ -167,10 +167,23 @@ export const WithWorld = (Base) => class extends Base {
       this.streamObstacles.push({ x: x - 42, y: y - 30, w: 84, h: 60, isStream: true });
     }
 
-    // Bucket-fill point on the stream's south bank (no sprite/obstacle of its
-    // own — the river graphics is the visual, its rects do the blocking). Sits
-    // just below the bank so both side-approaches land on open grass.
-    this.props.sources.push({ x: 1760, y: 440, content: 'water', label: 'Stream', reach: 100 });
+    // Bucket-fill points all along the stream's field-facing bank, so it can be
+    // gathered from anywhere along its visible length (not just one spot). Each
+    // is spriteless/obstacle-less — the river graphics is the visual and its
+    // rects do the blocking; _nearestInteractable just picks the closest one.
+    // Points sit ~12px past the bank rim on open grass so approaches stay clear.
+    for (let i = 0; i < path.length; i += 5) {
+      const [x, y] = path[i];
+      if (y < 40 || x > 1900) continue; // skip the off-screen top/right tails
+      const a = path[Math.max(0, i - 1)], b = path[Math.min(path.length - 1, i + 1)];
+      let tx = b[0] - a[0], ty = b[1] - a[1];
+      const tl = Math.hypot(tx, ty) || 1; tx /= tl; ty /= tl;
+      let nx = -ty, ny = tx;            // outward normal…
+      if (ny < 0) { nx = -nx; ny = -ny; } // …pointing toward the field (downward)
+      this.props.sources.push({
+        x: x + nx * 72, y: y + ny * 72, content: 'water', label: 'Stream', reach: 90,
+      });
+    }
   }
 
   // Static gathering props. Walk up + interact (or tap) with a compatible
