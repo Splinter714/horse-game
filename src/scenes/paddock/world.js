@@ -25,7 +25,7 @@ export const WithWorld = (Base) => class extends Base {
       [580, 580], [700, 370], [800, 610], [920, 450], [1000, 350],
       [60, 540], [420, 560], [640, 520], [190, 290], [860, 560],
       [1100, 450], [1200, 620], [1340, 390], [1460, 570], [1580, 430],
-      [1700, 600], [1800, 380], [1860, 520], [1050, 800], [1180, 950],
+      [1700, 600], [1480, 720], [1860, 520], [1050, 800], [1180, 950],
       [1380, 850], [1520, 980], [1650, 780], [1780, 900], [280, 880],
       [420, 1020], [560, 900], [700, 1040], [850, 820], [980, 1020],
       [120, 750], [240, 1100], [360, 980], [500, 800], [630, 1100],
@@ -77,8 +77,113 @@ export const WithWorld = (Base) => class extends Base {
     // farm band (north of the pasture) so the gather→carry→use loop has room.
     this.buildSources();
 
+    // Scenery stream cutting across the top-right corner of the world.
+    this.buildStream();
+
     // --- Pasture Fencing & Gate ---
     this.buildPastureFence();
+  }
+
+  // A flowing stream that enters off the top edge and exits off the right edge,
+  // cutting the top-right corner — scenery, drawn straight into the world with
+  // Graphics (banks, water, ripples, stones, reeds) and backed by collision
+  // rects so creatures path around it. Water is gathered at the well instead.
+  buildStream() {
+    const g = this.add.graphics().setDepth(-96);
+    // control points that sweep a smooth arc through the corner; both ends run
+    // past the world edge (off the top, off the right).
+    const ctrl = [[1430, -60], [1560, 150], [1680, 320], [1860, 380], [2020, 330], [2140, 230]];
+    // smooth the control points with a Catmull-Rom spline
+    const cr = (p0, p1, p2, p3, t) => {
+      const t2 = t * t, t3 = t2 * t;
+      const f = (a, b, c, d) =>
+        0.5 * ((2 * b) + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
+      return [f(p0[0], p1[0], p2[0], p3[0]), f(p0[1], p1[1], p2[1], p3[1])];
+    };
+    const P = [ctrl[0], ...ctrl, ctrl[ctrl.length - 1]];
+    const mid = [];
+    for (let i = 1; i < P.length - 2; i++) {
+      for (let s = 0; s < 16; s++) mid.push(cr(P[i - 1], P[i], P[i + 1], P[i + 2], s / 16));
+    }
+    mid.push(P[P.length - 2]);
+    // add a squiggly meander perpendicular to the flow (the wavy look from before)
+    const path = [];
+    let dist = 0;
+    for (let i = 0; i < mid.length; i++) {
+      const a = mid[Math.max(0, i - 1)], b = mid[Math.min(mid.length - 1, i + 1)];
+      let tx = b[0] - a[0], ty = b[1] - a[1];
+      const tl = Math.hypot(tx, ty) || 1; tx /= tl; ty /= tl;
+      if (i > 0) dist += Math.hypot(mid[i][0] - mid[i - 1][0], mid[i][1] - mid[i - 1][1]);
+      const off = 13 * Math.sin(dist / 55) + 4 * Math.sin(dist / 19);
+      path.push([mid[i][0] - ty * off, mid[i][1] + tx * off]);
+    }
+
+    // overlapping circles down the centerline build a smooth thick band
+    const layer = (r, color, dy = 0, alpha = 1) => {
+      g.fillStyle(color, alpha);
+      for (const [x, y] of path) g.fillCircle(x, y + dy, r);
+    };
+    layer(60, 0x3e6630);     // damp earth rim / bank shadow
+    layer(54, 0x4f8a3e);     // grassy bank
+    layer(44, 0x356f9e);     // deep water edge
+    layer(40, 0x3f7fb5);     // water
+    layer(26, 0x5fa6d6, -6); // sunlit upper surface
+
+    // current ripples along the flow
+    g.fillStyle(0x9ae0f8, 0.8);
+    for (let i = 6; i < path.length; i += 9) {
+      const [x, y] = path[i];
+      g.fillRect(x - 6, y - 4, 10, 2); g.fillRect(x - 2, y + 4, 8, 2);
+    }
+    g.fillStyle(0xc8f0ff, 0.7);
+    for (let i = 10; i < path.length; i += 12) { const [x, y] = path[i]; g.fillRect(x - 3, y, 6, 2); }
+
+    // stepping stones
+    const rock = (x, y, r) => {
+      g.fillStyle(0x000000, 0.12); g.fillEllipse(x, y + r, r * 2.2, r);
+      g.fillStyle(0x747b80, 1); g.fillEllipse(x, y, r * 2, r * 1.5);
+      g.fillStyle(0x9aa0a4, 1); g.fillEllipse(x - r * 0.5, y - r * 0.5, r, r * 0.7);
+    };
+    for (const i of [12, 30, 46]) { const [x, y] = path[i]; rock(x, y, 7); }
+
+    // reed tufts along both banks (offset along the flow normal)
+    for (let i = 4; i < path.length; i += 8) {
+      const [x, y] = path[i];
+      const [px, py] = path[Math.max(0, i - 1)];
+      let nx = -(y - py), ny = (x - px);
+      const len = Math.hypot(nx, ny) || 1; nx /= len; ny /= len;
+      for (const side of [-1, 1]) {
+        const bx = x + nx * 50 * side, by = y + ny * 50 * side;
+        g.fillStyle(0x3b8a26, 1); g.fillRect(bx - 1, by - 5, 1, 6); g.fillRect(bx + 1, by - 6, 1, 7);
+        g.fillStyle(0x4fa838, 1); g.fillRect(bx, by - 5, 1, 6); g.fillRect(bx + 2, by - 4, 1, 5);
+      }
+    }
+
+    // collision rects for the in-play portion (skip the off-screen top tail)
+    this.streamObstacles = [];
+    for (let i = 0; i < path.length; i += 6) {
+      const [x, y] = path[i];
+      if (y < 40) continue;
+      this.streamObstacles.push({ x: x - 42, y: y - 30, w: 84, h: 60, isStream: true });
+    }
+
+    // Bucket-fill points all along the stream's field-facing bank, so it can be
+    // gathered from anywhere along its visible length (not just one spot). Each
+    // is spriteless/obstacle-less — the river graphics is the visual and its
+    // rects do the blocking; _nearestInteractable just picks the closest one.
+    // Points sit ~12px past the bank rim on open grass so approaches stay clear.
+    for (let i = 0; i < path.length; i += 5) {
+      const [x, y] = path[i];
+      if (y < 40 || x > 1900) continue; // skip the off-screen top/right tails
+      const a = path[Math.max(0, i - 1)], b = path[Math.min(path.length - 1, i + 1)];
+      let tx = b[0] - a[0], ty = b[1] - a[1];
+      const tl = Math.hypot(tx, ty) || 1; tx /= tl; ty /= tl;
+      let nx = -ty, ny = tx;            // outward normal…
+      if (ny < 0) { nx = -nx; ny = -ny; } // …pointing toward the field (downward)
+      this.props.sources.push({
+        x: x + nx * 72, y: y + ny * 72, content: 'water', label: 'Stream', reach: 90,
+      });
+    }
   }
 
   // Static gathering props. Walk up + interact (or tap) with a compatible
@@ -87,11 +192,11 @@ export const WithWorld = (Base) => class extends Base {
   // through it — obstacles are registered in buildObstacles.
   buildSources() {
     const defs = [
-      { x: 430,  y: 620, content: 'hay',    tex: 'haystack',     label: 'Hay Pile',      reach: 100, ob: { w: 84,  h: 36 } },
+      { x: 820,  y: 850, content: 'hay',    tex: 'haystack',     label: 'Hay Pile',      reach: 100, ob: { w: 84,  h: 36 } },
       { x: 760,  y: 560, content: 'carrot', tex: 'carrotGarden', label: 'Carrot Garden', reach: 100, ob: { w: 104, h: 42 } },
       { x: 1660, y: 560, content: 'apple',  tex: 'appleTree',    label: 'Apple Tree',    reach: 90,  ob: { w: 44,  h: 26 } },
       { x: 1120, y: 470, content: 'seed',   tex: 'grainBin',     label: 'Grain Bin',     reach: 95,  ob: { w: 66,  h: 40 } },
-      { x: 1480, y: 640, content: 'water',  tex: 'stream',       label: 'Stream',        reach: 110, ob: { w: 118, h: 56 } },
+      { x: 1100, y: 850, content: 'water',  tex: 'well',         label: 'Well',          reach: 95,  ob: { w: 52,  h: 22 } },
     ];
     for (const d of defs) {
       const sprite = this.add.image(d.x, d.y, d.tex)
@@ -195,6 +300,9 @@ export const WithWorld = (Base) => class extends Base {
       if (!s.ob) continue;
       this.obstacles.push({ x: s.x - s.ob.w / 2, y: s.y - s.ob.h, w: s.ob.w, h: s.ob.h, isSource: true });
     }
+
+    // Stream collision (built in buildStream) — keep everyone out of the water.
+    for (const o of (this.streamObstacles || [])) this.obstacles.push(o);
   }
 
   // Point-vs-rect check with a character radius.
