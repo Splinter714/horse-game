@@ -9,7 +9,7 @@ export const WithFarmStand = (Base) => class extends Base {
   // ─── Farm Stand ──────────────────────────────────────────────────────────
 
   buildFarmStand() {
-    const sx = 1680, sy = 360;
+    const sx = 1600, sy = 780;
     const sprite = this.add.image(sx, sy, 'farmStand')
       .setScale(S).setDepth(sy).setOrigin(0.5, 1);
     const stock = Object.fromEntries(STAND_TYPES.map(t => [t, 0]));

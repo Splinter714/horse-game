@@ -25,7 +25,7 @@ export const WithWorld = (Base) => class extends Base {
       [580, 580], [700, 370], [800, 610], [920, 450], [1000, 350],
       [60, 540], [420, 560], [640, 520], [190, 290], [860, 560],
       [1100, 450], [1200, 620], [1340, 390], [1460, 570], [1580, 430],
-      [1700, 600], [1800, 380], [1860, 520], [1050, 800], [1180, 950],
+      [1700, 600], [1480, 720], [1860, 520], [1050, 800], [1180, 950],
       [1380, 850], [1520, 980], [1650, 780], [1780, 900], [280, 880],
       [420, 1020], [560, 900], [700, 1040], [850, 820], [980, 1020],
       [120, 750], [240, 1100], [360, 980], [500, 800], [630, 1100],
@@ -90,18 +90,33 @@ export const WithWorld = (Base) => class extends Base {
   // rects so creatures path around it. Water is gathered at the well instead.
   buildStream() {
     const g = this.add.graphics().setDepth(-96);
-    // control points; both ends deliberately run past the world edge
-    const ctrl = [[1500, -60], [1660, 60], [1800, 150], [1950, 240], [2080, 320]];
-    const path = [];
-    for (let i = 0; i < ctrl.length - 1; i++) {
-      const [ax, ay] = ctrl[i], [bx, by] = ctrl[i + 1];
-      const steps = 14;
-      for (let s = 0; s < steps; s++) {
-        const t = s / steps;
-        path.push([ax + (bx - ax) * t, ay + (by - ay) * t]);
-      }
+    // control points that sweep a smooth arc through the corner; both ends run
+    // past the world edge (off the top, off the right).
+    const ctrl = [[1430, -60], [1560, 150], [1680, 320], [1860, 380], [2020, 330], [2140, 230]];
+    // smooth the control points with a Catmull-Rom spline
+    const cr = (p0, p1, p2, p3, t) => {
+      const t2 = t * t, t3 = t2 * t;
+      const f = (a, b, c, d) =>
+        0.5 * ((2 * b) + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
+      return [f(p0[0], p1[0], p2[0], p3[0]), f(p0[1], p1[1], p2[1], p3[1])];
+    };
+    const P = [ctrl[0], ...ctrl, ctrl[ctrl.length - 1]];
+    const mid = [];
+    for (let i = 1; i < P.length - 2; i++) {
+      for (let s = 0; s < 16; s++) mid.push(cr(P[i - 1], P[i], P[i + 1], P[i + 2], s / 16));
     }
-    path.push(ctrl[ctrl.length - 1]);
+    mid.push(P[P.length - 2]);
+    // add a squiggly meander perpendicular to the flow (the wavy look from before)
+    const path = [];
+    let dist = 0;
+    for (let i = 0; i < mid.length; i++) {
+      const a = mid[Math.max(0, i - 1)], b = mid[Math.min(mid.length - 1, i + 1)];
+      let tx = b[0] - a[0], ty = b[1] - a[1];
+      const tl = Math.hypot(tx, ty) || 1; tx /= tl; ty /= tl;
+      if (i > 0) dist += Math.hypot(mid[i][0] - mid[i - 1][0], mid[i][1] - mid[i - 1][1]);
+      const off = 13 * Math.sin(dist / 55) + 4 * Math.sin(dist / 19);
+      path.push([mid[i][0] - ty * off, mid[i][1] + tx * off]);
+    }
 
     // overlapping circles down the centerline build a smooth thick band
     const layer = (r, color, dy = 0, alpha = 1) => {
@@ -159,11 +174,11 @@ export const WithWorld = (Base) => class extends Base {
   // through it — obstacles are registered in buildObstacles.
   buildSources() {
     const defs = [
-      { x: 430,  y: 620, content: 'hay',    tex: 'haystack',     label: 'Hay Pile',      reach: 100, ob: { w: 84,  h: 36 } },
+      { x: 820,  y: 850, content: 'hay',    tex: 'haystack',     label: 'Hay Pile',      reach: 100, ob: { w: 84,  h: 36 } },
       { x: 760,  y: 560, content: 'carrot', tex: 'carrotGarden', label: 'Carrot Garden', reach: 100, ob: { w: 104, h: 42 } },
       { x: 1660, y: 560, content: 'apple',  tex: 'appleTree',    label: 'Apple Tree',    reach: 90,  ob: { w: 44,  h: 26 } },
       { x: 1120, y: 470, content: 'seed',   tex: 'grainBin',     label: 'Grain Bin',     reach: 95,  ob: { w: 66,  h: 40 } },
-      { x: 1340, y: 700, content: 'water',  tex: 'well',         label: 'Well',          reach: 95,  ob: { w: 52,  h: 22 } },
+      { x: 1100, y: 850, content: 'water',  tex: 'well',         label: 'Well',          reach: 95,  ob: { w: 52,  h: 22 } },
     ];
     for (const d of defs) {
       const sprite = this.add.image(d.x, d.y, d.tex)
