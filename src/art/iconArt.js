@@ -197,16 +197,18 @@ export function buildIconTextures(scene) {
     g.fillStyle(0x6f7889, 1);
     g.fillRect(3, 4, 1, 3); g.fillRect(16, 4, 1, 3);
     g.fillRect(4, 2, 12, 1); g.fillRect(3, 3, 2, 1); g.fillRect(15, 3, 2, 1);
-    // Tapered body (front face)
+    // Tapered body (front face) with a rounded base so the bottom curves to match
+    // the tilted top, instead of looking flat (#125 follow-up).
     g.fillStyle(0x9aa3b6, 1);
-    g.fillTriangle(3, 8, 17, 8, 15, 18); g.fillTriangle(3, 8, 15, 18, 5, 18);
+    g.fillTriangle(3, 8, 17, 8, 15, 17); g.fillTriangle(3, 8, 15, 17, 5, 17);
+    g.fillEllipse(10, 17, 11, 4.4); // rounded bottom bulge
     // Raised rim oval (the lip we look over)
     g.fillStyle(0xb8c0d0, 1); g.fillEllipse(10, 8, 14, 5);
     // Dark inside oval — empty pail
     g.fillStyle(0x474d5b, 1); g.fillEllipse(10, 8, 10.5, 3.4);
-    // Body highlight + base shadow
+    // Left highlight + curved underside shadow
     g.fillStyle(0xb8c0d0, 1); g.fillRect(5, 10, 1, 6);
-    g.fillStyle(0x7a8396, 1); g.fillRect(7, 17, 6, 1);
+    g.fillStyle(0x7a8396, 1); g.fillEllipse(10, 18.4, 8.6, 2.2);
   });
   // Filled bucket — same tilted pail, but the mouth oval is full of water with a
   // glint, so "filled" is obvious at a glance next to the empty one (#125).
@@ -215,13 +217,14 @@ export function buildIconTextures(scene) {
     g.fillRect(3, 4, 1, 3); g.fillRect(16, 4, 1, 3);
     g.fillRect(4, 2, 12, 1); g.fillRect(3, 3, 2, 1); g.fillRect(15, 3, 2, 1);
     g.fillStyle(0x9aa3b6, 1);
-    g.fillTriangle(3, 8, 17, 8, 15, 18); g.fillTriangle(3, 8, 15, 18, 5, 18);
+    g.fillTriangle(3, 8, 17, 8, 15, 17); g.fillTriangle(3, 8, 15, 17, 5, 17);
+    g.fillEllipse(10, 17, 11, 4.4); // rounded bottom bulge (matches the tilted top)
     g.fillStyle(0xb8c0d0, 1); g.fillEllipse(10, 8, 14, 5); // rim
     // Water filling the mouth oval, with a brighter glint near-left
     g.fillStyle(0x5fa6d6, 1); g.fillEllipse(10, 8, 10.5, 3.4);
     g.fillStyle(0x9ae0f8, 1); g.fillEllipse(8.4, 7.4, 4.6, 1.6);
     g.fillStyle(0xb8c0d0, 1); g.fillRect(5, 10, 1, 6);
-    g.fillStyle(0x7a8396, 1); g.fillRect(7, 17, 6, 1);
+    g.fillStyle(0x7a8396, 1); g.fillEllipse(10, 18.4, 8.6, 2.2);
   });
 
   // --- hand icon (20 × 20) ---
