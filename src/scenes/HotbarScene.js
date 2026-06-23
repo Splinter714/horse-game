@@ -77,9 +77,14 @@ export default class HotbarScene extends Phaser.Scene {
       this._togglePause();
     });
 
+    // Gamepad: bumpers (LB/RB) move between hotbar slots; triggers (LT/RT) cycle
+    // the instances inside a carrier group so a controller can reach every basket/
+    // bucket, not just the group (#121). Cycling shows the fly-out as feedback.
     this.input.gamepad.on('down', (_pad, button) => {
-      if (button.index === 4) this._setActive((this.activeSlot - 1 + NUM_SLOTS) % NUM_SLOTS);
-      if (button.index === 5) this._setActive((this.activeSlot + 1) % NUM_SLOTS);
+      if (button.index === 4) this._setActive((this.activeSlot - 1 + NUM_SLOTS) % NUM_SLOTS); // LB prev slot
+      if (button.index === 5) this._setActive((this.activeSlot + 1) % NUM_SLOTS);             // RB next slot
+      if (button.index === 6) this._padCycleMember(-1); // LT previous instance
+      if (button.index === 7) this._padCycleMember(+1); // RT next instance
     });
 
     this._onResize = () => {
@@ -476,15 +481,25 @@ export default class HotbarScene extends Phaser.Scene {
     if (this._isGroup(key) && wasActive && !flyoutOpenHere) this._openFlyout(i);
   }
 
-  // Advance the active member of a carrier group to the next one.
-  _cycleMember(groupKey) {
+  // Step the active member of a carrier group by `dir` (default forward), wrapping.
+  _cycleMember(groupKey, dir = 1) {
     const group = ITEM_MAP[groupKey];
     if (!group?.members) return;
     const cur = this._resolveKey(groupKey);
+    const n = group.members.length;
     const idx = group.members.indexOf(cur);
-    this.activeCarrier[group.carrier] = group.members[(idx + 1) % group.members.length];
+    this.activeCarrier[group.carrier] = group.members[(((idx + dir) % n) + n) % n];
     this._saveCarriers();
     this._buildHotbar();
+  }
+
+  // Gamepad trigger cycling of the active group's instances (#121): step the member
+  // by `dir` and flash the fly-out so the controller user sees the choice.
+  _padCycleMember(dir) {
+    const key = this.hotbar[this.activeSlot];
+    if (!this._isGroup(key)) return;
+    this._cycleMember(key, dir);
+    this._openFlyout(this.activeSlot);
   }
 
   // Directly select a member from the fly-out.
