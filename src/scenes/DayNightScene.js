@@ -42,12 +42,11 @@ export default class DayNightScene extends Phaser.Scene {
       padding: { x: 12, y: 8 },
     }).setDepth(501).setOrigin(1, 0).setScrollFactor(0);
 
-    // Dev only: tap the time-of-day display to skip to the next phase. Gated to
-    // DEV so it's available while developing but never ships in a production build.
-    if (import.meta.env.DEV) {
-      this.label.setInteractive({ useHandCursor: true });
-      this.label.on('pointerdown', () => this._advancePhase());
-    }
+    // Tap the time-of-day display to skip to the next phase (#89). Available in the
+    // live build too, not just dev — handy for testing on the deployed game and a
+    // quick way to nudge time along (sleeping at the barn still passes the night).
+    this.label.setInteractive({ useHandCursor: true });
+    this.label.on('pointerdown', () => this._advancePhase());
 
     this.overlay.setScrollFactor(0);
 
@@ -103,8 +102,8 @@ export default class DayNightScene extends Phaser.Scene {
     });
   }
 
-  // Dev only: jump the clock to the start of the next phase (wired to the time
-  // label's tap handler in create(), behind import.meta.env.DEV).
+  // Jump the clock to the start of the next phase (wired to the time label's tap
+  // handler in create()). Available in the live build (#89).
   _advancePhase() {
     if (this._sleeping) return;
     let phaseStart = 0, phaseIdx = 0;
