@@ -18,9 +18,12 @@ const SLOT_GAP  = 8;
 const NUM_SLOTS = 5;
 const INV_COLS  = 5;
 const INV_ROWS  = 10;
-// A carrier fly-out picker auto-dismisses after this long if you don't pick from
-// it (#75) — it no longer closes the instant you move, but it dismisses quickly.
-const FLYOUT_CLOSE_MS = 600;
+// The carrier fly-out is now a deliberate "show all instances" picker: a quick
+// press/tap just selects or cycles, while a HOLD this long opens the fly-out (#75).
+const HOLD_FLYOUT_MS = 350;
+// Once open, it auto-dismisses after this long if untouched (a generous fallback —
+// you normally close it by picking, selecting another slot, or holding away).
+const FLYOUT_CLOSE_MS = 1500;
 
 export default class HotbarScene extends Phaser.Scene {
   constructor() { super('HotbarScene'); }
@@ -40,6 +43,7 @@ export default class HotbarScene extends Phaser.Scene {
     this._flyoutNodes = []; // carrier-group fly-out picker (#75)
     this._flyoutSlot  = null;
     this._flyoutTimer = null; // auto-dismiss timer for the fly-out
+    this._slotHold    = null; // in-progress press/tap on a slot (tap vs hold, #75)
     this._pauseNodes = [];
     this._pauseBtn   = null;
     this._muteRowLbl = null;
@@ -63,8 +67,14 @@ export default class HotbarScene extends Phaser.Scene {
 
     const KEY_NAMES = ['ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN','EIGHT','NINE','ZERO'];
     KEY_NAMES.slice(0, NUM_SLOTS).forEach((name, i) => {
-      this.input.keyboard.on(`keydown-${name}`, () => this._pressSlot(i));
+      // A quick press selects / cycles; holding opens the fly-out (#75).
+      this.input.keyboard.on(`keydown-${name}`, () => this._slotDown(i, 'key'));
+      this.input.keyboard.on(`keyup-${name}`,   () => this._slotUp(i, 'key'));
     });
+    // Finalize a press/tap on a slot when the pointer is released (tap = cycle,
+    // hold = fly-out; see _slotDown).
+    this.input.on('pointerup',        () => this._slotPointerUp());
+    this.input.on('pointerupoutside', () => this._slotPointerUp());
     this.input.keyboard.on('keydown-I', () => this._toggleInventory());
     this.input.keyboard.on('keydown-M', () => this._toggleMute());
     // Esc closes an open info popup first; only when none is open does it
@@ -231,7 +241,7 @@ export default class HotbarScene extends Phaser.Scene {
       const colTop = slotY - 8;
       const zone = this.add.zone(x - sg / 2, colTop, ss + sg, sh - colTop)
         .setOrigin(0, 0).setInteractive().setDepth(5);
-      zone.on('pointerdown', () => this._tapSlot(i));
+      zone.on('pointerdown', () => this._slotDown(i, 'pointer'));
 
       // A carrier group draws a faint "stacked card" peeking behind the slot, so
       // it reads as several carriers in one slot (#75). The slot itself shows the
@@ -449,30 +459,61 @@ export default class HotbarScene extends Phaser.Scene {
     // by PaddockScene's per-frame ACTIONS_CHANGED — no direct refresh needed here.
   }
 
-  // Number-key press on slot `i`: select it, and for a carrier group open its
-  // fly-out picker. Selecting / re-selecting the tool just opens the picker; only a
-  // press while it's *already* open cycles to the next member — so opening it never
-  // also advances the instance (#75).
-  _pressSlot(i) {
+  // ── Slot press vs. hold (#75) ───────────────────────────────────────────────
+  // A quick press/tap selects the slot, and re-pressing the active carrier group
+  // cycles to the next instance — no fly-out. HOLDING a slot opens the fly-out
+  // picker instead. _slotDown starts a hold timer; _slotUp resolves the gesture.
+  _slotDown(i, src) {
+    // Ignore key auto-repeat / a second down for the same in-progress press.
+    if (this._slotHold && this._slotHold.i === i && this._slotHold.src === src) return;
+    this._cancelSlotHold();
+    const hold = { i, src, fired: false };
+    hold.timer = this.time.delayedCall(HOLD_FLYOUT_MS, () => {
+      hold.fired = true; // a hold → open the picker, and suppress the tap action
+      if (this.invOpen || this.pauseOpen) return;
+      this._setActive(i);
+      this._openActiveFlyout();
+    });
+    this._slotHold = hold;
+  }
+
+  _slotUp(i, src) {
+    const hold = this._slotHold;
+    if (!hold || hold.i !== i || hold.src !== src) return;
+    const fired = hold.fired;
+    this._cancelSlotHold();
+    if (!fired) this._selectOrCycle(i); // quick release → select / cycle (no fly-out)
+  }
+
+  // Release came in on the scene (the slot zone may not get its own pointerup).
+  _slotPointerUp() {
+    if (this._slotHold?.src === 'pointer') this._slotUp(this._slotHold.i, 'pointer');
+  }
+
+  _cancelSlotHold() {
+    this._slotHold?.timer?.remove();
+    this._slotHold = null;
+  }
+
+  // Quick press/tap: select the slot; re-selecting the active carrier group cycles
+  // to the next instance. Never opens the fly-out (that's the hold gesture). If the
+  // fly-out happens to be open, cycling keeps it in sync.
+  _selectOrCycle(i) {
     if (this.invOpen) this._closeInventory();
-    const flyoutOpenHere = this._flyoutSlot === i; // picker already showing for this slot?
+    const wasActive = i === this.activeSlot;
+    const wasOpen   = this._flyoutSlot === i;
     const key = this.hotbar[i];
     this._setActive(i); // selects, closes any open fly-out
-    if (this._isGroup(key)) {
-      if (flyoutOpenHere) this._cycleMember(key); // cycle only when already open
-      this._openFlyout(i);
+    if (this._isGroup(key) && wasActive) {
+      this._cycleMember(key);
+      if (wasOpen) this._openFlyout(i); // refresh the picker only if it was already open
     }
   }
 
-  // Tap on slot `i`: select it; for a carrier group, open its fly-out picker on
-  // first select, and a further tap on the same group closes it. Pick a member
-  // from the list to set it (#75).
-  _tapSlot(i) {
-    if (this.invOpen) this._closeInventory();
-    const key = this.hotbar[i];
-    const toggleClosed = this._flyoutSlot === i; // its picker was already open → close it
-    this._setActive(i); // selects, closes any open fly-out
-    if (this._isGroup(key) && !toggleClosed) this._openFlyout(i);
+  // Open the active slot's fly-out picker (the hold gesture / controller LT).
+  _openActiveFlyout() {
+    if (this.invOpen || this.pauseOpen) return;
+    if (this._isGroup(this.hotbar[this.activeSlot])) this._openFlyout(this.activeSlot);
   }
 
   // Step the active member of a carrier group by `dir` (default forward), wrapping.
@@ -488,18 +529,20 @@ export default class HotbarScene extends Phaser.Scene {
   }
 
   // Gamepad D-pad up/down cycling of the active group's instances (#121): step the
-  // member by `dir` and flash the fly-out so the controller user sees the choice.
+  // member by `dir`. No fly-out unless it's already open (then keep it in sync) —
+  // the fly-out is opened deliberately with LT (#75).
   _padCycleMember(dir) {
     const key = this.hotbar[this.activeSlot];
     if (!this._isGroup(key)) return;
+    const wasOpen = this._flyoutSlot === this.activeSlot;
     this._cycleMember(key, dir);
-    this._openFlyout(this.activeSlot);
+    if (wasOpen) this._openFlyout(this.activeSlot);
   }
 
   // Gamepad slot navigation (driven by PaddockScene's raw-pad poller, #121): step
-  // to the prev/next slot, wrapping, and open the fly-out when it lands on a group.
+  // to the prev/next slot, wrapping. Just selects — the fly-out is opened with LT.
   navSlot(dir) {
-    this._pressSlot((this.activeSlot + dir + NUM_SLOTS) % NUM_SLOTS);
+    this._selectOrCycle((this.activeSlot + dir + NUM_SLOTS) % NUM_SLOTS);
   }
 
   // Directly select a member from the fly-out.
