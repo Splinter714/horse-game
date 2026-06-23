@@ -389,6 +389,9 @@ export const WithPlayer = (Base) => class extends Base {
     // Taps on an on-screen action button are handled by that button — don't also
     // start a walk toward where it sits on screen (#101).
     if (this.scene.get('HotbarScene')?.isPointerOnActionButton?.(pointer.x, pointer.y)) return;
+    // Likewise, a tap that picks from an open carrier fly-out shouldn't also move
+    // the player toward it (#75).
+    if (this.scene.get('HotbarScene')?.isPointerOnFlyout?.(pointer.x, pointer.y)) return;
 
     const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
 

@@ -13,6 +13,9 @@ const SLOT_GAP  = 6;
 const NUM_SLOTS = 10;
 const INV_COLS  = 5;
 const INV_ROWS  = 10;
+// A carrier fly-out picker auto-dismisses after this long if you don't pick from
+// it (#75) — it no longer closes the instant you move.
+const FLYOUT_CLOSE_MS = 4000;
 
 export default class HotbarScene extends Phaser.Scene {
   constructor() { super('HotbarScene'); }
@@ -31,6 +34,7 @@ export default class HotbarScene extends Phaser.Scene {
     this._invNodes   = [];
     this._flyoutNodes = []; // carrier-group fly-out picker (#75)
     this._flyoutSlot  = null;
+    this._flyoutTimer = null; // auto-dismiss timer for the fly-out
     this._pauseNodes = [];
     this._pauseBtn   = null;
     this._muteRowLbl = null;
@@ -55,10 +59,6 @@ export default class HotbarScene extends Phaser.Scene {
     const KEY_NAMES = ['ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN','EIGHT','NINE','ZERO'];
     KEY_NAMES.forEach((name, i) => {
       this.input.keyboard.on(`keydown-${name}`, () => this._pressSlot(i));
-    });
-    // Walking away dismisses an open carrier fly-out (#75).
-    ['W','A','S','D','UP','DOWN','LEFT','RIGHT'].forEach((k) => {
-      this.input.keyboard.on(`keydown-${k}`, () => this._closeFlyout());
     });
     this.input.keyboard.on('keydown-I', () => this._toggleInventory());
     this.input.keyboard.on('keydown-M', () => this._toggleMute());
@@ -442,27 +442,31 @@ export default class HotbarScene extends Phaser.Scene {
     // by PaddockScene's per-frame ACTIONS_CHANGED — no direct refresh needed here.
   }
 
-  // Number-key press on slot `i`: select it; if it's a carrier group, show its
-  // fly-out — and re-pressing the same group's key cycles to the next member (#75).
+  // Number-key press on slot `i`: select it. A first press just goes to the active
+  // member; re-pressing the already-active carrier group cycles to the next member
+  // and shows the picker as feedback (#75).
   _pressSlot(i) {
     if (this.invOpen) this._closeInventory();
     const wasActive = i === this.activeSlot;
     const key = this.hotbar[i];
     this._setActive(i);
-    if (this._isGroup(key)) {
-      if (wasActive) this._cycleMember(key);
+    if (this._isGroup(key) && wasActive) {
+      this._cycleMember(key);
       this._openFlyout(i);
     }
   }
 
-  // Tap on slot `i`: select it; tapping a carrier group toggles its fly-out picker
-  // (tap to open, tap again to close); pick a member from the list to set it (#75).
+  // Tap on slot `i`: a first tap just selects it (goes straight to the active
+  // member — no picker). Tapping the already-active carrier group opens its
+  // fly-out picker; a further tap closes it. Pick a member from the list to set
+  // it (#75).
   _tapSlot(i) {
     if (this.invOpen) this._closeInventory();
     const key = this.hotbar[i];
-    const toggleClosed = this._flyoutSlot === i; // its picker was already open
-    this._setActive(i); // closes any open fly-out
-    if (this._isGroup(key) && !toggleClosed) this._openFlyout(i);
+    const wasActive = i === this.activeSlot;
+    const flyoutOpenHere = this._flyoutSlot === i;
+    this._setActive(i); // selects, closes any open fly-out
+    if (this._isGroup(key) && wasActive && !flyoutOpenHere) this._openFlyout(i);
   }
 
   // Advance the active member of a carrier group to the next one.
@@ -487,8 +491,9 @@ export default class HotbarScene extends Phaser.Scene {
   // ── Carrier-group fly-out picker (#75) ──────────────────────────────────────
 
   // Vertical list of a group's members, stacked above its slot. Each entry shows
-  // its contents/count; the active one is highlighted; tapping one selects it. A
-  // catcher over the rest of the screen dismisses the picker on an outside tap.
+  // its contents/count; the active one is highlighted; tapping one selects it. The
+  // picker auto-dismisses after FLYOUT_CLOSE_MS (it doesn't close on movement), and
+  // taps on it are absorbed (see isPointerOnFlyout) so picking doesn't also move you.
   _openFlyout(slotIndex) {
     this._closeFlyout();
     const key = this.hotbar[slotIndex];
@@ -503,13 +508,6 @@ export default class HotbarScene extends Phaser.Scene {
     const fit = this._fit ?? 1;
     const gap = 4;
     const stripTop = slotY - 8;
-
-    // Catcher above the strip — taps outside the entries dismiss the picker. It
-    // stops short of the slot row so hotbar slots stay directly tappable.
-    const catcher = this.add.zone(0, 0, this.scale.width, stripTop)
-      .setOrigin(0, 0).setInteractive().setDepth(40);
-    catcher.on('pointerdown', () => this._closeFlyout());
-    this._flyoutNodes.push(catcher);
 
     const active = this._resolveKey(key);
     const n = group.members.length;
@@ -546,9 +544,23 @@ export default class HotbarScene extends Phaser.Scene {
       zone.on('pointerdown', () => this._pickMember(group, mKey));
       this._flyoutNodes.push(zone);
     });
+
+    // Auto-dismiss after a delay if you don't pick anything (#75) — no longer tied
+    // to player movement.
+    this._flyoutTimer = this.time.delayedCall(FLYOUT_CLOSE_MS, () => this._closeFlyout());
+  }
+
+  // Is (px,py) over an open fly-out entry? PaddockScene.handleTap checks this so a
+  // tap that picks a member doesn't also start the player walking (#75).
+  isPointerOnFlyout(px, py) {
+    if (this._flyoutSlot == null) return false;
+    return this._flyoutNodes.some(n =>
+      n.type === 'Zone' && px >= n.x && px <= n.x + n.width && py >= n.y && py <= n.y + n.height);
   }
 
   _closeFlyout() {
+    this._flyoutTimer?.remove();
+    this._flyoutTimer = null;
     if (!this._flyoutNodes?.length) { this._flyoutSlot = null; return; }
     for (const o of this._flyoutNodes) o.destroy();
     this._flyoutNodes = [];
