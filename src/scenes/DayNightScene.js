@@ -1,11 +1,12 @@
 import Phaser from 'phaser';
 
-// Total cycle: 4 min. Day = 2 min (morning 30s + afternoon 60s + evening 30s), Night = 2 min.
+// Total cycle ~10.5 min. Long daylight so there's plenty of time for chores:
+// morning 2 min + afternoon 5 min + evening 2 min = 9 min day, night 1.5 min.
 const PHASES = [
-  { name: 'Morning',   color: 0xffcc44, alpha: 0.13, dur: 30_000 },
-  { name: 'Afternoon', color: 0xffffff, alpha: 0.00, dur: 60_000 },
-  { name: 'Evening',   color: 0xff7722, alpha: 0.20, dur: 30_000 },
-  { name: 'Night',     color: 0x1a2255, alpha: 0.48, dur: 120_000 },
+  { name: 'Morning',   color: 0xffcc44, alpha: 0.13, dur: 120_000 },
+  { name: 'Afternoon', color: 0xffffff, alpha: 0.00, dur: 300_000 },
+  { name: 'Evening',   color: 0xff7722, alpha: 0.20, dur: 120_000 },
+  { name: 'Night',     color: 0x1a2255, alpha: 0.48, dur:  90_000 },
 ];
 const DAY_MS = PHASES.reduce((s, p) => s + p.dur, 0);
 
