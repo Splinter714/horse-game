@@ -2,9 +2,10 @@ import Phaser from 'phaser';
 import { ALL_ITEMS, ITEM_MAP, CARRIER_DEFS, CONTENT_DEFS } from '../data/items.js';
 import { loadGameState, saveGameState } from '../data/save.js';
 import { toggleMute, isMuted } from '../audio/sounds.js';
+import { EVENTS } from '../data/events.js';
 
 // Gameplay scenes frozen while the pause menu is open
-const PAUSABLE_SCENES = ['PaddockScene', 'DayNightScene', 'PortraitScene', 'ChickenInfoScene'];
+const PAUSABLE_SCENES = ['PaddockScene', 'DayNightScene', 'InfoPanelScene'];
 
 const SLOT_SIZE = 52;
 const SLOT_GAP  = 6;
@@ -55,12 +56,12 @@ export default class HotbarScene extends Phaser.Scene {
 
     // Update money label in-place — no full rebuild needed
     this._onMoney  = v => { this._money = v; this._updateStatusLabels(); };
-    this.game.events.on('money-changed',  this._onMoney);
+    this.game.events.on(EVENTS.MONEY_CHANGED,  this._onMoney);
 
     // Clean up global listeners on scene shutdown
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.scale.off('resize', this._onResize, this);
-      this.game.events.off('money-changed',  this._onMoney);
+      this.game.events.off(EVENTS.MONEY_CHANGED,  this._onMoney);
     });
   }
 

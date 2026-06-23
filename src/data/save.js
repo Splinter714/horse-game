@@ -2,6 +2,7 @@
 // load so the herd "missed you" without being punished.
 
 import { Horse, EBONY_BASE_STATS } from './horse.js';
+import { Chicken } from './chicken.js';
 
 // Legacy single-horse save (the old "player horse"). Still read once, to migrate
 // an existing player's horse into the unified roster below.
@@ -30,6 +31,48 @@ function defaultHorseRoster() {
       stats: { hunger: 86, thirst: 82, grooming: 88, happiness: 91 },
       health: EBONY_BASE_STATS.health, speed: EBONY_BASE_STATS.speed, stamina: EBONY_BASE_STATS.stamina },
   };
+}
+
+// ── Chickens ─────────────────────────────────────────────────────────────────
+
+// Chickens persist too (identity only for now). Keyed by registry key like horses.
+const CHICKENS_KEY = 'horse-care-chickens-v1';
+
+function defaultChickenRoster() {
+  return {
+    chicken0: { id: 'chicken-1', name: 'Daisy',  coat: 0, personality: 'friendly' },
+    chicken1: { id: 'chicken-2', name: 'Ruby',   coat: 1, personality: 'broody' },
+    chicken2: { id: 'chicken-3', name: 'Shadow', coat: 2, personality: 'adventurous' },
+    chicken3: { id: 'chicken-4', name: 'Sunny',  coat: 3, personality: 'cheerful' },
+    chicken4: { id: 'chicken-5', name: 'Pearl',  coat: 4, personality: 'calm' },
+  };
+}
+
+export function loadAllChickens() {
+  const roster = defaultChickenRoster();
+  let saved = {};
+  try {
+    const raw = localStorage.getItem(CHICKENS_KEY);
+    if (raw) saved = JSON.parse(raw) ?? {};
+  } catch (e) {
+    // localStorage blocked or corrupt — fall through to defaults.
+  }
+  const allChickens = {};
+  for (const key of Object.keys(roster)) {
+    allChickens[key] = new Chicken(saved[key] ?? roster[key]);
+  }
+  saveAllChickens(allChickens); // seed immediately
+  return allChickens;
+}
+
+export function saveAllChickens(allChickens) {
+  const out = {};
+  for (const key of Object.keys(allChickens)) out[key] = allChickens[key].toJSON();
+  try {
+    localStorage.setItem(CHICKENS_KEY, JSON.stringify(out));
+  } catch (e) {
+    // Saving unavailable — ignore.
+  }
 }
 
 // ── Game state (hotbar + inventory) ──────────────────────────────────────────

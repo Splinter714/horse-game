@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { EVENTS } from '../data/events.js';
 
 // Total cycle ~10.5 min. Long daylight so there's plenty of time for chores:
 // morning 2 min + afternoon 5 min + evening 2 min = 9 min day, night 1.5 min.
@@ -40,10 +41,12 @@ export default class DayNightScene extends Phaser.Scene {
       padding: { x: 10, y: 6 },
     }).setDepth(501).setOrigin(1, 0).setScrollFactor(0);
 
-    // TESTING ONLY: tap the time-of-day display to skip to the next phase.
-    // Remove before release.
-    this.label.setInteractive({ useHandCursor: true });
-    this.label.on('pointerdown', () => this._advancePhase());
+    // Dev only: tap the time-of-day display to skip to the next phase. Gated to
+    // DEV so it's available while developing but never ships in a production build.
+    if (import.meta.env.DEV) {
+      this.label.setInteractive({ useHandCursor: true });
+      this.label.on('pointerdown', () => this._advancePhase());
+    }
 
     this.overlay.setScrollFactor(0);
 
@@ -54,9 +57,9 @@ export default class DayNightScene extends Phaser.Scene {
       this._sh = gameSize.height;
     });
 
-    this.game.events.on('sleep', this.doSleep, this);
+    this.game.events.on(EVENTS.SLEEP, this.doSleep, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.game.events.off('sleep', this.doSleep, this);
+      this.game.events.off(EVENTS.SLEEP, this.doSleep, this);
     });
   }
 
@@ -89,10 +92,9 @@ export default class DayNightScene extends Phaser.Scene {
               this.fade.clear();
               this._sleeping = false;
               // Put the UI scenes back above the day/night tint.
-              this.scene.bringToTop('PortraitScene');
-              this.scene.bringToTop('ChickenInfoScene');
+              this.scene.bringToTop('InfoPanelScene');
               this.scene.bringToTop('HotbarScene');
-              this.game.events.emit('sleep-done');
+              this.game.events.emit(EVENTS.SLEEP_DONE);
             },
           });
         });
@@ -100,8 +102,8 @@ export default class DayNightScene extends Phaser.Scene {
     });
   }
 
-  // TESTING ONLY: jump the clock to the start of the next phase. Remove before
-  // release (along with the label's pointer handler in create()).
+  // Dev only: jump the clock to the start of the next phase (wired to the time
+  // label's tap handler in create(), behind import.meta.env.DEV).
   _advancePhase() {
     if (this._sleeping) return;
     let phaseStart = 0, phaseIdx = 0;
@@ -157,7 +159,7 @@ export default class DayNightScene extends Phaser.Scene {
 
     if (phaseIdx !== this.currentPhase) {
       this.currentPhase = phaseIdx;
-      this.game.events.emit('phase-change', { phase: p0.name, isNight: p0.name === 'Night' });
+      this.game.events.emit(EVENTS.PHASE_CHANGE, { phase: p0.name, isNight: p0.name === 'Night' });
     }
   }
 }

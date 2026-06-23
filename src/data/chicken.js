@@ -1,28 +1,13 @@
-// The Chicken model: identity, coat (drives the sprite), and basic stats.
-// Similar to Horse but simpler — chickens just need name and appearance.
+// The Chicken model is a thin specialization of the generic Animal (./Animal.js),
+// configured by the 'chicken' species definition (./species/index.js). Chickens are
+// currently identity-only (name + appearance + personality); needs can be added in
+// the species def later without changing this file.
 
-const MAX = 100;
+import { Animal } from './Animal.js';
+import { SPECIES } from './species/index.js';
 
-export class Chicken {
+export class Chicken extends Animal {
   constructor(data = {}) {
-    this.id = data.id ?? `chicken-${Math.random().toString(36).slice(2, 9)}`;
-    this.name = data.name ?? 'Hen';
-    this.breed = data.breed ?? 'Chicken';
-    this.coat = data.coat ?? 0; // coat index 0-4
-    this.age = data.age ?? 1;
-    this.personality = data.personality ?? 'friendly'; // friendly, broody, adventurous, etc.
-    this.lastSeen = data.lastSeen ?? Date.now();
-  }
-
-  toJSON() {
-    return {
-      id: this.id,
-      name: this.name,
-      breed: this.breed,
-      coat: this.coat,
-      age: this.age,
-      personality: this.personality,
-      lastSeen: this.lastSeen
-    };
+    super(SPECIES.chicken, data);
   }
 }

@@ -5,8 +5,7 @@ import { buildHorseTextures, buildFoalTextures } from '../art/horseArt.js';
 import { buildPortraitTexture, buildChickenPortraitTexture } from '../art/portraitArt.js';
 import { buildPlayerTextures } from '../art/playerArt.js';
 import { getCoat } from '../data/coats.js';
-import { loadAllHorses } from '../data/save.js';
-import { Chicken } from '../data/chicken.js';
+import { loadAllHorses, loadAllChickens } from '../data/save.js';
 
 export default class BootScene extends Phaser.Scene {
   constructor() {
@@ -19,24 +18,11 @@ export default class BootScene extends Phaser.Scene {
     const allHorses = loadAllHorses();
 
     this.registry.set('allHorses', allHorses);
-    this.registry.set('viewingHorse', null);
+    this.registry.set('viewingAnimal', null);
 
-    // Chickens — each has identity, name, and appearance
-    const chickens = [
-      new Chicken({ id: 'chicken-1', name: 'Daisy', coat: 0, personality: 'friendly' }),
-      new Chicken({ id: 'chicken-2', name: 'Ruby', coat: 1, personality: 'broody' }),
-      new Chicken({ id: 'chicken-3', name: 'Shadow', coat: 2, personality: 'adventurous' }),
-      new Chicken({ id: 'chicken-4', name: 'Sunny', coat: 3, personality: 'cheerful' }),
-      new Chicken({ id: 'chicken-5', name: 'Pearl', coat: 4, personality: 'calm' }),
-    ];
-
-    const allChickens = {
-      chicken0: chickens[0],
-      chicken1: chickens[1],
-      chicken2: chickens[2],
-      chicken3: chickens[3],
-      chicken4: chickens[4],
-    };
+    // Chickens — identity + appearance, loaded (and persisted) like horses.
+    const allChickens = loadAllChickens();
+    const chickens = Object.values(allChickens);
 
     this.registry.set('allChickens', allChickens);
 
