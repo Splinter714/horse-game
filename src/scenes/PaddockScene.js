@@ -189,13 +189,13 @@ export default class PaddockScene
     playSplash();
   }
 
-  // The trough sprite for a given water level (#103): empty → low → half → full,
-  // in even thirds of capacity.
+  // The trough sprite for a given water level (#109): each level has its own
+  // texture (`trough` empty, then trough1..troughN built in worldArt.js), so the
+  // visible water height matches the actual level 1:1 instead of bucketing many
+  // levels into a single "full-looking" sprite (#103).
   _troughTexture(level) {
     if (level <= 0) return 'trough';
-    if (level <= TROUGH_CAP / 3) return 'troughLow';
-    if (level <= (TROUGH_CAP * 2) / 3) return 'troughHalf';
-    return 'troughFull';
+    return `trough${Phaser.Math.Clamp(Math.round(level), 1, TROUGH_CAP)}`;
   }
 
   // Set the trough's water level (clamped), keep the `filled` flag (read in lots

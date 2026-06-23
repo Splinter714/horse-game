@@ -9,6 +9,7 @@
 import { gen } from './_frames.js';
 import { buildIconTextures } from './iconArt.js';
 import { buildPropTextures } from './propArt.js';
+import { TROUGH_CAP } from '../scenes/paddock/constants.js';
 
 export function buildWorldTextures(scene) {
   // --- grass tiles (two variants for subtle variety) ---
@@ -87,36 +88,27 @@ export function buildWorldTextures(scene) {
     // Post dividers so it reads as one long trough
     g.fillStyle(0x6a3c18, 1); g.fillRect(47, 4, 4, 22); g.fillRect(49, 2, 2, 4);
   });
-  gen(scene, 'troughFull', 100, 26, (g) => {
-    g.fillStyle(0x8a5a2e, 1); g.fillRect(0, 6, 100, 20);
-    g.fillStyle(0xa06c38, 1); g.fillRect(0, 2, 100, 5);
-    g.fillStyle(0x5fa6d6, 1); g.fillRect(4, 8, 92, 10);
-    g.fillStyle(0x9ae0f8, 1); g.fillRect(4, 8, 92, 3);
-    g.fillStyle(0x7cc8e8, 0.7);
-    g.fillRect(8, 12, 10, 1); g.fillRect(30, 14, 12, 1); g.fillRect(60, 11, 8, 1); g.fillRect(78, 13, 10, 1);
-    g.fillStyle(0x6a3c18, 1); g.fillRect(47, 4, 4, 22); g.fillRect(49, 2, 2, 4);
-  });
-  // Partial fills (#103): the interior runs y=8..18 (10px). Water sits in the
-  // lower band — about two-thirds for half, a shallow sliver for low — with the
-  // dry dark interior showing above it.
-  gen(scene, 'troughHalf', 100, 26, (g) => {
-    g.fillStyle(0x8a5a2e, 1); g.fillRect(0, 6, 100, 20);
-    g.fillStyle(0xa06c38, 1); g.fillRect(0, 2, 100, 5);
-    g.fillStyle(0x3a2410, 1); g.fillRect(4, 8, 92, 10);   // dry interior
-    g.fillStyle(0x5fa6d6, 1); g.fillRect(4, 12, 92, 6);   // water (lower ~two-thirds)
-    g.fillStyle(0x9ae0f8, 1); g.fillRect(4, 12, 92, 2);   // surface highlight
-    g.fillStyle(0x7cc8e8, 0.7); g.fillRect(8, 15, 10, 1); g.fillRect(34, 16, 12, 1); g.fillRect(64, 14, 8, 1);
-    g.fillStyle(0x6a3c18, 1); g.fillRect(47, 4, 4, 22); g.fillRect(49, 2, 2, 4);
-  });
-  gen(scene, 'troughLow', 100, 26, (g) => {
-    g.fillStyle(0x8a5a2e, 1); g.fillRect(0, 6, 100, 20);
-    g.fillStyle(0xa06c38, 1); g.fillRect(0, 2, 100, 5);
-    g.fillStyle(0x3a2410, 1); g.fillRect(4, 8, 92, 10);   // dry interior
-    g.fillStyle(0x2a1a08, 1); g.fillRect(4, 15, 92, 3);   // damp shadow
-    g.fillStyle(0x4a86b0, 1); g.fillRect(4, 16, 92, 2);   // shallow water at the bottom
-    g.fillStyle(0x7cc8e8, 0.55); g.fillRect(10, 16, 9, 1); g.fillRect(62, 16, 8, 1);
-    g.fillStyle(0x6a3c18, 1); g.fillRect(47, 4, 4, 22); g.fillRect(49, 2, 2, 4);
-  });
+  // Filled levels (#109): one texture per discrete water level (trough1..troughN)
+  // so the rendered height maps 1:1 to the actual level — no more collapsing many
+  // distinct levels into a few "looks full" buckets (#103 had only low/half/full,
+  // which let, say, 7/9 and 9/9 look identical). The interior runs y=8..18 (10
+  // rows); water rises from the bottom, and only the top level fills it completely.
+  for (let lvl = 1; lvl <= TROUGH_CAP; lvl++) {
+    gen(scene, `trough${lvl}`, 100, 26, (g) => {
+      g.fillStyle(0x8a5a2e, 1); g.fillRect(0, 6, 100, 20);   // wood body
+      g.fillStyle(0xa06c38, 1); g.fillRect(0, 2, 100, 5);    // top rim
+      g.fillStyle(0x3a2410, 1); g.fillRect(4, 8, 92, 10);    // dry dark interior
+      const rows = Math.round((lvl * 10) / TROUGH_CAP);      // 1..10 — distinct per level
+      const top  = 18 - rows;
+      g.fillStyle(0x5fa6d6, 1); g.fillRect(4, top, 92, rows);              // water body
+      g.fillStyle(0x9ae0f8, 1); g.fillRect(4, top, 92, Math.min(2, rows)); // surface highlight
+      if (rows >= 3) {                                        // sparkle dashes once it has depth
+        g.fillStyle(0x7cc8e8, 0.7);
+        g.fillRect(10, top + 1, 9, 1); g.fillRect(40, top + 1, 11, 1); g.fillRect(66, top + 1, 8, 1);
+      }
+      g.fillStyle(0x6a3c18, 1); g.fillRect(47, 4, 4, 22); g.fillRect(49, 2, 2, 4); // post dividers
+    });
+  }
 
   // --- chicken coop (64 × 52) ---
   // A raised hen-house: short legs, a chicken-sized pop-door with a ramp, a
