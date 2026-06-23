@@ -46,6 +46,17 @@ export const BEG = {
   AT_GATE:       70,   // already at the gate gap → just wait
 };
 
+// ── Herd clustering (creatures.js) ──────────────────────────────────────────
+// Buddy pairing (the head-to-tail "fly-swatting" pose) and the gentle drift that
+// keeps an idle cluster from collapsing into one overlapping blob.
+export const HERD = {
+  HAPPY_AT:    60,   // happiness needed before a horse seeks out a buddy
+  PAIR_CHANCE: 0.6,  // chance a content horse's wander becomes a buddy pairing
+  STAND_GAP:   28,   // how far fore/aft of the buddy to pull up
+  SEP_MIN:     28,   // idle horses closer than this gently drift apart
+  SEP_PUSH:   0.6,   // max px/frame a horse is nudged to separate (a slow drift)
+};
+
 // Cleanliness (issue #26): below DUST_CLEAN_AT grooming the dust overlay starts
 // to show, ramping to DUST_MAX_ALPHA opacity at grooming 0. Below STINK_AT a
 // very dirty horse also gets wavering "stink" lines above its back.

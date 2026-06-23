@@ -5,7 +5,7 @@
 import Phaser from 'phaser';
 import { EVENTS } from '../../data/events.js';
 import { playNicker, playSqueal } from '../../audio/sounds.js';
-import { BOUNDS, PASTURE_BOUNDS, S } from './constants.js';
+import { BOUNDS, PASTURE_BOUNDS, S, HERD } from './constants.js';
 
 export const WithCreatures = (Base) => class extends Base {
   // ─── Other animals ───────────────────────────────────────────────────────
@@ -100,6 +100,7 @@ export const WithCreatures = (Base) => class extends Base {
         x: Phaser.Math.Clamp(pref.tx, b.minX, b.maxX),
         y: Phaser.Math.Clamp(pref.ty, b.minY, b.maxY),
         nicker: !!pref.nicker,
+        pairWith: pref.pairWith ?? null,
       };
     }
 
@@ -136,9 +137,11 @@ export const WithCreatures = (Base) => class extends Base {
       if (!a.sprite.active) return;
       a.sprite.play(`idle_${a.key}`, true);
       a.state = 'idle';
-      // On arrival: greet the player if this was a "wait to be fed" trip,
-      // otherwise let the creature settle (a relaxed horse may roll in the dirt).
+      // On arrival: greet the player if this was a "wait to be fed" trip; turn
+      // head-to-tail if we pulled up beside a buddy; otherwise let the creature
+      // settle (a relaxed horse may roll in the dirt).
       if (target.nicker) this._maybeNickerAtPlayer(a);
+      else if (target.pairWith) this._faceHeadToTail(a, target.pairWith);
       else a.onSettle?.(a);
       this.scheduleCreatureWander(a, Phaser.Math.Between(a.wanderMin ?? 4000, a.wanderMax ?? 10000));
     });
@@ -458,14 +461,19 @@ export const WithCreatures = (Base) => class extends Base {
       return { tx: t.x + Phaser.Math.Between(-55, 55), ty: t.y + Phaser.Math.Between(18, 40) };
     }
 
-    // Content + bonded → hang out near a buddy (the herd look).
-    if (horse.stats.happiness >= 70) {
+    // Content + bonded → go stand head-to-tail with a buddy (the classic herd
+    // "fly-swatting" pose). Pull up close alongside, just fore or aft for a bit
+    // of depth offset; the opposite facing is applied on arrival in creatureWander
+    // → _faceHeadToTail. Stands just outside HERD.SEP_MIN so the gentle idle
+    // separation doesn't immediately tease the pair back apart.
+    if (horse.stats.happiness >= HERD.HAPPY_AT) {
       const buddy = this._nearestOtherHorse(h);
-      if (buddy && Math.random() < 0.5) {
-        const side = Math.random() < 0.5 ? -1 : 1;
+      if (buddy && buddy.sprite.active && Math.random() < HERD.PAIR_CHANCE) {
+        const aft = Math.random() < 0.5 ? -1 : 1;
         return {
-          tx: buddy.sprite.x + side * Phaser.Math.Between(45, 75),
-          ty: buddy.sprite.y + Phaser.Math.Between(-18, 18),
+          tx: buddy.sprite.x + Phaser.Math.Between(-14, 14),
+          ty: buddy.sprite.y + aft * Phaser.Math.Between(HERD.STAND_GAP, HERD.STAND_GAP + 10),
+          pairWith: buddy,
         };
       }
     }
@@ -481,6 +489,54 @@ export const WithCreatures = (Base) => class extends Base {
       if (d < bestD) { bestD = d; best = o; }
     }
     return best;
+  }
+
+  // Arrived alongside a buddy → turn to face the opposite way so the two stand
+  // nose-to-tail. Bail quietly if the buddy wandered off while we were walking up.
+  _faceHeadToTail(h, buddy) {
+    if (!buddy.sprite.active) return;
+    h.sprite.setFlipX(!buddy.sprite.flipX);
+  }
+
+  // Keep idle horses from collapsing into one overlapping blob: any two standing
+  // closer than HERD.SEP_MIN drift apart by a tiny capped step, so a resting
+  // cluster reads as several distinct horses. Only nudges horses that are actually
+  // standing still (no active tween) so it never fights a walk/eat/drink trip;
+  // a horse mid-move holds its line and its idle neighbour gives way. Buddies
+  // standing head-to-tail sit just outside SEP_MIN, so the herd pose survives.
+  separateHorses() {
+    const { SEP_MIN, SEP_PUSH } = HERD;
+    const free = (h) => h.sprite.active && !h.wanderTween &&
+      (h.state === 'idle' || h.state === 'resting');
+    for (let i = 0; i < this.horses.length; i++) {
+      const a = this.horses[i];
+      if (!a.sprite.active) continue;
+      for (let j = i + 1; j < this.horses.length; j++) {
+        const b = this.horses[j];
+        if (!b.sprite.active) continue;
+        let dx = a.sprite.x - b.sprite.x;
+        let dy = a.sprite.y - b.sprite.y;
+        let d = Math.hypot(dx, dy);
+        if (d >= SEP_MIN) continue;
+        const aFree = free(a), bFree = free(b);
+        if (!aFree && !bFree) continue; // both busy → leave them to their tweens
+        if (d < 0.01) { dx = Math.random() - 0.5; dy = Math.random() - 0.5; d = Math.hypot(dx, dy) || 1; }
+        const step = Math.min((SEP_MIN - d) * 0.5, SEP_PUSH);
+        const ux = (dx / d) * step, uy = (dy / d) * step;
+        // Whoever's free moves; if only one is free it takes the whole step.
+        if (aFree && bFree) { this._nudgeHorse(a, ux, uy); this._nudgeHorse(b, -ux, -uy); }
+        else if (aFree)     { this._nudgeHorse(a, ux * 2, uy * 2); }
+        else                { this._nudgeHorse(b, -ux * 2, -uy * 2); }
+      }
+    }
+  }
+
+  _nudgeHorse(h, dx, dy) {
+    const R = h.bodyR ?? 16;
+    const nx = Phaser.Math.Clamp(h.sprite.x + dx, PASTURE_BOUNDS.minX, PASTURE_BOUNDS.maxX);
+    const ny = Phaser.Math.Clamp(h.sprite.y + dy, PASTURE_BOUNDS.minY, PASTURE_BOUNDS.maxY);
+    if (!this._collides(nx, h.sprite.y, R)) h.sprite.x = nx;
+    if (!this._collides(h.sprite.x, ny, R)) h.sprite.y = ny;
   }
 
   // Friendly nicker when a horse reaches the gate hoping for food and the player
