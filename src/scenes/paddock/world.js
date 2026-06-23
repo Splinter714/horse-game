@@ -259,6 +259,12 @@ export const WithWorld = (Base) => class extends Base {
   // ─── Obstacles & collision ───────────────────────────────────────────────
 
   buildObstacles() {
+    // Collision footprint for a centred prop (origin 0.5,0.5) from its live
+    // position — so a movable prop's collision follows it instead of being pinned
+    // to a hardcoded rect (#110). Inset to the solid body, not the full sprite.
+    const centredBox = (p, w, h, extra = {}) =>
+      p ? [{ x: p.x - w / 2, y: p.y - h / 2, w, h, ...extra }] : [];
+
     // Rects in world space {x, y, w, h} — top-left origin.
     // Sized to the solid/wall area of each prop (not full sprite bounds).
     this.obstacles = [
@@ -268,8 +274,9 @@ export const WithWorld = (Base) => class extends Base {
       // home:'chicken' → the coop is the chickens' home, so it's excluded from
       // their personal obstacle list (they're allowed to walk in). See _obstaclesFor.
       { x: 868, y: 300, w: 124, h: 100, home: 'chicken' },
-      // Trough (origin 0.5,0.5 at 740,1100; sprite 100×26 at S=2 → 200×52)
-      { x: 652, y: 1078, w: 176, h: 44 },
+      // Trough — tied to the live trough (origin 0.5,0.5; 200×52 sprite, inset to
+      // its body) so the collision moves with it when repositioned (#110/#106).
+      ...centredBox(this.props.trough, 176, 44, { isTrough: true }),
       // Fence line (6 segments at y=320, origin 0,0.5; 96×48 each → x=300..876)
       { x: 300, y: 300, w: 576, h: 40 },
     ];
