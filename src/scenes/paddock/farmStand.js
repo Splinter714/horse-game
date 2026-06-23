@@ -104,9 +104,10 @@ export const WithFarmStand = (Base) => class extends Base {
   }
 
   _spawnCustomer() {
-    if (!this.farmStand || this._standTotal() <= 0) {
-      // No stock — NPC shows up but leaves disappointed
-    }
+    // No stand or nothing for sale → no customer arrives at all. (Re-checked at
+    // spawn time, not just scheduling, so stock that empties before the timer
+    // fires still suppresses the visit.)
+    if (!this.farmStand || this._standTotal() <= 0) return;
 
     // Spawn from the right edge of the world
     const spawnX = WORLD_W - 20;
