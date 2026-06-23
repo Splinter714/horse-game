@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { ALL_ITEMS, ITEM_MAP, CARRIER_DEFS, CONTENT_DEFS } from '../data/items.js';
 import { loadGameState, saveGameState } from '../data/save.js';
-import { toggleMute, isMuted } from '../audio/sounds.js';
+import { toggleMute, isMuted, setVolume, getAudioSettings } from '../audio/sounds.js';
 import { EVENTS } from '../data/events.js';
 
 // Gameplay scenes frozen while the pause menu is open
@@ -403,7 +403,14 @@ export default class HotbarScene extends Phaser.Scene {
 
     const panelW = Math.min(320, sw - 40);
     const rowH   = 48;
-    const panelH = 56 + rowH; // title area + one row
+    const sliderH = 44;            // height per volume-slider row
+    const sliders = [
+      ['Master',  'master'],
+      ['Music',   'music'],
+      ['Ambient', 'ambient'],
+      ['Effects', 'effects'],
+    ];
+    const panelH = 56 + rowH + sliders.length * sliderH + 8; // title + mute + sliders
     const px = Math.round((sw - panelW) / 2);
     const py = Math.round((sh - panelH) / 2);
 
@@ -463,6 +470,57 @@ export default class HotbarScene extends Phaser.Scene {
     rowZone.on('pointerout',  () => drawRow(0x1a1e30));
     rowZone.on('pointerdown', () => this._toggleMute());
     this._pauseNodes.push(rowZone);
+
+    // Per-bus volume sliders, stacked below the mute row.
+    const vols = getAudioSettings().volumes;
+    let sy = rowY + rowH + 4;
+    for (const [label, bus] of sliders) {
+      this._addVolumeSlider(rowX, sy, rowW, label, bus, vols[bus]);
+      sy += sliderH;
+    }
+  }
+
+  // Draggable horizontal volume slider for one mixer bus (0–1). Calls setVolume
+  // live as the player drags; persistence happens via the audio module's onChange.
+  _addVolumeSlider(x, y, w, label, bus, value) {
+    const labelW = 64;
+    const trackX = x + labelW;
+    const trackW = w - labelW;
+    const cy = y + 16; // vertical centre of the track
+
+    const lbl = this.add.text(x, cy, label, {
+      fontFamily: 'system-ui, sans-serif', fontSize: '13px', color: '#aab0ca',
+    }).setOrigin(0, 0.5).setDepth(104);
+    this._pauseNodes.push(lbl);
+
+    const g = this.add.graphics().setDepth(104);
+    this._pauseNodes.push(g);
+
+    let v = Math.max(0, Math.min(1, value));
+    const draw = () => {
+      g.clear();
+      // Track
+      g.fillStyle(0x1a1e30, 1);
+      g.fillRoundedRect(trackX, cy - 4, trackW, 8, 4);
+      // Filled portion
+      g.fillStyle(0x5a7de0, 1);
+      g.fillRoundedRect(trackX, cy - 4, Math.max(8, trackW * v), 8, 4);
+      // Knob
+      g.fillStyle(0xdfe4f5, 1);
+      g.fillCircle(trackX + trackW * v, cy, 8);
+    };
+    draw();
+
+    const zone = this.add.zone(trackX - 8, y, trackW + 16, 32)
+      .setOrigin(0, 0).setInteractive({ useHandCursor: true, draggable: true }).setDepth(105);
+    const setFromX = (px) => {
+      v = Math.max(0, Math.min(1, (px - trackX) / trackW));
+      draw();
+      setVolume(bus, v);
+    };
+    zone.on('pointerdown', (p) => setFromX(p.x));
+    zone.on('drag', (p) => setFromX(p.x));
+    this._pauseNodes.push(zone);
   }
 
   _closePause() {

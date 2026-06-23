@@ -8,7 +8,8 @@ import { buildHorseTextures, buildFoalTextures } from '../art/horseArt.js';
 import { buildPortraitTexture, buildChickenPortraitTexture } from '../art/portraitArt.js';
 import { buildPlayerTextures } from '../art/playerArt.js';
 import { getCoat } from '../data/species/horse/coats.js';
-import { loadAllHorses, loadAllChickens } from '../data/save.js';
+import { loadAllHorses, loadAllChickens, loadAudioSettings, saveAudioSettings } from '../data/save.js';
+import { applyAudioSettings } from '../audio/sounds.js';
 
 export default class BootScene extends Phaser.Scene {
   constructor() {
@@ -16,6 +17,10 @@ export default class BootScene extends Phaser.Scene {
   }
 
   create() {
+    // Restore persisted audio settings (mute + per-bus volumes) and re-save on
+    // any later change made through the mixer UI.
+    applyAudioSettings(loadAudioSettings(), saveAudioSettings);
+
     // The whole herd, loaded from save with offline decay applied. Every horse is
     // equal — no special "player horse". Keyed by texture/registry key.
     const allHorses = loadAllHorses();
