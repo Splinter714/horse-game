@@ -4,7 +4,7 @@ import { CONTENT_DEFS } from '../data/items.js';
 import {
   playHoofbeat, playEat, playDrink, playBrush, playChime,
   playSplash, playBirdChirp, startWind, stopWind, startMusic, stopMusic,
-  setMusicMode,
+  setMusicMode, playNicker, playSqueal,
 } from '../audio/sounds.js';
 
 const WORLD_W = 1920;
@@ -32,6 +32,11 @@ const GATE_GAP_X0 = 900;
 const GATE_GAP_X1 = 1020;
 
 const S = 2;
+
+// Cleanliness (issue #26): below DUST_CLEAN_AT grooming the dust overlay starts
+// to show, ramping to DUST_MAX_ALPHA opacity at grooming 0.
+const DUST_CLEAN_AT  = 55;
+const DUST_MAX_ALPHA = 0.55;
 
 // What the farm stand can sell. Each product type has a sale price (per unit),
 // a counter texture (with its own scale), an emoji for the count badge, and the
@@ -877,9 +882,14 @@ export default class PaddockScene extends Phaser.Scene {
       .setOrigin(0.5, 1).setScale(S).setDepth(startY)
       .play(`idle_${key}`);
 
+    // Dust-splotch overlay — same transform as the sprite, alpha driven by the
+    // grooming stat in depthSort() so a dirty horse visibly shows it. (issue #26)
+    const dustOverlay = this.add.image(startX, startY, 'dustSplotches')
+      .setOrigin(0.5, 1).setScale(S).setDepth(startY).setAlpha(0);
+
     const model = this.registry.get('allHorses')[key];
     const h = { sprite, shadow, key, state: 'idle', wanderTween: null, eatTimer: null,
-                saddled: model?.saddled ?? false, saddleImg: null };
+                dustOverlay, saddled: model?.saddled ?? false, saddleImg: null };
     this.horses.push(h);
     this.scheduleWander(h, wanderDelay);
     return h;
@@ -898,14 +908,31 @@ export default class PaddockScene extends Phaser.Scene {
     // Horses wander in the pasture, other animals in the farm area
     const isHorse = this.horses.includes(h);
     const bounds = isHorse ? PASTURE_BOUNDS : BOUNDS;
-    const { tx, ty } = this._safeTarget(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY,
-                                         this._obstaclesFor(h.key), h.sprite.x, h.sprite.y);
+
+    // Horses bias their wander toward whatever they currently need — drifting to
+    // the (maybe empty) trough when thirsty, to the gate to "wait to be fed" when
+    // hungry, off alone when neglected, or near a buddy when content. Falls back
+    // to a plain random point. (issue #26)
+    let tx, ty, wantNicker = false;
+    const pref = isHorse ? this._needTarget(h) : null;
+    if (pref) {
+      tx = Phaser.Math.Clamp(pref.tx, bounds.minX, bounds.maxX);
+      ty = Phaser.Math.Clamp(pref.ty, bounds.minY, bounds.maxY);
+      wantNicker = !!pref.nicker;
+    } else {
+      ({ tx, ty } = this._safeTarget(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY,
+                                       this._obstaclesFor(h.key), h.sprite.x, h.sprite.y));
+    }
 
     const onArrive = () => {
       if (!h.sprite.active) return;
       h.wanderTween = null;
       h.sprite.play(`idle_${h.key}`, true);
       h.state = 'idle';
+      // Greet the player on arrival at the gate; otherwise a relaxed horse may
+      // roll in the dirt (which is what makes it dusty).
+      if (wantNicker) this._maybeNickerAtPlayer(h);
+      else if (isHorse) this._maybeRoll(h);
       this.scheduleWander(h, Phaser.Math.Between(2000, 5000));
     };
 
@@ -928,9 +955,176 @@ export default class PaddockScene extends Phaser.Scene {
     });
   }
 
+  // ── Need-driven behavior (issue #26) ──────────────────────────────────────
+
+  // Pick a wander target reflecting the horse's dominant current need, or null
+  // to wander randomly. Returns { tx, ty, nicker? }. These signals fire whether
+  // or not food/water is actually out — an expectant horse at an empty trough or
+  // the gate is exactly the cue that tells the player to go provision.
+  _needTarget(h) {
+    const horse = this.registry.get('allHorses')?.[h.key];
+    if (!horse) return null;
+    const temp = horse.temperament;
+    const pb = PASTURE_BOUNDS;
+
+    // Neglected → sulk off alone in a corner, away from the herd.
+    if (horse.neglected) {
+      const leftSide = h.key.charCodeAt(h.key.length - 1) % 2 === 0;
+      return {
+        tx: leftSide ? pb.minX + 50 : pb.maxX - 50,
+        ty: pb.maxY - Phaser.Math.Between(30, 70),
+      };
+    }
+
+    // Thirsty with no water out → linger expectantly at the (empty) trough.
+    // (When the trough is filled, horseTickForHorse already routes them to drink.)
+    if (horse.stats.thirst < 45 && !this.props.trough?.filled && this.props.trough) {
+      const t = this.props.trough;
+      return { tx: t.x + Phaser.Math.Between(-55, 55), ty: t.y + Phaser.Math.Between(18, 40) };
+    }
+
+    // Hungry (or first thing in the morning) → drift to the gate to "wait to be
+    // fed," especially when the player is up north by the food sources. Lazy
+    // horses can't be bothered.
+    const morning = this._phase === 'Morning';
+    if ((horse.stats.hunger < 45 || morning) && temp !== 'lazy') {
+      const eager = temp === 'needy' || temp === 'spirited';
+      const playerNorth = this.player && this.player.sprite.y < pb.minY + 80;
+      if (eager || playerNorth) {
+        return {
+          tx: GATE_X + Phaser.Math.Between(-45, 45),
+          ty: pb.minY + Phaser.Math.Between(24, 64),
+          nicker: true,
+        };
+      }
+    }
+
+    // Content + bonded → hang out near a buddy (the herd look).
+    if (horse.stats.happiness >= 70) {
+      const buddy = this._nearestOtherHorse(h);
+      if (buddy && Math.random() < 0.5) {
+        const side = Math.random() < 0.5 ? -1 : 1;
+        return {
+          tx: buddy.sprite.x + side * Phaser.Math.Between(45, 75),
+          ty: buddy.sprite.y + Phaser.Math.Between(-18, 18),
+        };
+      }
+    }
+
+    return null;
+  }
+
+  _nearestOtherHorse(h) {
+    let best = null, bestD = Infinity;
+    for (const o of this.horses) {
+      if (o === h || !o.sprite.active) continue;
+      const d = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, o.sprite.x, o.sprite.y);
+      if (d < bestD) { bestD = d; best = o; }
+    }
+    return best;
+  }
+
+  // Friendly nicker when a horse reaches the gate hoping for food and the player
+  // is nearby (throttled). Shy horses tend to stay quiet.
+  _maybeNickerAtPlayer(h) {
+    const horse = this.registry.get('allHorses')?.[h.key];
+    if (!horse || !this.player) return;
+    const d = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, this.player.sprite.x, this.player.sprite.y);
+    if (d > 360) return;
+    const now = this.time.now;
+    if (h._lastNicker && now - h._lastNicker < 6000) return;
+    if (horse.temperament === 'shy' && Math.random() < 0.6) return;
+    h._lastNicker = now;
+    playNicker();
+  }
+
+  // ── Rolling in the dirt (issue #26) ───────────────────────────────────────
+  // A relaxed, reasonably clean horse occasionally flops for a roll — real
+  // horses self-groom this way, and it's what leaves them dusty afterward.
+  _maybeRoll(h) {
+    if (this.isNight || h.state !== 'idle') return;
+    const horse = this.registry.get('allHorses')?.[h.key];
+    if (!horse || horse.stats.grooming < DUST_CLEAN_AT) return; // already dirty — skip
+    const temp = horse.temperament;
+    const chance = temp === 'spirited' ? 0.16 : temp === 'lazy' ? 0.14 : 0.07;
+    if (Math.random() > chance) return;
+    this._rollInDirt(h, horse);
+  }
+
+  _rollInDirt(h, horse) {
+    h.state = 'rolling';
+    if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
+    const sprite = h.sprite;
+    sprite.play(`idle_${h.key}`, true);
+
+    // Fake the roll with a squash/rock — no new sprite frames needed.
+    this.tweens.add({
+      targets: sprite,
+      scaleX: S * 1.15, scaleY: S * 0.72,
+      duration: 280, yoyo: true, repeat: 1, ease: 'Quad.easeInOut',
+      onComplete: () => {
+        sprite.setScale(S);
+        if (h.state === 'rolling') {
+          h.state = 'idle';
+          this.scheduleWander(h, Phaser.Math.Between(1500, 3500));
+        }
+      },
+    });
+    this._dustPuff(sprite.x, sprite.y);
+
+    // Rolling makes the horse dirtier → the dust overlay visibly darkens.
+    horse.stats.grooming = Math.max(0, horse.stats.grooming - 18);
+    this.game.events.emit('stats-changed');
+  }
+
+  _dustPuff(x, y) {
+    for (let i = 0; i < 5; i++) {
+      const p = this.add.image(x + Phaser.Math.Between(-24, 24), y - Phaser.Math.Between(0, 18), 'dustPuff')
+        .setScale(S * 0.6).setDepth(10000).setAlpha(0.85);
+      this.tweens.add({
+        targets: p,
+        x: p.x + Phaser.Math.Between(-18, 18),
+        y: p.y - Phaser.Math.Between(10, 30),
+        alpha: 0, scale: S,
+        duration: Phaser.Math.Between(500, 850), ease: 'Sine.easeOut',
+        onComplete: () => p.destroy(),
+      });
+    }
+  }
+
+  // Greeting when the player engages a horse: a grumpy squeal + anger mark if it
+  // was neglected (clears the moment you tend it), or a soft nicker otherwise.
+  greetHorse(h) {
+    const horse = this.registry.get('allHorses')?.[h.key];
+    if (!horse) return;
+    if (horse.neglected) {
+      playSqueal();
+      this.showIcon('iconGrumpy', h.sprite);
+      this._shake(h.sprite);
+      return;
+    }
+    const now = this.time.now;
+    if (h._lastNicker && now - h._lastNicker < 4000) return;
+    h._lastNicker = now;
+    playNicker();
+  }
+
+  _shake(sprite) {
+    if (sprite._shaking) return;
+    sprite._shaking = true;
+    const x0 = sprite.x;
+    this.tweens.add({
+      targets: sprite, x: x0 + 6, duration: 60,
+      yoyo: true, repeat: 3, ease: 'Sine.easeInOut',
+      onComplete: () => { sprite.x = x0; sprite._shaking = false; },
+    });
+  }
+
   // ─── Day / Night ─────────────────────────────────────────────────────────
 
-  onPhaseChange({ isNight }) {
+  onPhaseChange({ isNight, phase }) {
+    this._phase = phase;
+    if (phase === 'Morning') this._dawnNewDay();
     if (isNight && !this.isNight) {
       this.isNight = true;
       this.restAllAnimals();
@@ -939,6 +1133,15 @@ export default class PaddockScene extends Phaser.Scene {
       this.wakeAllAnimals();
     }
     setMusicMode(isNight);
+  }
+
+  // Each morning is a new care day: a horse that didn't get both fed and watered
+  // the day before wakes up grumpy (and recovers as soon as you tend it). The
+  // first morning at game start is skipped so nobody starts neglected. (issue #26)
+  _dawnNewDay() {
+    if (!this._sawFirstMorning) { this._sawFirstMorning = true; return; }
+    const allHorses = this.registry.get('allHorses');
+    for (const h of this.horses) allHorses[h.key]?.rollNewDay();
   }
 
   restAllAnimals() {
@@ -2292,6 +2495,10 @@ export default class PaddockScene extends Phaser.Scene {
       portraitKey: `portrait_${key}`,
       horseKey:   key,
     });
+    // The horse reacts to you engaging it — nicker if content, grumpy squeal if
+    // it was neglected (issue #26).
+    const h = this.horses.find(x => x.key === key);
+    if (h) this.greetHorse(h);
     if (this.scene.isActive('PortraitScene')) {
       this.scene.get('PortraitScene').refresh();
       return;
@@ -2762,11 +2969,26 @@ export default class PaddockScene extends Phaser.Scene {
     p.shadow.setDepth(p.sprite.y - 1);
     p.sprite.setDepth(p.sprite.y);
 
+    const allHorses = this.registry.get('allHorses');
     for (const h of this.horses) {
       h.shadow.x = h.sprite.x;
       h.shadow.y = h.sprite.y;
       h.shadow.setDepth(h.sprite.y - 1);
       h.sprite.setDepth(h.sprite.y);
+
+      // Keep the dust overlay glued to the sprite and fade it as a whole with
+      // how dirty the horse is (grooming < DUST_CLEAN_AT). Brushing raises
+      // grooming → the splotches fade out together and vanish when fully clean.
+      if (h.dustOverlay) {
+        const groom = allHorses[h.key]?.stats.grooming ?? 100;
+        const dirt  = Phaser.Math.Clamp((DUST_CLEAN_AT - groom) / DUST_CLEAN_AT, 0, 1);
+        h.dustOverlay.x = h.sprite.x;
+        h.dustOverlay.y = h.sprite.y;
+        h.dustOverlay.setFlipX(h.sprite.flipX);
+        h.dustOverlay.setDepth(h.sprite.y);
+        h.dustOverlay.setAlpha(dirt * DUST_MAX_ALPHA);
+        h.dustOverlay.setVisible(dirt > 0);
+      }
     }
 
     for (const a of this.animals) {
