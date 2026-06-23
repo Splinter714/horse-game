@@ -10,9 +10,6 @@ import { WORLD_W, WORLD_H, CARE_DIST, PLAYER_SPEED, HOLD_MS, HOLD_DRAG_PX, PLAYE
 // In-place reach for using a tool on a horse (brush/saddle/lead). Use never
 // walks you anywhere — the horse has to already be within this range.
 const USE_REACH = 110;
-// How close (to the stand centre) counts as "at the farm stand" for depositing
-// produce. Matches the farm-stand interactable's reachDist.
-const FARM_STAND_REACH = 120;
 
 export const WithPlayer = (Base) => class extends Base {
   // ─── Player ──────────────────────────────────────────────────────────────
@@ -459,6 +456,22 @@ export const WithPlayer = (Base) => class extends Base {
 
   // Use the currently-armed hotbar tool on the most appropriate nearby target.
   // Interact (pet/info/mount, gate/barn) stays on tap/click/E — this is only for
+  // Nearest in-reach world-spot action for the equipped item — a gathering source,
+  // the trough, a nest, or the farm stand — or null if none is within reach. Shared
+  // by useActiveTool (to dispatch) and checkToolProximity (to label) so the prompt
+  // and the action always agree (#133).
+  _nearestUseSpot(item) {
+    let inst = null, instD = Infinity;
+    for (const instancesOf of this.toolWorld) {
+      for (const c of instancesOf(item)) {
+        if (!c.canAct) continue;
+        const dd = Phaser.Math.Distance.Between(this.player.sprite.x, this.player.sprite.y, c.x, c.y);
+        if (dd < instD) { instD = dd; inst = c; }
+      }
+    }
+    return inst && instD <= inst.reachDist ? inst : null;
+  }
+
   // tools: brush/saddle/lead act on the nearest valid horse, feed drops at your
   // feet, and carriers/water/eggs/selling walk to the nearest matching spot.
   useActiveTool() {
@@ -484,27 +497,21 @@ export const WithPlayer = (Base) => class extends Base {
       return;
     }
 
-    // Feed: drop the food right where the player is standing — UNLESS we're at the
-    // farm stand and this produce is sellable there (apples/carrots), in which case
-    // deposit it on the stand instead of dropping it (#80). Hay isn't sellable, so
-    // it still drops as feed even at the stand.
+    // Feed: a carrier holding food. Acting on an in-reach world spot wins over
+    // dropping at your feet — a gathering source (keep filling rather than place,
+    // #133) or the farm stand (sell sellable produce, #80). Only when you're not
+    // standing at any such spot does Use drop the food where you are. (Hay isn't
+    // sellable and there's no hay source at the stand, so it still drops there.)
     if (item.action === 'feed') {
-      if (STAND_DEFS[item.content] && this._atFarmStand()) this.stockStand();
-      else this.placeFood(item);
+      const spot = this._nearestUseSpot(item);
+      if (spot) spot.activate();
+      else      this.placeFood(item);
       return;
     }
 
     // Everything else (fill trough, gather, collect egg, sell) is a world spot —
     // activate the nearest valid one only if we're already within its reach.
-    let inst = null, instD = Infinity;
-    for (const instancesOf of this.toolWorld) {
-      for (const c of instancesOf(item)) {
-        if (!c.canAct) continue;
-        const dd = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, c.x, c.y);
-        if (dd < instD) { instD = dd; inst = c; }
-      }
-    }
-    if (inst && instD <= inst.reachDist) inst.activate();
+    this._nearestUseSpot(item)?.activate();
   }
 
   // Per-frame: resolve the equipped tool/carrier's Use action (#83) — both the
@@ -544,12 +551,14 @@ export const WithPlayer = (Base) => class extends Base {
       return finish();
     }
 
-    // Feed: dropped at the player's feet — or, at the farm stand, sold there if
-    // the produce is sellable (apples/carrots), matching useActiveTool (#80).
+    // Feed: a carrier holding food. Mirrors useActiveTool's dispatch (#133) — if a
+    // world spot is in reach (a gathering source to keep filling, or the stand to
+    // sell), the prompt names that action; otherwise it's "Drop" at your feet.
     if (item.action === 'feed') {
-      if (STAND_DEFS[item.content] && this._atFarmStand()) {
-        useLabel = `Sell ${item.label}`;
-        this._pushPrompt('use', `Sell ${item.label}`);
+      const spot = this._nearestUseSpot(item);
+      if (spot) {
+        useLabel = spot.label.replace(/\s*\(.*\)\s*$/, '');
+        this._pushPrompt('use', spot.label);
       } else {
         useLabel = `Feed ${item.label}`;
         this._pushPrompt('use', `Drop ${item.label}`);
@@ -561,15 +570,8 @@ export const WithPlayer = (Base) => class extends Base {
     // the nearest actionable instance within reach. The descriptor labels already
     // name the content ("Gather Water", "Collect Egg"); strip any "(basket: n)"
     // tail for the button.
-    let inst = null, instD = Infinity;
-    for (const instancesOf of this.toolWorld) {
-      for (const c of instancesOf(item)) {
-        if (!c.canAct) continue;
-        const dd = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, c.x, c.y);
-        if (dd < instD) { instD = dd; inst = c; }
-      }
-    }
-    if (inst && instD <= inst.reachDist) {
+    const inst = this._nearestUseSpot(item);
+    if (inst) {
       useLabel = inst.label.replace(/\s*\(.*\)\s*$/, '');
       this._pushPrompt('use', inst.label);
     }
@@ -582,14 +584,6 @@ export const WithPlayer = (Base) => class extends Base {
     if (h?.name) return h.name;
     const a = this.animals?.find(x => x.key === key);
     return a?.model?.name ?? null;
-  }
-
-  // True when the player is close enough to the farm stand to deposit produce.
-  _atFarmStand() {
-    const s = this.farmStand;
-    if (!s) return false;
-    return Phaser.Math.Distance.Between(
-      this.player.sprite.x, this.player.sprite.y, s.x, s.y) <= FARM_STAND_REACH;
   }
 
   // Pick the horse a tool should act on. Saddle/lead target the nearest horse
