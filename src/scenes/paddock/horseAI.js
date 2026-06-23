@@ -190,7 +190,7 @@ export const WithHorseAI = (Base) => class extends Base {
       h.sprite.setFlipX(!facingRight);
       h.sprite.play(`eat_${h.key}`, true);
 
-      playEat();
+      playEat('hay'); // grazing a hay pile → munchy chew (#126)
       h.eatTimer = this.time.delayedCall(1800, () => {
         h.eatTimer = null;
         if (h.state !== 'eating') return;

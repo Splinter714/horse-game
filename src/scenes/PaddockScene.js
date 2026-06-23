@@ -285,7 +285,7 @@ export default class PaddockScene
       if (brushClean) this.showHeart(h.sprite);   // clean coat → affection (#116)
       else this.showDustPuff(h.sprite, preDirt);  // dirty coat → groom out dust
     } else {
-      if (item.action === 'feed')  playEat();
+      if (item.action === 'feed')  playEat(item.content); // crunchy apple/carrot vs munchy hay (#126)
       if (item.action === 'water') playDrink();
       this.showIcon(item.icon, h.sprite);
     }

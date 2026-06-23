@@ -130,37 +130,54 @@ export function playHoofbeat(gallop = false) {
 
 // ─── Eating (crunch) ─────────────────────────────────────────────────────────
 
-export function playEat() {
+// Per-food eating character (#126). Both stay slow + organic (3 chews), but the
+// balance of bright "snap" vs. low "chew body" differs so feeding reads by ear:
+//  • crunchy (apple/carrot) — bright, sharp top snaps, light body.
+//  • munchy  (hay)          — soft, dull top, heavy low chewing body.
+const EAT_PROFILES = {
+  crunchy: { spacing: 0.12,  hiBase: 2300, hiStep: 320, hiQ: 1.2, lp: 4200,
+             topGain: 0.26, topDecay: 0.045, bodyLP: 300, bodyGain: 0.14 },
+  munchy:  { spacing: 0.135, hiBase: 1100, hiStep: 160, hiQ: 0.6, lp: 2400,
+             topGain: 0.12, topDecay: 0.07,  bodyLP: 440, bodyGain: 0.34 },
+};
+
+function eatProfile(food) {
+  if (food === 'apple' || food === 'carrot' || food === 'crunchy') return EAT_PROFILES.crunchy;
+  return EAT_PROFILES.munchy; // hay / default
+}
+
+export function playEat(food = 'hay') {
   const c = getCtx();
   const now = c.currentTime;
+  const p = eatProfile(food);
 
   for (let i = 0; i < 3; i++) {
     // Slight organic jitter in the chew spacing so it doesn't sound mechanical.
     // Positive-only so `t` can never fall before `now` (a fresh/suspended audio
     // context has currentTime ~0, and a negative absolute time throws).
-    const t = now + i * 0.115 + Math.random() * 0.02;
+    const t = now + i * p.spacing + Math.random() * 0.02;
     const dur = 0.09;
 
     const buf = c.createBuffer(1, Math.ceil(c.sampleRate * dur), c.sampleRate);
     const d = buf.getChannelData(0);
     for (let j = 0; j < d.length; j++) d[j] = Math.random() * 2 - 1;
 
-    // ── Bright top crunch (the existing crisp layer) ──
+    // ── Top crunch/snap — bright + sharp for crunchy, dull for munchy ──
     const src = c.createBufferSource();
     src.buffer = buf;
 
     const hi = c.createBiquadFilter();
     hi.type = 'bandpass';
-    hi.frequency.value = 1500 + i * 250;
-    hi.Q.value = 0.8;
+    hi.frequency.value = p.hiBase + i * p.hiStep;
+    hi.Q.value = p.hiQ;
 
     const lo = c.createBiquadFilter();
     lo.type = 'lowpass';
-    lo.frequency.value = 3000;
+    lo.frequency.value = p.lp;
 
     const env = c.createGain();
-    env.gain.setValueAtTime(0.20, t);
-    env.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+    env.gain.setValueAtTime(p.topGain, t);
+    env.gain.exponentialRampToValueAtTime(0.001, t + p.topDecay);
 
     src.connect(hi);
     hi.connect(lo);
@@ -169,18 +186,18 @@ export function playEat() {
     src.start(t);
     src.stop(t + dur);
 
-    // ── Low-mid chew "body" layered under each crunch for a meatier munch ──
+    // ── Low-mid chew "body" — light for crunchy, heavy for the munchy chew ──
     const bsrc = c.createBufferSource();
     bsrc.buffer = buf;
 
     const body = c.createBiquadFilter();
     body.type = 'lowpass';
-    body.frequency.value = 380 + i * 40;
+    body.frequency.value = p.bodyLP + i * 40;
     body.Q.value = 0.7;
 
     const bodyEnv = c.createGain();
     bodyEnv.gain.setValueAtTime(0.001, t);
-    bodyEnv.gain.linearRampToValueAtTime(0.30, t + 0.012);
+    bodyEnv.gain.linearRampToValueAtTime(p.bodyGain, t + 0.012);
     bodyEnv.gain.exponentialRampToValueAtTime(0.001, t + dur);
 
     bsrc.connect(body);
@@ -197,24 +214,30 @@ export function playDrink() {
   const c = getCtx();
   const now = c.currentTime;
 
-  for (let i = 0; i < 2; i++) {
-    const t = now + i * 0.22;
-    const dur = 0.18;
+  // Three wet slurps (#124). Each is a resonant bandpass that sweeps upward —
+  // mimicking liquid suction — with a low "gulp" body swallowed underneath, so it
+  // reads as slurpy/wet rather than a dry tap.
+  for (let i = 0; i < 3; i++) {
+    const t = now + i * 0.2 + Math.random() * 0.03;
+    const dur = 0.22;
     const buf = c.createBuffer(1, Math.ceil(c.sampleRate * dur), c.sampleRate);
     const d = buf.getChannelData(0);
     for (let j = 0; j < d.length; j++) d[j] = Math.random() * 2 - 1;
 
+    // ── Slurp: resonant bandpass sweeping up = wet suction ──
     const src = c.createBufferSource();
     src.buffer = buf;
 
     const filter = c.createBiquadFilter();
     filter.type = 'bandpass';
-    filter.frequency.value = 600;
-    filter.Q.value = 1.5;
+    filter.Q.value = 4.5; // resonant → "wet"
+    const f0 = 380 + Math.random() * 90;
+    filter.frequency.setValueAtTime(f0, t);
+    filter.frequency.exponentialRampToValueAtTime(f0 * 2.6, t + dur * 0.85);
 
     const env = c.createGain();
     env.gain.setValueAtTime(0.001, t);
-    env.gain.linearRampToValueAtTime(0.28, t + dur * 0.4);
+    env.gain.linearRampToValueAtTime(0.26, t + dur * 0.35);
     env.gain.exponentialRampToValueAtTime(0.001, t + dur);
 
     src.connect(filter);
@@ -222,6 +245,26 @@ export function playDrink() {
     env.connect(master(1));
     src.start(t);
     src.stop(t + dur);
+
+    // ── Low "gulp" body, swallowed a beat after the slurp peaks ──
+    const bsrc = c.createBufferSource();
+    bsrc.buffer = buf;
+
+    const lo = c.createBiquadFilter();
+    lo.type = 'lowpass';
+    lo.frequency.value = 260;
+    lo.Q.value = 0.8;
+
+    const bodyEnv = c.createGain();
+    bodyEnv.gain.setValueAtTime(0.001, t + dur * 0.4);
+    bodyEnv.gain.linearRampToValueAtTime(0.2, t + dur * 0.6);
+    bodyEnv.gain.exponentialRampToValueAtTime(0.001, t + dur * 1.1);
+
+    bsrc.connect(lo);
+    lo.connect(bodyEnv);
+    bodyEnv.connect(master(1));
+    bsrc.start(t);
+    bsrc.stop(t + dur * 1.1);
   }
 }
 
