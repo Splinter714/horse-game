@@ -690,6 +690,8 @@ export default class PaddockScene
       btnB:    btns[1]?.pressed  ?? false,
       btnX:    btns[2]?.pressed  ?? false,
       btnY:    btns[3]?.pressed  ?? false,
+      btnLB:   btns[4]?.pressed  ?? false,
+      btnRB:   btns[5]?.pressed  ?? false,
       btnLT:   (btns[6]?.value ?? 0) > 0.3,
       btnRT:   (btns[7]?.value ?? 0) > 0.3,
       btnBack: btns[8]?.pressed  ?? false,
@@ -719,15 +721,19 @@ export default class PaddockScene
       this.usingPad = true;
       this.openProxInfo();
     }
-    // LT/RT = cycle hotbar (same as LB/RB)
-    if (this._rawPad.btnLT && !prev.btnLT) {
-      this.usingPad = true;
-      if (hotbar) hotbar._setActive((hotbar.activeSlot - 1 + NUM_SLOTS) % NUM_SLOTS);
-    }
-    if (this._rawPad.btnRT && !prev.btnRT) {
-      this.usingPad = true;
-      if (hotbar) hotbar._setActive((hotbar.activeSlot + 1) % NUM_SLOTS);
-    }
+    // Hotbar navigation (#121): the D-pad now drives the hotbar (it no longer moves
+    // the player — see movePlayer). D-pad left/right and the bumpers step between
+    // slots; D-pad up/down and the triggers cycle the instances inside a carrier
+    // group. navSlot wraps internally so the count lives in HotbarScene.
+    const rp = this._rawPad;
+    if (rp.dLeft  && !prev.dLeft)  { this.usingPad = true; hotbar?.navSlot(-1); }
+    if (rp.dRight && !prev.dRight) { this.usingPad = true; hotbar?.navSlot(+1); }
+    if (rp.btnLB  && !prev.btnLB)  { this.usingPad = true; hotbar?.navSlot(-1); }
+    if (rp.btnRB  && !prev.btnRB)  { this.usingPad = true; hotbar?.navSlot(+1); }
+    if (rp.dUp    && !prev.dUp)    { this.usingPad = true; hotbar?._padCycleMember(-1); }
+    if (rp.dDown  && !prev.dDown)  { this.usingPad = true; hotbar?._padCycleMember(+1); }
+    if (rp.btnLT  && !prev.btnLT)  { this.usingPad = true; hotbar?._padCycleMember(-1); }
+    if (rp.btnRT  && !prev.btnRT)  { this.usingPad = true; hotbar?._padCycleMember(+1); }
     // Back = toggle inventory
     if (this._rawPad.btnBack && !prev.btnBack) {
       this.usingPad = true;
@@ -744,8 +750,14 @@ export default class PaddockScene
       btnB:     this._rawPad.btnB,
       btnX:     this._rawPad.btnX,
       btnY:     this._rawPad.btnY,
+      btnLB:    this._rawPad.btnLB,
+      btnRB:    this._rawPad.btnRB,
       btnLT:    this._rawPad.btnLT,
       btnRT:    this._rawPad.btnRT,
+      dUp:      this._rawPad.dUp,
+      dDown:    this._rawPad.dDown,
+      dLeft:    this._rawPad.dLeft,
+      dRight:   this._rawPad.dRight,
       btnBack:  this._rawPad.btnBack,
       btnStart: this._rawPad.btnStart,
     };
@@ -798,12 +810,9 @@ export default class PaddockScene
 
     const rp = this._rawPad;
     if (rp) {
+      // Left stick steers; the D-pad is reserved for the hotbar now (#121).
       if (Math.abs(rp.leftStickX) > 0.15) vx += rp.leftStickX;
       if (Math.abs(rp.leftStickY) > 0.15) vy += rp.leftStickY;
-      if (rp.dLeft)  vx -= 1;
-      if (rp.dRight) vx += 1;
-      if (rp.dUp)    vy -= 1;
-      if (rp.dDown)  vy += 1;
     }
 
     const kbActive  = cursors.left.isDown || cursors.right.isDown ||
@@ -811,8 +820,7 @@ export default class PaddockScene
                       wasd.left.isDown    || wasd.right.isDown    ||
                       wasd.up.isDown      || wasd.down.isDown;
     const padActive = rp && (
-      Math.abs(rp.leftStickX) > 0.15 || Math.abs(rp.leftStickY) > 0.15 ||
-      rp.dLeft || rp.dRight || rp.dUp || rp.dDown
+      Math.abs(rp.leftStickX) > 0.15 || Math.abs(rp.leftStickY) > 0.15
     );
     if (kbActive)  { this.usingPad = false; this.usingTouch = false; }
     if (padActive) { this.usingPad = true;  this.usingTouch = false; }

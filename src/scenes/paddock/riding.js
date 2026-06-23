@@ -99,12 +99,9 @@ export const WithRiding = (Base) => class extends Base {
     if (cursors.down.isDown  || wasd.down.isDown)   vy += 1;
     const pad = this.gamePad;
     if (pad) {
+      // Left stick steers the horse; the D-pad is reserved for the hotbar (#121).
       if (Math.abs(pad.leftStick.x) > 0.15) vx += pad.leftStick.x;
       if (Math.abs(pad.leftStick.y) > 0.15) vy += pad.leftStick.y;
-      if (pad.left  > 0.5) vx -= 1;
-      if (pad.right > 0.5) vx += 1;
-      if (pad.up    > 0.5) vy -= 1;
-      if (pad.down  > 0.5) vy += 1;
     }
     vx = Phaser.Math.Clamp(vx, -1, 1);
     vy = Phaser.Math.Clamp(vy, -1, 1);

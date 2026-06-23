@@ -20,7 +20,7 @@ const INV_COLS  = 5;
 const INV_ROWS  = 10;
 // A carrier fly-out picker auto-dismisses after this long if you don't pick from
 // it (#75) — it no longer closes the instant you move.
-const FLYOUT_CLOSE_MS = 4000;
+const FLYOUT_CLOSE_MS = 3000;
 
 export default class HotbarScene extends Phaser.Scene {
   constructor() { super('HotbarScene'); }
@@ -77,15 +77,8 @@ export default class HotbarScene extends Phaser.Scene {
       this._togglePause();
     });
 
-    // Gamepad: bumpers (LB/RB) move between hotbar slots; triggers (LT/RT) cycle
-    // the instances inside a carrier group so a controller can reach every basket/
-    // bucket, not just the group (#121). Cycling shows the fly-out as feedback.
-    this.input.gamepad.on('down', (_pad, button) => {
-      if (button.index === 4) this._setActive((this.activeSlot - 1 + NUM_SLOTS) % NUM_SLOTS); // LB prev slot
-      if (button.index === 5) this._setActive((this.activeSlot + 1) % NUM_SLOTS);             // RB next slot
-      if (button.index === 6) this._padCycleMember(-1); // LT previous instance
-      if (button.index === 7) this._padCycleMember(+1); // RT next instance
-    });
+    // Gamepad input is polled from the raw pad in PaddockScene (_pollRawPad) to
+    // avoid Phaser's stale-cache issues; it drives navSlot / _padCycleMember here.
 
     this._onResize = () => {
       this._closeFlyout();
@@ -456,31 +449,29 @@ export default class HotbarScene extends Phaser.Scene {
     // by PaddockScene's per-frame ACTIONS_CHANGED — no direct refresh needed here.
   }
 
-  // Number-key press on slot `i`: select it. A first press just goes to the active
-  // member; re-pressing the already-active carrier group cycles to the next member
-  // and shows the picker as feedback (#75).
+  // Number-key press on slot `i`: select it, and for a carrier group open its
+  // fly-out picker. Re-pressing the already-active group cycles to the next
+  // member (#75).
   _pressSlot(i) {
     if (this.invOpen) this._closeInventory();
     const wasActive = i === this.activeSlot;
     const key = this.hotbar[i];
     this._setActive(i);
-    if (this._isGroup(key) && wasActive) {
-      this._cycleMember(key);
-      this._openFlyout(i);
+    if (this._isGroup(key)) {
+      if (wasActive) this._cycleMember(key); // re-press cycles to the next member
+      this._openFlyout(i);                    // first select opens the picker
     }
   }
 
-  // Tap on slot `i`: a first tap just selects it (goes straight to the active
-  // member — no picker). Tapping the already-active carrier group opens its
-  // fly-out picker; a further tap closes it. Pick a member from the list to set
-  // it (#75).
+  // Tap on slot `i`: select it; for a carrier group, open its fly-out picker on
+  // first select, and a further tap on the same group closes it. Pick a member
+  // from the list to set it (#75).
   _tapSlot(i) {
     if (this.invOpen) this._closeInventory();
     const key = this.hotbar[i];
-    const wasActive = i === this.activeSlot;
-    const flyoutOpenHere = this._flyoutSlot === i;
+    const toggleClosed = this._flyoutSlot === i; // its picker was already open → close it
     this._setActive(i); // selects, closes any open fly-out
-    if (this._isGroup(key) && wasActive && !flyoutOpenHere) this._openFlyout(i);
+    if (this._isGroup(key) && !toggleClosed) this._openFlyout(i);
   }
 
   // Step the active member of a carrier group by `dir` (default forward), wrapping.
@@ -495,13 +486,19 @@ export default class HotbarScene extends Phaser.Scene {
     this._buildHotbar();
   }
 
-  // Gamepad trigger cycling of the active group's instances (#121): step the member
-  // by `dir` and flash the fly-out so the controller user sees the choice.
+  // Gamepad trigger / D-pad cycling of the active group's instances (#121): step
+  // the member by `dir` and flash the fly-out so the controller user sees the choice.
   _padCycleMember(dir) {
     const key = this.hotbar[this.activeSlot];
     if (!this._isGroup(key)) return;
     this._cycleMember(key, dir);
     this._openFlyout(this.activeSlot);
+  }
+
+  // Gamepad slot navigation (driven by PaddockScene's raw-pad poller, #121): step
+  // to the prev/next slot, wrapping, and open the fly-out when it lands on a group.
+  navSlot(dir) {
+    this._pressSlot((this.activeSlot + dir + NUM_SLOTS) % NUM_SLOTS);
   }
 
   // Directly select a member from the fly-out.
