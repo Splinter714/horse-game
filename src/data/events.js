@@ -38,7 +38,9 @@ export const EVENTS = {
   // (e.g. the on-screen Use button) show only for touch players.
   INPUT_MODE_CHANGED: 'input-mode-changed',
 
-  // The action the Use button would take changed: payload = short verb string
-  // ('Brush', 'Feed', 'Gather'…). Drives the on-screen Use button's label.
-  USE_LABEL_CHANGED: 'use-label-changed',
+  // The set of currently-possible contextual actions changed: payload
+  // { interact, info, use } where each is a label string or null. Drives the
+  // touch on-screen action buttons (Interact / Info / Use), each shown only
+  // when its label is non-null.
+  ACTIONS_CHANGED: 'actions-changed',
 };

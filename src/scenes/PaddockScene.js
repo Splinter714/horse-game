@@ -383,9 +383,20 @@ export default class PaddockScene
     const petTarget = petable.sort((a, b) => (b.needScore - a.needScore) || (a.d - b.d))[0] ?? null;
 
     // Queue a line per available action — each names its own target, so Pet and
-    // Info pointing at two different animals (#96/#97) reads clearly (#101).
-    if (petTarget)        this._pushPrompt('interact', petTarget.name ? `Pet ${petTarget.name}` : 'Pet');
-    if (this._proxAnimal) this._pushPrompt('info', this._proxAnimal.name ? `Info: ${this._proxAnimal.name}` : 'Info');
+    // Info pointing at two different animals (#96/#97) reads clearly (#101). The
+    // same targets drive the touch Interact / Info buttons.
+    if (petTarget) {
+      const label = petTarget.name ? `Pet ${petTarget.name}` : 'Pet';
+      this._pushPrompt('interact', label);
+      this._petProxTarget = petTarget;
+      this._interactAction = { label, run: () => this._petTarget(petTarget) };
+    }
+    if (this._proxAnimal) {
+      const t = this._proxAnimal;
+      const label = t.name ? `Info: ${t.name}` : 'Info';
+      this._pushPrompt('info', label);
+      this._infoAction = { label, run: () => this.openProxInfo() };
+    }
 
     if (useJust && petTarget) this._petTarget(petTarget);
     return true;
@@ -564,6 +575,7 @@ export default class PaddockScene
     this.checkProximity();
     this.checkToolProximity();
     this._renderPrompts();
+    this._syncActionButtons();
     this.separateHorses();
     this.depthSort();
     this.tickDecay(delta);
@@ -837,6 +849,10 @@ export default class PaddockScene
   checkProximity() {
     // Fresh accumulator each frame; the tool pass and _renderPrompts run after.
     this._promptLines = [];
+    // Contextual actions for the touch buttons, rebuilt each frame (#101).
+    this._interactAction = null;
+    this._infoAction = null;
+    this._petProxTarget = null;
 
     if (this.scene.get('HotbarScene')?.invOpen) return;
 
@@ -852,6 +868,7 @@ export default class PaddockScene
     // When riding, show dismount hint
     if (this.riding) {
       this._pushPrompt('interact', 'Dismount');
+      this._interactAction = { label: 'Dismount', run: () => this.dismount() };
       return;
     }
 
@@ -885,7 +902,9 @@ export default class PaddockScene
       if (d < INTERACT_DIST && d < mountD) { mountD = d; mountH = h; }
     }
     if (mountH) {
-      this._pushPrompt('interact', `Mount ${this._animalName(mountH.key) ?? ''}`.trim());
+      const label = `Mount ${this._animalName(mountH.key) ?? ''}`.trim();
+      this._pushPrompt('interact', label);
+      this._interactAction = { label, run: () => this.mountHorse(mountH) };
       if (useJust) this.mountHorse(mountH);
       return;
     }

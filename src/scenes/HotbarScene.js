@@ -37,14 +37,15 @@ export default class HotbarScene extends Phaser.Scene {
     // Control-prompt visibility (#82) — toggled in the pause menu, persisted.
     this._showPrompts = loadUiSettings().showPrompts;
 
-    // The on-screen Use button is a touch affordance — keyboard/gamepad players
-    // use F / X instead, so it only shows in touch mode. Default from the device's
-    // primary pointer; PaddockScene keeps it in sync via INPUT_MODE_CHANGED.
+    // On-screen action buttons (Interact / Info / Use) are a touch affordance —
+    // keyboard/gamepad players use E/C/F (A/Y/X) and read the prompt panel, so the
+    // buttons only show in touch mode. Default from the device's primary pointer;
+    // PaddockScene keeps it in sync via INPUT_MODE_CHANGED.
     this._isTouch = window.matchMedia?.('(pointer: coarse)')?.matches ?? false;
-    // The Use button's label tracks the action it would take (Brush/Feed/Gather…),
-    // pushed from PaddockScene via USE_LABEL_CHANGED. Fixed-width button (below) so
-    // the text changing never resizes it.
-    this._useLabel = 'Use';
+    // Latest contextual action labels { interact, info, use } (each a string or
+    // null), pushed from PaddockScene via ACTIONS_CHANGED; each button shows only
+    // when its label is non-null.
+    this._actions = { interact: null, info: null, use: null };
 
     this._buildHotbar();
 
@@ -80,28 +81,28 @@ export default class HotbarScene extends Phaser.Scene {
     this._onMoney  = v => { this._money = v; this._updateStatusLabels(); };
     this.game.events.on(EVENTS.MONEY_CHANGED,  this._onMoney);
 
-    // Show/hide the on-screen Use button as the player switches input devices.
+    // Show/hide the on-screen action buttons as the player switches input devices.
     this._onInputMode = mode => {
       const touch = mode === 'touch';
       if (touch === this._isTouch) return;
       this._isTouch = touch;
-      this._buildHotbar(); // recreate the strip with/without the Use button
+      this._buildHotbar(); // recreate the strip with/without the action buttons
     };
     this.game.events.on(EVENTS.INPUT_MODE_CHANGED, this._onInputMode);
 
-    // Update the Use button's label as the contextual action changes.
-    this._onUseLabel = label => {
-      this._useLabel = label || 'Use';
-      this._use?.lbl?.setText(this._useLabel);
+    // Update the action buttons as the contextual actions change.
+    this._onActions = actions => {
+      this._actions = actions || { interact: null, info: null, use: null };
+      this._updateActionButtons();
     };
-    this.game.events.on(EVENTS.USE_LABEL_CHANGED, this._onUseLabel);
+    this.game.events.on(EVENTS.ACTIONS_CHANGED, this._onActions);
 
     // Clean up global listeners on scene shutdown
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.scale.off('resize', this._onResize, this);
       this.game.events.off(EVENTS.MONEY_CHANGED,  this._onMoney);
       this.game.events.off(EVENTS.INPUT_MODE_CHANGED, this._onInputMode);
-      this.game.events.off(EVENTS.USE_LABEL_CHANGED, this._onUseLabel);
+      this.game.events.off(EVENTS.ACTIONS_CHANGED, this._onActions);
     });
   }
 
@@ -120,14 +121,12 @@ export default class HotbarScene extends Phaser.Scene {
     this._stripBg?.destroy();
     this._pauseBtn?.destroy();
     this._moneyLbl?.destroy();
-    this._use?.g?.destroy();
-    this._use?.lbl?.destroy();
-    this._use?.zone?.destroy();
+    for (const b of this._actionBtns ?? []) { b.g.destroy(); b.lbl.destroy(); b.zone.destroy(); }
     this._slots      = [];
     this._pauseBtn   = null;
     this._moneyLbl   = null;
     this._stripBg    = null;
-    this._use        = null;
+    this._actionBtns = null;
 
     const sw = this.scale.width;
     const sh = this.scale.height;
@@ -223,60 +222,89 @@ export default class HotbarScene extends Phaser.Scene {
       this._slots.push({ g, numLbl, icon, itemLbl, qtyLbl, zone, x, slotY, ss, radius });
     }
 
-    this._buildUseButton(startX, totalW, slotY, ss, radius, fit);
+    this._buildActionButtons(startX, totalW, slotY, fit);
   }
 
-  // The "Use" button — applies the armed tool. It's a touch affordance only:
-  // keyboard/gamepad players use F / controller-X, so it's not built at all
-  // unless we're in touch mode (toggled live via INPUT_MODE_CHANGED). Sits just
-  // above the right end of the hotbar strip; dimmed when the active slot is empty.
-  _buildUseButton(startX, totalW, slotY, ss, radius, fit) {
-    if (!this._isTouch) { this._use = null; return; } // hidden for keyboard/gamepad
+  // On-screen contextual action buttons — Interact / Info / Use — spread across
+  // the top of the hotbar (#101). Touch only: keyboard/gamepad players use the
+  // E/C/F (A/Y/X) keys and read the prompt panel, so these aren't built at all
+  // otherwise. Each button shows only when its action is currently possible
+  // (label non-null); _updateActionButtons fills/positions them from _actions.
+  _buildActionButtons(startX, totalW, slotY, fit) {
+    if (!this._isTouch) { this._actionBtns = null; return; }
 
-    // Fixed width — sized for the longest verb ('Unsaddle'/'Collect') so the text
-    // changing per action never makes the button jump around (#100). Kept generous
-    // even on small screens.
-    const useW = Math.max(96, Math.floor(116 * fit));
-    const useH = Math.max(40, Math.floor(44 * fit));
-    const ux   = startX + totalW - useW;
-    const uy   = slotY - useH - 14;
+    const h    = Math.max(40, Math.floor(44 * fit));
+    const y     = slotY - h - 14;        // the row just above the strip
+    const font  = `${Math.max(12, Math.floor(16 * fit))}px`;
+    const radius = Math.max(4, Math.floor(8 * fit));
+    // Fixed anchors (left / centre / right thirds) so a button doesn't reflow
+    // when its neighbours appear or disappear — it just fades in over its spot.
+    const anchors = {
+      interact: startX + totalW * (1 / 6),
+      info:     startX + totalW * (3 / 6),
+      use:      startX + totalW * (5 / 6),
+    };
+    const triggers = {
+      interact: () => this.scene.get('PaddockScene')?.triggerInteract(),
+      info:     () => this.scene.get('PaddockScene')?.triggerInfo(),
+      use:      () => this.scene.get('PaddockScene')?.useActiveTool(),
+    };
 
-    const g = this.add.graphics().setDepth(2);
-    const lbl = this.add.text(ux + useW / 2, uy + useH / 2, this._useLabel, {
-      fontFamily: 'system-ui, sans-serif',
-      fontSize: `${Math.max(12, Math.floor(16 * fit))}px`,
-      color: '#ffffff', fontStyle: 'bold',
-    }).setOrigin(0.5, 0.5).setDepth(3);
-
-    // Pad the touch zone beyond the visual button — extra room up/left/right and
-    // a touch below (without reaching the slot columns at slotY-8) (#100).
-    const padX = 10, padTop = 12, padBot = 6;
-    const zone = this.add.zone(ux - padX, uy - padTop, useW + padX * 2, useH + padTop + padBot)
-      .setOrigin(0, 0).setInteractive({ useHandCursor: true }).setDepth(5);
-    zone.on('pointerup', () => {
-      if (this.invOpen) return;
-      this.scene.get('PaddockScene')?.useActiveTool();
+    this._actionBtns = ['interact', 'info', 'use'].map((key) => {
+      const g   = this.add.graphics().setDepth(2).setVisible(false);
+      const lbl = this.add.text(anchors[key], y + h / 2, '', {
+        fontFamily: 'system-ui, sans-serif', fontSize: font,
+        color: '#ffffff', fontStyle: 'bold',
+      }).setOrigin(0.5, 0.5).setDepth(3).setVisible(false);
+      const zone = this.add.zone(0, 0, 10, h).setOrigin(0, 0)
+        .setInteractive({ useHandCursor: true }).setDepth(5);
+      zone.input.enabled = false;
+      zone.on('pointerup', () => { if (!this.invOpen) triggers[key](); });
+      return { key, g, lbl, zone, anchorX: anchors[key], y, h, radius, bounds: null };
     });
-
-    this._use = { g, lbl, zone, ux, uy, useW, useH, radius };
-    this._refreshUseButton();
+    this._updateActionButtons();
   }
 
-  // Redraw the Use button to reflect whether the active slot holds a usable tool.
-  _refreshUseButton() {
-    const u = this._use;
-    if (!u) return;
-    const key  = this.hotbar[this.activeSlot];
-    const item = key ? ITEM_MAP[key] : null;
-    // Empty slots aren't "used"; every tool/carrier is.
-    const usable = !!item;
+  // Fill/position/show the action buttons from the latest _actions labels. Each
+  // is sized to its text (centred on its fixed anchor), padded into a comfortable
+  // touch zone (#100). Hidden buttons drop out of input entirely.
+  _updateActionButtons() {
+    if (!this._actionBtns) return;
+    const padX = 10, padTop = 12, padBot = 6;
+    for (const b of this._actionBtns) {
+      const label = this._actions?.[b.key];
+      if (!label) {
+        b.g.clear().setVisible(false);
+        b.lbl.setVisible(false);
+        b.zone.input.enabled = false;
+        b.bounds = null;
+        continue;
+      }
+      b.lbl.setText(label).setVisible(true);
+      const w = Math.max(64, Math.ceil(b.lbl.width) + 24);
+      const x = b.anchorX - w / 2;
 
-    u.g.clear();
-    u.g.fillStyle(usable ? 0x3b4a63 : 0x2a2f3c, usable ? 0.95 : 0.6);
-    u.g.fillRoundedRect(u.ux, u.uy, u.useW, u.useH, u.radius);
-    u.g.lineStyle(1, 0xffffff, usable ? 0.18 : 0.08);
-    u.g.strokeRoundedRect(u.ux, u.uy, u.useW, u.useH, u.radius);
-    u.lbl.setAlpha(usable ? 1 : 0.5);
+      b.g.clear().setVisible(true);
+      b.g.fillStyle(0x3b4a63, 0.95);
+      b.g.fillRoundedRect(x, b.y, w, b.h, b.radius);
+      b.g.lineStyle(1, 0xffffff, 0.18);
+      b.g.strokeRoundedRect(x, b.y, w, b.h, b.radius);
+
+      const zx = x - padX, zy = b.y - padTop, zw = w + padX * 2, zh = b.h + padTop + padBot;
+      b.zone.setPosition(zx, zy).setSize(zw, zh); // setSize resizes the hit area too
+      b.zone.input.enabled = true;
+      b.bounds = { x: zx, y: zy, w: zw, h: zh };
+    }
+  }
+
+  // Is a screen-space point on a visible action button? Lets PaddockScene's tap
+  // handler ignore taps that land on these buttons (so they don't also walk).
+  isPointerOnActionButton(px, py) {
+    for (const b of this._actionBtns ?? []) {
+      const r = b.bounds;
+      if (r && px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h) return true;
+    }
+    return false;
   }
 
   // Update just the money text without rebuilding everything
@@ -354,7 +382,8 @@ export default class HotbarScene extends Phaser.Scene {
     this.activeSlot = index;
     const curr = this._slots[this.activeSlot];
     if (curr) this._drawSlot(curr.g, curr.x, curr.slotY, curr.ss, curr.radius, true);
-    this._refreshUseButton();
+    // The Use button's availability follows the equipped tool, but that's driven
+    // by PaddockScene's per-frame ACTIONS_CHANGED — no direct refresh needed here.
   }
 
   // ── Inventory panel ────────────────────────────────────────────────────────

@@ -264,6 +264,7 @@ export const WithPlayer = (Base) => class extends Base {
     const inst = this._nearestInteractable(this.player.sprite.x, this.player.sprite.y, item, 'reachDist', this.interactWorld);
     if (!inst) return false;
     this._pushPrompt(inst.canAct ? 'interact' : null, inst.label);
+    if (inst.canAct) this._interactAction = { label: inst.label, run: () => inst.activate() };
     if (useJust && inst.canAct) inst.activate();
     return true;
   }
@@ -306,23 +307,55 @@ export const WithPlayer = (Base) => class extends Base {
   }
 
   _pushPrompt(action, label) {
-    // On touch, the Use action is shown on the on-screen Use button, so don't
-    // also list it in the panel (it'd be redundant). Keyboard/gamepad still get
-    // the "[F]/[X] …" line since they have no on-screen button.
-    if (action === 'use' && this._promptMode() === 'touch') return;
     (this._promptLines ??= []).push(this._promptLine(action, label));
   }
 
-  // Draw the accumulated lines into the fixed bottom-left panel (or hide it when
-  // prompts are off or nothing's possible). Called once per frame after the
-  // interact + tool proximity passes have queued their lines.
+  // Draw the accumulated lines into the fixed bottom-left panel (or hide it). On
+  // touch the panel is replaced entirely by the on-screen action buttons (#101),
+  // so it's hidden there; keyboard/gamepad keep it. Called once per frame after
+  // the interact + tool proximity passes have queued their lines.
   _renderPrompts() {
     const panel = this.promptPanel;
     if (!panel) return;
     const lines = this._promptLines ?? [];
-    if (!this.promptsOn || !lines.length) { panel.setVisible(false); return; }
+    if (this._promptMode() === 'touch' || !this.promptsOn || !lines.length) {
+      panel.setVisible(false);
+      return;
+    }
     panel.setText(lines.join('\n'));
     panel.setPosition(12, this.scale.height - 84).setVisible(true);
+  }
+
+  // Build the {interact, info, use} action set and broadcast it when it changes,
+  // so HotbarScene can show/label the on-screen touch buttons (#101). Runs every
+  // frame after the proximity passes have set _interactAction / _infoAction /
+  // _useActionLabel. Emits in all modes (cheap, change-gated); the buttons only
+  // render in touch mode.
+  _syncActionButtons() {
+    const actions = {
+      interact: this._interactAction?.label ?? null,
+      info:     this._infoAction?.label ?? null,
+      use:      this._useActionLabel ?? null,
+    };
+    const sig = `${actions.interact}|${actions.info}|${actions.use}`;
+    if (sig !== this._lastActionsSig) {
+      this._lastActionsSig = sig;
+      this.game.events.emit(EVENTS.ACTIONS_CHANGED, actions);
+    }
+  }
+
+  // Invoked by the on-screen Interact / Info buttons (touch). Each runs whatever
+  // the current contextual action is (pet/mount/gate/sleep/dismount, or info).
+  triggerInteract() {
+    if (this._paused || this._sleeping) return;
+    if (this.scene.get('HotbarScene')?.invOpen) return;
+    this._interactAction?.run?.();
+  }
+
+  triggerInfo() {
+    if (this._paused || this._sleeping) return;
+    if (this.scene.get('HotbarScene')?.invOpen) return;
+    this._infoAction?.run?.();
   }
 
   // True when this tap is a quick second tap on the same animal — used so a
@@ -348,6 +381,9 @@ export const WithPlayer = (Base) => class extends Base {
 
     // Ignore taps in the badge area at the bottom of the canvas
     if (pointer.y > this.scale.height - 72) return;
+    // Taps on an on-screen action button are handled by that button — don't also
+    // start a walk toward where it sits on screen (#101).
+    if (this.scene.get('HotbarScene')?.isPointerOnActionButton?.(pointer.x, pointer.y)) return;
 
     const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
 
@@ -463,16 +499,16 @@ export const WithPlayer = (Base) => class extends Base {
     if (inst && instD <= inst.reachDist) inst.activate();
   }
 
-  // Per-frame: queue a contextual prompt line for the equipped tool/carrier's
-  // Use action (#83). Mirrors useActiveTool's targeting, but only surfaces a
-  // hint — the action still fires on F / X / the Use button. Adds to the shared
-  // static prompt panel (#101) alongside the interact line. Skipped when riding
-  // or a menu/info panel is open, or when no valid target is in reach.
+  // Per-frame: resolve the equipped tool/carrier's Use action (#83) — both the
+  // panel prompt line (keyboard/gamepad) and the on-screen Use button label
+  // (touch, via _useActionLabel). The label says exactly what Use would do,
+  // naming the content where relevant ("Gather Water", "Feed Hay", "Sell
+  // Apples"). _useActionLabel is null unless an action is actually in reach, so
+  // the touch Use button only appears when there's something to use. The action
+  // itself fires on F / X / the Use button.
   checkToolProximity() {
-    // btnLabel is the short verb shown on the on-screen Use button (touch). It
-    // tracks whatever Use would do right now; defaults to 'Use', refined below.
-    let btnLabel = 'Use';
-    const finish = () => this._setUseLabel(btnLabel);
+    let useLabel = null;
+    const finish = () => { this._useActionLabel = useLabel; };
 
     if (this.riding ||
         this.scene.get('HotbarScene')?.invOpen ||
@@ -481,8 +517,6 @@ export const WithPlayer = (Base) => class extends Base {
     const item = this.getActiveItem();
     if (!item || item.action === 'interact') return finish();
 
-    // Even with no target in reach, the button names what the tool is for.
-    btnLabel = this._baseUseVerb(item);
     const { player } = this;
 
     // Animal-targeted tools: brush / saddle / lead on the nearest valid horse.
@@ -492,16 +526,11 @@ export const WithPlayer = (Base) => class extends Base {
         player.sprite.x, player.sprite.y, target.sprite.x, target.sprite.y);
       if (target && d <= USE_REACH) {
         const who = this._animalName(target.key);
-        let label; // descriptive (prompt panel) — the button uses the short btnLabel
-        if (item.action === 'saddle') {
-          btnLabel = label = target.saddled ? 'Unsaddle' : 'Saddle';
-        } else if (item.action === 'lead') {
-          const leading = this.leadHorses.includes(target);
-          btnLabel = leading ? 'Stop' : 'Lead';
-          label    = leading ? 'Stop Leading' : 'Lead';
-        } else {
-          btnLabel = label = 'Brush';
-        }
+        let label;
+        if (item.action === 'saddle')    label = target.saddled ? 'Unsaddle' : 'Saddle';
+        else if (item.action === 'lead') label = this.leadHorses.includes(target) ? 'Stop Leading' : 'Lead';
+        else                             label = 'Brush';
+        useLabel = label; // the Use button keeps it about the action (Pet/Info name the animal)
         this._pushPrompt('use', who ? `${label} ${who}` : label);
       }
       return finish();
@@ -511,18 +540,19 @@ export const WithPlayer = (Base) => class extends Base {
     // the produce is sellable (apples/carrots), matching useActiveTool (#80).
     if (item.action === 'feed') {
       if (STAND_DEFS[item.content] && this._atFarmStand()) {
-        btnLabel = 'Sell';
+        useLabel = `Sell ${item.label}`;
         this._pushPrompt('use', `Sell ${item.label}`);
       } else {
-        btnLabel = 'Feed';
+        useLabel = `Feed ${item.label}`;
         this._pushPrompt('use', `Drop ${item.label}`);
       }
       return finish();
     }
 
     // World-spot tools (fill trough / fill bucket / gather / collect egg / sell):
-    // the nearest actionable instance within reach. Reuse the descriptors' labels;
-    // the button takes the leading verb ('Fill', 'Gather', 'Collect', 'Sell').
+    // the nearest actionable instance within reach. The descriptor labels already
+    // name the content ("Gather Water", "Collect Egg"); strip any "(basket: n)"
+    // tail for the button.
     let inst = null, instD = Infinity;
     for (const instancesOf of this.toolWorld) {
       for (const c of instancesOf(item)) {
@@ -532,31 +562,10 @@ export const WithPlayer = (Base) => class extends Base {
       }
     }
     if (inst && instD <= inst.reachDist) {
-      btnLabel = inst.label.split(/\s+/)[0];
+      useLabel = inst.label.replace(/\s*\(.*\)\s*$/, '');
       this._pushPrompt('use', inst.label);
     }
     return finish();
-  }
-
-  // The Use button's resting verb for an equipped item when nothing's in reach —
-  // tells the player what the tool/carrier is for. In-reach context overrides it.
-  _baseUseVerb(item) {
-    switch (item.action) {
-      case 'brush':  return 'Brush';
-      case 'saddle': return 'Saddle';
-      case 'lead':   return 'Lead';
-      case 'feed':   return 'Feed';
-      case 'water':  return 'Fill';
-      case 'egg':    return 'Sell';
-    }
-    return item.type === 'carrier' ? 'Gather' : 'Use'; // empty carrier → gather
-  }
-
-  // Broadcast the Use button's label when it changes (consumed by HotbarScene).
-  _setUseLabel(label) {
-    if (label === this._lastUseLabel) return;
-    this._lastUseLabel = label;
-    this.game.events.emit(EVENTS.USE_LABEL_CHANGED, label);
   }
 
   // Display name for a horse/chicken/cat key, for naming prompt targets (#101).
