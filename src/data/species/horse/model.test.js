@@ -14,7 +14,7 @@ describe('Horse construction', () => {
     expect(h.temperament).toBe('calm');
     expect(h.stats).toEqual({ hunger: 80, thirst: 75, grooming: 60, happiness: 85 });
     expect(h.saddled).toBe(false);
-    expect(h.caredToday).toEqual({ fed: false, watered: false, brushed: false });
+    expect(h.caredToday).toEqual({ fed: false, watered: false, brushed: false, loved: false });
     expect(h.neglected).toBe(false);
   });
 
@@ -39,7 +39,7 @@ describe('Horse care actions', () => {
     h.feed();  expect(h.stats.hunger).toBe(35);   expect(h.caredToday.fed).toBe(true);
     h.water(); expect(h.stats.thirst).toBe(40);   expect(h.caredToday.watered).toBe(true);
     h.brush(); expect(h.stats.grooming).toBe(18); expect(h.caredToday.brushed).toBe(true);
-    h.pet();   expect(h.stats.happiness).toBe(8);
+    h.pet();   expect(h.stats.happiness).toBe(5); expect(h.caredToday.loved).toBe(true);
   });
 
   it('clamps stats at 100', () => {
@@ -98,15 +98,22 @@ describe('Horse.applyDecay', () => {
 describe('Horse.rollNewDay', () => {
   it('wakes neglected if it missed food OR water yesterday', () => {
     const h = new Horse();
-    h.caredToday = { fed: true, watered: false, brushed: true };
+    h.caredToday = { fed: true, watered: false, brushed: true, loved: true };
     h.rollNewDay();
     expect(h.neglected).toBe(true);
-    expect(h.caredToday).toEqual({ fed: false, watered: false, brushed: false });
+    expect(h.caredToday).toEqual({ fed: false, watered: false, brushed: false, loved: false });
   });
 
-  it('wakes content if it got both food and water', () => {
+  it('wakes neglected if it missed its daily love yesterday', () => {
     const h = new Horse();
-    h.caredToday = { fed: true, watered: true, brushed: false };
+    h.caredToday = { fed: true, watered: true, brushed: true, loved: false };
+    h.rollNewDay();
+    expect(h.neglected).toBe(true);
+  });
+
+  it('wakes content if it got food, water, and love', () => {
+    const h = new Horse();
+    h.caredToday = { fed: true, watered: true, brushed: false, loved: true };
     h.rollNewDay();
     expect(h.neglected).toBe(false);
   });

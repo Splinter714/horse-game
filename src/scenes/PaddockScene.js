@@ -276,29 +276,27 @@ export default class PaddockScene
 
   // ─── Pet / info interaction ──────────────────────────────────────────────
 
-  // Interact (E / gamepad A / tap) ALWAYS pets/loves an animal — every press
-  // shows affection (#79). Info moved to its own input: the C key, gamepad Y, or
-  // a double-tap (see openProxInfo / the tap handler).
-  _petTodayHas(key) {
-    return !!this._petToday?.has(key);
+  // Interact (E / gamepad A / tap) pets/loves an animal (#79). Info moved to its
+  // own input: the C key, gamepad Y, or a double-tap (see openProxInfo).
+
+  // Pet a horse "does something" while it can still gain happiness OR hasn't had
+  // today's love yet (recording the love is what keeps it from waking up grumpy).
+  // Only once it's BOTH full and already loved is there nothing to add. Capless
+  // animals (chickens/cat) have no happiness/daily-care, so a pet is always pure
+  // affection and always available.
+  _canPetHorse(horse) {
+    if (!horse) return true; // capless animal — affection always lands
+    return (horse.stats?.happiness ?? 0) < 99.5 || !horse.caredToday?.loved;
   }
 
   petAnimal(key, sprite) {
-    // #98: a horse whose happiness is already full can't be petted — there's
-    // nothing to add, so no heart fires (also covers an explicit tap on a maxed
-    // horse, not just the proximity pick). Capless animals (chickens/cat) have no
-    // happiness stat, so a pet is always pure affection.
     const horse = this.registry.get('allHorses')?.[key];
-    if (horse && (horse.stats?.happiness ?? 0) >= 99.5) return false;
+    if (!this._canPetHorse(horse)) return false; // nothing to add (#98 / loved)
 
-    if (!this._petToday) this._petToday = new Set();
-    const firstToday = !this._petToday.has(key);
-    this._petToday.add(key);
-
-    // The happiness bump for species with a pet action applies only once per day
-    // (cleared at dawn) so it can't be spammed — but the heart/chime play every
-    // time so every interaction reads as affection.
-    if (firstToday && horse?.actionDef?.('pet')) {
+    // Every pet nudges happiness up (clamped, so it no-ops at full) and records
+    // 'loved' for today's care cycle — so petting both cheers the horse and keeps
+    // it from going grumpy. Capless animals just get the affectionate heart.
+    if (horse?.actionDef?.('pet')) {
       horse.applyAction('pet');
       this._saveHorses();
       this.game.events.emit(EVENTS.STATS_CHANGED);
@@ -306,6 +304,7 @@ export default class PaddockScene
 
     playChime();
     this.showHeart(sprite);
+    return true;
   }
 
   // Pet the current proximity target (foals just get a heart — they have no
@@ -336,21 +335,21 @@ export default class PaddockScene
     const dist = (s) => Phaser.Math.Distance.Between(
       player.sprite.x, player.sprite.y, s.x, s.y);
 
-    // Happiness at/above this reads as "full": a pet there would clamp to no real
-    // gain, so it's treated as maxed and not offered (#98).
-    const FULL = 99.5;
-
     const cands = [];
     for (const h of this.horses) {
       if (h.saddled) continue; // empty hand mounts a saddled horse, not a pet
       const d = dist(h.sprite);
       if (d >= CARE_DIST) continue;
-      const hap = allHorses?.[h.key]?.stats?.happiness ?? 100;
+      const model = allHorses?.[h.key];
+      const hap = model?.stats?.happiness ?? 100;
+      const lovedToday = !!model?.caredToday?.loved;
+      // needScore guides the prompt to who needs love most: un-loved horses first
+      // (so none are left to wake grumpy), then by happiness deficit within each
+      // group. canPet gates availability (#98 / still owed today's love).
       cands.push({
         key: h.key, sprite: h.sprite, d, offY: 118,
-        canPet: hap < FULL,                                // #98: not pettable when full
-        wantsPet: hap < FULL && !this._petTodayHas(h.key), // #96: still benefits today
-        deficit: 100 - hap,
+        canPet: this._canPetHorse(model),
+        needScore: (lovedToday ? 0 : 1000) + (100 - hap),
         open: () => this.openPortrait(h.key),
       });
     }
@@ -358,18 +357,18 @@ export default class PaddockScene
       if (!a.sprite.visible) continue; // tucked in the coop at night
       const d = dist(a.sprite);
       if (d >= CARE_DIST) continue;
-      // Chickens/cat have no happiness stat — a pet is pure affection, never
-      // "full", so it's always available; only the daily-love preference applies.
+      // Chickens/cat have no happiness/daily-care — a pet is pure affection, always
+      // available, lowest priority (no grumpiness to head off).
       cands.push({
         key: a.key, sprite: a.sprite, d, offY: 54,
-        canPet: true, wantsPet: !this._petTodayHas(a.key), deficit: 0,
+        canPet: true, needScore: 0,
         open: () => this.openCreatureInfo(a),
       });
     }
     for (const foal of this.foals) {
       const d = dist(foal.sprite);
       if (d < CARE_DIST) cands.push({ key: foal.key, sprite: foal.sprite, d, offY: 78,
-        canPet: true, wantsPet: true, deficit: 0, foal: true }); // foals: no panel, always pet
+        canPet: true, needScore: 0, foal: true }); // foals: no panel, always pet
     }
     if (!cands.length) { this._proxAnimal = null; return false; }
 
@@ -377,15 +376,11 @@ export default class PaddockScene
     // independent of need. (Foals have no panel.)
     this._proxAnimal = cands.filter(c => c.open).sort((a, b) => a.d - b.d)[0] ?? null;
 
-    // Pet target: only animals a pet would actually help — none when every nearby
-    // animal is already maxed (#98). Among the petable, prefer the ones that still
-    // benefit today, ranked by happiness deficit, tie-broken by distance (#96);
-    // otherwise the nearest petable animal for pure affection.
+    // Pet target: among animals a pet would help (#98), the one that needs love
+    // most (un-loved first, then biggest happiness deficit), tie-broken by
+    // distance (#96). None when every nearby animal is already cheered + loved.
     const petable = cands.filter(c => c.canPet);
-    const wanters = petable.filter(c => c.wantsPet);
-    const petTarget = wanters.length
-      ? wanters.sort((a, b) => (b.deficit - a.deficit) || (a.d - b.d))[0]
-      : (petable.sort((a, b) => a.d - b.d)[0] ?? null);
+    const petTarget = petable.sort((a, b) => (b.needScore - a.needScore) || (a.d - b.d))[0] ?? null;
 
     // Build the prompt from whichever actions are actually available, so it
     // reflects when Pet is unavailable (every nearby animal already happy, #98).

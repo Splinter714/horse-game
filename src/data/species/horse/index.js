@@ -30,7 +30,9 @@ export const HORSE = {
     feed:  { stat: 'hunger',    amount: 35, care: 'fed',     label: 'Feed',  sound: 'eat',   icon: 'iconFeed'  },
     water: { stat: 'thirst',    amount: 40, care: 'watered', label: 'Water', sound: 'drink', icon: 'iconWater' },
     brush: { stat: 'grooming',  amount: 18, care: 'brushed', label: 'Brush', sound: 'brush', icon: 'iconBrush' },
-    pet:   { stat: 'happiness', amount: 8,                    label: 'Love',  sound: 'chime', icon: 'iconHeart' },
+    // Every pet nudges happiness up a little (capped — see #98) and records the
+    // day's love so the horse won't wake up grumpy.
+    pet:   { stat: 'happiness', amount: 5,  care: 'loved',   label: 'Love',  sound: 'chime', icon: 'iconHeart' },
   },
 
   // Info-panel presentation: animated portrait, optional fixed-attribute row.
@@ -38,7 +40,7 @@ export const HORSE = {
 
   // Track these care flags each day; missing any in `requiredForContentment`
   // (yesterday) makes the horse wake up neglected.
-  dailyCare: { track: ['fed', 'watered', 'brushed'], requiredForContentment: ['fed', 'watered'] },
+  dailyCare: { track: ['fed', 'watered', 'brushed', 'loved'], requiredForContentment: ['fed', 'watered', 'loved'] },
 
   // Happiness → friendly label (first threshold met wins; highest first).
   mood: [
