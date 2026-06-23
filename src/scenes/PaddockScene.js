@@ -12,7 +12,7 @@ import {
   HOLD_MS, HOLD_DRAG_PX, BOUNDS, PLAYER_BOUNDS, PASTURE_BOUNDS,
   GATE_X, GATE_GAP_X0, GATE_GAP_X1, S,
   DUST_CLEAN_AT, DUST_MAX_ALPHA, STINK_AT, STAND_DEFS, STAND_TYPES,
-  TROUGH_CAP, TROUGH_PER_BUCKET, NEED_EMOTE_AT, HAPPY_EMOTE_AT,
+  TROUGH_CAP, TROUGH_PER_BUCKET,
 } from './paddock/constants.js';
 import { WithWorld } from './paddock/world.js';
 import { WithCreatures } from './paddock/creatures.js';
@@ -1054,71 +1054,7 @@ export default class PaddockScene
       for (const a of this.animals) a.model?.applyDecay(secs, false);
       this.decayAccum = 0;
       this.game.events.emit(EVENTS.STATS_CHANGED);
-      this._tickNeedEmotes(this.time.now); // ambient "needs attention" cues (#26)
     }
-  }
-
-  // Ambient "needs attention" emotes (#26): each animal periodically pops a small
-  // thought bubble showing the icon of its most pressing unmet need, so the player
-  // can read the herd at a glance without opening any panel. Throttled per-animal,
-  // and skipped while an animal is lying down (rolling/asleep) or at night.
-  _tickNeedEmotes(now) {
-    if (this.isNight || this._sleeping) return;
-    const allHorses = this.registry.get('allHorses');
-    const consider = [
-      ...this.horses.map(h => ({ ent: h, model: allHorses?.[h.key] })),
-      ...this.animals.map(a => ({ ent: a, model: a.model })),
-    ];
-    for (const { ent, model } of consider) {
-      if (!ent?.sprite?.active) continue;
-      if (ent.sprite.anims?.currentAnim?.key?.startsWith('sleep_')) continue; // resting/rolling
-      // Lazily stagger first pops so the whole herd doesn't emote in unison.
-      if (ent._needEmoteAt == null) { ent._needEmoteAt = now + Math.random() * 8000; continue; }
-      if (now < ent._needEmoteAt) continue;
-      const icon = this._pressingNeed(model);
-      // Reschedule regardless, so a content animal stays quiet for a full interval
-      // before being reconsidered.
-      ent._needEmoteAt = now + 9000 + Math.random() * 5000;
-      if (icon) this._needEmote(ent.sprite, icon);
-    }
-  }
-
-  // The icon for an animal's most pressing unmet need, or null if it's content.
-  _pressingNeed(model) {
-    if (!model) return null;
-    if (model.neglected) return 'iconGrumpy';
-    const s = model.stats ?? {};
-    const c = [];
-    if (s.hunger    !== undefined && s.hunger    < NEED_EMOTE_AT)  c.push(['iconFeed',  s.hunger]);
-    if (s.thirst    !== undefined && s.thirst    < NEED_EMOTE_AT)  c.push(['iconWater', s.thirst]);
-    if (s.grooming  !== undefined && s.grooming  < NEED_EMOTE_AT)  c.push(['iconBrush', s.grooming]);
-    if (s.happiness !== undefined && s.happiness < HAPPY_EMOTE_AT) c.push(['iconHeart', s.happiness]);
-    if (!c.length) return null;
-    c.sort((a, b) => a[1] - b[1]); // lowest stat = most pressing
-    return c[0][0];
-  }
-
-  // A small thought bubble that floats up over an animal and fades — the ambient
-  // cue that it wants something (#26). Distinct from the on-action pops (showIcon/
-  // showHeart) by its little rounded speech-bubble backing.
-  _needEmote(sprite, iconKey) {
-    const x = sprite.x, y = sprite.y - 92;
-    const bubble = this.add.graphics().setDepth(9999);
-    bubble.fillStyle(0xffffff, 0.92);
-    bubble.fillRoundedRect(-16, -16, 32, 32, 8);
-    bubble.fillTriangle(-5, 14, 6, 14, 0, 22); // little tail pointing down at the animal
-    bubble.lineStyle(2, 0xd4cec4, 1);
-    bubble.strokeRoundedRect(-16, -16, 32, 32, 8);
-    bubble.setPosition(x, y);
-    const icon = this.add.image(x, y, iconKey).setDisplaySize(20, 20).setDepth(10000);
-    const group = [bubble, icon];
-    group.forEach(o => o.setAlpha(0));
-    this.tweens.add({ targets: group, alpha: 1, duration: 180, ease: 'Quad.easeOut' });
-    this.tweens.add({ targets: group, y: '-=20', duration: 1700, ease: 'Sine.easeOut' });
-    this.tweens.add({
-      targets: group, alpha: 0, delay: 1300, duration: 400, ease: 'Quad.easeIn',
-      onComplete: () => group.forEach(o => o.destroy()),
-    });
   }
 
   tickAutosave(delta) {

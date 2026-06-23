@@ -75,14 +75,6 @@ export const DUST_CLEAN_AT  = 55;
 export const DUST_MAX_ALPHA = 0.85;
 export const STINK_AT       = 30;
 
-// Need emotes (issue #26): an animal periodically pops a small "needs attention"
-// thought bubble over its head when a stat falls this low, so the player can spot
-// who needs care without reading the stat bars. Survival needs (hunger/thirst/
-// grooming) use NEED_EMOTE_AT; the softer happiness/love stat uses HAPPY_EMOTE_AT.
-// Pops are throttled per-animal and suppressed while sleeping / at night.
-export const NEED_EMOTE_AT  = 35;
-export const HAPPY_EMOTE_AT = 40;
-
 // What the farm stand can sell. Each product type has a sale price (per unit),
 // a counter texture (with its own scale), an emoji for the count badge, and the
 // floating icon shown when the player stocks it.
