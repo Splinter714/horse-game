@@ -243,7 +243,7 @@ export const WithPlayer = (Base) => class extends Base {
     if (!inst) return false;
     this.interactPrompt.setText(inst.canAct ? `${useKey}  ${inst.label}` : inst.label);
     this.interactPrompt.setPosition(inst.x, inst.y - inst.promptOffsetY);
-    this.interactPrompt.setVisible(true);
+    this.interactPrompt.setVisible(this.promptsOn);
     if (useJust && inst.canAct) inst.activate();
     return true;
   }

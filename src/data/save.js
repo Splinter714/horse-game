@@ -207,6 +207,31 @@ export function saveAudioSettings(settings) {
   } catch {}
 }
 
+// ── UI settings (control-prompt visibility, …) ───────────────────────────────
+
+const UI_KEY = 'horse-game-ui-v1';
+
+const DEFAULT_UI = { showPrompts: true };
+
+export function loadUiSettings() {
+  try {
+    const raw = localStorage.getItem(UI_KEY);
+    if (!raw) return { ...DEFAULT_UI };
+    const data = JSON.parse(raw) ?? {};
+    return {
+      showPrompts: typeof data.showPrompts === 'boolean' ? data.showPrompts : DEFAULT_UI.showPrompts,
+    };
+  } catch {
+    return { ...DEFAULT_UI };
+  }
+}
+
+export function saveUiSettings(settings) {
+  try {
+    localStorage.setItem(UI_KEY, JSON.stringify(settings));
+  } catch {}
+}
+
 export function hasSave() {
   try {
     return !!(localStorage.getItem(HORSES_KEY) || localStorage.getItem(LEGACY_KEY));

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { ALL_ITEMS, ITEM_MAP, CARRIER_DEFS, CONTENT_DEFS } from '../data/items.js';
-import { loadGameState, saveGameState } from '../data/save.js';
+import { loadGameState, saveGameState, loadUiSettings, saveUiSettings } from '../data/save.js';
 import { toggleMute, isMuted, setVolume, getAudioSettings } from '../audio/sounds.js';
 import { EVENTS } from '../data/events.js';
 
@@ -30,7 +30,11 @@ export default class HotbarScene extends Phaser.Scene {
     this._pauseNodes = [];
     this._pauseBtn   = null;
     this._muteRowLbl = null;
+    this._promptRowLbl = null;
     this._moneyLbl   = null;
+
+    // Control-prompt visibility (#82) — toggled in the pause menu, persisted.
+    this._showPrompts = loadUiSettings().showPrompts;
 
     this._buildHotbar();
 
@@ -451,6 +455,41 @@ export default class HotbarScene extends Phaser.Scene {
     this._muteRowLbl?.setText(`Sound: ${nowMuted ? 'Off 🔇' : 'On 🔊'}`);
   }
 
+  _togglePrompts() {
+    this._showPrompts = !this._showPrompts;
+    saveUiSettings({ showPrompts: this._showPrompts });
+    this._promptRowLbl?.setText(`Control Prompts: ${this._showPrompts ? 'On' : 'Off'}`);
+    this.game.events.emit(EVENTS.PROMPTS_CHANGED, this._showPrompts);
+  }
+
+  // Build one full-width toggle row in the pause menu. Returns its label Text so
+  // the caller can update the wording when the value flips.
+  _addToggleRow(rowX, rowY, rowW, rowH, text, onClick) {
+    const rowG = this.add.graphics().setDepth(103);
+    const drawRow = (bg2) => {
+      rowG.clear();
+      rowG.fillStyle(bg2, 0.9);
+      rowG.fillRoundedRect(rowX, rowY, rowW, rowH - 8, 8);
+      rowG.lineStyle(2, 0x2a3060, 1);
+      rowG.strokeRoundedRect(rowX, rowY, rowW, rowH - 8, 8);
+    };
+    drawRow(0x1a1e30);
+    this._pauseNodes.push(rowG);
+
+    const lbl = this.add.text(rowX + rowW / 2, rowY + (rowH - 8) / 2, text, {
+      fontFamily: 'system-ui, sans-serif', fontSize: '15px', color: '#dfe4f5',
+    }).setOrigin(0.5, 0.5).setDepth(104);
+    this._pauseNodes.push(lbl);
+
+    const zone = this.add.zone(rowX, rowY, rowW, rowH - 8)
+      .setOrigin(0, 0).setInteractive({ useHandCursor: true }).setDepth(105);
+    zone.on('pointerover', () => drawRow(0x2a3050));
+    zone.on('pointerout',  () => drawRow(0x1a1e30));
+    zone.on('pointerdown', onClick);
+    this._pauseNodes.push(zone);
+    return lbl;
+  }
+
   _openPause() {
     for (const o of this._pauseNodes) o.destroy();
     this._pauseNodes = [];
@@ -476,7 +515,7 @@ export default class HotbarScene extends Phaser.Scene {
       ['Ambient', 'ambient'],
       ['Effects', 'effects'],
     ];
-    const panelH = 56 + rowH + sliders.length * sliderH + 8; // title + mute + sliders
+    const panelH = 56 + rowH * 2 + sliders.length * sliderH + 8; // title + 2 toggles + sliders
     const px = Math.round((sw - panelW) / 2);
     const py = Math.round((sh - panelH) / 2);
 
@@ -508,38 +547,21 @@ export default class HotbarScene extends Phaser.Scene {
     closeBtn.on('pointerdown', () => this._closePause());
     this._pauseNodes.push(closeBtn);
 
-    // Mute toggle row
+    // Toggle rows: mute, then control-prompt visibility (#82).
     const rowY = py + 50;
     const rowX = px + 12;
     const rowW = panelW - 24;
 
-    const rowG = this.add.graphics().setDepth(103);
-    const drawRow = (bg2) => {
-      rowG.clear();
-      rowG.fillStyle(bg2, 0.9);
-      rowG.fillRoundedRect(rowX, rowY, rowW, rowH - 8, 8);
-      rowG.lineStyle(2, 0x2a3060, 1);
-      rowG.strokeRoundedRect(rowX, rowY, rowW, rowH - 8, 8);
-    };
-    drawRow(0x1a1e30);
-    this._pauseNodes.push(rowG);
+    this._muteRowLbl = this._addToggleRow(rowX, rowY, rowW, rowH,
+      `Sound: ${isMuted() ? 'Off 🔇' : 'On 🔊'}`, () => this._toggleMute());
 
-    this._muteRowLbl = this.add.text(rowX + rowW / 2, rowY + (rowH - 8) / 2,
-      `Sound: ${isMuted() ? 'Off 🔇' : 'On 🔊'}`, {
-      fontFamily: 'system-ui, sans-serif', fontSize: '15px', color: '#dfe4f5',
-    }).setOrigin(0.5, 0.5).setDepth(104);
-    this._pauseNodes.push(this._muteRowLbl);
+    const promptRowY = rowY + rowH;
+    this._promptRowLbl = this._addToggleRow(rowX, promptRowY, rowW, rowH,
+      `Control Prompts: ${this._showPrompts ? 'On' : 'Off'}`, () => this._togglePrompts());
 
-    const rowZone = this.add.zone(rowX, rowY, rowW, rowH - 8)
-      .setOrigin(0, 0).setInteractive({ useHandCursor: true }).setDepth(105);
-    rowZone.on('pointerover', () => drawRow(0x2a3050));
-    rowZone.on('pointerout',  () => drawRow(0x1a1e30));
-    rowZone.on('pointerdown', () => this._toggleMute());
-    this._pauseNodes.push(rowZone);
-
-    // Per-bus volume sliders, stacked below the mute row.
+    // Per-bus volume sliders, stacked below the toggle rows.
     const vols = getAudioSettings().volumes;
-    let sy = rowY + rowH + 4;
+    let sy = promptRowY + rowH + 4;
     for (const [label, bus] of sliders) {
       this._addVolumeSlider(rowX, sy, rowW, label, bus, vols[bus]);
       sy += sliderH;

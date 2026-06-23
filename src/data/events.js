@@ -30,4 +30,7 @@ export const EVENTS = {
   // Inventory / carrier contents changed (consumed by inventory UI).
   INVENTORY_CHANGED: 'inventory-changed',
   BASKET_CHANGED: 'basket-changed',
+
+  // Show/hide contextual control prompts toggled: payload = boolean (show).
+  PROMPTS_CHANGED: 'prompts-changed',
 };

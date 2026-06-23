@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { saveAllHorses } from '../data/save.js';
+import { saveAllHorses, loadUiSettings } from '../data/save.js';
 import { CONTENT_DEFS } from '../data/items.js';
 import { EVENTS } from '../data/events.js';
 import {
@@ -39,6 +39,10 @@ export default class PaddockScene
     this.animals    = [];
     this.registry.set('viewingAnimal', null);
 
+    // Whether contextual control prompts (the floating interact hints) are shown.
+    // Player-toggleable in the pause menu (#82); persisted in UI settings.
+    this.promptsOn = loadUiSettings().showPrompts;
+
     // World interactables
     this.props = { trough: null, hayPiles: [], seedPiles: [], nests: [], sources: [], barn: null };
     this.inventory = {};
@@ -72,10 +76,12 @@ export default class PaddockScene
     this.game.events.on(EVENTS.ANIMAL_ACTION,    this.doAction,        this);
     this.game.events.on(EVENTS.PHASE_CHANGE,    this.onPhaseChange,   this);
     this.game.events.on(EVENTS.SLEEP_DONE,      this._onSleepDone,    this);
+    this.game.events.on(EVENTS.PROMPTS_CHANGED, this._onPromptsChanged, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.game.events.off(EVENTS.ANIMAL_ACTION,    this.doAction,        this);
       this.game.events.off(EVENTS.PHASE_CHANGE,    this.onPhaseChange,   this);
       this.game.events.off(EVENTS.SLEEP_DONE,      this._onSleepDone,    this);
+      this.game.events.off(EVENTS.PROMPTS_CHANGED, this._onPromptsChanged, this);
       stopWind();
       stopMusic();
     });
@@ -329,7 +335,7 @@ export default class PaddockScene
 
     this.interactPrompt.setText(`${useKey}  ${t.loved ? 'Info' : 'Pet'}`);
     this.interactPrompt.setPosition(t.sprite.x, t.sprite.y - t.offY);
-    this.interactPrompt.setVisible(true);
+    this.interactPrompt.setVisible(this.promptsOn);
 
     if (useJust) {
       if (t.foal) { playChime(); this.showHeart(t.sprite); }
@@ -704,6 +710,13 @@ export default class PaddockScene
     player.shadow.y = player.sprite.y;
   }
 
+  // Pause-menu toggle (#82) flipped the control-prompt setting. Update our flag
+  // and hide the prompt immediately if they were just turned off.
+  _onPromptsChanged(show) {
+    this.promptsOn = !!show;
+    if (!this.promptsOn) this.interactPrompt.setVisible(false);
+  }
+
   checkProximity() {
     if (this.scene.get('HotbarScene')?.invOpen) {
       this.interactPrompt.setVisible(false);
@@ -726,7 +739,7 @@ export default class PaddockScene
       const btn = this.usingPad ? '[ A ]' : '[ E ]';
       this.interactPrompt.setText(`${btn}  Dismount`);
       this.interactPrompt.setPosition(h.sprite.x, h.sprite.y - 140);
-      this.interactPrompt.setVisible(true);
+      this.interactPrompt.setVisible(this.promptsOn);
       return;
     }
 
@@ -757,7 +770,7 @@ export default class PaddockScene
     if (mountH) {
       this.interactPrompt.setText(`${useKey}  Mount`);
       this.interactPrompt.setPosition(mountH.sprite.x, mountH.sprite.y - 118);
-      this.interactPrompt.setVisible(true);
+      this.interactPrompt.setVisible(this.promptsOn);
       if (useJust) this.mountHorse(mountH);
       return;
     }
