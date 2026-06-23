@@ -473,26 +473,30 @@ export const WithPlayer = (Base) => class extends Base {
       this.player.sprite.x, this.player.sprite.y, s.x, s.y) <= FARM_STAND_REACH;
   }
 
-  // Pick the horse a tool should act on: nearest within CARE_DIST, but for the
-  // brush prefer the nearest still-dirty horse over a closer spotless one.
+  // Pick the horse a tool should act on. Saddle/lead target the nearest horse
+  // within care distance (toggle actions, no "needs it" cap). The brush instead
+  // targets the horse that needs it most among those actually in reach: dirtiest
+  // first (lowest grooming), tie-broken by distance — so a spotless horse next to
+  // you doesn't soak up the brush while a dirtier one in range goes ungroomed
+  // (#96). It only falls through to a clean horse when nothing in reach needs it.
   _nearestToolHorse(item) {
     const allHorses = this.registry.get('allHorses');
     const dist = (h) => Phaser.Math.Distance.Between(
       this.player.sprite.x, this.player.sprite.y, h.sprite.x, h.sprite.y);
-    const isDirty = (h) => (allHorses[h.key]?.stats.grooming ?? 100) < 99.5;
+
+    if (item.action === 'brush') {
+      const grooming = (h) => allHorses[h.key]?.stats.grooming ?? 100;
+      const inReach = this.horses.filter(h => dist(h) <= USE_REACH);
+      if (!inReach.length) return null;
+      const dirty = inReach.filter(h => grooming(h) < 99.5);
+      const pool = dirty.length ? dirty : inReach;
+      return pool.sort((a, b) => (grooming(a) - grooming(b)) || (dist(a) - dist(b)))[0];
+    }
 
     let best = null, bestD = Infinity;
-    if (item.action === 'brush') {
-      for (const h of this.horses) {
-        const d = dist(h);
-        if (d < CARE_DIST && isDirty(h) && d < bestD) { bestD = d; best = h; }
-      }
-    }
-    if (!best) {
-      for (const h of this.horses) {
-        const d = dist(h);
-        if (d < CARE_DIST && d < bestD) { bestD = d; best = h; }
-      }
+    for (const h of this.horses) {
+      const d = dist(h);
+      if (d < CARE_DIST && d < bestD) { bestD = d; best = h; }
     }
     return best;
   }

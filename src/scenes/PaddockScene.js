@@ -328,6 +328,7 @@ export default class PaddockScene
   // it claimed the prompt (so checkProximity can stop). See call site for intent.
   _petPreferenceProximity(useKey, useJust) {
     const { player } = this;
+    const allHorses = this.registry.get('allHorses');
     const dist = (s) => Phaser.Math.Distance.Between(
       player.sprite.x, player.sprite.y, s.x, s.y);
 
@@ -335,31 +336,44 @@ export default class PaddockScene
     for (const h of this.horses) {
       if (h.saddled) continue; // empty hand mounts a saddled horse, not a pet
       const d = dist(h.sprite);
-      if (d < CARE_DIST) cands.push({
+      if (d >= CARE_DIST) continue;
+      // A pet only helps a horse whose happiness isn't already full and that
+      // hasn't had its daily love yet — `deficit` ranks who needs it most (#96).
+      const hap = allHorses?.[h.key]?.stats?.happiness ?? 100;
+      cands.push({
         key: h.key, sprite: h.sprite, d, offY: 118,
-        loved: this._petTodayHas(h.key), open: () => this.openPortrait(h.key),
+        satisfied: this._petTodayHas(h.key) || hap >= 100, deficit: 100 - hap,
+        open: () => this.openPortrait(h.key),
       });
     }
     for (const a of this.animals) {
       if (!a.sprite.visible) continue; // tucked in the coop at night
       const d = dist(a.sprite);
-      if (d < CARE_DIST) cands.push({
+      if (d >= CARE_DIST) continue;
+      // Chickens/cat have no happiness stat — a pet is pure affection, so it's
+      // "wasted" only once they've had today's love. No deficit to rank by.
+      cands.push({
         key: a.key, sprite: a.sprite, d, offY: 54,
-        loved: this._petTodayHas(a.key), open: () => this.openCreatureInfo(a),
+        satisfied: this._petTodayHas(a.key), deficit: 0,
+        open: () => this.openCreatureInfo(a),
       });
     }
     for (const foal of this.foals) {
       const d = dist(foal.sprite);
       if (d < CARE_DIST) cands.push({ key: foal.key, sprite: foal.sprite, d, offY: 78,
-        loved: false, foal: true }); // foals have no panel — always pet
+        satisfied: false, deficit: 0, foal: true }); // foals have no panel — always pet
     }
     if (!cands.length) { this._proxAnimal = null; return false; }
 
-    // Prefer animals that still need their daily love so the prompt guides you to
-    // pet everyone, but the interact button pets regardless of whether they're
-    // already loved today.
-    const needLove = cands.filter(c => !c.loved);
-    const pool = (needLove.length ? needLove : cands).sort((a, b) => a.d - b.d);
+    // Target the in-range animal that most needs the pet (#96): prefer ones a pet
+    // would actually help (not full / not yet loved today), ranked by happiness
+    // deficit, tie-broken by distance — so the heart doesn't get wasted on a
+    // maxed-out animal while a needier one stands nearby. If none need it, just
+    // pet the nearest (still shows affection).
+    const needy = cands.filter(c => !c.satisfied);
+    const pool = needy.length
+      ? needy.sort((a, b) => (b.deficit - a.deficit) || (a.d - b.d))
+      : cands.sort((a, b) => a.d - b.d);
     const t = pool[0];
     this._proxAnimal = t; // remembered for the separate Info input (C / Y / double-tap)
 
