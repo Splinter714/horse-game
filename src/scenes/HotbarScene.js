@@ -103,14 +103,15 @@ export default class HotbarScene extends Phaser.Scene {
     this._stripBg.fillStyle(0x111622, 0.72);
     this._stripBg.fillRoundedRect(startX - 8, slotY - 8, totalW + 16, ss + 16, radius + 2);
 
-    // Pause / settings menu button — top-right corner. Mute lives inside it.
-    this._pauseBtn = this.add.text(sw - 14, 14, '⏸', {
+    // Pause / settings menu button — top-left corner (clear of the time-of-day
+    // display in the top-right). Mute lives inside it.
+    this._pauseBtn = this.add.text(14, 14, '⏸', {
       fontFamily: 'system-ui, sans-serif',
       fontSize: `${Math.max(16, Math.floor(22 * fit))}px`,
       color: '#dfe4f5',
       backgroundColor: '#111622cc',
       padding: { x: 6, y: 3 },
-    }).setOrigin(1, 0).setDepth(2).setInteractive({ useHandCursor: true });
+    }).setOrigin(0, 0).setDepth(2).setInteractive({ useHandCursor: true });
     this._pauseBtn.on('pointerdown', () => this._togglePause());
 
     // Money label — created empty, filled by _updateStatusLabels
