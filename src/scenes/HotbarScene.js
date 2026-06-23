@@ -462,19 +462,24 @@ export default class HotbarScene extends Phaser.Scene {
     // by PaddockScene's per-frame ACTIONS_CHANGED — no direct refresh needed here.
   }
 
-  // ── Slot press vs. hold (#75) ───────────────────────────────────────────────
-  // A quick press/tap selects the slot, and re-pressing the active carrier group
-  // cycles to the next instance — no fly-out. HOLDING a slot opens the fly-out
-  // picker instead. _slotDown starts a hold timer; _slotUp resolves the gesture.
+  // ── Slot press vs. hold (#75 / #131 / #132) ─────────────────────────────────
+  // Switching is IMMEDIATE on press-down (#131): pressing a slot selects it right
+  // away, never gated behind the hold timer. Layered on top, a sustained HOLD opens
+  // the carrier fly-out picker, and a quick re-press of the already-active carrier
+  // group cycles to its next instance (with a brief flash, #132). _slotDown does the
+  // instant switch + arms the hold timer; _slotUp resolves a quick tap.
   _slotDown(i, src) {
     // Ignore key auto-repeat / a second down for the same in-progress press.
     if (this._slotHold && this._slotHold.i === i && this._slotHold.src === src) return;
     this._cancelSlotHold();
-    const hold = { i, src, fired: false };
+    const wasActive = i === this.activeSlot;
+    const wasOpen   = this._flyoutSlot === i;
+    // The switch happens now, on press — not on release (#131). Re-pressing the
+    // slot you're already on waits for release to tell a tap (cycle) from a hold.
+    if (!wasActive) this._switchTo(i);
+    const hold = { i, src, wasActive, wasOpen, fired: false };
     hold.timer = this.time.delayedCall(HOLD_FLYOUT_MS, () => {
-      hold.fired = true; // a hold → open the picker, and suppress the tap action
-      if (this.invOpen || this.pauseOpen) return;
-      this._setActive(i);
+      hold.fired = true; // held long enough → open the picker (suppresses the tap)
       this._openActiveFlyout();
     });
     this._slotHold = hold;
@@ -483,9 +488,16 @@ export default class HotbarScene extends Phaser.Scene {
   _slotUp(i, src) {
     const hold = this._slotHold;
     if (!hold || hold.i !== i || hold.src !== src) return;
-    const fired = hold.fired;
+    const { wasActive, wasOpen, fired } = hold;
     this._cancelSlotHold();
-    if (!fired) this._selectOrCycle(i); // quick release → select / cycle (no fly-out)
+    if (fired) return; // the hold already opened the fly-out
+    // Quick release. Any switch already happened on press-down (#131); the only
+    // remaining tap action is cycling the active carrier group's instance.
+    if (wasActive && this._isGroup(this.hotbar[i])) {
+      this._cycleMember(this.hotbar[i]);
+      if (wasOpen) this._openFlyout(i); // keep an open picker in sync + refresh it
+      else         this._flashSlot(i);  // cycling stacked items in place → flash (#132)
+    }
   }
 
   // Release came in on the scene (the slot zone may not get its own pointerup).
@@ -498,25 +510,16 @@ export default class HotbarScene extends Phaser.Scene {
     this._slotHold = null;
   }
 
-  // Quick press/tap: select the slot; re-selecting the active carrier group cycles
-  // to the next instance. Never opens the fly-out (that's the hold gesture). If the
-  // fly-out happens to be open, cycling keeps it open and refreshes its timer; if
-  // it's closed, a brief flash makes the slot change read (#75).
-  _selectOrCycle(i) {
+  // Immediately make slot `i` active — the #131 instant switch. No flash: a plain
+  // slot switch is shown by the moving highlight; the flash is reserved for cycling
+  // stacked instances in place (#132).
+  _switchTo(i) {
     if (this.invOpen) this._closeInventory();
-    const wasActive = i === this.activeSlot;
-    const wasOpen   = this._flyoutSlot === i;
-    const key = this.hotbar[i];
-    this._setActive(i); // selects, closes any open fly-out
-    if (this._isGroup(key) && wasActive) {
-      this._cycleMember(key);
-      if (wasOpen) { this._openFlyout(i); return; } // keep the picker open + refresh
-    }
-    this._flashSlot(i); // no fly-out showing the change → blink the slot instead
+    this._setActive(i); // also closes any open fly-out (it belonged to the old slot)
   }
 
-  // Brief white blink over a slot: feedback that the active slot / instance changed
-  // when no fly-out is open to show it (#75). At most one is alive at a time.
+  // Brief white blink over a slot: feedback that you've stepped to a different
+  // stacked instance while the fly-out is closed (#132). At most one alive at a time.
   _flashSlot(i) {
     const slot = this._slots[i];
     if (!slot) return;
@@ -570,9 +573,10 @@ export default class HotbarScene extends Phaser.Scene {
   }
 
   // Gamepad slot navigation (driven by PaddockScene's raw-pad poller, #121): step
-  // to the prev/next slot, wrapping. Just selects — the fly-out is opened with LT.
+  // to the prev/next slot, wrapping. An immediate, flash-free switch (#131/#132) —
+  // cycling instances is D-pad up/down or LT, and the fly-out is opened with LT hold.
   navSlot(dir) {
-    this._selectOrCycle((this.activeSlot + dir + NUM_SLOTS) % NUM_SLOTS);
+    this._switchTo((this.activeSlot + dir + NUM_SLOTS) % NUM_SLOTS);
   }
 
   // Directly select a member from the fly-out.
