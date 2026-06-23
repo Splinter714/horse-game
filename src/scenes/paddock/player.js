@@ -3,6 +3,7 @@
 
 import Phaser from 'phaser';
 import { CONTENT_DEFS } from '../../data/items.js';
+import { EVENTS } from '../../data/events.js';
 import { playGather } from '../../audio/sounds.js';
 import { WORLD_W, WORLD_H, CARE_DIST, PLAYER_SPEED, HOLD_MS, HOLD_DRAG_PX, PLAYER_BOUNDS, S, STAND_DEFS } from './constants.js';
 
@@ -305,6 +306,10 @@ export const WithPlayer = (Base) => class extends Base {
   }
 
   _pushPrompt(action, label) {
+    // On touch, the Use action is shown on the on-screen Use button, so don't
+    // also list it in the panel (it'd be redundant). Keyboard/gamepad still get
+    // the "[F]/[X] …" line since they have no on-screen button.
+    if (action === 'use' && this._promptMode() === 'touch') return;
     (this._promptLines ??= []).push(this._promptLine(action, label));
   }
 
@@ -464,13 +469,20 @@ export const WithPlayer = (Base) => class extends Base {
   // static prompt panel (#101) alongside the interact line. Skipped when riding
   // or a menu/info panel is open, or when no valid target is in reach.
   checkToolProximity() {
+    // btnLabel is the short verb shown on the on-screen Use button (touch). It
+    // tracks whatever Use would do right now; defaults to 'Use', refined below.
+    let btnLabel = 'Use';
+    const finish = () => this._setUseLabel(btnLabel);
+
     if (this.riding ||
         this.scene.get('HotbarScene')?.invOpen ||
-        this.scene.isActive('InfoPanelScene')) return;
+        this.scene.isActive('InfoPanelScene')) return finish();
 
     const item = this.getActiveItem();
-    if (!item || item.action === 'interact') return;
+    if (!item || item.action === 'interact') return finish();
 
+    // Even with no target in reach, the button names what the tool is for.
+    btnLabel = this._baseUseVerb(item);
     const { player } = this;
 
     // Animal-targeted tools: brush / saddle / lead on the nearest valid horse.
@@ -478,29 +490,39 @@ export const WithPlayer = (Base) => class extends Base {
       const target = this._nearestToolHorse(item);
       const d = target && Phaser.Math.Distance.Between(
         player.sprite.x, player.sprite.y, target.sprite.x, target.sprite.y);
-      if (!target || d > USE_REACH) return;
-      const who = this._animalName(target.key);
-      let label;
-      if (item.action === 'saddle')    label = target.saddled ? 'Unsaddle' : 'Saddle';
-      else if (item.action === 'lead') label = this.leadHorses.includes(target) ? 'Stop Leading' : 'Lead';
-      else                             label = 'Brush';
-      this._pushPrompt('use', who ? `${label} ${who}` : label);
-      return;
+      if (target && d <= USE_REACH) {
+        const who = this._animalName(target.key);
+        let label; // descriptive (prompt panel) — the button uses the short btnLabel
+        if (item.action === 'saddle') {
+          btnLabel = label = target.saddled ? 'Unsaddle' : 'Saddle';
+        } else if (item.action === 'lead') {
+          const leading = this.leadHorses.includes(target);
+          btnLabel = leading ? 'Stop' : 'Lead';
+          label    = leading ? 'Stop Leading' : 'Lead';
+        } else {
+          btnLabel = label = 'Brush';
+        }
+        this._pushPrompt('use', who ? `${label} ${who}` : label);
+      }
+      return finish();
     }
 
     // Feed: dropped at the player's feet — or, at the farm stand, sold there if
     // the produce is sellable (apples/carrots), matching useActiveTool (#80).
     if (item.action === 'feed') {
       if (STAND_DEFS[item.content] && this._atFarmStand()) {
+        btnLabel = 'Sell';
         this._pushPrompt('use', `Sell ${item.label}`);
       } else {
+        btnLabel = 'Feed';
         this._pushPrompt('use', `Drop ${item.label}`);
       }
-      return;
+      return finish();
     }
 
     // World-spot tools (fill trough / fill bucket / gather / collect egg / sell):
-    // the nearest actionable instance within reach. Reuse the descriptors' labels.
+    // the nearest actionable instance within reach. Reuse the descriptors' labels;
+    // the button takes the leading verb ('Fill', 'Gather', 'Collect', 'Sell').
     let inst = null, instD = Infinity;
     for (const instancesOf of this.toolWorld) {
       for (const c of instancesOf(item)) {
@@ -509,7 +531,32 @@ export const WithPlayer = (Base) => class extends Base {
         if (dd < instD) { instD = dd; inst = c; }
       }
     }
-    if (inst && instD <= inst.reachDist) this._pushPrompt('use', inst.label);
+    if (inst && instD <= inst.reachDist) {
+      btnLabel = inst.label.split(/\s+/)[0];
+      this._pushPrompt('use', inst.label);
+    }
+    return finish();
+  }
+
+  // The Use button's resting verb for an equipped item when nothing's in reach —
+  // tells the player what the tool/carrier is for. In-reach context overrides it.
+  _baseUseVerb(item) {
+    switch (item.action) {
+      case 'brush':  return 'Brush';
+      case 'saddle': return 'Saddle';
+      case 'lead':   return 'Lead';
+      case 'feed':   return 'Feed';
+      case 'water':  return 'Fill';
+      case 'egg':    return 'Sell';
+    }
+    return item.type === 'carrier' ? 'Gather' : 'Use'; // empty carrier → gather
+  }
+
+  // Broadcast the Use button's label when it changes (consumed by HotbarScene).
+  _setUseLabel(label) {
+    if (label === this._lastUseLabel) return;
+    this._lastUseLabel = label;
+    this.game.events.emit(EVENTS.USE_LABEL_CHANGED, label);
   }
 
   // Display name for a horse/chicken/cat key, for naming prompt targets (#101).

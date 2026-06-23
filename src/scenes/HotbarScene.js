@@ -41,6 +41,10 @@ export default class HotbarScene extends Phaser.Scene {
     // use F / X instead, so it only shows in touch mode. Default from the device's
     // primary pointer; PaddockScene keeps it in sync via INPUT_MODE_CHANGED.
     this._isTouch = window.matchMedia?.('(pointer: coarse)')?.matches ?? false;
+    // The Use button's label tracks the action it would take (Brush/Feed/Gather…),
+    // pushed from PaddockScene via USE_LABEL_CHANGED. Fixed-width button (below) so
+    // the text changing never resizes it.
+    this._useLabel = 'Use';
 
     this._buildHotbar();
 
@@ -85,11 +89,19 @@ export default class HotbarScene extends Phaser.Scene {
     };
     this.game.events.on(EVENTS.INPUT_MODE_CHANGED, this._onInputMode);
 
+    // Update the Use button's label as the contextual action changes.
+    this._onUseLabel = label => {
+      this._useLabel = label || 'Use';
+      this._use?.lbl?.setText(this._useLabel);
+    };
+    this.game.events.on(EVENTS.USE_LABEL_CHANGED, this._onUseLabel);
+
     // Clean up global listeners on scene shutdown
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.scale.off('resize', this._onResize, this);
       this.game.events.off(EVENTS.MONEY_CHANGED,  this._onMoney);
       this.game.events.off(EVENTS.INPUT_MODE_CHANGED, this._onInputMode);
+      this.game.events.off(EVENTS.USE_LABEL_CHANGED, this._onUseLabel);
     });
   }
 
@@ -221,14 +233,16 @@ export default class HotbarScene extends Phaser.Scene {
   _buildUseButton(startX, totalW, slotY, ss, radius, fit) {
     if (!this._isTouch) { this._use = null; return; } // hidden for keyboard/gamepad
 
-    // The primary touch action — keep it generously sized even on small screens (#100).
-    const useW = Math.max(72, Math.floor(96 * fit));
+    // Fixed width — sized for the longest verb ('Unsaddle'/'Collect') so the text
+    // changing per action never makes the button jump around (#100). Kept generous
+    // even on small screens.
+    const useW = Math.max(96, Math.floor(116 * fit));
     const useH = Math.max(40, Math.floor(44 * fit));
     const ux   = startX + totalW - useW;
     const uy   = slotY - useH - 14;
 
     const g = this.add.graphics().setDepth(2);
-    const lbl = this.add.text(ux + useW / 2, uy + useH / 2, 'Use', {
+    const lbl = this.add.text(ux + useW / 2, uy + useH / 2, this._useLabel, {
       fontFamily: 'system-ui, sans-serif',
       fontSize: `${Math.max(12, Math.floor(16 * fit))}px`,
       color: '#ffffff', fontStyle: 'bold',

@@ -37,4 +37,8 @@ export const EVENTS = {
   // Active input device changed: payload = 'key' | 'pad' | 'touch'. Lets the UI
   // (e.g. the on-screen Use button) show only for touch players.
   INPUT_MODE_CHANGED: 'input-mode-changed',
+
+  // The action the Use button would take changed: payload = short verb string
+  // ('Brush', 'Feed', 'Gather'…). Drives the on-screen Use button's label.
+  USE_LABEL_CHANGED: 'use-label-changed',
 };
