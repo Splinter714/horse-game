@@ -101,8 +101,9 @@ try {
 
   await page.screenshot({ path: '/tmp/horsegame-smoke.png' });
 
-  // Unified info panel: open it for a horse (stat bars + action buttons) and a
-  // chicken (identity only) — both go through the single InfoPanelScene.
+  // Unified info panel: open it for a horse (identity + stat bars) and a
+  // chicken (identity only) — both go through the single InfoPanelScene. The
+  // panel is purely informational (no action buttons; care is done in-world).
   const openPanel = async (kind, key) => {
     await page.evaluate(([k, key]) => {
       const p = window.__game.scene.getScene('PaddockScene');
@@ -137,7 +138,7 @@ try {
   if (!result.movementOk) fail('creature movement/pathfinding threw: ' + result.movementError);
   if (result.behaviorDecision !== 'seekFood') fail(`hungry horse with hay nearby did not select seekFood (got ${result.behaviorDecision})`);
   if (!result.horsePanel.active) fail('InfoPanelScene did not open for a horse');
-  if (result.horsePanel.parts < 15) fail(`horse panel looks too sparse (parts=${result.horsePanel.parts}) — stat bars/buttons missing?`);
+  if (result.horsePanel.parts < 15) fail(`horse panel looks too sparse (parts=${result.horsePanel.parts}) — identity/stat bars missing?`);
   if (!result.chickenPanel.active) fail('InfoPanelScene did not open for a chicken');
 
   if (!process.exitCode) console.log('SMOKE OK ✔  (screenshot: /tmp/horsegame-smoke.png)');

@@ -1,5 +1,4 @@
 import Phaser from 'phaser';
-import { EVENTS } from '../data/events.js';
 import { getSpecies } from '../data/species/index.js';
 
 // Lightweight, ephemeral info popup for any animal. It's a small floating card
@@ -171,24 +170,10 @@ export default class InfoPanelScene extends Phaser.Scene {
       barY += 26;
     }
 
-    let bottomY = barY;
-
-    // ── Action buttons (2-col grid) ────────────────────────────────────
-    const actions = Object.entries(spec.actions).map(([type, a]) => ({ type, label: a.label, icon: a.icon }));
-    if (actions.length) {
-      this.addDivider(barY + 6);
-      const btnW = 124, btnH = 44, btnGap = 8;
-      const btnY0 = barY + 20;
-      actions.forEach((a, i) => {
-        const col = i % 2;
-        const row = Math.floor(i / 2);
-        const bx  = 14 + col * (btnW + btnGap);
-        const by  = btnY0 + row * (btnH + btnGap);
-        this.makeButton(bx, by, btnW, btnH, a.label, a.icon, () => this.act(a.type, animal, key));
-      });
-      const lastRow = Math.floor((actions.length - 1) / 2);
-      bottomY = btnY0 + lastRow * (btnH + btnGap) + btnH;
-    }
+    // The panel is purely informational (#91): care actions (feed/water/brush/
+    // pet) are all performed in-world with equipped items/tools, so there are no
+    // action buttons here anymore. The card ends just below the stat bars.
+    const bottomY = barY;
 
     const cardH = bottomY + PAD;
 
@@ -224,46 +209,6 @@ export default class InfoPanelScene extends Phaser.Scene {
     g.lineStyle(1, 0xd4cec4, 1);
     g.lineBetween(14, y, CARD_W - 14, y);
     this.panel.add(g);
-  }
-
-  makeButton(bx, by, bw, bh, label, iconKey, onClick) {
-    const g = this.add.graphics();
-    const draw = (fill) => {
-      g.clear();
-      g.fillStyle(fill, 0.95);
-      g.fillRoundedRect(bx, by, bw, bh, 8);
-      g.lineStyle(1, 0xffffff, 0.12);
-      g.strokeRoundedRect(bx, by, bw, bh, 8);
-    };
-    draw(0x3b4a63);
-    this.panel.add(g);
-
-    const icon = this.add.image(bx + 18, by + bh / 2, iconKey).setDisplaySize(18, 18);
-    this.panel.add(icon);
-
-    const txt = this.add.text(bx + 34, by + bh / 2, label, {
-      fontFamily: 'system-ui, sans-serif', fontSize: '14px', color: '#ffffff',
-    }).setOrigin(0, 0.5);
-    this.panel.add(txt);
-
-    const zone = this.add.zone(bx, by, bw, bh).setOrigin(0, 0)
-      .setInteractive({ useHandCursor: true });
-    zone.on('pointerover',  () => draw(0x4a5d7d));
-    zone.on('pointerout',   () => draw(0x3b4a63));
-    zone.on('pointerdown',  () => draw(0x2c384c));
-    zone.on('pointerup',    () => { draw(0x4a5d7d); onClick(); });
-    this.panel.add(zone);
-  }
-
-  act(type, animal, key) {
-    // PaddockScene.doAction is the single applier of the action to the model
-    // (Phaser emits synchronously, so the shared object is already updated when
-    // refreshStats reads it below). Applying here too would double-count.
-    this.game.events.emit(EVENTS.ANIMAL_ACTION, { type, horseKey: key });
-    this.refreshStats(animal);
-    // Pressing an action button counts as interacting with the popup, so keep it
-    // open and reset the grace window rather than letting the tap dismiss it.
-    this._openAt = this.time.now;
   }
 
   refreshStats(animal) {
