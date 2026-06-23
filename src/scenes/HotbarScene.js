@@ -22,12 +22,15 @@ export default class HotbarScene extends Phaser.Scene {
     this.hotbar      = saved.hotbar;
     this.inventory   = saved.inventory;
     this.carriers    = saved.carriers;
+    this.activeCarrier = saved.activeCarrier; // active member of each carrier group (#75)
     this.activeSlot  = 0;
     this.invOpen     = false;
     this.pauseOpen   = false;
     this._money      = 0;
     this._slots      = [];
     this._invNodes   = [];
+    this._flyoutNodes = []; // carrier-group fly-out picker (#75)
+    this._flyoutSlot  = null;
     this._pauseNodes = [];
     this._pauseBtn   = null;
     this._muteRowLbl = null;
@@ -51,7 +54,11 @@ export default class HotbarScene extends Phaser.Scene {
 
     const KEY_NAMES = ['ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN','EIGHT','NINE','ZERO'];
     KEY_NAMES.forEach((name, i) => {
-      this.input.keyboard.on(`keydown-${name}`, () => this._setActive(i));
+      this.input.keyboard.on(`keydown-${name}`, () => this._pressSlot(i));
+    });
+    // Walking away dismisses an open carrier fly-out (#75).
+    ['W','A','S','D','UP','DOWN','LEFT','RIGHT'].forEach((k) => {
+      this.input.keyboard.on(`keydown-${k}`, () => this._closeFlyout());
     });
     this.input.keyboard.on('keydown-I', () => this._toggleInventory());
     this.input.keyboard.on('keydown-M', () => this._toggleMute());
@@ -71,6 +78,7 @@ export default class HotbarScene extends Phaser.Scene {
     });
 
     this._onResize = () => {
+      this._closeFlyout();
       this._buildHotbar();
       if (this.invOpen)   this._openInventory();
       if (this.pauseOpen) this._openPause();
@@ -86,6 +94,7 @@ export default class HotbarScene extends Phaser.Scene {
       const touch = mode === 'touch';
       if (touch === this._isTouch) return;
       this._isTouch = touch;
+      this._closeFlyout();
       this._buildHotbar(); // recreate the strip with/without the action buttons
     };
     this.game.events.on(EVENTS.INPUT_MODE_CHANGED, this._onInputMode);
@@ -117,6 +126,7 @@ export default class HotbarScene extends Phaser.Scene {
       o.itemLbl?.destroy();
       o.qtyLbl?.destroy();
       o.zone?.destroy();
+      o.stackG?.destroy();
     }
     this._stripBg?.destroy();
     this._pauseBtn?.destroy();
@@ -214,12 +224,21 @@ export default class HotbarScene extends Phaser.Scene {
       const colTop = slotY - 8;
       const zone = this.add.zone(x - sg / 2, colTop, ss + sg, sh - colTop)
         .setOrigin(0, 0).setInteractive().setDepth(5);
-      zone.on('pointerdown', () => {
-        if (this.invOpen) this._closeInventory();
-        this._setActive(i);
-      });
+      zone.on('pointerdown', () => this._tapSlot(i));
 
-      this._slots.push({ g, numLbl, icon, itemLbl, qtyLbl, zone, x, slotY, ss, radius });
+      // A carrier group draws a faint "stacked card" peeking behind the slot, so
+      // it reads as several carriers in one slot (#75). The slot itself shows the
+      // active member; the fly-out lists them all.
+      let stackG = null;
+      if (item?.type === 'carrierGroup') {
+        stackG = this.add.graphics().setDepth(1.5);
+        stackG.fillStyle(0x1a1e30, 0.85);
+        stackG.fillRoundedRect(x + 3, slotY - 3, ss, ss, radius);
+        stackG.lineStyle(2, 0x3a4060, 1);
+        stackG.strokeRoundedRect(x + 3, slotY - 3, ss, ss, radius);
+      }
+
+      this._slots.push({ g, numLbl, icon, itemLbl, qtyLbl, zone, stackG, x, slotY, ss, radius });
     }
 
     this._buildActionButtons(startX, totalW, slotY, fit);
@@ -318,6 +337,11 @@ export default class HotbarScene extends Phaser.Scene {
 
   // Resolve how an item should render in a slot: icon, label, and count badge.
   _slotView(item, key) {
+    // A carrier group renders as its currently-active member (#75).
+    if (item.type === 'carrierGroup') {
+      const m = this._resolveKey(item.key);
+      return this._slotView(ITEM_MAP[m], m);
+    }
     if (item.type !== 'carrier') {
       return { icon: item.icon, label: item.label, count: undefined };
     }
@@ -332,13 +356,30 @@ export default class HotbarScene extends Phaser.Scene {
   }
 
   _saveCarriers() {
-    saveGameState({ hotbar: this.hotbar, inventory: this.inventory, carriers: this.carriers });
+    saveGameState({
+      hotbar: this.hotbar, inventory: this.inventory,
+      carriers: this.carriers, activeCarrier: this.activeCarrier,
+    });
+  }
+
+  // ── Carrier groups (#75) ───────────────────────────────────────────────────
+
+  // True if a hotbar key is a grouped carrier slot (Basket / Bucket).
+  _isGroup(key) { return ITEM_MAP[key]?.type === 'carrierGroup'; }
+
+  // Resolve a hotbar key to a concrete item key: a group → its active member
+  // carrier (guarding against a stale/invalid saved member); anything else → as-is.
+  _resolveKey(key) {
+    const it = ITEM_MAP[key];
+    if (it?.type !== 'carrierGroup') return key;
+    const m = this.activeCarrier?.[it.carrier];
+    return it.members.includes(m) ? m : it.members[0];
   }
 
   // Add `amount` of `content` to the active carrier. Returns how many were added
   // (0 if the carrier is incompatible, full, or already holds something else).
   fillActiveCarrier(content, amount = 1) {
-    const key  = this.hotbar[this.activeSlot];
+    const key  = this._resolveKey(this.hotbar[this.activeSlot]);
     const item = key ? ITEM_MAP[key] : null;
     if (!item || item.type !== 'carrier') return 0;
     const def = CARRIER_DEFS[item.carrier];
@@ -349,6 +390,7 @@ export default class HotbarScene extends Phaser.Scene {
     if (added <= 0) return 0;
     st.content = content;
     st.count  += added;
+    this._closeFlyout();
     this._saveCarriers();
     this._buildHotbar();
     return added;
@@ -357,12 +399,13 @@ export default class HotbarScene extends Phaser.Scene {
   // Remove `amount` from the active carrier; reverts it to empty at zero.
   // Returns how many were actually removed.
   useActiveCarrier(amount = 1) {
-    const key = this.hotbar[this.activeSlot];
+    const key = this._resolveKey(this.hotbar[this.activeSlot]);
     const st  = key ? this.carriers[key] : null;
     if (!st || st.count <= 0) return 0;
     const used = Math.min(st.count, amount);
     st.count -= used;
     if (st.count <= 0) { st.content = null; st.count = 0; }
+    this._closeFlyout();
     this._saveCarriers();
     this._buildHotbar();
     return used;
@@ -377,6 +420,7 @@ export default class HotbarScene extends Phaser.Scene {
   }
 
   _setActive(index) {
+    this._closeFlyout(); // any picker belongs to the previously-active slot
     const prev = this._slots[this.activeSlot];
     if (prev) this._drawSlot(prev.g, prev.x, prev.slotY, prev.ss, prev.radius, false);
     this.activeSlot = index;
@@ -384,6 +428,116 @@ export default class HotbarScene extends Phaser.Scene {
     if (curr) this._drawSlot(curr.g, curr.x, curr.slotY, curr.ss, curr.radius, true);
     // The Use button's availability follows the equipped tool, but that's driven
     // by PaddockScene's per-frame ACTIONS_CHANGED — no direct refresh needed here.
+  }
+
+  // Number-key press on slot `i`: select it; if it's a carrier group, show its
+  // fly-out — and re-pressing the same group's key cycles to the next member (#75).
+  _pressSlot(i) {
+    if (this.invOpen) this._closeInventory();
+    const wasActive = i === this.activeSlot;
+    const key = this.hotbar[i];
+    this._setActive(i);
+    if (this._isGroup(key)) {
+      if (wasActive) this._cycleMember(key);
+      this._openFlyout(i);
+    }
+  }
+
+  // Tap on slot `i`: select it; tapping a carrier group toggles its fly-out picker
+  // (tap to open, tap again to close); pick a member from the list to set it (#75).
+  _tapSlot(i) {
+    if (this.invOpen) this._closeInventory();
+    const key = this.hotbar[i];
+    const toggleClosed = this._flyoutSlot === i; // its picker was already open
+    this._setActive(i); // closes any open fly-out
+    if (this._isGroup(key) && !toggleClosed) this._openFlyout(i);
+  }
+
+  // Advance the active member of a carrier group to the next one.
+  _cycleMember(groupKey) {
+    const group = ITEM_MAP[groupKey];
+    if (!group?.members) return;
+    const cur = this._resolveKey(groupKey);
+    const idx = group.members.indexOf(cur);
+    this.activeCarrier[group.carrier] = group.members[(idx + 1) % group.members.length];
+    this._saveCarriers();
+    this._buildHotbar();
+  }
+
+  // Directly select a member from the fly-out.
+  _pickMember(group, memberKey) {
+    this.activeCarrier[group.carrier] = memberKey;
+    this._saveCarriers();
+    this._closeFlyout();
+    this._buildHotbar();
+  }
+
+  // ── Carrier-group fly-out picker (#75) ──────────────────────────────────────
+
+  // Vertical list of a group's members, stacked above its slot. Each entry shows
+  // its contents/count; the active one is highlighted; tapping one selects it. A
+  // catcher over the rest of the screen dismisses the picker on an outside tap.
+  _openFlyout(slotIndex) {
+    this._closeFlyout();
+    const key = this.hotbar[slotIndex];
+    const group = ITEM_MAP[key];
+    const slot = this._slots[slotIndex];
+    if (group?.type !== 'carrierGroup' || !slot) return;
+
+    this._flyoutSlot  = slotIndex;
+    this._flyoutNodes = [];
+
+    const { x, slotY, ss, radius } = slot;
+    const fit = this._fit ?? 1;
+    const gap = 4;
+    const stripTop = slotY - 8;
+
+    // Catcher above the strip — taps outside the entries dismiss the picker. It
+    // stops short of the slot row so hotbar slots stay directly tappable.
+    const catcher = this.add.zone(0, 0, this.scale.width, stripTop)
+      .setOrigin(0, 0).setInteractive().setDepth(40);
+    catcher.on('pointerdown', () => this._closeFlyout());
+    this._flyoutNodes.push(catcher);
+
+    const active = this._resolveKey(key);
+    group.members.forEach((mKey, idx) => {
+      const ey = stripTop - (idx + 1) * (ss + gap); // idx 0 nearest the slot, going up
+      const isActive = mKey === active;
+
+      const g = this.add.graphics().setDepth(41);
+      this._drawSlot(g, x, ey, ss, radius, isActive);
+      this._flyoutNodes.push(g);
+
+      const view = this._slotView(ITEM_MAP[mKey], mKey);
+      const iconSize = Math.max(14, Math.floor(26 * fit));
+      this._flyoutNodes.push(this.add.image(x + ss / 2, ey + ss * 0.38, view.icon)
+        .setDisplaySize(iconSize, iconSize).setDepth(42));
+      this._flyoutNodes.push(this.add.text(x + ss / 2, ey + ss - 8, view.label, {
+        fontFamily: 'system-ui, sans-serif',
+        fontSize: `${Math.max(6, Math.floor(8 * fit))}px`,
+        color: '#c8cce0',
+      }).setOrigin(0.5, 0.5).setDepth(42));
+
+      if (view.count !== undefined) {
+        this._flyoutNodes.push(this.add.text(x + ss - 3, ey + 3, `${view.count}`, {
+          fontFamily: 'system-ui, sans-serif',
+          fontSize: `${Math.max(6, Math.floor(8 * fit))}px`,
+          color: '#ffdd66', backgroundColor: '#000a', padding: { x: 1, y: 0 },
+        }).setOrigin(1, 0).setDepth(43));
+      }
+
+      const zone = this.add.zone(x, ey, ss, ss)
+        .setOrigin(0, 0).setInteractive({ useHandCursor: true }).setDepth(44);
+      zone.on('pointerdown', () => this._pickMember(group, mKey));
+      this._flyoutNodes.push(zone);
+    });
+  }
+
+  _closeFlyout() {
+    if (!this._flyoutNodes?.length) { this._flyoutSlot = null; return; }
+    for (const o of this._flyoutNodes) o.destroy();
+    this._flyoutNodes = [];
+    this._flyoutSlot  = null;
   }
 
   // ── Inventory panel ────────────────────────────────────────────────────────
@@ -394,6 +548,7 @@ export default class HotbarScene extends Phaser.Scene {
   }
 
   _openInventory() {
+    this._closeFlyout();
     for (const o of this._invNodes) o.destroy();
     this._invNodes = [];
     this.invOpen   = true;
@@ -557,6 +712,7 @@ export default class HotbarScene extends Phaser.Scene {
   }
 
   _openPause() {
+    this._closeFlyout();
     for (const o of this._pauseNodes) o.destroy();
     this._pauseNodes = [];
     this.pauseOpen   = true;
@@ -693,7 +849,7 @@ export default class HotbarScene extends Phaser.Scene {
   // ── Public API ─────────────────────────────────────────────────────────────
 
   getActiveItem() {
-    const key  = this.hotbar[this.activeSlot];
+    const key  = this._resolveKey(this.hotbar[this.activeSlot]); // group → active member (#75)
     const item = key ? ITEM_MAP[key] : null;
     if (!item) return null;
     if (item.type !== 'carrier') return item;

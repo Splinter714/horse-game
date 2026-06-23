@@ -25,22 +25,47 @@ export const CONTENT_DEFS = {
   water:  { label: 'Water',   icon: 'iconBucketWater',  action: 'water' },
 };
 
-// Hotbar items: 3 baskets + 3 buckets, plus the tools. (There's no "hand" tool —
-// interacting/petting is the universal default on tap/click/E/controller; tools
-// are applied via the Use button / F / controller-X.)
-export const ALL_ITEMS = [
+// Same-type carriers are grouped into a single hotbar slot with a fly-out picker
+// (#75): the 3 baskets share one "Basket" slot, the 3 buckets one "Bucket" slot.
+// The individual members still exist (their contents live per-member in game
+// state) — only the *hotbar layout* references the group keys; a group resolves
+// to its currently-active member when you fill/use/render it.
+export const CARRIER_GROUPS = {
+  basketGroup: { carrier: 'basket', label: 'Basket', members: ['basket1', 'basket2', 'basket3'] },
+  bucketGroup: { carrier: 'bucket', label: 'Bucket', members: ['bucket1', 'bucket2', 'bucket3'] },
+};
+
+// The individual carrier members. Kept in ITEM_MAP (so a group resolves to one),
+// but not listed in the hotbar/inventory — the group represents them.
+export const CARRIER_MEMBERS = [
   { key: 'basket1', label: 'Basket', type: 'carrier', carrier: 'basket' },
   { key: 'basket2', label: 'Basket', type: 'carrier', carrier: 'basket' },
   { key: 'basket3', label: 'Basket', type: 'carrier', carrier: 'basket' },
   { key: 'bucket1', label: 'Bucket', type: 'carrier', carrier: 'bucket' },
   { key: 'bucket2', label: 'Bucket', type: 'carrier', carrier: 'bucket' },
   { key: 'bucket3', label: 'Bucket', type: 'carrier', carrier: 'bucket' },
-  { key: 'brush',  label: 'Brush',  icon: 'iconBrush',  action: 'brush',    type: 'tool' },
-  { key: 'saddle', label: 'Saddle', icon: 'iconSaddle', action: 'saddle',   type: 'tool' },
-  { key: 'lead',   label: 'Lead',   icon: 'iconLead',   action: 'lead',     type: 'tool' },
 ];
 
-export const ITEM_MAP = Object.fromEntries(ALL_ITEMS.map(i => [i.key, i]));
+// Group items, as they appear in the hotbar/inventory.
+const GROUP_ITEMS = Object.entries(CARRIER_GROUPS).map(([key, g]) => ({
+  key, label: g.label, type: 'carrierGroup', carrier: g.carrier, members: g.members,
+}));
+
+// Tools. (There's no "hand" tool — interacting/petting is the universal default
+// on tap/click/E/controller; tools apply via the Use button / F / controller-X.)
+const TOOL_ITEMS = [
+  { key: 'brush',  label: 'Brush',  icon: 'iconBrush',  action: 'brush',  type: 'tool' },
+  { key: 'saddle', label: 'Saddle', icon: 'iconSaddle', action: 'saddle', type: 'tool' },
+  { key: 'lead',   label: 'Lead',   icon: 'iconLead',   action: 'lead',   type: 'tool' },
+];
+
+// Inventory list: the grouped carriers + tools (individual members aren't shown).
+export const ALL_ITEMS = [...GROUP_ITEMS, ...TOOL_ITEMS];
+
+// Lookup by any key: group keys, individual member keys, and tools.
+export const ITEM_MAP = Object.fromEntries(
+  [...GROUP_ITEMS, ...CARRIER_MEMBERS, ...TOOL_ITEMS].map(i => [i.key, i]),
+);
 
 // backward compat
 export const ITEMS = ALL_ITEMS;

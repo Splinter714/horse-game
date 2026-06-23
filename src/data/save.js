@@ -82,9 +82,15 @@ export function saveAllChickens(allChickens) {
 
 const GAME_STATE_KEY = 'horse-game-state-v1';
 
-// Carrier-based hotbar (issue #62): 3 baskets + 3 buckets alongside the tools.
-// No "hand" slot — interacting is the universal default (tap/click/E).
-const DEFAULT_HOTBAR = ['basket1', 'basket2', 'basket3', 'bucket1', 'bucket2', 'bucket3', 'brush', 'saddle', 'lead', ''];
+// Grouped carrier hotbar (#75): the 3 baskets collapse into one "Basket" slot and
+// the 3 buckets into one "Bucket" slot (each a fly-out picker), alongside the
+// tools. No "hand" slot — interacting is the universal default (tap/click/E).
+const DEFAULT_HOTBAR = ['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead', '', '', '', '', ''];
+
+// Which member of each carrier group is currently active in its grouped slot.
+function defaultActiveCarrier() {
+  return { basket: 'basket1', bucket: 'bucket1' };
+}
 
 function defaultInventory() {
   // Tools are infinite; carriers track their own contents. Nothing to stock.
@@ -105,31 +111,34 @@ function defaultCarriers() {
 }
 
 export function loadGameState() {
-  const fresh = () => ({ hotbar: [...DEFAULT_HOTBAR], inventory: defaultInventory(), carriers: defaultCarriers() });
+  const fresh = () => ({
+    hotbar: [...DEFAULT_HOTBAR], inventory: defaultInventory(),
+    carriers: defaultCarriers(), activeCarrier: defaultActiveCarrier(),
+  });
   try {
     const raw = localStorage.getItem(GAME_STATE_KEY);
     if (!raw) return fresh();
     const data = JSON.parse(raw);
-    // Reset to the default layout for old saves: the pre-carrier discrete-item
-    // hotbar (no basket1), or any hotbar still carrying the retired "hand" tool.
-    // Otherwise keep the player's customized carrier-layout hotbar.
+    // Migrate any pre-grouping layout to the new grouped default (#75): the old
+    // per-carrier hotbar (individual basket1…/bucket1… keys), the pre-carrier
+    // discrete-item hotbar, or any layout still carrying the retired "hand" tool.
+    // A layout that already uses the group keys is kept as the player left it.
     const saved = Array.isArray(data.hotbar) ? data.hotbar : [];
-    const hotbar = (saved.includes('basket1') && !saved.includes('hand'))
-      ? saved
-      : [...DEFAULT_HOTBAR];
+    const hotbar = saved.includes('basketGroup') ? saved : [...DEFAULT_HOTBAR];
     return {
       hotbar,
-      inventory: { ...defaultInventory(), ...(data.inventory ?? {}) },
-      carriers:  { ...defaultCarriers(),  ...(data.carriers ?? {}) },
+      inventory:     { ...defaultInventory(),     ...(data.inventory ?? {}) },
+      carriers:      { ...defaultCarriers(),      ...(data.carriers ?? {}) },
+      activeCarrier: { ...defaultActiveCarrier(), ...(data.activeCarrier ?? {}) },
     };
   } catch {
     return fresh();
   }
 }
 
-export function saveGameState({ hotbar, inventory, carriers }) {
+export function saveGameState({ hotbar, inventory, carriers, activeCarrier }) {
   try {
-    localStorage.setItem(GAME_STATE_KEY, JSON.stringify({ hotbar, inventory, carriers }));
+    localStorage.setItem(GAME_STATE_KEY, JSON.stringify({ hotbar, inventory, carriers, activeCarrier }));
   } catch {}
 }
 

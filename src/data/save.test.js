@@ -163,28 +163,46 @@ describe('loadAllChickens / saveAllChickens', () => {
 });
 
 describe('game state (hotbar / carriers)', () => {
-  it('returns carrier-layout defaults when nothing is stored', () => {
+  it('returns grouped-carrier defaults when nothing is stored (#75)', () => {
     const gs = save.loadGameState();
-    expect(gs.hotbar).toContain('basket1');
-    expect(gs.carriers.basket1).toEqual({ content: null, count: 0 });
+    expect(gs.hotbar).toContain('basketGroup');
+    expect(gs.hotbar).toContain('bucketGroup');
+    expect(gs.hotbar).not.toContain('basket1');           // members are grouped now
+    expect(gs.carriers.basket1).toEqual({ content: null, count: 0 }); // storage unchanged
+    expect(gs.activeCarrier).toEqual({ basket: 'basket1', bucket: 'bucket1' });
   });
 
-  it('round-trips a saved game state', () => {
+  it('round-trips a saved game state including the active group members (#75)', () => {
     save.saveGameState({
-      hotbar: ['hand', 'basket1', 'basket2', 'basket3', 'bucket1', 'bucket2', 'brush', 'saddle', 'lead', ''],
+      hotbar: ['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead', '', '', '', '', ''],
       inventory: {},
-      carriers: { basket1: { content: 'hay', count: 3 } },
+      carriers: { basket2: { content: 'hay', count: 3 } },
+      activeCarrier: { basket: 'basket2', bucket: 'bucket3' },
     });
     const gs = save.loadGameState();
-    expect(gs.carriers.basket1).toEqual({ content: 'hay', count: 3 });
+    expect(gs.carriers.basket2).toEqual({ content: 'hay', count: 3 });
+    expect(gs.activeCarrier).toEqual({ basket: 'basket2', bucket: 'bucket3' });
   });
 
-  it('discards a stale discrete-item hotbar (no basket1) for the default layout', () => {
+  it('migrates a pre-grouping per-carrier hotbar to the grouped default (#75)', () => {
+    globalThis.localStorage.setItem(GAME_STATE_KEY, JSON.stringify({
+      hotbar: ['basket1', 'basket2', 'basket3', 'bucket1', 'bucket2', 'bucket3', 'brush', 'saddle', 'lead', ''],
+      inventory: {}, carriers: { basket1: { content: 'apple', count: 2 } },
+    }));
+    const gs = save.loadGameState();
+    expect(gs.hotbar).toContain('basketGroup');
+    expect(gs.hotbar).not.toContain('basket1');
+    // Member contents survive the migration; only the layout changes.
+    expect(gs.carriers.basket1).toEqual({ content: 'apple', count: 2 });
+    expect(gs.activeCarrier).toEqual({ basket: 'basket1', bucket: 'bucket1' });
+  });
+
+  it('discards a stale discrete-item hotbar for the grouped default layout', () => {
     globalThis.localStorage.setItem(GAME_STATE_KEY, JSON.stringify({
       hotbar: ['hay', 'apple', 'carrot', 'water', 'brush'], inventory: {}, carriers: {},
     }));
     const gs = save.loadGameState();
-    expect(gs.hotbar).toContain('basket1');
+    expect(gs.hotbar).toContain('basketGroup');
   });
 });
 

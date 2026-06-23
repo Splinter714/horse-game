@@ -2,7 +2,7 @@
 // guard the data-driven inventory contract that the rest of the game reads.
 
 import { describe, it, expect } from 'vitest';
-import { CARRIER_DEFS, CONTENT_DEFS, ALL_ITEMS, ITEM_MAP, ITEMS } from './items.js';
+import { CARRIER_DEFS, CONTENT_DEFS, CARRIER_GROUPS, CARRIER_MEMBERS, ALL_ITEMS, ITEM_MAP, ITEMS } from './items.js';
 
 describe('carrier definitions', () => {
   it('baskets hold solids, buckets hold liquids', () => {
@@ -28,16 +28,37 @@ describe('content definitions', () => {
 });
 
 describe('hotbar items', () => {
-  it('exposes 3 baskets + 3 buckets + the tools', () => {
-    const carriers = ALL_ITEMS.filter((i) => i.type === 'carrier');
-    const tools = ALL_ITEMS.filter((i) => i.type === 'tool');
-    expect(carriers.map((c) => c.key)).toEqual(['basket1', 'basket2', 'basket3', 'bucket1', 'bucket2', 'bucket3']);
+  it('exposes the 2 carrier groups + the tools (members are grouped, #75)', () => {
+    const groups = ALL_ITEMS.filter((i) => i.type === 'carrierGroup');
+    const tools  = ALL_ITEMS.filter((i) => i.type === 'tool');
+    expect(groups.map((g) => g.key)).toEqual(['basketGroup', 'bucketGroup']);
     expect(tools.map((t) => t.key)).toEqual(['brush', 'saddle', 'lead']);
+    // The individual members aren't listed in the hotbar/inventory any more.
+    expect(ALL_ITEMS.some((i) => i.type === 'carrier')).toBe(false);
   });
 
   it('ITEM_MAP keys every item and ITEMS aliases ALL_ITEMS', () => {
     expect(ITEM_MAP.brush.action).toBe('brush');
     expect(ITEM_MAP.hand).toBeUndefined(); // the hand tool was retired
     expect(ITEMS).toBe(ALL_ITEMS);
+  });
+});
+
+describe('carrier groups (#75)', () => {
+  it('each group maps to its three member carriers', () => {
+    expect(CARRIER_GROUPS.basketGroup.members).toEqual(['basket1', 'basket2', 'basket3']);
+    expect(CARRIER_GROUPS.bucketGroup.members).toEqual(['bucket1', 'bucket2', 'bucket3']);
+    expect(CARRIER_GROUPS.basketGroup.carrier).toBe('basket');
+    expect(CARRIER_GROUPS.bucketGroup.carrier).toBe('bucket');
+  });
+
+  it('ITEM_MAP still resolves every member key (so a group can resolve to one)', () => {
+    for (const m of CARRIER_MEMBERS) {
+      expect(ITEM_MAP[m.key]).toBeDefined();
+      expect(ITEM_MAP[m.key].type).toBe('carrier');
+    }
+    // …and the group keys resolve to a group item carrying its member list.
+    expect(ITEM_MAP.basketGroup.type).toBe('carrierGroup');
+    expect(ITEM_MAP.basketGroup.members).toEqual(['basket1', 'basket2', 'basket3']);
   });
 });
