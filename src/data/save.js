@@ -82,10 +82,11 @@ export function saveAllChickens(allChickens) {
 
 const GAME_STATE_KEY = 'horse-game-state-v1';
 
-// Grouped carrier hotbar (#75): the 3 baskets collapse into one "Basket" slot and
-// the 3 buckets into one "Bucket" slot (each a fly-out picker), alongside the
-// tools. No "hand" slot — interacting is the universal default (tap/click/E).
-const DEFAULT_HOTBAR = ['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead', '', '', '', '', ''];
+// Grouped carrier hotbar (#75), trimmed to just the slots we use (#118): the
+// baskets collapse into one "Basket" slot and the buckets into one "Bucket" slot
+// (each a fly-out picker), plus the three tools. Five slots, keys 1–5. Add more as
+// new tools/items arrive. No "hand" slot — interacting is the universal default.
+const DEFAULT_HOTBAR = ['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead'];
 
 // Which member of each carrier group is currently active in its grouped slot.
 function defaultActiveCarrier() {
@@ -126,7 +127,9 @@ export function loadGameState() {
     // discrete-item hotbar, or any layout still carrying the retired "hand" tool.
     // A layout that already uses the group keys is kept as the player left it.
     const saved = Array.isArray(data.hotbar) ? data.hotbar : [];
-    const hotbar = saved.includes('basketGroup') ? saved : [...DEFAULT_HOTBAR];
+    // Keep a grouped layout as-is, else fall to the default; then trim to the
+    // current slot count so older 10-slot saves collapse to 5 (#118).
+    const hotbar = (saved.includes('basketGroup') ? saved : [...DEFAULT_HOTBAR]).slice(0, DEFAULT_HOTBAR.length);
     return {
       hotbar,
       inventory:     { ...defaultInventory(),     ...(data.inventory ?? {}) },

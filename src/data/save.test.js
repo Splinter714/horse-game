@@ -172,6 +172,20 @@ describe('game state (hotbar / carriers)', () => {
     expect(gs.activeCarrier).toEqual({ basket: 'basket1', bucket: 'bucket1' });
   });
 
+  it('defaults to a trimmed 5-slot hotbar (#118)', () => {
+    const gs = save.loadGameState();
+    expect(gs.hotbar).toEqual(['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead']);
+  });
+
+  it('trims an older 10-slot grouped save down to 5 slots (#118)', () => {
+    globalThis.localStorage.setItem(GAME_STATE_KEY, JSON.stringify({
+      hotbar: ['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead', '', '', '', '', ''],
+      inventory: {}, carriers: {},
+    }));
+    const gs = save.loadGameState();
+    expect(gs.hotbar).toEqual(['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead']);
+  });
+
   it('round-trips a saved game state including the active group members (#75)', () => {
     save.saveGameState({
       hotbar: ['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead', '', '', '', '', ''],

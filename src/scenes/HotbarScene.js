@@ -10,7 +10,9 @@ const PAUSABLE_SCENES = ['PaddockScene', 'DayNightScene', 'InfoPanelScene'];
 
 const SLOT_SIZE = 52;
 const SLOT_GAP  = 6;
-const NUM_SLOTS = 10;
+// Only as many slots as we actually use (2 carrier groups + 3 tools). Add more
+// here as new tools/items arrive rather than pre-allocating empties (#118).
+const NUM_SLOTS = 5;
 const INV_COLS  = 5;
 const INV_ROWS  = 10;
 // A carrier fly-out picker auto-dismisses after this long if you don't pick from
@@ -57,7 +59,7 @@ export default class HotbarScene extends Phaser.Scene {
     this._buildHotbar();
 
     const KEY_NAMES = ['ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN','EIGHT','NINE','ZERO'];
-    KEY_NAMES.forEach((name, i) => {
+    KEY_NAMES.slice(0, NUM_SLOTS).forEach((name, i) => {
       this.input.keyboard.on(`keydown-${name}`, () => this._pressSlot(i));
     });
     this.input.keyboard.on('keydown-I', () => this._toggleInventory());
