@@ -31,8 +31,8 @@ export const CONTENT_DEFS = {
 // state) — only the *hotbar layout* references the group keys; a group resolves
 // to its currently-active member when you fill/use/render it.
 export const CARRIER_GROUPS = {
-  basketGroup: { carrier: 'basket', label: 'Basket', members: ['basket1', 'basket2', 'basket3'] },
-  bucketGroup: { carrier: 'bucket', label: 'Bucket', members: ['bucket1', 'bucket2', 'bucket3'] },
+  basketGroup: { carrier: 'basket', label: 'Basket', members: ['basket1', 'basket2', 'basket3', 'basket4'] },
+  bucketGroup: { carrier: 'bucket', label: 'Bucket', members: ['bucket1', 'bucket2', 'bucket3', 'bucket4'] },
 };
 
 // The individual carrier members. Kept in ITEM_MAP (so a group resolves to one),
@@ -41,9 +41,11 @@ export const CARRIER_MEMBERS = [
   { key: 'basket1', label: 'Basket', type: 'carrier', carrier: 'basket' },
   { key: 'basket2', label: 'Basket', type: 'carrier', carrier: 'basket' },
   { key: 'basket3', label: 'Basket', type: 'carrier', carrier: 'basket' },
+  { key: 'basket4', label: 'Basket', type: 'carrier', carrier: 'basket' },
   { key: 'bucket1', label: 'Bucket', type: 'carrier', carrier: 'bucket' },
   { key: 'bucket2', label: 'Bucket', type: 'carrier', carrier: 'bucket' },
   { key: 'bucket3', label: 'Bucket', type: 'carrier', carrier: 'bucket' },
+  { key: 'bucket4', label: 'Bucket', type: 'carrier', carrier: 'bucket' },
 ];
 
 // Group items, as they appear in the hotbar/inventory.

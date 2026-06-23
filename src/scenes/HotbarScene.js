@@ -413,10 +413,22 @@ export default class HotbarScene extends Phaser.Scene {
 
   _drawSlot(g, x, y, ss, radius, active) {
     g.clear();
-    g.fillStyle(active ? 0x2a3050 : 0x1a1e30, active ? 0.95 : 0.85);
-    g.fillRoundedRect(x, y, ss, ss, radius);
-    g.lineStyle(2, active ? 0xe8c84a : 0x3a4060, 1);
-    g.strokeRoundedRect(x, y, ss, ss, radius);
+    if (active) {
+      // Bold "selected" treatment so it's unmistakable which slot / fly-out member
+      // is active: a soft gold glow ring behind, a noticeably brighter fill, and a
+      // thick bright-gold border (#75 follow-up).
+      g.fillStyle(0xffd24a, 0.22);
+      g.fillRoundedRect(x - 3, y - 3, ss + 6, ss + 6, radius + 2);
+      g.fillStyle(0x44508a, 1);
+      g.fillRoundedRect(x, y, ss, ss, radius);
+      g.lineStyle(4, 0xffe066, 1);
+      g.strokeRoundedRect(x, y, ss, ss, radius);
+    } else {
+      g.fillStyle(0x1a1e30, 0.85);
+      g.fillRoundedRect(x, y, ss, ss, radius);
+      g.lineStyle(2, 0x3a4060, 1);
+      g.strokeRoundedRect(x, y, ss, ss, radius);
+    }
   }
 
   _setActive(index) {
@@ -500,8 +512,11 @@ export default class HotbarScene extends Phaser.Scene {
     this._flyoutNodes.push(catcher);
 
     const active = this._resolveKey(key);
+    const n = group.members.length;
     group.members.forEach((mKey, idx) => {
-      const ey = stripTop - (idx + 1) * (ss + gap); // idx 0 nearest the slot, going up
+      // First member at the top, last nearest the slot — so re-pressing the slot's
+      // key cycles the highlight top → bottom through the list (#75 follow-up).
+      const ey = stripTop - (n - idx) * (ss + gap);
       const isActive = mKey === active;
 
       const g = this.add.graphics().setDepth(41);

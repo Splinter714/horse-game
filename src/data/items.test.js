@@ -45,9 +45,9 @@ describe('hotbar items', () => {
 });
 
 describe('carrier groups (#75)', () => {
-  it('each group maps to its three member carriers', () => {
-    expect(CARRIER_GROUPS.basketGroup.members).toEqual(['basket1', 'basket2', 'basket3']);
-    expect(CARRIER_GROUPS.bucketGroup.members).toEqual(['bucket1', 'bucket2', 'bucket3']);
+  it('each group maps to its four member carriers', () => {
+    expect(CARRIER_GROUPS.basketGroup.members).toEqual(['basket1', 'basket2', 'basket3', 'basket4']);
+    expect(CARRIER_GROUPS.bucketGroup.members).toEqual(['bucket1', 'bucket2', 'bucket3', 'bucket4']);
     expect(CARRIER_GROUPS.basketGroup.carrier).toBe('basket');
     expect(CARRIER_GROUPS.bucketGroup.carrier).toBe('bucket');
   });
@@ -59,6 +59,6 @@ describe('carrier groups (#75)', () => {
     }
     // …and the group keys resolve to a group item carrying its member list.
     expect(ITEM_MAP.basketGroup.type).toBe('carrierGroup');
-    expect(ITEM_MAP.basketGroup.members).toEqual(['basket1', 'basket2', 'basket3']);
+    expect(ITEM_MAP.basketGroup.members).toEqual(['basket1', 'basket2', 'basket3', 'basket4']);
   });
 });

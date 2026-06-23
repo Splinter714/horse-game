@@ -104,9 +104,11 @@ function defaultCarriers() {
     basket1: { content: null, count: 0 },
     basket2: { content: null, count: 0 },
     basket3: { content: null, count: 0 },
+    basket4: { content: null, count: 0 },
     bucket1: { content: null, count: 0 },
     bucket2: { content: null, count: 0 },
     bucket3: { content: null, count: 0 },
+    bucket4: { content: null, count: 0 },
   };
 }
 
