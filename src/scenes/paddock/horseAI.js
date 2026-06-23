@@ -212,11 +212,14 @@ export const WithHorseAI = (Base) => class extends Base {
   // the trough is already busy) so the caller can wander instead.
   horseGoDrink(h) {
     const trough = this.props.trough;
-    // Limit to 2 horses at the trough at once
-    const atTrough = this.horses.filter(o => o !== h && o.state === 'drinking').length;
+    // Limit to 2 horses at the trough at once. Stream drinkers also use the
+    // 'drinking' state but carry a _streamSpot claim (#108) — exclude them so the
+    // trough count (and the opposite-end partner below) only sees trough drinkers.
+    const atTrough = this.horses.filter(o => o !== h && o.state === 'drinking' && !o._streamSpot).length;
     if (atTrough >= 2) return false;
 
     h.state = 'drinking';
+    h._streamSpot = null; // this horse is at the trough now, not the stream
     if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
     if (h._begTimer) { this.time.removeEvent(h._begTimer); h._begTimer = null; }
 
@@ -226,7 +229,7 @@ export const WithHorseAI = (Base) => class extends Base {
     // at the nearest clear cell (usually south of it). ±106 = half-width (88) +
     // body radius + margin, so the end anchors are actually reachable. Two horses
     // take opposite ends so they never stack; a lone horse takes the nearer end.
-    const other = this.horses.find(o => o !== h && o.state === 'drinking');
+    const other = this.horses.find(o => o !== h && o.state === 'drinking' && !o._streamSpot);
     const onWest = other ? other._drinkEnd !== 'west' : h.sprite.x <= trough.x;
     h._drinkEnd = onWest ? 'west' : 'east';
     const facingRight = onWest; // face inward toward the water
@@ -271,7 +274,9 @@ export const WithHorseAI = (Base) => class extends Base {
   // field-side of the water facing it, so it doesn't read as head-down over the
   // grassy bank (cf. #76).
   horseGoToStream(h) {
-    const source = this._nearestReachableWater(h);
+    // Claim a distinct spot along the bank so drinkers spread out (#108) instead
+    // of all converging on the single nearest point.
+    const source = this._claimStreamSource(h);
     if (!source?.bank) return false;
 
     h.state = 'drinking';
@@ -283,6 +288,7 @@ export const WithHorseAI = (Base) => class extends Base {
     const [bx, by] = source.bank;
     const [nx, ny] = source.nrm;
     const tx = bx + nx * 48, ty = by + ny * 48;
+    h._streamSpot = { x: tx, y: ty }; // reserve this anchor while heading there / drinking
     const faceLeft = nx > 0;
 
     this.moveCreatureTo(h, tx, ty, () => {
@@ -306,12 +312,40 @@ export const WithHorseAI = (Base) => class extends Base {
             if (h.eatTimer) { this.time.removeEvent(h.eatTimer); h.eatTimer = null; }
             h.sprite.play(`idle_${h.key}`, true);
             h.state = 'idle';
+            h._streamSpot = null; // release the bank spot for others (#108)
             this.scheduleWander(h, 1500);
           }
         },
       });
     });
     return true;
+  }
+
+  // Pick a distinct stream anchor for this horse so drinkers spread out along the
+  // bank rather than stacking on the single nearest spot (#108). Each stream
+  // source carries a `bank` centreline; the drink anchor is `bank + nrm*48` (see
+  // horseGoToStream). We take the nearest reachable anchor that isn't already
+  // claimed by another horse currently heading to / drinking at the stream (kept
+  // ≈ a body-width apart). If every nearby spot is taken, fall back to the plain
+  // nearest so the horse still drinks.
+  _claimStreamSource(h) {
+    const srcs = this.props.sources?.filter(s => s.content === 'water' && s.bank);
+    if (!srcs?.length) return null;
+    const gateOpen = this._gateOpen();
+    const MIN_SPACING = 96; // ≈ a horse body-width, so anchors don't overlap
+    const anchorOf = (s) => ({ x: s.bank[0] + s.nrm[0] * 48, y: s.bank[1] + s.nrm[1] * 48 });
+    const taken = this.horses
+      .filter(o => o !== h && o.state === 'drinking' && o._streamSpot)
+      .map(o => o._streamSpot);
+    let closest = null, closestDist = Infinity;
+    for (const s of srcs) {
+      if (!this._inPasture(s.x, s.y) && !gateOpen) continue;
+      const a = anchorOf(s);
+      if (taken.some(p => Phaser.Math.Distance.Between(p.x, p.y, a.x, a.y) < MIN_SPACING)) continue;
+      const d = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, a.x, a.y);
+      if (d < closestDist) { closestDist = d; closest = s; }
+    }
+    return closest ?? this._nearestReachableWater(h);
   }
 
   // Ambient grazing (#86): a peckish horse lowers its head and nibbles the grass
