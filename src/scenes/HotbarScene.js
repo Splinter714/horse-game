@@ -3,6 +3,7 @@ import { ALL_ITEMS, ITEM_MAP, CARRIER_DEFS, CONTENT_DEFS } from '../data/items.j
 import { loadGameState, saveGameState, loadUiSettings, saveUiSettings } from '../data/save.js';
 import { toggleMute, isMuted, setVolume, getAudioSettings } from '../audio/sounds.js';
 import { EVENTS } from '../data/events.js';
+import { growHitArea } from './uiUtils.js';
 
 // Gameplay scenes frozen while the pause menu is open
 const PAUSABLE_SCENES = ['PaddockScene', 'DayNightScene', 'InfoPanelScene'];
@@ -130,6 +131,7 @@ export default class HotbarScene extends Phaser.Scene {
       backgroundColor: '#111622cc',
       padding: { x: 6, y: 3 },
     }).setOrigin(0, 0).setDepth(2).setInteractive({ useHandCursor: true });
+    growHitArea(this._pauseBtn); // comfortable tap target (#100)
     this._pauseBtn.on('pointerdown', () => this._togglePause());
 
     // Money label — created empty, filled by _updateStatusLabels
@@ -181,7 +183,12 @@ export default class HotbarScene extends Phaser.Scene {
         }
       }
 
-      const zone = this.add.zone(x, slotY, ss, ss).setOrigin(0, 0).setInteractive().setDepth(5);
+      // Tap target is a full-height column (strip top → screen bottom) spanning
+      // the slot plus its gap, so small slots on phones stay easy to hit (#100).
+      // Columns tile exactly with no overlap; the Use button sits higher up.
+      const colTop = slotY - 8;
+      const zone = this.add.zone(x - sg / 2, colTop, ss + sg, sh - colTop)
+        .setOrigin(0, 0).setInteractive().setDepth(5);
       zone.on('pointerdown', () => {
         if (this.invOpen) this._closeInventory();
         this._setActive(i);
@@ -197,8 +204,9 @@ export default class HotbarScene extends Phaser.Scene {
   // Sits just above the right end of the hotbar strip. Dimmed when the active
   // slot is empty (nothing to use). Mirrors F / controller-X.
   _buildUseButton(startX, totalW, slotY, ss, radius, fit) {
-    const useW = Math.max(60, Math.floor(88 * fit));
-    const useH = Math.max(26, Math.floor(38 * fit));
+    // The primary action — keep it generously sized even on small screens (#100).
+    const useW = Math.max(72, Math.floor(96 * fit));
+    const useH = Math.max(40, Math.floor(44 * fit));
     const ux   = startX + totalW - useW;
     const uy   = slotY - useH - 14;
 
@@ -214,8 +222,11 @@ export default class HotbarScene extends Phaser.Scene {
       color: '#cdd6ff',
     }).setOrigin(0.5, 1).setDepth(3);
 
-    const zone = this.add.zone(ux, uy, useW, useH).setOrigin(0, 0)
-      .setInteractive({ useHandCursor: true }).setDepth(5);
+    // Pad the touch zone beyond the visual button — extra room up/left/right and
+    // a touch below (without reaching the slot columns at slotY-8) (#100).
+    const padX = 10, padTop = 12, padBot = 6;
+    const zone = this.add.zone(ux - padX, uy - padTop, useW + padX * 2, useH + padTop + padBot)
+      .setOrigin(0, 0).setInteractive({ useHandCursor: true }).setDepth(5);
     zone.on('pointerup', () => {
       if (this.invOpen) return;
       this.scene.get('PaddockScene')?.useActiveTool();
@@ -378,6 +389,7 @@ export default class HotbarScene extends Phaser.Scene {
     const closeBtn = this.add.text(px + panelW - 10, py + 10, '✕', {
       fontFamily: 'system-ui, sans-serif', fontSize: '15px', color: '#8090b0',
     }).setOrigin(1, 0).setDepth(104).setInteractive({ useHandCursor: true });
+    growHitArea(closeBtn); // (#100)
     closeBtn.on('pointerdown', () => this._closeInventory());
     this._invNodes.push(closeBtn);
 
@@ -544,6 +556,7 @@ export default class HotbarScene extends Phaser.Scene {
     const closeBtn = this.add.text(px + panelW - 12, py + 10, '✕', {
       fontFamily: 'system-ui, sans-serif', fontSize: '16px', color: '#8090b0',
     }).setOrigin(1, 0).setDepth(104).setInteractive({ useHandCursor: true });
+    growHitArea(closeBtn); // (#100)
     closeBtn.on('pointerdown', () => this._closePause());
     this._pauseNodes.push(closeBtn);
 
@@ -599,7 +612,7 @@ export default class HotbarScene extends Phaser.Scene {
     };
     draw();
 
-    const zone = this.add.zone(trackX - 8, y, trackW + 16, 32)
+    const zone = this.add.zone(trackX - 8, y - 4, trackW + 16, 40)
       .setOrigin(0, 0).setInteractive({ useHandCursor: true, draggable: true }).setDepth(105);
     const setFromX = (px) => {
       v = Math.max(0, Math.min(1, (px - trackX) / trackW));

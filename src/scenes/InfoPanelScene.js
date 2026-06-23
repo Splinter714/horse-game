@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { getSpecies } from '../data/species/index.js';
+import { growHitArea } from './uiUtils.js';
 
 // Lightweight, ephemeral info popup for any animal. It's a small floating card
 // (not a modal panel) that auto-dismisses the moment you do almost anything else:
@@ -189,6 +190,7 @@ export default class InfoPanelScene extends Phaser.Scene {
     const closeBtn = this.add.text(CARD_W - 12, 12, '✕', {
       fontFamily: 'system-ui, sans-serif', fontSize: '20px', color: '#9a9790',
     }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+    growHitArea(closeBtn); // comfortable tap target (#100)
     closeBtn.on('pointerdown', () => this.close());
     this.panel.add(closeBtn);
 
