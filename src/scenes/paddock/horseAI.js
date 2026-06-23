@@ -22,56 +22,13 @@ export const WithHorseAI = (Base) => class extends Base {
     return x >= pb.minX && x <= pb.maxX && y >= pb.minY && y <= pb.maxY;
   }
 
-  // Returns true if horse was directed somewhere; false if it should wander normally.
+  // Decide what a single horse does this tick. The decision is now data-driven:
+  // the species' ordered `behaviors` list (seekFood → seekWater → begPlayer) is
+  // walked by the generic dispatcher (see WithBehaviors / behaviors.js), which
+  // reuses the eat/drink/beg primitives below unchanged. Returns true if the horse
+  // was directed somewhere; false if it should wander normally.
   horseTickForHorse(h) {
-    const allHorses = this.registry.get('allHorses');
-    const horseData = allHorses[h.key];
-    if (!horseData) return false;
-
-    if (horseData.stats.hunger < 95 && this.props.hayPiles.length > 0) {
-      const gateOpen = !!this.props.gate?.open;
-      let closest = null, closestDist = Infinity;
-      for (const pile of this.props.hayPiles) {
-        // Hay outside the fence is only reachable when the gate is open
-        if (!this._inPasture(pile.x, pile.y) && !gateOpen) continue;
-        const d = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, pile.x, pile.y);
-        if (d < closestDist) { closestDist = d; closest = pile; }
-      }
-      // Only claim the tick if the horse actually started heading to eat.
-      // (horseGoEat bails if another horse already took this pile — in which
-      // case we must fall through so the horse still wanders, never stranding
-      // it idle with no pending move. Same idea for the trough below.)
-      if (closest && closestDist < 700 && this.horseGoEat(h, closest)) {
-        return true;
-      }
-    }
-
-    if (horseData.stats.thirst < 95 && this.props.trough?.filled &&
-        this._inPasture(this.props.trough.x, this.props.trough.y)) {
-      const td = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, this.props.trough.x, this.props.trough.y);
-      if (td < 1000 && this.horseGoDrink(h)) {
-        return true;
-      }
-    }
-
-    // Hungry → go find the player and beg for food. With the gate open the horse
-    // walks all the way out to wherever you are; with it shut it walks to the gate
-    // (the choke point) and waits there — same intent, the gate just decides how
-    // far it gets. Lazy horses can't be bothered. When the gate's shut we only
-    // bother if the player is fairly near, so they read as "here comes breakfast"
-    // rather than pressing the fence forever. Throttled per horse. (issue #26)
-    if (horseData.stats.hunger < BEG.HUNGER && horseData.temperament !== 'lazy' && this.player) {
-      const gateOpen = !!this.props.gate?.open;
-      const pd = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, this.player.sprite.x, this.player.sprite.y);
-      if (gateOpen || pd < BEG.NOTICE_DIST) {
-        const now = this.time.now;
-        if (!h._lastSeek || now - h._lastSeek > BEG.THROTTLE_MS) {
-          if (this._horseBeg(h)) { h._lastSeek = now; return true; }
-        }
-      }
-    }
-
-    return false;
+    return this.runBehaviors(h);
   }
 
   // Hungry horse goes to beg the player for food. If the gate is open it walks all

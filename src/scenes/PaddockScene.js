@@ -18,6 +18,7 @@ import { WithCreatures } from './paddock/creatures.js';
 import { WithFarmStand } from './paddock/farmStand.js';
 import { WithDayNight } from './paddock/dayNight.js';
 import { WithHorseAI } from './paddock/horseAI.js';
+import { WithBehaviors } from './paddock/behaviors.js';
 import { WithRiding } from './paddock/riding.js';
 import { WithPlayer } from './paddock/player.js';
 
@@ -25,7 +26,7 @@ import { WithPlayer } from './paddock/player.js';
 const SOUND_FNS = { eat: playEat, drink: playDrink, brush: playBrush, chime: playChime };
 
 export default class PaddockScene
-  extends WithWorld(WithCreatures(WithFarmStand(WithDayNight(WithHorseAI(WithRiding(WithPlayer(Phaser.Scene))))))) {
+  extends WithWorld(WithCreatures(WithFarmStand(WithDayNight(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(Phaser.Scene)))))))) {
   constructor() {
     super('PaddockScene');
   }

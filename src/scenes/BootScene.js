@@ -4,7 +4,7 @@ import { buildAnimalTextures, CHICKEN_COATS } from '../art/animalArt.js';
 import { buildHorseTextures, buildFoalTextures } from '../art/horseArt.js';
 import { buildPortraitTexture, buildChickenPortraitTexture } from '../art/portraitArt.js';
 import { buildPlayerTextures } from '../art/playerArt.js';
-import { getCoat } from '../data/coats.js';
+import { getCoat } from '../data/species/horse/coats.js';
 import { loadAllHorses, loadAllChickens } from '../data/save.js';
 
 export default class BootScene extends Phaser.Scene {

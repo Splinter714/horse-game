@@ -1,6 +1,7 @@
 // Creatures: generic animal + chicken behavior, foals, and horse spawning +
 // wandering/need-driven movement/rolling. Applied as a functional mixin so `this`
-// is the scene. (Data-driven behavior-registry generalization is a later phase.)
+// is the scene. Per-bird AI decisions are now data-driven: chickenTick delegates to
+// the behavior dispatcher (behaviors.js), which reuses the primitives below.
 
 import Phaser from 'phaser';
 import { EVENTS } from '../../data/events.js';
@@ -160,34 +161,19 @@ export const WithCreatures = (Base) => class extends Base {
   scheduleWander(h, delay)       { this.scheduleCreatureWander(h, delay); }
 
 
+  // The 2s flock driver. The per-bird decision (peck dropped seed → follow a
+  // seed-carrying player → crowd the grain bin) is now data-driven: the chicken
+  // species' `behaviors` list is walked by the generic dispatcher (WithBehaviors /
+  // behaviors.js), which reuses chickenGoEat/chickenFollow/chickenGatherAt below.
   chickenTick() {
     if (this.isNight) return;
-    const gateOpen = !!this.props.gate?.open;
-
-    // A basket with seed in the active hand lures the whole flock — they trail
-    // the player around hoping to be fed.
-    const item = this.getActiveItem();
-    const luring = !!this.player && item?.carrier === 'basket' &&
-                   item.content === 'seed' && item.count > 0;
-
-    // Fresh-morning anticipation: until they've been fed today, the chickens
-    // crowd the grain bin waiting for breakfast.
-    const grainBin = this.props.sources?.find(s => s.content === 'seed');
-    const anticipating = this._phase === 'Morning' && !this._chickensFedToday && !!grainBin;
-
     for (const a of this.animals) {
       if (!a.key.startsWith('chicken')) continue;
       // Only redirect a chicken that's free to move — never yank one out of
       // eating, laying, roosting, or leaving the coop.
       if (!['idle', 'wandering', 'following', 'gathering'].includes(a.state)) continue;
 
-      // Dropped seed on the ground always wins — go peck it.
-      const pile = this._nearestReachableSeed(a, gateOpen);
-      if (pile) { this.chickenGoEat(a, pile); continue; }
-
-      // Otherwise follow a seed-carrying player, or crowd the bin in the morning.
-      if (luring)            { this.chickenFollow(a); continue; }
-      if (anticipating)      { this.chickenGatherAt(a, grainBin); continue; }
+      if (this.runBehaviors(a)) continue;
 
       // Nothing pulling at it anymore — resume ordinary wandering.
       if (a.state === 'following' || a.state === 'gathering') {
