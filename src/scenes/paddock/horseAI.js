@@ -211,11 +211,17 @@ export const WithHorseAI = (Base) => class extends Base {
     if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
     if (h._begTimer) { this.time.removeEvent(h._begTimer); h._begTimer = null; }
 
-    // Spread horses along the trough length so they don't stack
-    const slot = atTrough; // 0 or 1
-    const facingRight = trough.x >= h.sprite.x;
-    const spread = (slot === 0 ? -30 : 30);
-    const tx = trough.x + spread + (facingRight ? -70 : 70);
+    // Drink from a trough END, level with it — never from a spot south of it
+    // that reads as grazing on grass. The old target sat near the trough centre,
+    // which is *inside* the trough's own collision box, so the pathfinder bailed
+    // at the nearest clear cell (usually south of it). ±106 = half-width (88) +
+    // body radius + margin, so the end anchors are actually reachable. Two horses
+    // take opposite ends so they never stack; a lone horse takes the nearer end.
+    const other = this.horses.find(o => o !== h && o.state === 'drinking');
+    const onWest = other ? other._drinkEnd !== 'west' : h.sprite.x <= trough.x;
+    h._drinkEnd = onWest ? 'west' : 'east';
+    const facingRight = onWest; // face inward toward the water
+    const tx = trough.x + (onWest ? -106 : 106);
     const ty = trough.y;
 
     // Pathfind to the trough, around obstacles and through the gate if outside.
