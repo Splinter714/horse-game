@@ -70,6 +70,7 @@ export const WithDayNight = (Base) => class extends Base {
     for (const h of this.horses) stopOne(h);
     for (const a of this.animals) {
       if (a.key.startsWith('chicken')) this.chickenRoost(a);
+      else if (a.key === 'cat')        this.catGoHome(a);
       else stopOne(a);
     }
     // Send any visiting NPCs away at night
@@ -110,6 +111,8 @@ export const WithDayNight = (Base) => class extends Base {
       if (a._sleepTimer) { this.time.removeEvent(a._sleepTimer); a._sleepTimer = null; }
       if (a.key.startsWith('chicken')) {
         if (a.state === 'roosting') this.chickenLeaveCoop(a);
+      } else if (a.key === 'cat') {
+        if (a.state === 'homing') this.catLeaveHome(a);
       } else if (a.state === 'resting') {
         a.state = 'idle'; this.scheduleAnimalWander(a, Phaser.Math.Between(500, 3000));
       }
@@ -170,6 +173,60 @@ export const WithDayNight = (Base) => class extends Base {
         if (!a.sprite.active) return;
         a.sprite.setAlpha(1);
         if (this.isNight) { this.chickenRoost(a); return; }
+        a.state = 'idle';
+        this.scheduleAnimalWander(a, Phaser.Math.Between(300, 2500));
+      },
+    });
+  }
+
+  // The barn front-centre, just south of the barn's collision box so it's a
+  // reachable spot (the box covers the building itself). Used as the cat's home.
+  _barnEntry() {
+    const barn = this.props.barn;
+    return { x: barn.x, y: barn.y + 44 }; // ≈ (240, 294), clear of the barn walls
+  }
+
+  // Nightfall: the cat heads home to the barn to sleep (#90), pathing there
+  // around obstacles, then slipping inside (fade up + out of view) like the
+  // chickens roost in the coop.
+  catGoHome(a) {
+    if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
+    if (a._sleepTimer) { this.time.removeEvent(a._sleepTimer); a._sleepTimer = null; }
+    a._eatPile = null;
+    a.state = 'homing';
+
+    const { x: ex, y: ey } = this._barnEntry();
+    this.moveCreatureTo(a, ex, ey, () => {
+      if (a.state !== 'homing' || !a.sprite.active) return;
+      a.shadow.setVisible(false);
+      a.sprite.setFlipX(false);
+      a.sprite.play(`idle_${a.key}`, true);
+      a.wanderTween = this.tweens.add({
+        targets: a.sprite, y: ey - 16, alpha: 0, // step up into the barn, fading
+        duration: 600, ease: 'Sine.easeIn',
+        onComplete: () => {
+          a.wanderTween = null;
+          if (a.state === 'homing') a.sprite.setVisible(false);
+        },
+      });
+    });
+  }
+
+  // Morning: the cat re-emerges from the barn and resumes prowling.
+  catLeaveHome(a) {
+    if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
+    const { x: ex, y: ey } = this._barnEntry();
+    a.state = 'leaving';
+    a.sprite.setPosition(ex, ey - 16).setAlpha(0).setVisible(true);
+    a.shadow.setPosition(ex, ey).setVisible(true);
+    a.sprite.play(`idle_${a.key}`, true);
+    a.wanderTween = this.tweens.add({
+      targets: a.sprite, y: ey, alpha: 1,
+      duration: 600, ease: 'Sine.easeOut',
+      onComplete: () => {
+        a.wanderTween = null;
+        if (!a.sprite.active) return;
+        if (this.isNight) { this.catGoHome(a); return; }
         a.state = 'idle';
         this.scheduleAnimalWander(a, Phaser.Math.Between(300, 2500));
       },
