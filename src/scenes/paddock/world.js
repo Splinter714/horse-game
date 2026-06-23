@@ -7,16 +7,22 @@ import { WORLD_W, WORLD_H, PASTURE_BOUNDS, GATE_GAP_X0, GATE_GAP_X1, S } from '.
 export const WithWorld = (Base) => class extends Base {
   // ─── World ───────────────────────────────────────────────────────────────
 
-  // A worn dirt path linking the main spots — barn ↔ farm stand ↔ gate (#85).
-  // Purely cosmetic (no collision): a ground layer just above the grass and below
-  // props/animals, drawn by stamping circles along each route — a darker worn edge
-  // first, then a lighter trodden centre on top.
+  // Worn dirt paths (#85). Purely cosmetic (no collision): a ground layer just
+  // above the grass and below props/animals, stamped as circles along each route —
+  // a darker worn edge first, then a lighter trodden centre on top.
+  //
+  // Two separate networks:
+  //  • the FARM path — barn → a central junction → the pasture gate, with a branch
+  //    up to the stream where you fill buckets;
+  //  • a DISCONNECTED path the customers take in from off the east edge to the
+  //    farm stand (not joined to the farm's paths).
   buildPath() {
     const g = this.add.graphics().setDepth(-95);
-    const fromBarn = [[235, 322], [470, 500], [700, 610], [900, 700]]; // barn → junction
-    const toGate   = [[900, 700], [935, 800], [960, 895]];             // junction → pasture gate
-    const toStand  = [[900, 700], [1150, 740], [1390, 780], [1590, 802]]; // junction → farm stand
-    const routes = [fromBarn, toGate, toStand];
+    const fromBarn = [[235, 322], [470, 500], [700, 610], [900, 700]];   // barn → junction
+    const toGate   = [[900, 700], [935, 800], [960, 895]];               // junction → pasture gate
+    const toStream = [[900, 700], [1180, 560], [1420, 440], [1610, 372]]; // junction → stream bank
+    const toStand  = [[1955, 742], [1800, 772], [1640, 794], [1560, 802]]; // off east edge → farm stand
+    const routes = [fromBarn, toGate, toStream, toStand];
     const stamp = (radius, color, alpha) => {
       g.fillStyle(color, alpha);
       for (const pts of routes) {
