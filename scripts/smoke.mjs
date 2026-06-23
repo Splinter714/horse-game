@@ -58,8 +58,19 @@ try {
     ];
     const missingMethods = expectMethods.filter((m) => typeof paddock[m] !== 'function');
 
+    // Exercise the unified creature movement/pathfinding (merged upstream work):
+    // both a horse and a chicken must path without throwing.
+    let movementOk = true, movementError = '';
+    try {
+      const horse = paddock.horses[0];
+      paddock.moveCreatureTo(horse, horse.sprite.x + 60, horse.sprite.y + 20, () => {});
+      const chicken = paddock.animals.find((a) => a.key.startsWith('chicken'));
+      if (chicken) { chicken.state = 'idle'; paddock.creatureWander(chicken); }
+    } catch (e) { movementOk = false; movementError = String(e); }
+
     return {
       renderer: g.config.renderType, // 1=Canvas, 2=WebGL
+      movementOk, movementError,
       horseCount: Object.keys(horses).length,
       chickenCount: Object.keys(chickens).length,
       sampleHorse: { name: h.name, species: h.species, hasMood: typeof h.mood === 'function' },
@@ -106,6 +117,7 @@ try {
   if (result.missingMethods.length) fail('PaddockScene missing methods (mixin not wired?): ' + result.missingMethods.join(', '));
   if (result.horsesInScene !== 7) fail(`expected 7 horse sprites in scene, got ${result.horsesInScene}`);
   if (!result.hasFarmStand) fail('farm stand not built — farmStand mixin not wired');
+  if (!result.movementOk) fail('creature movement/pathfinding threw: ' + result.movementError);
   if (!result.horsePanel.active) fail('InfoPanelScene did not open for a horse');
   if (result.horsePanel.parts < 15) fail(`horse panel looks too sparse (parts=${result.horsePanel.parts}) — stat bars/buttons missing?`);
   if (!result.chickenPanel.active) fail('InfoPanelScene did not open for a chicken');

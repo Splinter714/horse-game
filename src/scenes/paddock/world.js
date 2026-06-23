@@ -182,9 +182,12 @@ export const WithWorld = (Base) => class extends Base {
     }
 
     // Nest obstacles added after nests are built (in buildWorld nests are created before this)
-    // Each nest: origin 0.5,0.5 at (nx,ny); 18×12 at S=2 → 36×24
+    // Each nest: origin 0.5,0.5 at (nx,ny); 18×12 at S=2 → 36×24.
+    // home:'chicken' → nests are part of the chickens' home (like the coop), so
+    // they're excluded from the chickens' obstacle list and a hen can walk onto
+    // a nest to lay. Other creatures still treat nests as solid.
     for (const n of this.props.nests) {
-      this.obstacles.push({ x: n.x - 18, y: n.y - 12, w: 36, h: 24, isNest: true });
+      this.obstacles.push({ x: n.x - 18, y: n.y - 12, w: 36, h: 24, isNest: true, home: 'chicken' });
     }
 
     // Gathering source obstacles — solid base centered on x, bottom at y.

@@ -405,23 +405,28 @@ export const WithPlayer = (Base) => class extends Base {
 
   // True if a straight segment from (x0,y0) to (x1,y1) stays clear of obstacles
   // for a body of radius R, sampled densely enough to not skip thin walls.
-  _clearLine(x0, y0, x1, y1, R) {
+  // `obs` is the obstacle list to test against (defaults to all obstacles).
+  _clearLine(x0, y0, x1, y1, R, obs = this.obstacles) {
     const dist = Math.hypot(x1 - x0, y1 - y0);
     const steps = Math.max(1, Math.ceil(dist / 12));
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
-      if (this._collides(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, R)) return false;
+      if (this._collides(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, R, obs)) return false;
     }
     return true;
   }
 
   // Grid A* across the walkable area, returning a smoothed list of world-space
   // waypoints from just after (fromX,fromY) to (toX,toY), or null if unreachable.
-  // Used by tap-to-move so the player walks around obstacles instead of into them.
-  _findPath(fromX, fromY, toX, toY) {
-    const R = 16; // clearance — a touch more than the player's collision radius
+  // Used by every mover (player, ridden horse, and wandering animals) so they
+  // walk around obstacles instead of into them. `opts.R` is the body clearance
+  // and `opts.obstacles` is the obstacle list to avoid (e.g. a chicken's list
+  // omits its own coop/nests — its "home"). See _obstaclesFor.
+  _findPath(fromX, fromY, toX, toY, opts = {}) {
+    const R = opts.R ?? 16; // clearance — a touch more than the body's collision radius
+    const obs = opts.obstacles ?? this.obstacles;
     // Straight shot? Skip the grid search entirely.
-    if (this._clearLine(fromX, fromY, toX, toY, R)) return [{ x: toX, y: toY }];
+    if (this._clearLine(fromX, fromY, toX, toY, R, obs)) return [{ x: toX, y: toY }];
 
     const CELL = 24;
     const { minX, maxX, minY, maxY } = PLAYER_BOUNDS;
@@ -436,7 +441,7 @@ export const WithPlayer = (Base) => class extends Base {
     const blocked = new Uint8Array(N);
     for (let r = 0; r < rows; r++)
       for (let c = 0; c < cols; c++)
-        blocked[r * cols + c] = this._collides(wx(c), wy(r), R) ? 1 : 0;
+        blocked[r * cols + c] = this._collides(wx(c), wy(r), R, obs) ? 1 : 0;
 
     const startC = toC(fromX), startR = toR(fromY);
     let goalC = toC(toX), goalR = toR(toY);
@@ -501,14 +506,14 @@ export const WithPlayer = (Base) => class extends Base {
     const pts = cells.map(i => ({ x: wx(i % cols), y: wy(Math.floor(i / cols)) }));
     pts[0] = { x: fromX, y: fromY };
     const last = pts[pts.length - 1];
-    if (this._clearLine(last.x, last.y, toX, toY, R)) pts.push({ x: toX, y: toY });
+    if (this._clearLine(last.x, last.y, toX, toY, R, obs)) pts.push({ x: toX, y: toY });
 
     const smooth = [pts[0]];
     let i = 0;
     while (i < pts.length - 1) {
       let j = pts.length - 1;
       const tail = smooth[smooth.length - 1];
-      while (j > i + 1 && !this._clearLine(tail.x, tail.y, pts[j].x, pts[j].y, R)) j--;
+      while (j > i + 1 && !this._clearLine(tail.x, tail.y, pts[j].x, pts[j].y, R, obs)) j--;
       smooth.push(pts[j]);
       i = j;
     }

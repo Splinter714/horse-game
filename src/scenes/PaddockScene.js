@@ -120,14 +120,34 @@ export default class PaddockScene
 
   // ─── Food placement ──────────────────────────────────────────────────────
 
+  // A clear spot to drop food near (x,y) — never on an obstacle (trough, coop,
+  // nests, fences, farm stand…) where animals couldn't reach it. Tries the point
+  // itself, then widening rings around it; returns null if nothing nearby is free.
+  _freeFoodSpot(x, y, R = 16) {
+    const clamp = (px, py) => ({
+      x: Phaser.Math.Clamp(px, PLAYER_BOUNDS.minX, PLAYER_BOUNDS.maxX),
+      y: Phaser.Math.Clamp(py, PLAYER_BOUNDS.minY, PLAYER_BOUNDS.maxY),
+    });
+    let c = clamp(x, y);
+    if (!this._collides(c.x, c.y, R)) return c;
+    for (let r = 24; r <= 72; r += 24) {
+      for (let a = 0; a < 8; a++) {
+        const ang = (a / 8) * Math.PI * 2;
+        c = clamp(x + Math.cos(ang) * r, y + Math.sin(ang) * r);
+        if (!this._collides(c.x, c.y, R)) return c;
+      }
+    }
+    return null;
+  }
+
   // Drop one unit of food from the active basket onto the ground for horses to
-  // eat. Consumes a unit from the carrier; does nothing if it's empty.
+  // eat. Consumes a unit from the carrier; does nothing if it's empty or if
+  // there's no clear ground in front of the player to drop it on.
   placeFood(item) {
     if (!item || item.type !== 'carrier' || item.count <= 0) return;
     const content = item.content;
     const groundTex = CONTENT_DEFS[content]?.ground;
     if (!groundTex) return; // only feed-type contents drop as food
-    if ((this.scene.get('HotbarScene')?.useActiveCarrier(1) ?? 0) <= 0) return;
 
     const { sprite, facing } = this.player;
     let px = sprite.x, py = sprite.y;
@@ -135,11 +155,17 @@ export default class PaddockScene
     else if (facing === 'left')  px -= 70;
     else if (facing === 'down')  py += 50;
     else                         py -= 50;
-    px = Phaser.Math.Clamp(px + Phaser.Math.Between(-15, 15), PLAYER_BOUNDS.minX, PLAYER_BOUNDS.maxX);
-    py = Phaser.Math.Clamp(py + Phaser.Math.Between(-10, 10), PLAYER_BOUNDS.minY, PLAYER_BOUNDS.maxY);
+    px += Phaser.Math.Between(-15, 15);
+    py += Phaser.Math.Between(-10, 10);
 
-    const pileSprite = this.add.image(px, py, groundTex).setScale(S).setDepth(py);
-    const pile = { x: px, y: py, sprite: pileSprite, feedsLeft: 3 };
+    // Refuse to drop onto an obstacle — find clear ground first, and only spend
+    // the unit once we know we have somewhere valid to put it.
+    const spot = this._freeFoodSpot(px, py);
+    if (!spot) return;
+    if ((this.scene.get('HotbarScene')?.useActiveCarrier(1) ?? 0) <= 0) return;
+
+    const pileSprite = this.add.image(spot.x, spot.y, groundTex).setScale(S).setDepth(spot.y);
+    const pile = { x: spot.x, y: spot.y, sprite: pileSprite, feedsLeft: 3 };
     // Seed feeds chickens (seedPiles); everything else feeds horses (hayPiles).
     if (CONTENT_DEFS[content]?.feeds === 'chicken') this.props.seedPiles.push(pile);
     else                                            this.props.hayPiles.push(pile);

@@ -69,9 +69,9 @@ export const WithHorseAI = (Base) => class extends Base {
   }
 
   // Hungry horse heads out the open gate toward the player to beg for food, then
-  // resumes wandering. Routes via _gatePath so it never clips the fence, and
-  // stops a short distance away so the herd doesn't pile onto the player. Returns
-  // true if it set off.
+  // resumes wandering. Pathfinds (around obstacles, through the gate) and stops a
+  // short distance away so the herd doesn't pile onto the player. Returns true if
+  // it set off.
   _horseSeekPlayer(h) {
     const px = this.player.sprite.x, py = this.player.sprite.y;
     const dx = h.sprite.x - px, dy = h.sprite.y - py;
@@ -86,30 +86,14 @@ export const WithHorseAI = (Base) => class extends Base {
 
     h.state = 'wandering';
     if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
-    this._runPath(h, this._gatePath(h.sprite.x, h.sprite.y, tx, ty), () => {
+    this.moveCreatureTo(h, tx, ty, () => {
       if (!h.sprite.active) return;
-      h.wanderTween = null;
       h.sprite.play(`idle_${h.key}`, true);
       h.state = 'idle';
       this._maybeNickerAtPlayer(h);
-      this.scheduleWander(h, Phaser.Math.Between(2000, 4000));
+      this.scheduleCreatureWander(h, Phaser.Math.Between(2000, 4000));
     });
     return true;
-  }
-
-  // Waypoints from (fromX,fromY) to (tx,ty). If the path crosses the pasture
-  // fence, it's routed through the gate opening so movers never clip the fence.
-  _gatePath(fromX, fromY, tx, ty) {
-    const insideFrom = this._inPasture(fromX, fromY);
-    const insideTo   = this._inPasture(tx, ty);
-    if (insideFrom === insideTo) return [{ x: tx, y: ty }];
-
-    const gateLine = PASTURE_BOUNDS.minY;        // top fence line
-    const inPoint  = { x: GATE_X, y: gateLine + 24 };  // just inside the gate
-    const outPoint = { x: GATE_X, y: gateLine - 24 };  // just outside the gate
-    return insideFrom
-      ? [inPoint, outPoint, { x: tx, y: ty }]    // leaving the pasture
-      : [outPoint, inPoint, { x: tx, y: ty }];   // entering the pasture
   }
 
   // Move any creature (horse or animal) along a list of waypoints with walk
@@ -174,10 +158,8 @@ export const WithHorseAI = (Base) => class extends Base {
     const tx = pile.x + (facingRight ? -50 : 50);
     const ty = pile.y;
 
-    // Route through the gate if the hay is on the far side of the fence
-    const path = this._gatePath(h.sprite.x, h.sprite.y, tx, ty);
-
-    this._runPath(h, path, () => {
+    // Pathfind to the hay, around obstacles and through the gate if it's outside.
+    this.moveCreatureTo(h, tx, ty, () => {
       if (h.state !== 'eating') return;
       h.sprite.setFlipX(!facingRight);
       h.sprite.play(`eat_${h.key}`, true);
@@ -188,7 +170,7 @@ export const WithHorseAI = (Base) => class extends Base {
         if (h.state !== 'eating') return;
         const allHorses = this.registry.get('allHorses');
         allHorses[h.key]?.feed();
-        this.game.events.emit(EVENTS.STATS_CHANGED);
+        this.game.events.emit('stats-changed');
         pile.sprite.destroy();
         this.props.hayPiles = this.props.hayPiles.filter(p => p !== pile);
         h._eatPile = null;
@@ -218,10 +200,8 @@ export const WithHorseAI = (Base) => class extends Base {
     const tx = trough.x + spread + (facingRight ? -70 : 70);
     const ty = trough.y;
 
-    // Route through the gate if the horse is currently outside the pasture
-    const path = this._gatePath(h.sprite.x, h.sprite.y, tx, ty);
-
-    this._runPath(h, path, () => {
+    // Pathfind to the trough, around obstacles and through the gate if outside.
+    this.moveCreatureTo(h, tx, ty, () => {
         if (h.state !== 'drinking') return;
         if (!trough.filled) { h.state = 'idle'; this.scheduleWander(h, 500); return; }
         h.sprite.setFlipX(!facingRight);
@@ -236,7 +216,7 @@ export const WithHorseAI = (Base) => class extends Base {
             playDrink();
             const allHorses = this.registry.get('allHorses');
             allHorses[h.key]?.water();
-            this.game.events.emit(EVENTS.STATS_CHANGED);
+            this.game.events.emit('stats-changed');
             drinksDone++;
             trough.drinks = Math.max(0, (trough.drinks ?? 3) - 1);
             if (trough.drinks <= 0) {

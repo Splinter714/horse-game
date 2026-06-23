@@ -63,69 +63,91 @@ export const WithCreatures = (Base) => class extends Base {
 
     const a = { sprite, shadow, key, state: 'idle', wanderTween: null, tweenRate,
                 homeX: homeX ?? null, homeY: homeY ?? null, wanderRadius: wanderRadius ?? null,
+                homeBounds: BOUNDS, bodyR: 11, wanderMin: 4000, wanderMax: 10000, tick: null,
                 _eatPile: null, eatTimer: null, model };
     this.animals.push(a);
-    this.scheduleAnimalWander(a, Phaser.Math.Between(500, 3000));
+    this.scheduleCreatureWander(a, Phaser.Math.Between(500, 3000));
     return a;
   }
 
-  scheduleAnimalWander(a, delay) {
-    this.time.delayedCall(delay, () => {
-      if (this.isNight || a.state !== 'idle') return;
-      this.animalWander(a);
-    });
+  // ─── Shared creature movement & wandering ────────────────────────────────
+  // Every animal — horses, chickens, and anything spawned later — moves through
+  // these helpers, so they all share the same obstacle avoidance, gate handling,
+  // and pathfinding the player uses. Per-creature differences (body size, home,
+  // pace, goals) live as fields on the creature object, set at spawn.
+
+  // Walk a creature to (tx,ty), steering around obstacles via the A* pathfinder
+  // (the same one tap-to-move uses), then call onArrive. The creature's own
+  // obstacle list is used, so it ignores its own home (e.g. a chicken's coop).
+  moveCreatureTo(a, tx, ty, onArrive) {
+    const path = this._findPath(a.sprite.x, a.sprite.y, tx, ty,
+      { R: a.bodyR ?? 16, obstacles: this._obstaclesFor(a.key) });
+    this._runPath(a, (path && path.length) ? path : [{ x: tx, y: ty }], onArrive);
   }
 
-  animalWander(a) {
-    if (!a.sprite.active || a.state !== 'idle') return;
-    a.state = 'wandering';
-
+  // Pick a wander destination for a creature, returning { x, y, nicker? }. A
+  // need-driven creature (a horse via _needTarget) biases toward whatever it
+  // currently wants — food at the gate, the trough, a buddy. Otherwise: a clear
+  // spot within its home radius if it has one (chickens stay near the coop), or
+  // anywhere in its home bounds (horses roam the whole pasture).
+  _pickWanderTarget(a) {
     const obsList = this._obstaclesFor(a.key);
-    let tx, ty;
-    if (a.homeX !== null) {
-      // Try up to 12 angles to find a clear spot within home radius
-      let found = false;
+    const b = a.homeBounds ?? BOUNDS;
+
+    const pref = a.needTarget ? a.needTarget(a) : null;
+    if (pref) {
+      return {
+        x: Phaser.Math.Clamp(pref.tx, b.minX, b.maxX),
+        y: Phaser.Math.Clamp(pref.ty, b.minY, b.maxY),
+        nicker: !!pref.nicker,
+      };
+    }
+
+    if (a.homeX != null && a.wanderRadius != null) {
       for (let i = 0; i < 12; i++) {
         const angle = Math.random() * Math.PI * 2;
         const r = Math.random() * a.wanderRadius;
-        const cx = Phaser.Math.Clamp(a.homeX + Math.cos(angle) * r, BOUNDS.minX, BOUNDS.maxX);
-        const cy = Phaser.Math.Clamp(a.homeY + Math.sin(angle) * r, BOUNDS.minY, BOUNDS.maxY);
-        if (!this._collides(cx, cy, 18, obsList)) { tx = cx; ty = cy; found = true; break; }
+        const cx = Phaser.Math.Clamp(a.homeX + Math.cos(angle) * r, b.minX, b.maxX);
+        const cy = Phaser.Math.Clamp(a.homeY + Math.sin(angle) * r, b.minY, b.maxY);
+        if (!this._collides(cx, cy, 18, obsList)) return { x: cx, y: cy };
       }
-      if (!found) { tx = a.homeX; ty = a.homeY; }
-    } else {
-      const r = this._safeTarget(BOUNDS.minX, BOUNDS.maxX, BOUNDS.minY, BOUNDS.maxY,
-                                  obsList, a.sprite.x, a.sprite.y);
-      tx = r.tx; ty = r.ty;
+      return { x: a.homeX, y: a.homeY };
     }
-    const onArrive = () => {
-      if (!a.sprite.active) return;
-      a.wanderTween = null;
-      a.sprite.play(`idle_${a.key}`, true);
-      a.state = 'idle';
-      this.scheduleAnimalWander(a, Phaser.Math.Between(4000, 10000));
-    };
+    const { tx, ty } = this._safeTarget(b.minX, b.maxX, b.minY, b.maxY,
+                                        obsList, a.sprite.x, a.sprite.y);
+    return { x: tx, y: ty };
+  }
 
-    // Wander targets are always in the farm area, so if this animal is currently
-    // on the pasture side of the fence (e.g. a chicken that walked through the
-    // open gate to peck at seed), route it back out through the gate opening.
-    if (this._inPasture(a.sprite.x, a.sprite.y) !== this._inPasture(tx, ty)) {
-      this._runPath(a, this._gatePath(a.sprite.x, a.sprite.y, tx, ty), onArrive);
-      return;
-    }
-
-    const dist = Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, tx, ty);
-
-    a.sprite.setFlipX(tx < a.sprite.x);
-    a.sprite.play(`walk_${a.key}`, true);
-
-    a.wanderTween = this.tweens.add({
-      targets: a.sprite, x: tx, y: ty,
-      duration: Math.max(800, dist * a.tweenRate),
-      ease: 'Sine.easeInOut',
-      onComplete: onArrive,
+  // Queue a creature's next wander. On firing, give its optional goal-tick a
+  // chance to redirect it (horses head for hay/water); otherwise it wanders.
+  scheduleCreatureWander(a, delay) {
+    this.time.delayedCall(delay, () => {
+      if (this.isNight || a.state !== 'idle') return;
+      if (a.tick && a.tick(a)) return;
+      this.creatureWander(a);
     });
   }
+
+  creatureWander(a) {
+    if (!a.sprite.active || a.state !== 'idle') return;
+    a.state = 'wandering';
+    const target = this._pickWanderTarget(a);
+    this.moveCreatureTo(a, target.x, target.y, () => {
+      if (!a.sprite.active) return;
+      a.sprite.play(`idle_${a.key}`, true);
+      a.state = 'idle';
+      // On arrival: greet the player if this was a "wait to be fed" trip,
+      // otherwise let the creature settle (a relaxed horse may roll in the dirt).
+      if (target.nicker) this._maybeNickerAtPlayer(a);
+      else a.onSettle?.(a);
+      this.scheduleCreatureWander(a, Phaser.Math.Between(a.wanderMin ?? 4000, a.wanderMax ?? 10000));
+    });
+  }
+
+  // Back-compat aliases — older call sites still say schedule(Animal)Wander.
+  scheduleAnimalWander(a, delay) { this.scheduleCreatureWander(a, delay); }
+  scheduleWander(h, delay)       { this.scheduleCreatureWander(h, delay); }
+
 
   chickenTick() {
     if (this.isNight) return;
@@ -173,8 +195,8 @@ export const WithCreatures = (Base) => class extends Base {
       });
     };
 
-    // Route through the gate if the seed is on the far side of the pasture fence.
-    this._runPath(a, this._gatePath(a.sprite.x, a.sprite.y, tx, ty), startPecking);
+    // Pathfind to the seed, steering around obstacles and through the gate.
+    this.moveCreatureTo(a, tx, ty, startPecking);
   }
 
   eggLayTick() {
@@ -196,29 +218,21 @@ export const WithCreatures = (Base) => class extends Base {
     nest.occupant = a;
     if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
 
-    a.sprite.setFlipX(nest.x < a.sprite.x);
-    a.sprite.play(`walk_${a.key}`, true);
+    // Pathfind to the nest. Nests are tagged home:'chicken', so they're absent
+    // from the chicken's obstacle list — it can settle right onto the nest.
+    this.moveCreatureTo(a, nest.x, nest.y, () => {
+      if (a.state !== 'laying') { nest.occupant = null; return; }
+      a.sprite.play(`idle_${a.key}`, true);
 
-    const dist = Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, nest.x, nest.y);
-    a.wanderTween = this.tweens.add({
-      targets: a.sprite, x: nest.x, y: nest.y,
-      duration: Math.max(400, dist * a.tweenRate),
-      ease: 'Sine.easeInOut',
-      onComplete: () => {
+      // After a pause, lay the egg
+      this.time.delayedCall(2800, () => {
         if (a.state !== 'laying') { nest.occupant = null; return; }
-        a.wanderTween = null;
-        a.sprite.play(`idle_${a.key}`, true);
-
-        // After a pause, lay the egg
-        this.time.delayedCall(2800, () => {
-          if (a.state !== 'laying') { nest.occupant = null; return; }
-          nest.hasEgg = true;
-          nest.occupant = null;
-          nest.sprite.setTexture('nestEgg');
-          a.state = 'idle';
-          this.scheduleAnimalWander(a, Phaser.Math.Between(2000, 5000));
-        });
-      },
+        nest.hasEgg = true;
+        nest.occupant = null;
+        nest.sprite.setTexture('nestEgg');
+        a.state = 'idle';
+        this.scheduleCreatureWander(a, Phaser.Math.Between(2000, 5000));
+      });
     });
   }
 
@@ -318,72 +332,20 @@ export const WithCreatures = (Base) => class extends Base {
       .setOrigin(0.5, 1).setScale(S).setDepth(startY).setAlpha(0);
 
     const model = this.registry.get('allHorses')[key];
+    // Horses share the same movement/wander helpers as every other animal; their
+    // "home" is the whole pasture (no fixed point), and they get a goal-tick that
+    // sends them to hay/water before falling back to a plain wander.
     const h = { sprite, shadow, key, state: 'idle', wanderTween: null, eatTimer: null,
                 dustOverlay, stinkOverlay, _stinkPhase: Math.random() * 6.28,
-                saddled: model?.saddled ?? false, saddleImg: null };
+                saddled: model?.saddled ?? false, saddleImg: null,
+                homeX: null, homeY: null, wanderRadius: null, homeBounds: PASTURE_BOUNDS,
+                bodyR: 16, tweenRate: 11, wanderMin: 2000, wanderMax: 5000,
+                needTarget: (c) => this._needTarget(c),
+                onSettle:   (c) => this._maybeRoll(c),
+                tick:       (c) => this.horseTickForHorse(c) };
     this.horses.push(h);
-    this.scheduleWander(h, wanderDelay);
+    this.scheduleCreatureWander(h, wanderDelay);
     return h;
-  }
-
-  scheduleWander(h, delay) {
-    this.time.delayedCall(delay, () => {
-      if (this.isNight || h.state !== 'idle') return;
-      if (!this.horseTickForHorse(h)) this.wander(h);
-    });
-  }
-
-  wander(h) {
-    if (!h.sprite.active || h.state !== 'idle') return;
-    h.state = 'wandering';
-    // Horses wander in the pasture, other animals in the farm area
-    const isHorse = this.horses.includes(h);
-    const bounds = isHorse ? PASTURE_BOUNDS : BOUNDS;
-
-    // Horses bias their wander toward whatever they currently need — drifting to
-    // the (maybe empty) trough when thirsty, to the gate to "wait to be fed" when
-    // hungry, off alone when neglected, or near a buddy when content. Falls back
-    // to a plain random point. (issue #26)
-    let tx, ty, wantNicker = false;
-    const pref = isHorse ? this._needTarget(h) : null;
-    if (pref) {
-      tx = Phaser.Math.Clamp(pref.tx, bounds.minX, bounds.maxX);
-      ty = Phaser.Math.Clamp(pref.ty, bounds.minY, bounds.maxY);
-      wantNicker = !!pref.nicker;
-    } else {
-      ({ tx, ty } = this._safeTarget(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY,
-                                       this._obstaclesFor(h.key), h.sprite.x, h.sprite.y));
-    }
-
-    const onArrive = () => {
-      if (!h.sprite.active) return;
-      h.wanderTween = null;
-      h.sprite.play(`idle_${h.key}`, true);
-      h.state = 'idle';
-      // Greet the player on arrival at the gate; otherwise a relaxed horse may
-      // roll in the dirt (which is what makes it dusty).
-      if (wantNicker) this._maybeNickerAtPlayer(h);
-      else if (isHorse) this._maybeRoll(h);
-      this.scheduleWander(h, Phaser.Math.Between(2000, 5000));
-    };
-
-    // Route through the gate if the horse is wandering back across the fence
-    // (e.g. it walked out to eat hay and now heads back into the pasture).
-    if (isHorse) {
-      this._runPath(h, this._gatePath(h.sprite.x, h.sprite.y, tx, ty), onArrive);
-      return;
-    }
-
-    const dist = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, tx, ty);
-    h.sprite.setFlipX(tx < h.sprite.x);
-    h.sprite.play(`walk_${h.key}`, true);
-    h.wanderTween = this.tweens.add({
-      targets: h.sprite,
-      x: tx, y: ty,
-      duration: Math.max(600, dist * 11),
-      ease: 'Sine.easeInOut',
-      onComplete: onArrive,
-    });
   }
 
   // ── Need-driven behavior (issue #26) ──────────────────────────────────────
