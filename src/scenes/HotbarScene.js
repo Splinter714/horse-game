@@ -22,10 +22,10 @@ const INV_ROWS  = 10;
 // press/tap just selects or cycles, while a HOLD this long opens the fly-out (#75).
 // Kept short so the hold feels responsive — a normal tap/click is well under this.
 const HOLD_FLYOUT_MS = 200;
-// Once open, it auto-dismisses after this long if untouched. Generous, since the
-// fly-out is now opened deliberately (a hold) — and every cycle while it's open
-// refreshes this timer, so it only lapses once you actually stop interacting.
-const FLYOUT_CLOSE_MS = 4000;
+// Once open, it auto-dismisses after this long if untouched — just a "walked away
+// and forgot" fallback, since every cycle while it's open refreshes the timer and
+// you normally close it by picking or switching slots.
+const FLYOUT_CLOSE_MS = 2000;
 
 export default class HotbarScene extends Phaser.Scene {
   constructor() { super('HotbarScene'); }
