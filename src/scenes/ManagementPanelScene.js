@@ -77,8 +77,10 @@ export default class ManagementPanelScene extends Phaser.Scene {
       const g = this.add.graphics();
       g.fillStyle(active ? 0x2a3360 : 0x1a1e30, 1); g.fillRoundedRect(x, y, cell, cell, 7);
       g.lineStyle(active ? 3 : 1, active ? 0xffe066 : 0x3a4060, 1); g.strokeRoundedRect(x, y, cell, cell, 7);
-      const img = this.add.image(x + cell / 2, y + cell / 2, `portrait_${k}`)
-        .setDisplaySize(cell - 12, cell - 12);
+      // Use the side-view idle sprite, not the front-facing portrait (those were
+      // dropped for looking bad — the info panel uses the animated side view too).
+      const img = this.add.image(x + cell / 2, y + cell / 2, `${k}_idle_0`)
+        .setDisplaySize(cell - 8, (cell - 8) * 54 / 64);
       const zone = this.add.zone(x, y, cell, cell).setOrigin(0, 0).setInteractive({ useHandCursor: true });
       zone.on('pointerdown', () => this._select(k));
       this._selNodes.push(g, img, zone);

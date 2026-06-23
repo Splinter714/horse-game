@@ -3,7 +3,6 @@ import { saveAllHorses, saveAllChickens, loadUiSettings } from '../data/save.js'
 import { CONTENT_DEFS } from '../data/items.js';
 import { composeCoat } from '../data/species/horse/coats.js';
 import { buildHorseTextures } from '../art/horseArt.js';
-import { buildPortraitTexture } from '../art/portraitArt.js';
 import { EVENTS } from '../data/events.js';
 import {
   playHoofbeat, playEat, playDrink, playBrush, playChime,
@@ -617,8 +616,7 @@ export default class PaddockScene
     const data = this.registry.get('allHorses')?.[key];
     if (!data) return;
     const coat = composeCoat(data.coat, data.markings);
-    buildHorseTextures(this, key, coat);
-    buildPortraitTexture(this, `portrait_${key}`, coat);
+    buildHorseTextures(this, key, coat); // the side-view frames the world + panel use
   }
 
   update(time, delta) {
