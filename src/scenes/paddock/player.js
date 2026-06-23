@@ -91,7 +91,11 @@ export const WithPlayer = (Base) => class extends Base {
 
     this.gamePad      = null;
     this.usingPad     = false;
-    this.usingTouch   = false; // last input was a touch tap → prompts drop key glyphs (#101)
+    // Last input was touch → prompts drop key glyphs and the on-screen Use button
+    // shows (#101). Default from the device's primary pointer so phones start in
+    // touch mode (and show the Use button) before the first tap; "last input wins"
+    // refines it after (a keypress/stick flips it to key/pad).
+    this.usingTouch   = window.matchMedia?.('(pointer: coarse)')?.matches ?? false;
     this.padAJustDown = false;
     this._prevRawButtons = {};
     this._paused = false;

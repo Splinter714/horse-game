@@ -553,6 +553,7 @@ export default class PaddockScene
 
   update(time, delta) {
     this._pollRawPad();
+    this._syncInputMode();
     if (this._paused || this._sleeping) return;
     this._updateHold();
     this.updateRiding(delta);
@@ -814,6 +815,16 @@ export default class PaddockScene
 
     player.shadow.x = player.sprite.x;
     player.shadow.y = player.sprite.y;
+  }
+
+  // Broadcast the active input device when it changes, so UI scenes can react —
+  // e.g. HotbarScene shows the on-screen Use button only for touch players.
+  _syncInputMode() {
+    const mode = this._promptMode();
+    if (mode !== this._lastInputMode) {
+      this._lastInputMode = mode;
+      this.game.events.emit(EVENTS.INPUT_MODE_CHANGED, mode);
+    }
   }
 
   // Pause-menu toggle (#82) flipped the control-prompt setting. Update our flag

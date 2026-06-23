@@ -37,6 +37,11 @@ export default class HotbarScene extends Phaser.Scene {
     // Control-prompt visibility (#82) — toggled in the pause menu, persisted.
     this._showPrompts = loadUiSettings().showPrompts;
 
+    // The on-screen Use button is a touch affordance — keyboard/gamepad players
+    // use F / X instead, so it only shows in touch mode. Default from the device's
+    // primary pointer; PaddockScene keeps it in sync via INPUT_MODE_CHANGED.
+    this._isTouch = window.matchMedia?.('(pointer: coarse)')?.matches ?? false;
+
     this._buildHotbar();
 
     const KEY_NAMES = ['ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN','EIGHT','NINE','ZERO'];
@@ -71,10 +76,20 @@ export default class HotbarScene extends Phaser.Scene {
     this._onMoney  = v => { this._money = v; this._updateStatusLabels(); };
     this.game.events.on(EVENTS.MONEY_CHANGED,  this._onMoney);
 
+    // Show/hide the on-screen Use button as the player switches input devices.
+    this._onInputMode = mode => {
+      const touch = mode === 'touch';
+      if (touch === this._isTouch) return;
+      this._isTouch = touch;
+      this._buildHotbar(); // recreate the strip with/without the Use button
+    };
+    this.game.events.on(EVENTS.INPUT_MODE_CHANGED, this._onInputMode);
+
     // Clean up global listeners on scene shutdown
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.scale.off('resize', this._onResize, this);
       this.game.events.off(EVENTS.MONEY_CHANGED,  this._onMoney);
+      this.game.events.off(EVENTS.INPUT_MODE_CHANGED, this._onInputMode);
     });
   }
 
@@ -95,7 +110,6 @@ export default class HotbarScene extends Phaser.Scene {
     this._moneyLbl?.destroy();
     this._use?.g?.destroy();
     this._use?.lbl?.destroy();
-    this._use?.hint?.destroy();
     this._use?.zone?.destroy();
     this._slots      = [];
     this._pauseBtn   = null;
@@ -200,27 +214,25 @@ export default class HotbarScene extends Phaser.Scene {
     this._buildUseButton(startX, totalW, slotY, ss, radius, fit);
   }
 
-  // The "Use" button — applies the armed tool (interact stays on tap/click/E).
-  // Sits just above the right end of the hotbar strip. Dimmed when the active
-  // slot is empty (nothing to use). Mirrors F / controller-X.
+  // The "Use" button — applies the armed tool. It's a touch affordance only:
+  // keyboard/gamepad players use F / controller-X, so it's not built at all
+  // unless we're in touch mode (toggled live via INPUT_MODE_CHANGED). Sits just
+  // above the right end of the hotbar strip; dimmed when the active slot is empty.
   _buildUseButton(startX, totalW, slotY, ss, radius, fit) {
-    // The primary action — keep it generously sized even on small screens (#100).
+    if (!this._isTouch) { this._use = null; return; } // hidden for keyboard/gamepad
+
+    // The primary touch action — keep it generously sized even on small screens (#100).
     const useW = Math.max(72, Math.floor(96 * fit));
     const useH = Math.max(40, Math.floor(44 * fit));
     const ux   = startX + totalW - useW;
     const uy   = slotY - useH - 14;
 
     const g = this.add.graphics().setDepth(2);
-    const lbl = this.add.text(ux + useW / 2, uy + useH / 2 - 2, 'Use', {
+    const lbl = this.add.text(ux + useW / 2, uy + useH / 2, 'Use', {
       fontFamily: 'system-ui, sans-serif',
-      fontSize: `${Math.max(11, Math.floor(15 * fit))}px`,
+      fontSize: `${Math.max(12, Math.floor(16 * fit))}px`,
       color: '#ffffff', fontStyle: 'bold',
     }).setOrigin(0.5, 0.5).setDepth(3);
-    const hint = this.add.text(ux + useW / 2, uy + useH - 7, '[ F ]', {
-      fontFamily: 'system-ui, sans-serif',
-      fontSize: `${Math.max(7, Math.floor(8 * fit))}px`,
-      color: '#cdd6ff',
-    }).setOrigin(0.5, 1).setDepth(3);
 
     // Pad the touch zone beyond the visual button — extra room up/left/right and
     // a touch below (without reaching the slot columns at slotY-8) (#100).
@@ -232,7 +244,7 @@ export default class HotbarScene extends Phaser.Scene {
       this.scene.get('PaddockScene')?.useActiveTool();
     });
 
-    this._use = { g, lbl, hint, zone, ux, uy, useW, useH, radius };
+    this._use = { g, lbl, zone, ux, uy, useW, useH, radius };
     this._refreshUseButton();
   }
 
@@ -251,7 +263,6 @@ export default class HotbarScene extends Phaser.Scene {
     u.g.lineStyle(1, 0xffffff, usable ? 0.18 : 0.08);
     u.g.strokeRoundedRect(u.ux, u.uy, u.useW, u.useH, u.radius);
     u.lbl.setAlpha(usable ? 1 : 0.5);
-    u.hint.setAlpha(usable ? 0.85 : 0.4);
   }
 
   // Update just the money text without rebuilding everything
