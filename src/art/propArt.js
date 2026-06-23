@@ -281,51 +281,47 @@ export function buildPropTextures(scene) {
     // a little spilled grain at the foot
     g.fillStyle(0xc8a030, 1); g.fillRect(3, 41, 2, 1); g.fillRect(35, 41, 2, 1); g.fillRect(30, 42, 2, 1);
   });
-  // Water stream — a wide meandering channel flowing across the plot, with
-  // grassy banks, current ripples, stepping stones, and reed tufts.
-  gen(scene, 'stream', 120, 44, (g) => {
-    const W = 120;
-    const cy = (x) => 23 + 5 * Math.sin(x / 11) + 2 * Math.sin(x / 4); // wavy centerline
-    // grassy bank (the channel cut, slightly wider than the water)
-    g.fillStyle(0x4a7a3a, 1);
-    for (let x = 0; x < W; x++) { const y = cy(x); g.fillRect(x, y - 13, 1, 26); }
-    // darker damp mud rim along both edges
-    g.fillStyle(0x3e6630, 1);
-    for (let x = 0; x < W; x++) { const y = cy(x); g.fillRect(x, y - 13, 1, 2); g.fillRect(x, y + 11, 1, 2); }
-    // water body
-    g.fillStyle(0x3f7fb5, 1);
-    for (let x = 0; x < W; x++) { const y = cy(x); g.fillRect(x, y - 9, 1, 18); }
-    // deeper shade along the far (top) edge
-    g.fillStyle(0x356f9e, 1);
-    for (let x = 0; x < W; x++) { const y = cy(x); g.fillRect(x, y - 9, 1, 2); }
-    // sunlit surface on the upper half
-    g.fillStyle(0x5fa6d6, 1);
-    for (let x = 0; x < W; x++) { const y = cy(x); g.fillRect(x, y - 7, 1, 6); }
-    // bright current ripples streaking along the flow
-    g.fillStyle(0x9ae0f8, 0.85);
-    for (const rx of [8, 26, 44, 70, 92, 108]) {
-      const y = cy(rx);
-      g.fillRect(rx, y - 4, 5, 1); g.fillRect(rx + 2, y - 1, 4, 1); g.fillRect(rx - 1, y + 3, 4, 1);
-    }
-    g.fillStyle(0xc8f0ff, 0.7);
-    for (const rx of [16, 54, 84, 102]) { const y = cy(rx); g.fillRect(rx, y - 2, 3, 1); }
-    // stepping stones / rocks in and beside the water
-    const rock = (x, y, r, c) => {
-      g.fillStyle(0x000000, 0.12); g.fillEllipse(x, y + r - 1, r * 2.2, r); // tiny shadow
-      g.fillStyle(c, 1); g.fillEllipse(x, y, r * 2, r * 1.6);
-      g.fillStyle(0x9aa0a4, 1); g.fillEllipse(x - r * 0.4, y - r * 0.4, r, r * 0.7); // highlight
-    };
-    rock(34, cy(34) + 1, 4, 0x747b80);
-    rock(64, cy(64) - 1, 3, 0x6c7378);
-    rock(96, cy(96) + 2, 4, 0x747b80);
-    // reed / grass tufts along the banks (a blade spans [y-len, y] up, or [y, y+len] down)
-    const reeds = (x, top) => {
-      const y = top ? cy(x) - 12 : cy(x) + 12;
-      const blade = (bx, len) => g.fillRect(bx, top ? y - len : y, 1, len);
-      g.fillStyle(0x3b8a26, 1); blade(x - 1, 3); blade(x + 1, 4); blade(x + 3, 2);
-      g.fillStyle(0x4fa838, 1); blade(x, 3); blade(x + 2, 3);
-    };
-    reeds(12, true); reeds(50, true); reeds(88, true);
-    reeds(28, false); reeds(74, false); reeds(106, false);
+  // Stone well — a water source: stone drum, posts, peaked shingle roof,
+  // a crank, and a bucket hanging on a rope over the dark opening.
+  gen(scene, 'well', 40, 52, (g) => {
+    const stone = 0x9a9087, stoneLo = 0x7d756c, stoneHi = 0xb6ada3, mortar = 0x655e56;
+    const wood = 0x7a5230, woodHi = 0x946540, woodLo = 0x5e3f24;
+    const roof = 0x8a4a2a, roofHi = 0xa75c34, roofLo = 0x6d3a20;
+    // ground shadow
+    g.fillStyle(0x000000, 0.12); g.fillEllipse(20, 50, 36, 6);
+    // stone drum body
+    g.fillStyle(stone, 1); g.fillRect(6, 32, 28, 17);
+    g.fillStyle(stoneLo, 1); g.fillEllipse(20, 49, 28, 6); // rounded foot
+    g.fillStyle(stone, 1); g.fillEllipse(20, 48, 26, 5);
+    // mortar lines + block highlights
+    g.fillStyle(mortar, 1);
+    g.fillRect(6, 40, 28, 1); g.fillRect(15, 33, 1, 7); g.fillRect(24, 40, 1, 9);
+    g.fillRect(11, 40, 1, 9); g.fillRect(20, 41, 1, 8);
+    g.fillStyle(stoneHi, 1); g.fillRect(8, 36, 3, 1); g.fillRect(26, 43, 3, 1); g.fillRect(17, 45, 3, 1);
+    // top rim + dark opening with a hint of water
+    g.fillStyle(stoneHi, 1); g.fillEllipse(20, 32, 30, 8);
+    g.fillStyle(stoneLo, 1); g.fillEllipse(20, 32, 26, 6);
+    g.fillStyle(0x2a2f38, 1); g.fillEllipse(20, 32, 21, 5);
+    g.fillStyle(0x35506b, 1); g.fillEllipse(20, 33, 13, 3);
+    g.fillStyle(0x4a7fa8, 0.8); g.fillEllipse(18, 32, 6, 1);
+    // posts
+    g.fillStyle(wood, 1); g.fillRect(7, 9, 3, 25); g.fillRect(30, 9, 3, 25);
+    g.fillStyle(woodHi, 1); g.fillRect(7, 9, 1, 25); g.fillRect(30, 9, 1, 25);
+    // crank axle + handle
+    g.fillStyle(woodLo, 1); g.fillRect(9, 17, 22, 3);
+    g.fillStyle(woodHi, 1); g.fillRect(9, 17, 22, 1);
+    g.fillStyle(wood, 1); g.fillRect(31, 16, 4, 1); g.fillRect(34, 16, 1, 6); g.fillRect(31, 21, 4, 1);
+    // rope + hanging bucket dipping into the opening
+    g.fillStyle(0xcaa56a, 1); g.fillRect(20, 20, 1, 7);
+    g.fillStyle(woodLo, 1); g.fillRect(16, 26, 8, 7);
+    g.fillStyle(wood, 1); g.fillRect(16, 26, 8, 1);
+    g.fillStyle(0x4a586a, 1); g.fillRect(17, 27, 6, 3);
+    g.fillStyle(0x3a2a18, 1); g.fillRect(16, 28, 1, 5); g.fillRect(23, 28, 1, 5);
+    // peaked shingle roof
+    g.fillStyle(roofLo, 1); g.fillTriangle(2, 12, 38, 12, 20, 0);
+    g.fillStyle(roof, 1); g.fillTriangle(4, 11, 36, 11, 20, 1);
+    g.fillStyle(roofHi, 1); g.fillTriangle(6, 10, 21, 10, 20, 3);
+    g.fillStyle(roofLo, 1); g.fillRect(8, 9, 25, 1); g.fillRect(11, 6, 18, 1);
+    g.fillStyle(roofLo, 1); g.fillRect(19, 1, 2, 11); // ridge
   });
 }
