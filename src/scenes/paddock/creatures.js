@@ -226,13 +226,16 @@ export const WithCreatures = (Base) => class extends Base {
     }
   }
 
-  // Nearest unclaimed seed pile this chicken can actually get to (seed inside the
-  // pasture needs the gate open), or null.
+  // Nearest seed pile this chicken can actually get to (seed inside the pasture
+  // needs the gate open), or null. A pile feeds several birds (`feedsLeft`), so a
+  // dropped pile draws a crowd to peck rather than locking to one chicken while the
+  // rest trail the player — which read as "ignoring the food" (#128 follow-up).
   _nearestReachableSeed(a, gateOpen) {
     if (!this.props.seedPiles?.length) return null;
     let closest = null, closestDist = Infinity;
     for (const pile of this.props.seedPiles) {
-      if (this.animals.some(o => o !== a && o._eatPile === pile)) continue; // 1 chicken per pile
+      const eaters = this.animals.filter(o => o !== a && o._eatPile === pile).length;
+      if (eaters >= (pile.feedsLeft ?? 1)) continue; // pile's feeds are all spoken for
       if (this._inPasture(pile.x, pile.y) && !gateOpen) continue;
       const d = Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, pile.x, pile.y);
       if (d < closestDist) { closestDist = d; closest = pile; }
@@ -349,8 +352,13 @@ export const WithCreatures = (Base) => class extends Base {
         a.peckTimer?.remove();
         a.peckTimer = null;
         if (a.state !== 'eating') return;
-        pile.sprite.destroy();
-        this.props.seedPiles = this.props.seedPiles.filter(p => p !== pile);
+        // Take one feed from the pile; only clear it once it's exhausted (it can be
+        // shared by several birds now, so one bite needn't empty it).
+        pile.feedsLeft = (pile.feedsLeft ?? 1) - 1;
+        if (pile.feedsLeft <= 0 && pile.sprite.active) {
+          pile.sprite.destroy();
+          this.props.seedPiles = this.props.seedPiles.filter(p => p !== pile);
+        }
         this._chickensFedToday = true; // breakfast served — stop crowding the bin
         a._eatPile = null;
         a.state = 'idle';
