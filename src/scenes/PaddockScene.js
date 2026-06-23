@@ -329,7 +329,7 @@ export default class PaddockScene
   // Empty-hand proximity: gather every pettable animal in reach, prefer the ones
   // that still need love today, and target the nearest of those. Returns true if
   // it claimed the prompt (so checkProximity can stop). See call site for intent.
-  _petPreferenceProximity(useKey, useJust) {
+  _petPreferenceProximity(useJust) {
     const { player } = this;
     const allHorses = this.registry.get('allHorses');
     const dist = (s) => Phaser.Math.Distance.Between(
@@ -347,7 +347,7 @@ export default class PaddockScene
       // (so none are left to wake grumpy), then by happiness deficit within each
       // group. canPet gates availability (#98 / still owed today's love).
       cands.push({
-        key: h.key, sprite: h.sprite, d, offY: 118,
+        key: h.key, sprite: h.sprite, d, name: model?.name ?? null,
         canPet: this._canPetHorse(model),
         needScore: (lovedToday ? 0 : 1000) + (100 - hap),
         open: () => this.openPortrait(h.key),
@@ -360,14 +360,14 @@ export default class PaddockScene
       // Chickens/cat have no happiness/daily-care — a pet is pure affection, always
       // available, lowest priority (no grumpiness to head off).
       cands.push({
-        key: a.key, sprite: a.sprite, d, offY: 54,
+        key: a.key, sprite: a.sprite, d, name: a.model?.name ?? null,
         canPet: true, needScore: 0,
         open: () => this.openCreatureInfo(a),
       });
     }
     for (const foal of this.foals) {
       const d = dist(foal.sprite);
-      if (d < CARE_DIST) cands.push({ key: foal.key, sprite: foal.sprite, d, offY: 78,
+      if (d < CARE_DIST) cands.push({ key: foal.key, sprite: foal.sprite, d, name: null,
         canPet: true, needScore: 0, foal: true }); // foals: no panel, always pet
     }
     if (!cands.length) { this._proxAnimal = null; return false; }
@@ -382,20 +382,10 @@ export default class PaddockScene
     const petable = cands.filter(c => c.canPet);
     const petTarget = petable.sort((a, b) => (b.needScore - a.needScore) || (a.d - b.d))[0] ?? null;
 
-    // Build the prompt from whichever actions are actually available, so it
-    // reflects when Pet is unavailable (every nearby animal already happy, #98).
-    const infoKey = this.usingPad ? '[ Y ]' : '[ C ]';
-    const parts = [];
-    if (petTarget)        parts.push(`${useKey}  Pet`);
-    if (this._proxAnimal) parts.push(`${infoKey}  Info`);
-    const anchor = petTarget ?? this._proxAnimal;
-    if (parts.length && anchor) {
-      this.interactPrompt.setText(parts.join('     '));
-      this.interactPrompt.setPosition(anchor.sprite.x, anchor.sprite.y - anchor.offY);
-      this.interactPrompt.setVisible(this.promptsOn);
-    } else {
-      this.interactPrompt.setVisible(false);
-    }
+    // Queue a line per available action — each names its own target, so Pet and
+    // Info pointing at two different animals (#96/#97) reads clearly (#101).
+    if (petTarget)        this._pushPrompt('interact', petTarget.name ? `Pet ${petTarget.name}` : 'Pet');
+    if (this._proxAnimal) this._pushPrompt('info', this._proxAnimal.name ? `Info: ${this._proxAnimal.name}` : 'Info');
 
     if (useJust && petTarget) this._petTarget(petTarget);
     return true;
@@ -572,6 +562,7 @@ export default class PaddockScene
     this.updateFoals(delta);
     this.checkProximity();
     this.checkToolProximity();
+    this._renderPrompts();
     this.separateHorses();
     this.depthSort();
     this.tickDecay(delta);
@@ -583,7 +574,8 @@ export default class PaddockScene
   sleep() {
     if (this._sleeping) return;
     this._sleeping = true;
-    this.interactPrompt?.setVisible(false);
+    this._promptLines = [];
+    this.promptPanel?.setVisible(false);
     this.game.events.emit(EVENTS.SLEEP);
   }
 
@@ -765,8 +757,8 @@ export default class PaddockScene
       Math.abs(rp.leftStickX) > 0.15 || Math.abs(rp.leftStickY) > 0.15 ||
       rp.dLeft || rp.dRight || rp.dUp || rp.dDown
     );
-    if (kbActive)  this.usingPad = false;
-    if (padActive) this.usingPad = true;
+    if (kbActive)  { this.usingPad = false; this.usingTouch = false; }
+    if (padActive) { this.usingPad = true;  this.usingTouch = false; }
 
     // Manual input cancels any tap-to-move trip in progress, and dismisses the
     // info popup — moving is one of the "almost anything else" that closes it.
@@ -825,23 +817,22 @@ export default class PaddockScene
   }
 
   // Pause-menu toggle (#82) flipped the control-prompt setting. Update our flag
-  // and hide the prompt immediately if they were just turned off.
+  // and hide the panel immediately if they were just turned off.
   _onPromptsChanged(show) {
     this.promptsOn = !!show;
-    if (!this.promptsOn) this.interactPrompt.setVisible(false);
+    if (!this.promptsOn) { this._promptLines = []; this.promptPanel?.setVisible(false); }
   }
 
   checkProximity() {
-    if (this.scene.get('HotbarScene')?.invOpen) {
-      this.interactPrompt.setVisible(false);
-      return;
-    }
+    // Fresh accumulator each frame; the tool pass and _renderPrompts run after.
+    this._promptLines = [];
+
+    if (this.scene.get('HotbarScene')?.invOpen) return;
 
     // While the info popup is open, the interact key just closes it (handled by
     // the popup's own keydown) — don't also re-trigger a pet/open here, which
     // would make it flicker shut-then-open. Mirrors handleTap bailing early.
     if (this.scene.isActive('InfoPanelScene')) {
-      this.interactPrompt.setVisible(false);
       Phaser.Input.Keyboard.JustDown(this.eKey); // consume so it doesn't queue
       this.padAJustDown = false;
       return;
@@ -849,11 +840,7 @@ export default class PaddockScene
 
     // When riding, show dismount hint
     if (this.riding) {
-      const h = this.riding.h;
-      const btn = this.usingPad ? '[ A ]' : '[ E ]';
-      this.interactPrompt.setText(`${btn}  Dismount`);
-      this.interactPrompt.setPosition(h.sprite.x, h.sprite.y - 140);
-      this.interactPrompt.setVisible(this.promptsOn);
+      this._pushPrompt('interact', 'Dismount');
       return;
     }
 
@@ -862,13 +849,13 @@ export default class PaddockScene
     const eJust   = Phaser.Input.Keyboard.JustDown(this.eKey);
     const aJust   = this.padAJustDown;
     this.padAJustDown = false;
+    if (eJust) this._useKeyboard(); // interact via E → keyboard prompt glyphs
 
     // E (keyboard) and A (gamepad) both trigger the interact action. Tools are
     // no longer used here — they go through useActiveTool (Use button / F /
     // controller). So this whole pass is interact-only: gate/barn, mounting a
     // saddled horse, and petting/opening animals.
     const useJust = eJust || aJust;
-    const useKey  = this.usingPad ? '[ A ]' : '[ E ]';
 
     // No animal is the proximity target unless _petPreferenceProximity claims one
     // below. Cleared each frame so the Info input (C / Y) can't fire on a stale
@@ -876,7 +863,7 @@ export default class PaddockScene
     this._proxAnimal = null;
 
     // Bare-hand world interactables — gate, barn.
-    if (this._proximityInteractable(item, useKey, useJust)) return;
+    if (this._proximityInteractable(item, useJust)) return;
 
     // A saddled horse close by → Mount (an interact, not a tool). Checked before
     // the pet preference so walking up to a tacked-up horse reliably mounts it.
@@ -887,9 +874,7 @@ export default class PaddockScene
       if (d < INTERACT_DIST && d < mountD) { mountD = d; mountH = h; }
     }
     if (mountH) {
-      this.interactPrompt.setText(`${useKey}  Mount`);
-      this.interactPrompt.setPosition(mountH.sprite.x, mountH.sprite.y - 118);
-      this.interactPrompt.setVisible(this.promptsOn);
+      this._pushPrompt('interact', `Mount ${this._animalName(mountH.key) ?? ''}`.trim());
       if (useJust) this.mountHorse(mountH);
       return;
     }
@@ -897,9 +882,7 @@ export default class PaddockScene
     // Pet/info across all nearby animals (un-saddled horses, chickens, foals),
     // preferring the ones that still need their daily love so you won't start
     // opening info panels until every animal in reach has been loved today.
-    if (this._petPreferenceProximity(useKey, useJust)) return;
-
-    this.interactPrompt.setVisible(false);
+    this._petPreferenceProximity(useJust);
   }
 
   _showAnimalInfo(a) {

@@ -66,11 +66,11 @@ export const WithPlayer = (Base) => class extends Base {
     this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     // F = use the currently-armed hotbar tool (interact stays on tap/click/E).
     this.fKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
-    this.fKey.on('down', () => this.useActiveTool());
+    this.fKey.on('down', () => { this._useKeyboard(); this.useActiveTool(); });
     // C = open the info panel for the animal in reach. Interact (E) always pets
     // now (#79), so info is its own key (gamepad Y / double-tap on touch).
     this.cKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
-    this.cKey.on('down', () => this.openProxInfo());
+    this.cKey.on('down', () => { this._useKeyboard(); this.openProxInfo(); });
 
     this.input.on('pointerdown', this.handleTap, this);
     this.input.on('pointermove', this.handlePointerMove, this);
@@ -91,6 +91,7 @@ export const WithPlayer = (Base) => class extends Base {
 
     this.gamePad      = null;
     this.usingPad     = false;
+    this.usingTouch   = false; // last input was a touch tap → prompts drop key glyphs (#101)
     this.padAJustDown = false;
     this._prevRawButtons = {};
     this._paused = false;
@@ -99,22 +100,21 @@ export const WithPlayer = (Base) => class extends Base {
     this.input.gamepad.on('connected', pad => { this.gamePad = pad; });
     if (this.input.gamepad.total > 0) this.gamePad = this.input.gamepad.getPad(0);
 
-    this.interactPrompt = this.add.text(0, 0, '', {
+    // Contextual control prompts live in one fixed on-screen panel (#101) — a
+    // Minecraft-style list, bottom-left, of every action currently possible with
+    // its key/button (or a touch hint). Decoupling it from any single world
+    // position means two actions that target two different animals (Pet vs.
+    // Info, #96/#97) each read clearly and name their own target. Screen-pinned
+    // (scrollFactor 0); _renderPrompts fills/positions it each frame from the
+    // per-frame _promptLines the proximity passes accumulate.
+    this.promptPanel = this.add.text(0, 0, '', {
       fontFamily: 'system-ui, sans-serif',
-      fontSize: '13px', color: '#ffffff',
-      backgroundColor: '#1c1f2ecc',
-      padding: { x: 8, y: 5 },
-    }).setOrigin(0.5, 1).setDepth(9999).setVisible(false);
-
-    // Separate hint for the Use/tool action (F / X / Use button), so the equipped
-    // tool's contextual prompt can show alongside the interact prompt (#83).
-    // Tinted gold to read as the "Use" action, mirroring the Use button.
-    this.toolPrompt = this.add.text(0, 0, '', {
-      fontFamily: 'system-ui, sans-serif',
-      fontSize: '13px', color: '#ffe08a',
-      backgroundColor: '#1c1f2ecc',
-      padding: { x: 8, y: 5 },
-    }).setOrigin(0.5, 1).setDepth(9999).setVisible(false);
+      fontSize: '14px', color: '#ffffff',
+      backgroundColor: '#1c1f2ed9',
+      padding: { x: 9, y: 7 },
+      lineSpacing: 4, align: 'left',
+    }).setOrigin(0, 1).setScrollFactor(0).setDepth(9999).setVisible(false);
+    this._promptLines = [];
 
     // Lead rope drawn each frame when leading a horse
     this.leadRope = this.add.graphics().setDepth(9998);
@@ -253,16 +253,67 @@ export const WithPlayer = (Base) => class extends Base {
     return true;
   }
 
-  // Player standing next to a world interactable? Show its prompt; activate on
+  // Player standing next to a world interactable? Queue its prompt; activate on
   // key press. Non-actionable instances show a passive hint (no key prefix).
-  _proximityInteractable(item, useKey, useJust) {
+  _proximityInteractable(item, useJust) {
     const inst = this._nearestInteractable(this.player.sprite.x, this.player.sprite.y, item, 'reachDist', this.interactWorld);
     if (!inst) return false;
-    this.interactPrompt.setText(inst.canAct ? `${useKey}  ${inst.label}` : inst.label);
-    this.interactPrompt.setPosition(inst.x, inst.y - inst.promptOffsetY);
-    this.interactPrompt.setVisible(this.promptsOn);
+    this._pushPrompt(inst.canAct ? 'interact' : null, inst.label);
     if (useJust && inst.canAct) inst.activate();
     return true;
+  }
+
+  // ─── Static control-prompt panel (#101) ───────────────────────────────────
+
+  // Which input the player is currently using, for prompt formatting.
+  _promptMode() {
+    if (this.usingPad)   return 'pad';
+    if (this.usingTouch) return 'touch';
+    return 'key';
+  }
+
+  // A physical keyboard action (move / E / C / F) puts prompts in keyboard mode.
+  _useKeyboard() { this.usingPad = false; this.usingTouch = false; }
+
+  // The key/button glyph for an action in the current mode. Touch has no
+  // physical keys (you tap the world / the on-screen Use button), so the touch
+  // hint is carried by _promptLine's verb instead and this returns ''.
+  _glyph(action) {
+    if (this._promptMode() === 'touch') return '';
+    const pad = this.usingPad;
+    switch (action) {
+      case 'interact': return pad ? '[ A ]' : '[ E ]';
+      case 'info':     return pad ? '[ Y ]' : '[ C ]';
+      case 'use':      return pad ? '[ X ]' : '[ F ]';
+      default:         return '';
+    }
+  }
+
+  // Compose one prompt line. `action` null = a passive hint (no control glyph).
+  // On touch, a leading verb ("Tap:", "Use:") stands in for the missing glyph.
+  _promptLine(action, label) {
+    if (!action) return label;
+    if (this._promptMode() === 'touch') {
+      const verb = { interact: 'Tap:', info: 'Double-tap:', use: 'Use:' }[action];
+      return verb ? `${verb}  ${label}` : label;
+    }
+    return `${this._glyph(action)}  ${label}`;
+  }
+
+  _pushPrompt(action, label) {
+    (this._promptLines ??= []).push(this._promptLine(action, label));
+  }
+
+  // Draw the accumulated lines into the fixed bottom-left panel (or hide it when
+  // prompts are off or nothing's possible). Called once per frame after the
+  // interact + tool proximity passes have queued their lines.
+  _renderPrompts() {
+    const panel = this.promptPanel;
+    if (!panel) return;
+    const lines = this._promptLines ?? [];
+    if (!this.promptsOn || !lines.length) { panel.setVisible(false); return; }
+    panel.setText(lines.join('\n'));
+    panel.setPosition(12, this.scale.height - 84).setVisible(true);
   }
 
   // True when this tap is a quick second tap on the same animal — used so a
@@ -280,6 +331,11 @@ export const WithPlayer = (Base) => class extends Base {
     if (this.scene.isActive('InfoPanelScene')) return;
     if (this.scene.get('HotbarScene')?.invOpen) return;
     if (pointer.button !== 0) return;
+
+    // This tap sets the input mode for prompt formatting (#101): a touch drops
+    // key glyphs; a mouse click implies a desktop keyboard, so it reads as 'key'.
+    this.usingTouch = !!pointer.wasTouch;
+    this.usingPad   = false;
 
     // Ignore taps in the badge area at the bottom of the canvas
     if (pointer.y > this.scale.height - 72) return;
@@ -398,21 +454,19 @@ export const WithPlayer = (Base) => class extends Base {
     if (inst && instD <= inst.reachDist) inst.activate();
   }
 
-  // Per-frame: show a contextual prompt for the equipped tool/carrier's Use
-  // action (#83). Mirrors useActiveTool's targeting, but only surfaces a hint —
-  // the action still fires on F / X / the Use button. Uses its own toolPrompt
-  // (gold) so it can sit alongside the interact (E/A) prompt without clobbering
-  // it. Hidden when prompts are off, riding, a menu/info panel is open, or no
-  // valid target is in reach.
+  // Per-frame: queue a contextual prompt line for the equipped tool/carrier's
+  // Use action (#83). Mirrors useActiveTool's targeting, but only surfaces a
+  // hint — the action still fires on F / X / the Use button. Adds to the shared
+  // static prompt panel (#101) alongside the interact line. Skipped when riding
+  // or a menu/info panel is open, or when no valid target is in reach.
   checkToolProximity() {
-    if (!this.promptsOn || this.riding ||
+    if (this.riding ||
         this.scene.get('HotbarScene')?.invOpen ||
-        this.scene.isActive('InfoPanelScene')) { this.toolPrompt.setVisible(false); return; }
+        this.scene.isActive('InfoPanelScene')) return;
 
     const item = this.getActiveItem();
-    if (!item || item.action === 'interact') { this.toolPrompt.setVisible(false); return; }
+    if (!item || item.action === 'interact') return;
 
-    const useKey = this.usingPad ? '[ X ]' : '[ F ]';
     const { player } = this;
 
     // Animal-targeted tools: brush / saddle / lead on the nearest valid horse.
@@ -420,13 +474,13 @@ export const WithPlayer = (Base) => class extends Base {
       const target = this._nearestToolHorse(item);
       const d = target && Phaser.Math.Distance.Between(
         player.sprite.x, player.sprite.y, target.sprite.x, target.sprite.y);
-      if (!target || d > USE_REACH) { this.toolPrompt.setVisible(false); return; }
+      if (!target || d > USE_REACH) return;
+      const who = this._animalName(target.key);
       let label;
       if (item.action === 'saddle')    label = target.saddled ? 'Unsaddle' : 'Saddle';
       else if (item.action === 'lead') label = this.leadHorses.includes(target) ? 'Stop Leading' : 'Lead';
       else                             label = 'Brush';
-      // 146 keeps it just above the pet prompt (118) over the same horse.
-      this._showToolPrompt(`${useKey}  ${label}`, target.sprite.x, target.sprite.y - 146);
+      this._pushPrompt('use', who ? `${label} ${who}` : label);
       return;
     }
 
@@ -434,10 +488,9 @@ export const WithPlayer = (Base) => class extends Base {
     // the produce is sellable (apples/carrots), matching useActiveTool (#80).
     if (item.action === 'feed') {
       if (STAND_DEFS[item.content] && this._atFarmStand()) {
-        const s = this.farmStand;
-        this._showToolPrompt(`${useKey}  Sell ${item.label}`, s.x, s.y - 100);
+        this._pushPrompt('use', `Sell ${item.label}`);
       } else {
-        this._showToolPrompt(`${useKey}  Drop ${item.label}`, player.sprite.x, player.sprite.y - 70);
+        this._pushPrompt('use', `Drop ${item.label}`);
       }
       return;
     }
@@ -452,17 +505,15 @@ export const WithPlayer = (Base) => class extends Base {
         if (dd < instD) { instD = dd; inst = c; }
       }
     }
-    if (inst && instD <= inst.reachDist) {
-      this._showToolPrompt(`${useKey}  ${inst.label}`, inst.x, inst.y - inst.promptOffsetY);
-    } else {
-      this.toolPrompt.setVisible(false);
-    }
+    if (inst && instD <= inst.reachDist) this._pushPrompt('use', inst.label);
   }
 
-  _showToolPrompt(text, x, y) {
-    this.toolPrompt.setText(text);
-    this.toolPrompt.setPosition(x, y);
-    this.toolPrompt.setVisible(true);
+  // Display name for a horse/chicken/cat key, for naming prompt targets (#101).
+  _animalName(key) {
+    const h = this.registry.get('allHorses')?.[key];
+    if (h?.name) return h.name;
+    const a = this.animals?.find(x => x.key === key);
+    return a?.model?.name ?? null;
   }
 
   // True when the player is close enough to the farm stand to deposit produce.
