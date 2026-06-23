@@ -50,6 +50,7 @@ export const WithDayNight = (Base) => class extends Base {
     // A new day means the flock is hungry again — they'll crowd the grain bin
     // until fed. (Reset before the first-morning short-circuit so it always runs.)
     this._chickensFedToday = false;
+    this._petToday?.clear(); // first interaction with each animal pets again
     if (!this._sawFirstMorning) { this._sawFirstMorning = true; return; }
     const allHorses = this.registry.get('allHorses');
     for (const h of this.horses) allHorses[h.key]?.rollNewDay();

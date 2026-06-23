@@ -4,7 +4,11 @@
 import Phaser from 'phaser';
 import { CONTENT_DEFS } from '../../data/items.js';
 import { playSplash } from '../../audio/sounds.js';
-import { WORLD_W, WORLD_H, PLAYER_SPEED, HOLD_MS, HOLD_DRAG_PX, PLAYER_BOUNDS, S, STAND_DEFS } from './constants.js';
+import { WORLD_W, WORLD_H, CARE_DIST, PLAYER_SPEED, HOLD_MS, HOLD_DRAG_PX, PLAYER_BOUNDS, S, STAND_DEFS } from './constants.js';
+
+// In-place reach for using a tool on a horse (brush/saddle/lead). Use never
+// walks you anywhere — the horse has to already be within this range.
+const USE_REACH = 110;
 
 export const WithPlayer = (Base) => class extends Base {
   // ─── Player ──────────────────────────────────────────────────────────────
@@ -57,6 +61,9 @@ export const WithPlayer = (Base) => class extends Base {
       right: Phaser.Input.Keyboard.KeyCodes.D,
     });
     this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+    // F = use the currently-armed hotbar tool (interact stays on tap/click/E).
+    this.fKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
+    this.fKey.on('down', () => this.useActiveTool());
 
     this.input.on('pointerdown', this.handleTap, this);
     this.input.on('pointermove', this.handlePointerMove, this);
@@ -199,13 +206,19 @@ export const WithPlayer = (Base) => class extends Base {
     };
 
     this.interactables = [gate, barn, trough, sources, nests, farmStand];
+    // Split by input: gate/barn are bare-hand "interact" targets (tap/click/E);
+    // the rest require a carried tool/carrier and are triggered by Use (the
+    // on-screen button / F / controller). See useActiveTool + handleTap.
+    this.interactWorld = [gate, barn];
+    this.toolWorld     = [trough, sources, nests, farmStand];
   }
 
-  // Nearest activatable instance to (x, y) across all interactables, within each
-  // instance's own radius (tapRadius for taps, reachDist for the keyboard).
-  _nearestInteractable(x, y, item, radiusKey) {
+  // Nearest activatable instance to (x, y) within each instance's own radius
+  // (tapRadius for taps, reachDist for the keyboard), searching the given list of
+  // interactable descriptors (defaults to all).
+  _nearestInteractable(x, y, item, radiusKey, list = this.interactables) {
     let best = null, bestDist = Infinity;
-    for (const instancesOf of this.interactables) {
+    for (const instancesOf of list) {
       for (const inst of instancesOf(item)) {
         const d = Phaser.Math.Distance.Between(x, y, inst.x, inst.y);
         if (d <= inst[radiusKey] && d < bestDist) { bestDist = d; best = inst; }
@@ -216,7 +229,7 @@ export const WithPlayer = (Base) => class extends Base {
 
   // Tap landed on a world interactable? Walk to it and activate on arrival.
   _tapInteractable(world, item) {
-    const inst = this._nearestInteractable(world.x, world.y, item, 'tapRadius');
+    const inst = this._nearestInteractable(world.x, world.y, item, 'tapRadius', this.interactWorld);
     if (!inst || !inst.canAct) return false;
     const dest = inst.approach(world);
     this.tapMoveTo(dest.x, dest.y, () => inst.activate());
@@ -226,7 +239,7 @@ export const WithPlayer = (Base) => class extends Base {
   // Player standing next to a world interactable? Show its prompt; activate on
   // key press. Non-actionable instances show a passive hint (no key prefix).
   _proximityInteractable(item, useKey, useJust) {
-    const inst = this._nearestInteractable(this.player.sprite.x, this.player.sprite.y, item, 'reachDist');
+    const inst = this._nearestInteractable(this.player.sprite.x, this.player.sprite.y, item, 'reachDist', this.interactWorld);
     if (!inst) return false;
     this.interactPrompt.setText(inst.canAct ? `${useKey}  ${inst.label}` : inst.label);
     this.interactPrompt.setPosition(inst.x, inst.y - inst.promptOffsetY);
@@ -267,53 +280,106 @@ export const WithPlayer = (Base) => class extends Base {
 
     const item  = this.getActiveItem();
 
-    // Horse tap
+    // Tapping an animal is always an interact (never a tool use — tools go
+    // through the Use button / F / controller). Walk up, then mount a saddled
+    // horse or pet/open it; chickens just pet/open.
     for (const h of this.horses) {
       const d = Phaser.Math.Distance.Between(world.x, world.y, h.sprite.x, h.sprite.y);
       if (d < 80) {
         const tx = h.sprite.x + (world.x < h.sprite.x ? -70 : 70);
         this.tapMoveTo(tx, h.sprite.y, () => {
-          const cur = this.getActiveItem();
-          if (cur?.action === 'saddle')    { this.toggleSaddle(h); return; }
-          if (cur?.action === 'lead')      { this.toggleLead(h); return; }
-          // Basic interact mounts a saddled horse; otherwise opens its info.
-          if (cur?.action === 'interact')  {
-            if (h.saddled) this.mountHorse(h); else this.openPortrait(h.key);
-            return;
-          }
-          if (cur?.action === 'feed')      { this.placeFood(cur); return; }
-          if (cur?.action === 'brush')     { this.useItemOnHorse(cur, h); return; }
-          // Water/eggs and empty carriers aren't used on horses — open the portrait.
-          this.openPortrait(h.key);
+          if (h.saddled) this.mountHorse(h);
+          else this.petOrInfo(h.key, h.sprite, () => this.openPortrait(h.key));
         });
         return;
       }
     }
 
-    // Animal (chicken) tap
     for (const a of this.animals) {
       if (!a.sprite.visible) continue; // tucked inside the coop at night
       const d = Phaser.Math.Distance.Between(world.x, world.y, a.sprite.x, a.sprite.y);
       if (d < 60) {
         const tx = a.sprite.x + (world.x < a.sprite.x ? -40 : 40);
         this.tapMoveTo(tx, a.sprite.y, () => {
-          this.openChickenInfo(a.key);
+          this.petOrInfo(a.key, a.sprite, () => this.openChickenInfo(a.key));
         });
         return;
       }
     }
 
-    // Static world interactables — gate, barn, trough, etc. (see buildInteractables)
+    // Bare-hand world interactables — gate, barn (tool-based ones like the
+    // trough/nests/stand are triggered by Use instead).
     if (this._tapInteractable(world, item)) return;
-
-    // Walk and drop food at destination (hay, apples, carrots — all the same)
-    if (item?.action === 'feed') {
-      this.tapMoveTo(world.x, world.y, () => this.placeFood(item));
-      return;
-    }
 
     // Plain locomotion — start a hold-capable move toward the point.
     this._startHold(world.x, world.y);
+  }
+
+  // Use the currently-armed hotbar tool on the most appropriate nearby target.
+  // Interact (pet/info/mount, gate/barn) stays on tap/click/E — this is only for
+  // tools: brush/saddle/lead act on the nearest valid horse, feed drops at your
+  // feet, and carriers/water/eggs/selling walk to the nearest matching spot.
+  useActiveTool() {
+    if (this._paused || this._sleeping || this.riding) return;
+    if (this.scene.get('HotbarScene')?.invOpen) return;
+    const item = this.getActiveItem();
+    if (!item || item.action === 'interact') return; // empty hand: nothing to use
+
+    const { player } = this;
+
+    // Use never moves the player — it only acts on something already in reach.
+
+    // Animal-targeted tools: act on the nearest valid horse if it's in reach.
+    if (item.action === 'brush' || item.action === 'saddle' || item.action === 'lead') {
+      const target = this._nearestToolHorse(item);
+      if (!target) return;
+      const d = Phaser.Math.Distance.Between(
+        player.sprite.x, player.sprite.y, target.sprite.x, target.sprite.y);
+      if (d > USE_REACH) return;
+      if (item.action === 'saddle')    this.toggleSaddle(target);
+      else if (item.action === 'lead') this.toggleLead(target);
+      else                             this.useItemOnHorse(item, target);
+      return;
+    }
+
+    // Feed: drop the food right where the player is standing.
+    if (item.action === 'feed') { this.placeFood(item); return; }
+
+    // Everything else (fill trough, gather, collect egg, sell) is a world spot —
+    // activate the nearest valid one only if we're already within its reach.
+    let inst = null, instD = Infinity;
+    for (const instancesOf of this.toolWorld) {
+      for (const c of instancesOf(item)) {
+        if (!c.canAct) continue;
+        const dd = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, c.x, c.y);
+        if (dd < instD) { instD = dd; inst = c; }
+      }
+    }
+    if (inst && instD <= inst.reachDist) inst.activate();
+  }
+
+  // Pick the horse a tool should act on: nearest within CARE_DIST, but for the
+  // brush prefer the nearest still-dirty horse over a closer spotless one.
+  _nearestToolHorse(item) {
+    const allHorses = this.registry.get('allHorses');
+    const dist = (h) => Phaser.Math.Distance.Between(
+      this.player.sprite.x, this.player.sprite.y, h.sprite.x, h.sprite.y);
+    const isDirty = (h) => (allHorses[h.key]?.stats.grooming ?? 100) < 99.5;
+
+    let best = null, bestD = Infinity;
+    if (item.action === 'brush') {
+      for (const h of this.horses) {
+        const d = dist(h);
+        if (d < CARE_DIST && isDirty(h) && d < bestD) { bestD = d; best = h; }
+      }
+    }
+    if (!best) {
+      for (const h of this.horses) {
+        const d = dist(h);
+        if (d < CARE_DIST && d < bestD) { bestD = d; best = h; }
+      }
+    }
+    return best;
   }
 
   // Begin (or re-aim) a hold-to-move trip toward (x,y). Works mounted or on foot.

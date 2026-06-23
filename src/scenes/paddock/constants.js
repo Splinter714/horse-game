@@ -8,6 +8,11 @@ export const WORLD_H = 1600;
 
 // Movement.
 export const INTERACT_DIST = 100;
+// Reach for the "care" interactions (petting and brushing). Much larger than
+// INTERACT_DIST so you can quickly tend a whole crowd of animals — the prompt
+// keeps targeting the nearest still-uncared-for one until they're all done,
+// without making you stand right on top of each.
+export const CARE_DIST = 200;
 export const PLAYER_SPEED  = 210;
 export const RIDE_SPEED    = 340;
 

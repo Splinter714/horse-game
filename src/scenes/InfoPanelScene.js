@@ -2,13 +2,19 @@ import Phaser from 'phaser';
 import { EVENTS } from '../data/events.js';
 import { getSpecies } from '../data/species/index.js';
 
-// Unified slide-in info panel for any animal. What it shows is driven entirely by
-// the animal's species data (../data/species): stat bars come from `needs`
-// (+happiness), action buttons from `actions`, plus a `panel` block for portrait
-// style / trait line / fixed-attribute row. Replaces the old per-species
-// PortraitScene + ChickenInfoScene — a new species gets a working panel for free.
+// Lightweight, ephemeral info popup for any animal. It's a small floating card
+// (not a modal panel) that auto-dismisses the moment you do almost anything else:
+// tap away, press any key (Esc included), or move your character (PaddockScene
+// closes it on movement). What it shows is driven entirely by the animal's
+// species data (../data/species): stat bars from `needs` (+happiness), action
+// buttons from `actions`, plus a `panel` block for portrait style / trait line /
+// fixed-attribute row. A new species gets a working popup for free.
 
-const PANEL_W = 300;
+const CARD_W = 300;
+const PAD    = 16;
+// Brief grace window after opening so the key/tap that opened the popup can't
+// instantly close it on the same input.
+const OPEN_GRACE_MS = 140;
 
 export default class InfoPanelScene extends Phaser.Scene {
   constructor() {
@@ -22,18 +28,31 @@ export default class InfoPanelScene extends Phaser.Scene {
   create() {
     this.closing = false;
     this.build();
-    this.input.keyboard.on('keydown-ESC', () => this.close());
+    this._wireDismiss();
   }
 
   refresh() {
     this.closing = false;
     this.children.removeAll(true);
     this.input.keyboard.removeAllListeners();
+    this.input.removeAllListeners();
     this.statFills = {};
     this.moodText  = null;
     this.panel     = null;
     this.build();
-    this.input.keyboard.on('keydown-ESC', () => this.close());
+    this._wireDismiss();
+  }
+
+  // Auto-dismiss wiring: any key (Esc included) or a tap on the backdrop closes
+  // the popup. The brief grace window keeps the opening input from closing it.
+  _wireDismiss() {
+    this._openAt = this.time.now;
+    this.input.keyboard.on('keydown', () => this._maybeDismiss());
+  }
+
+  _maybeDismiss() {
+    if (this.time.now - this._openAt < OPEN_GRACE_MS) return;
+    this.close();
   }
 
   // Stat keys to show as bars: every decaying need, plus happiness if the species
@@ -47,8 +66,8 @@ export default class InfoPanelScene extends Phaser.Scene {
   build() {
     const sw = this.scale.width;
     const sh = this.scale.height;
-    const panelX = sw - PANEL_W;
     this._sw = sw;
+    this._sh = sh;
 
     const viewing = this.registry.get('viewingAnimal');
     const animal  = viewing?.animal;
@@ -57,20 +76,13 @@ export default class InfoPanelScene extends Phaser.Scene {
     const spec = getSpecies(animal.species);
     const cfg  = spec.panel ?? {};
 
-    // Dim backdrop over the play area — clicking it closes the panel.
-    const backdrop = this.add.rectangle(0, 0, panelX, sh, 0x000000, 0.28)
+    // Faint full-screen catcher — a tap anywhere outside the card closes it.
+    const catcher = this.add.rectangle(0, 0, sw, sh, 0x000000, 0.12)
       .setOrigin(0, 0).setInteractive();
-    backdrop.on('pointerdown', () => this.close());
+    catcher.on('pointerdown', () => this._maybeDismiss());
 
-    // Panel container slides in from off-screen right.
-    this.panel = this.add.container(sw, 0);
-
-    const bg = this.add.graphics();
-    bg.fillStyle(0xf4f1ec, 1);
-    bg.fillRect(0, 0, PANEL_W, sh);
-    bg.lineStyle(2, 0xd4cec4, 1);
-    bg.lineBetween(0, 0, 0, sh);
-    this.panel.add(bg);
+    // Card container — positioned (centered) after we know its height.
+    this.panel = this.add.container(0, 0);
 
     // ── Portrait (animated for species with idle frames, else a static image) ──
     if (cfg.portrait === 'animated') {
@@ -82,30 +94,30 @@ export default class InfoPanelScene extends Phaser.Scene {
           frameRate: 2, repeat: -1,
         });
       }
-      const sprite = this.add.sprite(PANEL_W / 2, 100, `${key}_idle_0`)
+      const sprite = this.add.sprite(CARD_W / 2, 78, `${key}_idle_0`)
         .setScale(3).setOrigin(0.5, 0.5);
       sprite.play(animKey);
       this.panel.add(sprite);
     } else {
-      this.panel.add(this.add.image(PANEL_W / 2, 100, `portrait_${key}`)
-        .setDisplaySize(100, 100).setOrigin(0.5, 0.5));
+      this.panel.add(this.add.image(CARD_W / 2, 78, `portrait_${key}`)
+        .setDisplaySize(96, 96).setOrigin(0.5, 0.5));
     }
 
     // ── Name / breed / age ─────────────────────────────────────────────
-    this.panel.add(this.add.text(PANEL_W / 2, 182, animal.name, {
+    this.panel.add(this.add.text(CARD_W / 2, 138, animal.name, {
       fontFamily: 'system-ui, sans-serif', fontSize: '22px',
       color: '#2c2c2a', fontStyle: 'bold',
     }).setOrigin(0.5, 0));
 
-    this.panel.add(this.add.text(PANEL_W / 2, 212, `${animal.breed}  ·  ${animal.age} ${animal.age === 1 ? 'yr' : 'yrs'}`, {
+    this.panel.add(this.add.text(CARD_W / 2, 168, `${animal.breed}  ·  ${animal.age} ${animal.age === 1 ? 'yr' : 'yrs'}`, {
       fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: '#6a6860',
     }).setOrigin(0.5, 0));
 
-    let infoY = 232;
+    let infoY = 188;
 
     // ── Optional trait line (e.g. chicken personality) ─────────────────
     if (cfg.traitLine && animal[cfg.traitLine]) {
-      this.panel.add(this.add.text(PANEL_W / 2, infoY, `${animal[cfg.traitLine]}`, {
+      this.panel.add(this.add.text(CARD_W / 2, infoY, `${animal[cfg.traitLine]}`, {
         fontFamily: 'system-ui, sans-serif', fontSize: '13px', color: '#a47a4a',
         fontStyle: 'italic',
       }).setOrigin(0.5, 0));
@@ -114,7 +126,7 @@ export default class InfoPanelScene extends Phaser.Scene {
 
     // ── Optional fixed attributes (e.g. Ebony's health/speed/stamina) ──
     if (cfg.fixedAttrs && animal.health !== undefined) {
-      this.panel.add(this.add.text(PANEL_W / 2, infoY,
+      this.panel.add(this.add.text(CARD_W / 2, infoY,
         `Health ${animal.health}  ·  Speed ${animal.speed}  ·  Stamina ${animal.stamina}`, {
           fontFamily: 'system-ui, sans-serif', fontSize: '11px', color: '#8a6a3a',
         }).setOrigin(0.5, 0));
@@ -123,7 +135,7 @@ export default class InfoPanelScene extends Phaser.Scene {
 
     // ── Mood line (species with happiness) ─────────────────────────────
     if (spec.mood) {
-      this.moodText = this.add.text(PANEL_W / 2, infoY, `Feeling ${animal.mood()}`, {
+      this.moodText = this.add.text(CARD_W / 2, infoY, `Feeling ${animal.mood()}`, {
         fontFamily: 'system-ui, sans-serif', fontSize: '13px', color: '#1d9e75',
       }).setOrigin(0.5, 0);
       this.panel.add(this.moodText);
@@ -134,14 +146,14 @@ export default class InfoPanelScene extends Phaser.Scene {
 
     // ── Stat bars (one per need + happiness) ───────────────────────────
     const rows = this._statRows(spec);
-    let barY = infoY + 14;
+    let barY = infoY + 16;
     for (const s of rows) {
       this.panel.add(this.add.text(14, barY, s.label, {
         fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: '#6a6860',
       }).setOrigin(0, 0.5));
 
       const trackX = 62;
-      const trackW = PANEL_W - 76;
+      const trackW = CARD_W - 76;
       const trackY = barY - 6;
 
       const trackBg = this.add.graphics();
@@ -159,6 +171,8 @@ export default class InfoPanelScene extends Phaser.Scene {
       barY += 26;
     }
 
+    let bottomY = barY;
+
     // ── Action buttons (2-col grid) ────────────────────────────────────
     const actions = Object.entries(spec.actions).map(([type, a]) => ({ type, label: a.label, icon: a.icon }));
     if (actions.length) {
@@ -172,22 +186,43 @@ export default class InfoPanelScene extends Phaser.Scene {
         const by  = btnY0 + row * (btnH + btnGap);
         this.makeButton(bx, by, btnW, btnH, a.label, a.icon, () => this.act(a.type, animal, key));
       });
+      const lastRow = Math.floor((actions.length - 1) / 2);
+      bottomY = btnY0 + lastRow * (btnH + btnGap) + btnH;
     }
 
+    const cardH = bottomY + PAD;
+
+    // Card background, inserted behind everything in the container.
+    const bg = this.add.graphics();
+    bg.fillStyle(0xf4f1ec, 1);
+    bg.fillRoundedRect(0, 0, CARD_W, cardH, 14);
+    bg.lineStyle(2, 0xd4cec4, 1);
+    bg.strokeRoundedRect(0, 0, CARD_W, cardH, 14);
+    this.panel.addAt(bg, 0);
+
     // ── Close button ───────────────────────────────────────────────────
-    const closeBtn = this.add.text(PANEL_W - 12, 14, '✕', {
+    const closeBtn = this.add.text(CARD_W - 12, 12, '✕', {
       fontFamily: 'system-ui, sans-serif', fontSize: '20px', color: '#9a9790',
     }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
     closeBtn.on('pointerdown', () => this.close());
     this.panel.add(closeBtn);
 
-    this.tweens.add({ targets: this.panel, x: panelX, duration: 220, ease: 'Quad.easeOut' });
+    // Center the card and pop it in (fade + a small rise).
+    const cardX = Math.round((sw - CARD_W) / 2);
+    const cardY = Math.round((sh - cardH) / 2);
+    this._cardX = cardX;
+    this._cardY = cardY;
+    this.panel.setPosition(cardX, cardY + 12).setAlpha(0);
+    this.tweens.add({
+      targets: this.panel, y: cardY, alpha: 1,
+      duration: 160, ease: 'Quad.easeOut',
+    });
   }
 
   addDivider(y) {
     const g = this.add.graphics();
     g.lineStyle(1, 0xd4cec4, 1);
-    g.lineBetween(14, y, PANEL_W - 14, y);
+    g.lineBetween(14, y, CARD_W - 14, y);
     this.panel.add(g);
   }
 
@@ -226,6 +261,9 @@ export default class InfoPanelScene extends Phaser.Scene {
     // refreshStats reads it below). Applying here too would double-count.
     this.game.events.emit(EVENTS.ANIMAL_ACTION, { type, horseKey: key });
     this.refreshStats(animal);
+    // Pressing an action button counts as interacting with the popup, so keep it
+    // open and reset the grace window rather than letting the tap dismiss it.
+    this._openAt = this.time.now;
   }
 
   refreshStats(animal) {
@@ -244,8 +282,9 @@ export default class InfoPanelScene extends Phaser.Scene {
     this.closing = true;
     this.tweens.add({
       targets: this.panel,
-      x: this._sw ?? this.scale.width,
-      duration: 180,
+      y: (this._cardY ?? 0) + 12,
+      alpha: 0,
+      duration: 130,
       ease: 'Quad.easeIn',
       onComplete: () => this.scene.stop(),
     });

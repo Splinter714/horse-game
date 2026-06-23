@@ -8,7 +8,7 @@ import {
   setMusicMode, playNicker, playSqueal,
 } from '../audio/sounds.js';
 import {
-  WORLD_W, WORLD_H, INTERACT_DIST, PLAYER_SPEED, RIDE_SPEED,
+  WORLD_W, WORLD_H, INTERACT_DIST, CARE_DIST, PLAYER_SPEED, RIDE_SPEED,
   HOLD_MS, HOLD_DRAG_PX, BOUNDS, PLAYER_BOUNDS, PASTURE_BOUNDS,
   GATE_X, GATE_GAP_X0, GATE_GAP_X1, S,
   DUST_CLEAN_AT, DUST_MAX_ALPHA, STINK_AT, STAND_DEFS, STAND_TYPES,
@@ -248,7 +248,6 @@ export default class PaddockScene
     if (item.action === 'pet') {
       playChime();
       this.showHeart(h.sprite);
-      this.hop(h.sprite);
     } else {
       if (item.action === 'feed')  playEat();
       if (item.action === 'water') playDrink();
@@ -262,6 +261,81 @@ export default class PaddockScene
         this.scene.get('InfoPanelScene').refreshStats(horse);
       }
     }
+  }
+
+  // ─── Pet-then-info interaction ───────────────────────────────────────────
+
+  // The first interaction with a given animal each day is a pet (heart + a
+  // happiness bump for species that support it); every interaction after that
+  // opens the info panel. The "petted today" set is cleared at dawn
+  // (`_dawnNewDay`). Returns true if this interaction was the pet.
+  _petTodayHas(key) {
+    return !!this._petToday?.has(key);
+  }
+
+  petOrInfo(key, sprite, openInfo) {
+    if (!this._petToday) this._petToday = new Set();
+    if (this._petToday.has(key)) { openInfo(); return; }
+    this._petToday.add(key);
+
+    // Apply the pet care action for species that have one (horses); for others
+    // (chickens, foals) the heart is purely affectionate feedback.
+    const horse = this.registry.get('allHorses')?.[key];
+    if (horse?.actionDef?.('pet')) {
+      horse.applyAction('pet');
+      this._saveHorses();
+      this.game.events.emit(EVENTS.STATS_CHANGED);
+    }
+
+    playChime();
+    this.showHeart(sprite);
+  }
+
+  // Empty-hand proximity: gather every pettable animal in reach, prefer the ones
+  // that still need love today, and target the nearest of those. Returns true if
+  // it claimed the prompt (so checkProximity can stop). See call site for intent.
+  _petPreferenceProximity(useKey, useJust) {
+    const { player } = this;
+    const dist = (s) => Phaser.Math.Distance.Between(
+      player.sprite.x, player.sprite.y, s.x, s.y);
+
+    const cands = [];
+    for (const h of this.horses) {
+      if (h.saddled) continue; // empty hand mounts a saddled horse, not a pet
+      const d = dist(h.sprite);
+      if (d < CARE_DIST) cands.push({
+        key: h.key, sprite: h.sprite, d, offY: 118,
+        loved: this._petTodayHas(h.key), open: () => this.openPortrait(h.key),
+      });
+    }
+    for (const a of this.animals) {
+      if (!a.sprite.visible) continue; // tucked in the coop at night
+      const d = dist(a.sprite);
+      if (d < CARE_DIST) cands.push({
+        key: a.key, sprite: a.sprite, d, offY: 54,
+        loved: this._petTodayHas(a.key), open: () => this.openChickenInfo(a.key),
+      });
+    }
+    for (const foal of this.foals) {
+      const d = dist(foal.sprite);
+      if (d < CARE_DIST) cands.push({ key: foal.key, sprite: foal.sprite, d, offY: 78,
+        loved: false, foal: true }); // foals have no panel — always pet
+    }
+    if (!cands.length) return false;
+
+    const needLove = cands.filter(c => !c.loved);
+    const pool = (needLove.length ? needLove : cands).sort((a, b) => a.d - b.d);
+    const t = pool[0];
+
+    this.interactPrompt.setText(`${useKey}  ${t.loved ? 'Info' : 'Pet'}`);
+    this.interactPrompt.setPosition(t.sprite.x, t.sprite.y - t.offY);
+    this.interactPrompt.setVisible(true);
+
+    if (useJust) {
+      if (t.foal) { playChime(); this.showHeart(t.sprite); }
+      else this.petOrInfo(t.key, t.sprite, t.open);
+    }
+    return true;
   }
 
   // ─── Info panel ──────────────────────────────────────────────────────────
@@ -320,7 +394,6 @@ export default class PaddockScene
     if (h) {
       if (type === 'pet') {
         this.showHeart(h.sprite);
-        this.hop(h.sprite);
       } else if (def.icon) {
         this.showIcon(def.icon, h.sprite);
       }
@@ -453,13 +526,14 @@ export default class PaddockScene
       dRight:  btns[15]?.pressed ?? false,
       btnA:    btns[0]?.pressed  ?? false,
       btnB:    btns[1]?.pressed  ?? false,
+      btnX:    btns[2]?.pressed  ?? false,
       btnLT:   (btns[6]?.value ?? 0) > 0.3,
       btnRT:   (btns[7]?.value ?? 0) > 0.3,
       btnBack: btns[8]?.pressed  ?? false,
       btnStart:btns[9]?.pressed  ?? false,
     };
 
-    const prev    = this._prevRawButtons;
+    const prev    = this._prevRawButtons ?? {};
     const hotbar  = this.scene.get('HotbarScene');
 
     if (this._rawPad.btnA && !prev.btnA) {
@@ -470,7 +544,12 @@ export default class PaddockScene
     if (this._rawPad.btnB && !prev.btnB) {
       this.usingPad = true;
       if (hotbar?.invOpen)                      hotbar._closeInventory();
-      else if (this.scene.isActive('InfoPanelScene')) this.scene.stop('InfoPanelScene');
+      else if (this.scene.isActive('InfoPanelScene')) this.scene.get('InfoPanelScene').close();
+    }
+    // X = use the armed hotbar tool (interact is A)
+    if (this._rawPad.btnX && !prev.btnX) {
+      this.usingPad = true;
+      this.useActiveTool();
     }
     // LT/RT = cycle hotbar (same as LB/RB)
     if (this._rawPad.btnLT && !prev.btnLT) {
@@ -495,6 +574,7 @@ export default class PaddockScene
     this._prevRawButtons = {
       btnA:     this._rawPad.btnA,
       btnB:     this._rawPad.btnB,
+      btnX:     this._rawPad.btnX,
       btnLT:    this._rawPad.btnLT,
       btnRT:    this._rawPad.btnRT,
       btnBack:  this._rawPad.btnBack,
@@ -568,8 +648,12 @@ export default class PaddockScene
     if (kbActive)  this.usingPad = false;
     if (padActive) this.usingPad = true;
 
-    // Manual input cancels any tap-to-move trip in progress.
-    if (kbActive || padActive) this._cancelTapMove();
+    // Manual input cancels any tap-to-move trip in progress, and dismisses the
+    // info popup — moving is one of the "almost anything else" that closes it.
+    if (kbActive || padActive) {
+      this._cancelTapMove();
+      if (this.scene.isActive('InfoPanelScene')) this.scene.get('InfoPanelScene').close();
+    }
 
     if (this.navPath) {
       this._stepNav(delta);
@@ -626,6 +710,16 @@ export default class PaddockScene
       return;
     }
 
+    // While the info popup is open, the interact key just closes it (handled by
+    // the popup's own keydown) — don't also re-trigger a pet/open here, which
+    // would make it flicker shut-then-open. Mirrors handleTap bailing early.
+    if (this.scene.isActive('InfoPanelScene')) {
+      this.interactPrompt.setVisible(false);
+      Phaser.Input.Keyboard.JustDown(this.eKey); // consume so it doesn't queue
+      this.padAJustDown = false;
+      return;
+    }
+
     // When riding, show dismount hint
     if (this.riding) {
       const h = this.riding.h;
@@ -642,79 +736,38 @@ export default class PaddockScene
     const aJust   = this.padAJustDown;
     this.padAJustDown = false;
 
-    // E (keyboard) and A (gamepad) both trigger item use / interact
+    // E (keyboard) and A (gamepad) both trigger the interact action. Tools are
+    // no longer used here — they go through useActiveTool (Use button / F /
+    // controller). So this whole pass is interact-only: gate/barn, mounting a
+    // saddled horse, and petting/opening animals.
     const useJust = eJust || aJust;
     const useKey  = this.usingPad ? '[ A ]' : '[ E ]';
 
-    // Static world interactables — gate, barn, trough, etc. (see buildInteractables)
+    // Bare-hand world interactables — gate, barn.
     if (this._proximityInteractable(item, useKey, useJust)) return;
 
-    // Nearest horse — use item or open portrait
-    let nearest = null, nearestDist = Infinity;
+    // A saddled horse close by → Mount (an interact, not a tool). Checked before
+    // the pet preference so walking up to a tacked-up horse reliably mounts it.
+    let mountH = null, mountD = Infinity;
     for (const h of this.horses) {
-      const d = Phaser.Math.Distance.Between(
-        player.sprite.x, player.sprite.y, h.sprite.x, h.sprite.y
-      );
-      if (d < nearestDist) { nearestDist = d; nearest = h; }
+      if (!h.saddled) continue;
+      const d = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, h.sprite.x, h.sprite.y);
+      if (d < INTERACT_DIST && d < mountD) { mountD = d; mountH = h; }
     }
-    // Carried food/water aren't used directly on a horse — feeding is drop-only
-    // and water goes to the trough. The brush, saddle, lead and basic-interact
-    // (empty hand) work directly on a horse.
-    const basicInteract = !item || item.action === 'interact';
-    const horseUsable = basicInteract || item.action === 'saddle' ||
-      item.action === 'lead' || item.action === 'brush';
-    const inRange = nearest && nearestDist < INTERACT_DIST && horseUsable;
-
-    if (inRange) {
-      let verb;
-      if (item?.action === 'saddle')             verb = nearest.saddled ? 'Remove Saddle' : 'Saddle Up';
-      else if (item?.action === 'lead')          verb = this.leadHorses.includes(nearest) ? 'Detach Lead' : 'Attach Lead';
-      else if (nearest.saddled && basicInteract) verb = 'Mount';
-      else if (item?.action === 'interact')      verb = 'Info';
-      else                                       verb = `Info  •  [ A ] Pet`;
-
-      this.interactPrompt.setText(`${useKey}  ${verb}`);
-      this.interactPrompt.setPosition(nearest.sprite.x, nearest.sprite.y - 118);
+    if (mountH) {
+      this.interactPrompt.setText(`${useKey}  Mount`);
+      this.interactPrompt.setPosition(mountH.sprite.x, mountH.sprite.y - 118);
       this.interactPrompt.setVisible(true);
-
-      if (useJust) {
-        if (item?.action === 'saddle')             this.toggleSaddle(nearest);
-        else if (item?.action === 'lead')          this.toggleLead(nearest);
-        else if (nearest.saddled && basicInteract) this.mountHorse(nearest);
-        else if (item?.action === 'brush')         this.useItemOnHorse(item, nearest);
-        else                                       this.openPortrait(nearest.key);
-      }
+      if (useJust) this.mountHorse(mountH);
       return;
     }
 
-    // Foal proximity
-    for (const foal of this.foals) {
-      const fd = Phaser.Math.Distance.Between(
-        player.sprite.x, player.sprite.y, foal.sprite.x, foal.sprite.y
-      );
-      if (fd < 65) {
-        this.interactPrompt.setText(`[ A ]  Pet`);
-        this.interactPrompt.setPosition(foal.sprite.x, foal.sprite.y - 78);
-        this.interactPrompt.setVisible(true);
-        return;
-      }
-    }
-
-    // Animal proximity
-    for (const a of this.animals) {
-      const ad = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, a.sprite.x, a.sprite.y);
-      if (ad < 60) {
-        this.interactPrompt.setText(`[ A ]  Pet`);
-        this.interactPrompt.setPosition(a.sprite.x, a.sprite.y - 54);
-        this.interactPrompt.setVisible(true);
-        return;
-      }
-    }
+    // Pet/info across all nearby animals (un-saddled horses, chickens, foals),
+    // preferring the ones that still need their daily love so you won't start
+    // opening info panels until every animal in reach has been loved today.
+    if (this._petPreferenceProximity(useKey, useJust)) return;
 
     this.interactPrompt.setVisible(false);
-
-    // Drop food when not near anything (hay, apples, carrots — all the same)
-    if (useJust && item?.action === 'feed') this.placeFood(item);
   }
 
   _showAnimalInfo(a) {

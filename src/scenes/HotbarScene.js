@@ -40,7 +40,15 @@ export default class HotbarScene extends Phaser.Scene {
     });
     this.input.keyboard.on('keydown-I', () => this._toggleInventory());
     this.input.keyboard.on('keydown-M', () => this._toggleMute());
-    this.input.keyboard.on('keydown-ESC', () => this._togglePause());
+    // Esc closes an open info popup first; only when none is open does it
+    // toggle the pause menu (so one Esc doesn't both close a popup and pause).
+    this.input.keyboard.on('keydown-ESC', () => {
+      if (!this.pauseOpen && this.scene.isActive('InfoPanelScene')) {
+        this.scene.get('InfoPanelScene').close();
+        return;
+      }
+      this._togglePause();
+    });
 
     this.input.gamepad.on('down', (_pad, button) => {
       if (button.index === 4) this._setActive((this.activeSlot - 1 + NUM_SLOTS) % NUM_SLOTS);
@@ -80,10 +88,15 @@ export default class HotbarScene extends Phaser.Scene {
     this._stripBg?.destroy();
     this._pauseBtn?.destroy();
     this._moneyLbl?.destroy();
+    this._use?.g?.destroy();
+    this._use?.lbl?.destroy();
+    this._use?.hint?.destroy();
+    this._use?.zone?.destroy();
     this._slots      = [];
     this._pauseBtn   = null;
     this._moneyLbl   = null;
     this._stripBg    = null;
+    this._use        = null;
 
     const sw = this.scale.width;
     const sh = this.scale.height;
@@ -172,6 +185,58 @@ export default class HotbarScene extends Phaser.Scene {
 
       this._slots.push({ g, numLbl, icon, itemLbl, qtyLbl, zone, x, slotY, ss, radius });
     }
+
+    this._buildUseButton(startX, totalW, slotY, ss, radius, fit);
+  }
+
+  // The "Use" button — applies the armed tool (interact stays on tap/click/E).
+  // Sits just above the right end of the hotbar strip. Dimmed when the active
+  // slot is the empty hand (nothing to use). Mirrors F / controller-X.
+  _buildUseButton(startX, totalW, slotY, ss, radius, fit) {
+    const useW = Math.max(60, Math.floor(88 * fit));
+    const useH = Math.max(26, Math.floor(38 * fit));
+    const ux   = startX + totalW - useW;
+    const uy   = slotY - useH - 14;
+
+    const g = this.add.graphics().setDepth(2);
+    const lbl = this.add.text(ux + useW / 2, uy + useH / 2 - 2, 'Use', {
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: `${Math.max(11, Math.floor(15 * fit))}px`,
+      color: '#ffffff', fontStyle: 'bold',
+    }).setOrigin(0.5, 0.5).setDepth(3);
+    const hint = this.add.text(ux + useW / 2, uy + useH - 7, '[ F ]', {
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: `${Math.max(7, Math.floor(8 * fit))}px`,
+      color: '#cdd6ff',
+    }).setOrigin(0.5, 1).setDepth(3);
+
+    const zone = this.add.zone(ux, uy, useW, useH).setOrigin(0, 0)
+      .setInteractive({ useHandCursor: true }).setDepth(5);
+    zone.on('pointerup', () => {
+      if (this.invOpen) return;
+      this.scene.get('PaddockScene')?.useActiveTool();
+    });
+
+    this._use = { g, lbl, hint, zone, ux, uy, useW, useH, radius };
+    this._refreshUseButton();
+  }
+
+  // Redraw the Use button to reflect whether the active slot holds a usable tool.
+  _refreshUseButton() {
+    const u = this._use;
+    if (!u) return;
+    const key  = this.hotbar[this.activeSlot];
+    const item = key ? ITEM_MAP[key] : null;
+    // Hand (interact) and empty slots aren't "used"; everything else is.
+    const usable = !!item && item.action !== 'interact';
+
+    u.g.clear();
+    u.g.fillStyle(usable ? 0x3b4a63 : 0x2a2f3c, usable ? 0.95 : 0.6);
+    u.g.fillRoundedRect(u.ux, u.uy, u.useW, u.useH, u.radius);
+    u.g.lineStyle(1, 0xffffff, usable ? 0.18 : 0.08);
+    u.g.strokeRoundedRect(u.ux, u.uy, u.useW, u.useH, u.radius);
+    u.lbl.setAlpha(usable ? 1 : 0.5);
+    u.hint.setAlpha(usable ? 0.85 : 0.4);
   }
 
   // Update just the money text without rebuilding everything
@@ -249,6 +314,7 @@ export default class HotbarScene extends Phaser.Scene {
     this.activeSlot = index;
     const curr = this._slots[this.activeSlot];
     if (curr) this._drawSlot(curr.g, curr.x, curr.slotY, curr.ss, curr.radius, true);
+    this._refreshUseButton();
   }
 
   // ── Inventory panel ────────────────────────────────────────────────────────
