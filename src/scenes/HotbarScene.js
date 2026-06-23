@@ -450,16 +450,17 @@ export default class HotbarScene extends Phaser.Scene {
   }
 
   // Number-key press on slot `i`: select it, and for a carrier group open its
-  // fly-out picker. Re-pressing the already-active group cycles to the next
-  // member (#75).
+  // fly-out picker. Selecting / re-selecting the tool just opens the picker; only a
+  // press while it's *already* open cycles to the next member — so opening it never
+  // also advances the instance (#75).
   _pressSlot(i) {
     if (this.invOpen) this._closeInventory();
-    const wasActive = i === this.activeSlot;
+    const flyoutOpenHere = this._flyoutSlot === i; // picker already showing for this slot?
     const key = this.hotbar[i];
-    this._setActive(i);
+    this._setActive(i); // selects, closes any open fly-out
     if (this._isGroup(key)) {
-      if (wasActive) this._cycleMember(key); // re-press cycles to the next member
-      this._openFlyout(i);                    // first select opens the picker
+      if (flyoutOpenHere) this._cycleMember(key); // cycle only when already open
+      this._openFlyout(i);
     }
   }
 
