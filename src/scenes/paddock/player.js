@@ -474,11 +474,10 @@ export const WithPlayer = (Base) => class extends Base {
   }
 
   // Pick the horse a tool should act on. Saddle/lead target the nearest horse
-  // within care distance (toggle actions, no "needs it" cap). The brush instead
-  // targets the horse that needs it most among those actually in reach: dirtiest
-  // first (lowest grooming), tie-broken by distance — so a spotless horse next to
-  // you doesn't soak up the brush while a dirtier one in range goes ungroomed
-  // (#96). It only falls through to a clean horse when nothing in reach needs it.
+  // within care distance (toggle actions, no "needs it" cap). The brush targets
+  // the dirtiest horse *that needs brushing* within reach (lowest grooming,
+  // tie-broken by distance, #96) — and returns null when every in-reach horse is
+  // already clean, so brushing isn't offered or fired on a maxed coat (#98).
   _nearestToolHorse(item) {
     const allHorses = this.registry.get('allHorses');
     const dist = (h) => Phaser.Math.Distance.Between(
@@ -486,11 +485,9 @@ export const WithPlayer = (Base) => class extends Base {
 
     if (item.action === 'brush') {
       const grooming = (h) => allHorses[h.key]?.stats.grooming ?? 100;
-      const inReach = this.horses.filter(h => dist(h) <= USE_REACH);
-      if (!inReach.length) return null;
-      const dirty = inReach.filter(h => grooming(h) < 99.5);
-      const pool = dirty.length ? dirty : inReach;
-      return pool.sort((a, b) => (grooming(a) - grooming(b)) || (dist(a) - dist(b)))[0];
+      const dirtyInReach = this.horses.filter(h => dist(h) <= USE_REACH && grooming(h) < 99.5);
+      if (!dirtyInReach.length) return null; // nothing in reach needs brushing (#98)
+      return dirtyInReach.sort((a, b) => (grooming(a) - grooming(b)) || (dist(a) - dist(b)))[0];
     }
 
     let best = null, bestD = Infinity;

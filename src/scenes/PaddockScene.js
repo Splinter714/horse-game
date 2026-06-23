@@ -284,6 +284,13 @@ export default class PaddockScene
   }
 
   petAnimal(key, sprite) {
+    // #98: a horse whose happiness is already full can't be petted — there's
+    // nothing to add, so no heart fires (also covers an explicit tap on a maxed
+    // horse, not just the proximity pick). Capless animals (chickens/cat) have no
+    // happiness stat, so a pet is always pure affection.
+    const horse = this.registry.get('allHorses')?.[key];
+    if (horse && (horse.stats?.happiness ?? 0) >= 99.5) return false;
+
     if (!this._petToday) this._petToday = new Set();
     const firstToday = !this._petToday.has(key);
     this._petToday.add(key);
@@ -291,13 +298,10 @@ export default class PaddockScene
     // The happiness bump for species with a pet action applies only once per day
     // (cleared at dawn) so it can't be spammed — but the heart/chime play every
     // time so every interaction reads as affection.
-    if (firstToday) {
-      const horse = this.registry.get('allHorses')?.[key];
-      if (horse?.actionDef?.('pet')) {
-        horse.applyAction('pet');
-        this._saveHorses();
-        this.game.events.emit(EVENTS.STATS_CHANGED);
-      }
+    if (firstToday && horse?.actionDef?.('pet')) {
+      horse.applyAction('pet');
+      this._saveHorses();
+      this.game.events.emit(EVENTS.STATS_CHANGED);
     }
 
     playChime();
@@ -332,17 +336,21 @@ export default class PaddockScene
     const dist = (s) => Phaser.Math.Distance.Between(
       player.sprite.x, player.sprite.y, s.x, s.y);
 
+    // Happiness at/above this reads as "full": a pet there would clamp to no real
+    // gain, so it's treated as maxed and not offered (#98).
+    const FULL = 99.5;
+
     const cands = [];
     for (const h of this.horses) {
       if (h.saddled) continue; // empty hand mounts a saddled horse, not a pet
       const d = dist(h.sprite);
       if (d >= CARE_DIST) continue;
-      // A pet only helps a horse whose happiness isn't already full and that
-      // hasn't had its daily love yet — `deficit` ranks who needs it most (#96).
       const hap = allHorses?.[h.key]?.stats?.happiness ?? 100;
       cands.push({
         key: h.key, sprite: h.sprite, d, offY: 118,
-        satisfied: this._petTodayHas(h.key) || hap >= 100, deficit: 100 - hap,
+        canPet: hap < FULL,                                // #98: not pettable when full
+        wantsPet: hap < FULL && !this._petTodayHas(h.key), // #96: still benefits today
+        deficit: 100 - hap,
         open: () => this.openPortrait(h.key),
       });
     }
@@ -350,46 +358,51 @@ export default class PaddockScene
       if (!a.sprite.visible) continue; // tucked in the coop at night
       const d = dist(a.sprite);
       if (d >= CARE_DIST) continue;
-      // Chickens/cat have no happiness stat — a pet is pure affection, so it's
-      // "wasted" only once they've had today's love. No deficit to rank by.
+      // Chickens/cat have no happiness stat — a pet is pure affection, never
+      // "full", so it's always available; only the daily-love preference applies.
       cands.push({
         key: a.key, sprite: a.sprite, d, offY: 54,
-        satisfied: this._petTodayHas(a.key), deficit: 0,
+        canPet: true, wantsPet: !this._petTodayHas(a.key), deficit: 0,
         open: () => this.openCreatureInfo(a),
       });
     }
     for (const foal of this.foals) {
       const d = dist(foal.sprite);
       if (d < CARE_DIST) cands.push({ key: foal.key, sprite: foal.sprite, d, offY: 78,
-        satisfied: false, deficit: 0, foal: true }); // foals have no panel — always pet
+        canPet: true, wantsPet: true, deficit: 0, foal: true }); // foals: no panel, always pet
     }
     if (!cands.length) { this._proxAnimal = null; return false; }
 
-    // Target the in-range animal that most needs the pet (#96): prefer ones a pet
-    // would actually help (not full / not yet loved today), ranked by happiness
-    // deficit, tie-broken by distance — so the heart doesn't get wasted on a
-    // maxed-out animal while a needier one stands nearby. If none need it, just
-    // pet the nearest (still shows affection).
-    const needy = cands.filter(c => !c.satisfied);
-    const pool = needy.length
-      ? needy.sort((a, b) => (b.deficit - a.deficit) || (a.d - b.d))
-      : cands.sort((a, b) => a.d - b.d);
-    const t = pool[0];
-
-    // The Info input (C / gamepad Y) targets the *nearest* animal by plain
-    // proximity — viewing info has nothing to do with stats, so it deliberately
-    // does NOT use the need-based pet target above (#97). Foals have no panel, so
-    // pick the nearest animal that actually has one.
+    // Info target: the nearest animal that has a panel — plain proximity (#97),
+    // independent of need. (Foals have no panel.)
     this._proxAnimal = cands.filter(c => c.open).sort((a, b) => a.d - b.d)[0] ?? null;
 
-    // Interact always pets now; Info is its own input. Show both (foals have no
-    // panel, so no Info hint for them).
-    const infoKey = this.usingPad ? '[ Y ]' : '[ C ]';
-    this.interactPrompt.setText(t.foal ? `${useKey}  Pet` : `${useKey}  Pet     ${infoKey}  Info`);
-    this.interactPrompt.setPosition(t.sprite.x, t.sprite.y - t.offY);
-    this.interactPrompt.setVisible(this.promptsOn);
+    // Pet target: only animals a pet would actually help — none when every nearby
+    // animal is already maxed (#98). Among the petable, prefer the ones that still
+    // benefit today, ranked by happiness deficit, tie-broken by distance (#96);
+    // otherwise the nearest petable animal for pure affection.
+    const petable = cands.filter(c => c.canPet);
+    const wanters = petable.filter(c => c.wantsPet);
+    const petTarget = wanters.length
+      ? wanters.sort((a, b) => (b.deficit - a.deficit) || (a.d - b.d))[0]
+      : (petable.sort((a, b) => a.d - b.d)[0] ?? null);
 
-    if (useJust) this._petTarget(t);
+    // Build the prompt from whichever actions are actually available, so it
+    // reflects when Pet is unavailable (every nearby animal already happy, #98).
+    const infoKey = this.usingPad ? '[ Y ]' : '[ C ]';
+    const parts = [];
+    if (petTarget)        parts.push(`${useKey}  Pet`);
+    if (this._proxAnimal) parts.push(`${infoKey}  Info`);
+    const anchor = petTarget ?? this._proxAnimal;
+    if (parts.length && anchor) {
+      this.interactPrompt.setText(parts.join('     '));
+      this.interactPrompt.setPosition(anchor.sprite.x, anchor.sprite.y - anchor.offY);
+      this.interactPrompt.setVisible(this.promptsOn);
+    } else {
+      this.interactPrompt.setVisible(false);
+    }
+
+    if (useJust && petTarget) this._petTarget(petTarget);
     return true;
   }
 
