@@ -6,7 +6,7 @@ import { CARRIER_DEFS, CONTENT_DEFS, CARRIER_GROUPS, CARRIER_MEMBERS, ALL_ITEMS,
 
 describe('carrier definitions', () => {
   it('baskets hold solids, buckets hold liquids', () => {
-    expect(CARRIER_DEFS.basket.capacity).toBe(5);
+    expect(CARRIER_DEFS.basket.capacity).toBe(10);
     expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'egg']);
     expect(CARRIER_DEFS.bucket.capacity).toBe(1);
     expect(CARRIER_DEFS.bucket.accepts).toEqual(['water']);

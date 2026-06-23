@@ -8,7 +8,7 @@
 
 // Carrier kinds: what they accept, how much they hold, and their empty icon.
 export const CARRIER_DEFS = {
-  basket: { capacity: 5, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'egg'] },
+  basket: { capacity: 10, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'egg'] },
   bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water'] },
 };
 
