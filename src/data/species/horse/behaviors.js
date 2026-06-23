@@ -17,6 +17,7 @@ const HUNGER_SEEK = 95;   // eat hay while hunger is below this
 const HAY_RANGE   = 700;  // …and the nearest reachable pile is within this many px
 const THIRST_SEEK = 95;   // drink while thirst is below this
 const TROUGH_RANGE = 1000; // …and the filled trough is within this many px
+const GRAZE_HUNGER = 70;  // peckish below this → nibble the grass (ambient, #86)
 
 // Hungry → walk to the nearest reachable hay pile and eat. ctx.nearestHayDist is
 // Infinity when there's no pile the horse can get to (none exist, or the only ones
@@ -52,4 +53,14 @@ export const begPlayer = {
     if (scene._horseBeg(h)) { h._lastSeek = scene.time.now; return true; }
     return false;
   },
+};
+
+// Peckish but with no hay to seek and nobody to beg → graze the grass where it
+// stands (head-down nibble), passively restoring a little hunger (#86). Lowest
+// feeding priority: a horse prefers dropped hay or begging the player first.
+// The whole walkable world is grass, so there's no location test — just hunger.
+export const graze = {
+  id: 'graze',
+  test: (ctx) => ctx.hunger < GRAZE_HUNGER,
+  run: (scene, h) => scene.horseGraze(h),
 };

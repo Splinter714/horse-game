@@ -24,8 +24,21 @@ describe('horse chooseBehavior', () => {
     expect(chooseBehavior('horse', { ...BASE, hunger: 60, nearestHayDist: 300 })).toBe('seekFood');
   });
 
-  it('hungry horse but hay too far → not seekFood', () => {
-    expect(chooseBehavior('horse', { ...BASE, hunger: 60, nearestHayDist: 800 })).toBe(null);
+  it('hungry horse but hay too far → not seekFood (grazes instead)', () => {
+    // hunger 60 < GRAZE_HUNGER (70) and no player to beg → falls through to graze.
+    expect(chooseBehavior('horse', { ...BASE, hunger: 60, nearestHayDist: 800 })).toBe('graze');
+  });
+
+  it('peckish with nothing else available → graze', () => {
+    expect(chooseBehavior('horse', { ...BASE, hunger: 65 })).toBe('graze');
+  });
+
+  it('content horse (hunger at/above graze threshold) does not graze', () => {
+    expect(chooseBehavior('horse', { ...BASE, hunger: 70 })).toBe(null);
+  });
+
+  it('seekFood still wins over graze when hay is reachable', () => {
+    expect(chooseBehavior('horse', { ...BASE, hunger: 60, nearestHayDist: 300 })).toBe('seekFood');
   });
 
   it('thirsty (not hungry) with filled trough in range → seekWater', () => {
@@ -42,21 +55,22 @@ describe('horse chooseBehavior', () => {
     expect(chooseBehavior('horse', c)).toBe('begPlayer');
   });
 
-  it('lazy horse never begs', () => {
+  it('lazy horse never begs (grazes instead when hungry)', () => {
     const c = { ...BASE, hunger: 40, playerDist: 300, temperament: 'lazy' };
-    expect(chooseBehavior('horse', c)).toBe(null);
+    expect(chooseBehavior('horse', c)).toBe('graze'); // not begPlayer
   });
 
   it('begs across a shut gate only when player is within notice distance', () => {
+    // When too far to beg, a hungry horse falls through to grazing rather than wandering.
     const far  = { ...BASE, hunger: 40, gateOpen: false, playerDist: 600 };
     const near = { ...BASE, hunger: 40, gateOpen: false, playerDist: 400 };
-    expect(chooseBehavior('horse', far)).toBe(null);
+    expect(chooseBehavior('horse', far)).toBe('graze');
     expect(chooseBehavior('horse', near)).toBe('begPlayer');
   });
 
-  it('begging is throttled — recently sought horse holds off', () => {
+  it('begging is throttled — recently sought horse holds off (grazes instead)', () => {
     const c = { ...BASE, hunger: 40, playerDist: 300, now: 100000, lastSeek: 95000 };
-    expect(chooseBehavior('horse', c)).toBe(null); // only 5s since last seek (< 8s)
+    expect(chooseBehavior('horse', c)).toBe('graze'); // only 5s since last seek (< 8s) → no beg
     expect(chooseBehavior('horse', { ...c, lastSeek: 90000 })).toBe('begPlayer'); // 10s
   });
 });

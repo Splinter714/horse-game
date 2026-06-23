@@ -6,6 +6,11 @@ import { EVENTS } from '../../data/events.js';
 import { playEat, playDrink } from '../../audio/sounds.js';
 import { PLAYER_BOUNDS, PASTURE_BOUNDS, GATE_X, GATE_GAP_X0, GATE_GAP_X1, BEG } from './constants.js';
 
+// Hunger restored per grazing mouthful (#86). Deliberately light — grazing keeps a
+// horse from getting too hungry but the player's hay (a +35 feed) is still the way
+// to top it right up, so feeding stays meaningful.
+const GRAZE_RESTORE = 4;
+
 export const WithHorseAI = (Base) => class extends Base {
   // ─── Horse AI — eat / drink ───────────────────────────────────────────────
 
@@ -255,6 +260,42 @@ export const WithHorseAI = (Base) => class extends Base {
             }
           }
         });
+    });
+    return true;
+  }
+
+  // Ambient grazing (#86): a peckish horse lowers its head and nibbles the grass
+  // right where it stands, passively restoring a little hunger over a few unhurried
+  // mouthfuls. No walking and no pile needed — the world is grass. Lowest feeding
+  // priority (see the `graze` behavior), so a horse still prefers dropped hay or
+  // begging when those are available. Always claims the horse (returns true).
+  horseGraze(h) {
+    const horse = this.registry.get('allHorses')?.[h.key];
+    if (!horse) return false;
+
+    h.state = 'grazing';
+    if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
+    if (h._begTimer)   { this.time.removeEvent(h._begTimer); h._begTimer = null; }
+
+    h.sprite.play(`eat_${h.key}`, true); // head-down grazing pose
+
+    let mouthfuls = 0;
+    h.eatTimer = this.time.addEvent({
+      delay: 1500, repeat: 2, // three unhurried nibbles
+      callback: () => {
+        if (h.state !== 'grazing') {
+          if (h.eatTimer) { this.time.removeEvent(h.eatTimer); h.eatTimer = null; }
+          return;
+        }
+        horse.stats.hunger = Math.min(100, horse.stats.hunger + GRAZE_RESTORE);
+        this.game.events.emit(EVENTS.STATS_CHANGED);
+        if (++mouthfuls >= 3) {
+          if (h.eatTimer) { this.time.removeEvent(h.eatTimer); h.eatTimer = null; }
+          h.sprite.play(`idle_${h.key}`, true);
+          h.state = 'idle';
+          this.scheduleWander(h, Phaser.Math.Between(900, 2500));
+        }
+      },
     });
     return true;
   }
