@@ -190,6 +190,73 @@ export function buildWorldTextures(scene) {
     g.fillStyle(0xb88c3a, 1); g.fillCircle(9, 11, 1.5);
     g.fillStyle(0xd4a84a, 1); g.fillRect(14, 3, 2, 9); g.fillRect(14, 3, 5, 2);
   });
+  // --- dust splotches overlay (sits on a horse's body when it needs brushing) ---
+  // 64×54 to match the horse frame, origin (0.5,1); irregular muddy patches
+  // clustered over the barrel/back. Runtime alpha (driven by the grooming stat)
+  // fades the whole layer in and out together. (issue #26)
+  tex(scene, 'dustSplotches', 64, 54, (g) => {
+    const mud  = 0x4d3115;   // darker, muckier brown
+    const dust = 0x6b4a2e;
+    // Dense caked-on mud covering most of the barrel/back/rump.
+    g.fillStyle(mud, 0.95);
+    g.fillEllipse(20, 26, 18, 12);  // rump/barrel
+    g.fillEllipse(32, 29, 16, 11);  // mid belly
+    g.fillEllipse(42, 25, 13, 9);   // shoulder
+    g.fillEllipse(14, 23, 9, 8);    // upper rump
+    g.fillEllipse(27, 21, 12, 6);   // along the back
+    g.fillStyle(dust, 0.9);         // lighter clods on top for texture
+    g.fillCircle(22, 24, 3);
+    g.fillCircle(34, 27, 3);
+    g.fillCircle(43, 28, 2.5);
+    g.fillCircle(17, 28, 2.5);
+    g.fillCircle(29, 22, 2.5);
+    g.fillCircle(38, 31, 2);
+    g.fillStyle(0x382309, 0.9);     // darkest grime flecks
+    g.fillCircle(25, 28, 1.5);
+    g.fillCircle(36, 24, 1.5);
+    g.fillCircle(19, 25, 1.5);
+  });
+
+  // --- "stink" lines (wavy vertical squiggles for a very dirty horse) ---
+  tex(scene, 'stinkLines', 26, 22, (g) => {
+    const squig = (x0, col) => {
+      g.lineStyle(2, col, 0.9);
+      g.beginPath();
+      g.moveTo(x0, 21);
+      g.lineTo(x0 - 3, 16);
+      g.lineTo(x0 + 3, 11);
+      g.lineTo(x0 - 3, 6);
+      g.lineTo(x0 + 1, 1);
+      g.strokePath();
+    };
+    squig(6,  0x8a9a55);   // sickly green
+    squig(14, 0x9aa766);
+    squig(21, 0x8a9a55);
+    // a tiny fly buzzing around
+    g.fillStyle(0x2a2a2a, 1);
+    g.fillCircle(20, 4, 1.4);
+  });
+
+  // --- dust puff (kicked up when a horse rolls in the dirt) ---
+  tex(scene, 'dustPuff', 16, 12, (g) => {
+    g.fillStyle(0xcbb089, 0.8);
+    g.fillCircle(5, 7, 4);
+    g.fillCircle(10, 6, 4.5);
+    g.fillCircle(13, 9, 3);
+    g.fillStyle(0xe0cba6, 0.7);
+    g.fillCircle(7, 5, 2.5);
+  });
+
+  // --- grumpy mark (transient, shown when a neglected horse is interacted with) ---
+  tex(scene, 'iconGrumpy', 20, 20, (g) => {
+    g.fillStyle(0xd63b3b, 1);
+    // two short angry slashes (a "💢"-style anger mark)
+    g.fillRect(4, 4, 7, 2); g.fillRect(4, 4, 2, 7);
+    g.fillRect(13, 11, 2, 5); g.fillRect(11, 14, 6, 2);
+    g.fillStyle(0xf07a7a, 1);
+    g.fillRect(5, 6, 2, 2);
+  });
+
   tex(scene, 'troughFull', 100, 26, (g) => {
     g.fillStyle(0x8a5a2e, 1); g.fillRect(0, 6, 100, 20);
     g.fillStyle(0xa06c38, 1); g.fillRect(0, 2, 100, 5);
