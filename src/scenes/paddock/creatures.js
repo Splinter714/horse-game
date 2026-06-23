@@ -5,7 +5,7 @@
 import Phaser from 'phaser';
 import { EVENTS } from '../../data/events.js';
 import { playNicker, playSqueal } from '../../audio/sounds.js';
-import { BOUNDS, PASTURE_BOUNDS, GATE_X, S, DUST_CLEAN_AT } from './constants.js';
+import { BOUNDS, PASTURE_BOUNDS, GATE_X, S } from './constants.js';
 
 export const WithCreatures = (Base) => class extends Base {
   // ─── Other animals ───────────────────────────────────────────────────────
@@ -435,12 +435,14 @@ export const WithCreatures = (Base) => class extends Base {
   }
 
   // ── Rolling in the dirt (issue #26) ───────────────────────────────────────
-  // A relaxed, reasonably clean horse occasionally flops for a roll — real
-  // horses self-groom this way, and it's what leaves them dusty afterward.
+  // A relaxed horse occasionally flops for a roll — real horses self-groom this
+  // way, and it's what leaves them dusty afterward. Rolls regardless of current
+  // cleanliness (a dirty horse can still roll), so it stays a visible, recurring
+  // behavior instead of stopping once a horse gets dirty.
   _maybeRoll(h) {
     if (this.isNight || h.state !== 'idle') return;
     const horse = this.registry.get('allHorses')?.[h.key];
-    if (!horse || horse.stats.grooming < DUST_CLEAN_AT) return; // already dirty — skip
+    if (!horse) return;
     const temp = horse.temperament;
     const chance = temp === 'spirited' ? 0.16 : temp === 'lazy' ? 0.14 : 0.07;
     if (Math.random() > chance) return;
