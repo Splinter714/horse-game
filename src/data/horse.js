@@ -48,6 +48,8 @@ export class Horse {
     if (data.health  !== undefined) this.health  = data.health;
     if (data.speed   !== undefined) this.speed   = data.speed;
     if (data.stamina !== undefined) this.stamina = data.stamina;
+    // Whether a saddle is equipped (persists; required before the horse can be ridden).
+    this.saddled = data.saddled ?? false;
     this.lastSeen = data.lastSeen ?? Date.now();
 
     // ── Daily care cycle (runtime only — not serialized) ───────────────────
@@ -114,7 +116,9 @@ export class Horse {
       breed: this.breed,
       coat: this.coat,
       age: this.age,
+      temperament: this.temperament,
       stats: { ...this.stats },
+      saddled: this.saddled,
       lastSeen: this.lastSeen
     };
     if (this.health  !== undefined) out.health  = this.health;

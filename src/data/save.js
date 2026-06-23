@@ -1,9 +1,36 @@
-// localStorage persistence. Saves the horse and applies gentle offline decay on
-// load so the horse "missed you" without being punished.
+// localStorage persistence. Saves every horse and applies gentle offline decay on
+// load so the herd "missed you" without being punished.
 
-import { Horse } from './horse.js';
+import { Horse, EBONY_BASE_STATS } from './horse.js';
 
-const KEY = 'horse-care-save-v1';
+// Legacy single-horse save (the old "player horse"). Still read once, to migrate
+// an existing player's horse into the unified roster below.
+const LEGACY_KEY = 'horse-care-save-v1';
+
+// Unified roster save: every horse persists, keyed by its texture/registry key.
+const HORSES_KEY = 'horse-care-save-v2';
+
+// The canonical herd. Every horse is equal — same persistence, same decay. The
+// only per-horse differences are data (name, coat, age, spawn) plus Ebony's
+// optional fixed attributes. The `horse` slot keeps the old fresh-game default.
+function defaultHorseRoster() {
+  return {
+    horse:  { id: 'horse-1', name: 'Buttercup', breed: 'Palomino', coat: 'palomino', age: 3, temperament: 'calm' },
+    horse2: { id: 'horse-2', name: 'Clover', breed: 'Bay', coat: 'bay', age: 5, temperament: 'needy',
+      stats: { hunger: 90, thirst: 85, grooming: 80, happiness: 92 } },
+    horse3: { id: 'horse-3', name: 'Ash', breed: 'Dapple Grey', coat: 'dappleGrey', age: 7, temperament: 'lazy',
+      stats: { hunger: 78, thirst: 82, grooming: 95, happiness: 88 } },
+    horse4: { id: 'horse-4', name: 'Splash', breed: 'Paint', coat: 'paint', age: 4, temperament: 'spirited',
+      stats: { hunger: 85, thirst: 80, grooming: 70, happiness: 90 } },
+    horse5: { id: 'horse-5', name: 'Ember', breed: 'Chestnut', coat: 'chestnut', age: 6, temperament: 'spirited',
+      stats: { hunger: 82, thirst: 88, grooming: 75, happiness: 86 } },
+    horse6: { id: 'horse-6', name: 'Pearl', breed: 'Cremello', coat: 'cremello', age: 2, temperament: 'shy',
+      stats: { hunger: 88, thirst: 76, grooming: 90, happiness: 94 } },
+    horse7: { id: 'horse-friesian-ebony', name: 'Ebony', breed: 'Friesian', coat: 'friesian', age: 5, temperament: 'calm',
+      stats: { hunger: 86, thirst: 82, grooming: 88, happiness: 91 },
+      health: EBONY_BASE_STATS.health, speed: EBONY_BASE_STATS.speed, stamina: EBONY_BASE_STATS.stamina },
+  };
+}
 
 // ── Game state (hotbar + inventory) ──────────────────────────────────────────
 
@@ -55,35 +82,52 @@ export function saveGameState({ hotbar, inventory, carriers }) {
   } catch {}
 }
 
-export function loadHorse() {
-  let raw = null;
-  try {
-    raw = localStorage.getItem(KEY);
-  } catch (e) {
-    // localStorage blocked (e.g. private mode) — fall through to a fresh horse.
-  }
-  if (!raw) return new Horse();
+// Build the whole herd: saved data where present, defaults otherwise, with gentle
+// offline decay applied to each horse so a return after time away is forgiving.
+export function loadAllHorses() {
+  const roster = defaultHorseRoster();
 
-  let data;
+  let saved = {};
   try {
-    data = JSON.parse(raw);
+    const raw = localStorage.getItem(HORSES_KEY);
+    if (raw) saved = JSON.parse(raw) ?? {};
   } catch (e) {
-    return new Horse();
+    // localStorage blocked or corrupt — fall through to defaults.
   }
 
-  const horse = new Horse(data);
-  const elapsedSeconds = Math.max(0, (Date.now() - horse.lastSeen) / 1000);
-  if (elapsedSeconds > 1) {
-    horse.applyDecay(elapsedSeconds, true);
+  // One-time migration: an existing player's horse (legacy single-horse save)
+  // carries into the `horse` slot so their progress isn't lost.
+  if (!saved.horse) {
+    try {
+      const legacy = localStorage.getItem(LEGACY_KEY);
+      if (legacy) saved.horse = JSON.parse(legacy);
+    } catch (e) { /* ignore */ }
   }
-  horse.lastSeen = Date.now();
-  return horse;
+
+  const allHorses = {};
+  for (const key of Object.keys(roster)) {
+    const data = saved[key] ?? roster[key];
+    const horse = new Horse(data);
+    const elapsedSeconds = Math.max(0, (Date.now() - horse.lastSeen) / 1000);
+    if (elapsedSeconds > 1) horse.applyDecay(elapsedSeconds, true);
+    horse.lastSeen = Date.now();
+    allHorses[key] = horse;
+  }
+
+  saveAllHorses(allHorses); // seed v2 immediately
+  return allHorses;
 }
 
-export function saveHorse(horse) {
-  horse.lastSeen = Date.now();
+export function saveAllHorses(allHorses) {
+  const now = Date.now();
+  const out = {};
+  for (const key of Object.keys(allHorses)) {
+    const horse = allHorses[key];
+    horse.lastSeen = now;
+    out[key] = horse.toJSON();
+  }
   try {
-    localStorage.setItem(KEY, JSON.stringify(horse.toJSON()));
+    localStorage.setItem(HORSES_KEY, JSON.stringify(out));
   } catch (e) {
     // Saving unavailable — ignore; the game still plays this session.
   }
@@ -91,7 +135,7 @@ export function saveHorse(horse) {
 
 export function hasSave() {
   try {
-    return !!localStorage.getItem(KEY);
+    return !!(localStorage.getItem(HORSES_KEY) || localStorage.getItem(LEGACY_KEY));
   } catch (e) {
     return false;
   }

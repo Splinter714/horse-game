@@ -39,6 +39,11 @@ export default class DayNightScene extends Phaser.Scene {
       padding: { x: 10, y: 6 },
     }).setDepth(501).setOrigin(1, 0).setScrollFactor(0);
 
+    // TESTING ONLY: tap the time-of-day display to skip to the next phase.
+    // Remove before release.
+    this.label.setInteractive({ useHandCursor: true });
+    this.label.on('pointerdown', () => this._advancePhase());
+
     this.overlay.setScrollFactor(0);
 
     this._sw = this.scale.width;
@@ -92,6 +97,20 @@ export default class DayNightScene extends Phaser.Scene {
         });
       },
     });
+  }
+
+  // TESTING ONLY: jump the clock to the start of the next phase. Remove before
+  // release (along with the label's pointer handler in create()).
+  _advancePhase() {
+    if (this._sleeping) return;
+    let phaseStart = 0, phaseIdx = 0;
+    for (let i = 0; i < PHASES.length; i++) {
+      if (this.elapsed < phaseStart + PHASES[i].dur) { phaseIdx = i; break; }
+      phaseStart += PHASES[i].dur;
+      phaseIdx = i;
+    }
+    const nextStart = (phaseStart + PHASES[phaseIdx].dur) % DAY_MS;
+    this.elapsed = nextStart;
   }
 
   update(_time, delta) {
