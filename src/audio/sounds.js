@@ -135,17 +135,21 @@ export function playEat() {
   const now = c.currentTime;
 
   for (let i = 0; i < 3; i++) {
-    const t = now + i * 0.11;
-    const buf = c.createBuffer(1, Math.ceil(c.sampleRate * 0.07), c.sampleRate);
+    // Slight organic jitter in the chew spacing so it doesn't sound mechanical.
+    const t = now + i * 0.115 + (Math.random() - 0.5) * 0.02;
+    const dur = 0.09;
+
+    const buf = c.createBuffer(1, Math.ceil(c.sampleRate * dur), c.sampleRate);
     const d = buf.getChannelData(0);
     for (let j = 0; j < d.length; j++) d[j] = Math.random() * 2 - 1;
 
+    // ── Bright top crunch (the existing crisp layer) ──
     const src = c.createBufferSource();
     src.buffer = buf;
 
     const hi = c.createBiquadFilter();
     hi.type = 'bandpass';
-    hi.frequency.value = 1800 + i * 300;
+    hi.frequency.value = 1500 + i * 250;
     hi.Q.value = 0.8;
 
     const lo = c.createBiquadFilter();
@@ -153,7 +157,7 @@ export function playEat() {
     lo.frequency.value = 3000;
 
     const env = c.createGain();
-    env.gain.setValueAtTime(0.22, t);
+    env.gain.setValueAtTime(0.20, t);
     env.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
 
     src.connect(hi);
@@ -161,7 +165,27 @@ export function playEat() {
     lo.connect(env);
     env.connect(master(1));
     src.start(t);
-    src.stop(t + 0.07);
+    src.stop(t + dur);
+
+    // ── Low-mid chew "body" layered under each crunch for a meatier munch ──
+    const bsrc = c.createBufferSource();
+    bsrc.buffer = buf;
+
+    const body = c.createBiquadFilter();
+    body.type = 'lowpass';
+    body.frequency.value = 380 + i * 40;
+    body.Q.value = 0.7;
+
+    const bodyEnv = c.createGain();
+    bodyEnv.gain.setValueAtTime(0.001, t);
+    bodyEnv.gain.linearRampToValueAtTime(0.30, t + 0.012);
+    bodyEnv.gain.exponentialRampToValueAtTime(0.001, t + dur);
+
+    bsrc.connect(body);
+    body.connect(bodyEnv);
+    bodyEnv.connect(master(1));
+    bsrc.start(t);
+    bsrc.stop(t + dur);
   }
 }
 
