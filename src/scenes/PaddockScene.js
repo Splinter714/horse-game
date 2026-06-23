@@ -954,13 +954,18 @@ export default class PaddockScene
       if (h.dustOverlay) {
         const groom = allHorses[h.key]?.stats.grooming ?? 100;
         const dirt  = Phaser.Math.Clamp((DUST_CLEAN_AT - groom) / DUST_CLEAN_AT, 0, 1);
+        // The dust/stink overlays are the STANDING horse shape, so they'd float
+        // awkwardly over the on-its-side sleep/roll pose. Hide them whenever that
+        // lying-down frame is showing — i.e. while rolling and while asleep at
+        // night (#102). They reappear (darker, if the roll dirtied it) on standing.
+        const lying = h.sprite.anims?.currentAnim?.key === `sleep_${h.key}`;
         h.dustOverlay.x = h.sprite.x;
         h.dustOverlay.y = h.sprite.y;
         h.dustOverlay.setFlipX(h.sprite.flipX);
         h.dustOverlay.angle = h.sprite.angle; // follow the body (e.g. while rolling)
         h.dustOverlay.setDepth(h.sprite.y);
         h.dustOverlay.setAlpha(dirt * DUST_MAX_ALPHA);
-        h.dustOverlay.setVisible(dirt > 0);
+        h.dustOverlay.setVisible(dirt > 0 && !lying);
 
         // Stink lines only on a really filthy horse, gently wavering above its back.
         if (h.stinkOverlay) {
@@ -970,7 +975,7 @@ export default class PaddockScene
           h.stinkOverlay.y = h.sprite.y - 66 + waver * 3;
           h.stinkOverlay.setDepth(h.sprite.y + 1);
           h.stinkOverlay.setAlpha(stink * (0.75 + 0.25 * waver));
-          h.stinkOverlay.setVisible(stink > 0);
+          h.stinkOverlay.setVisible(stink > 0 && !lying);
         }
       }
     }
