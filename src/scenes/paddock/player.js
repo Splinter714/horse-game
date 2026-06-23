@@ -99,6 +99,16 @@ export const WithPlayer = (Base) => class extends Base {
       padding: { x: 8, y: 5 },
     }).setOrigin(0.5, 1).setDepth(9999).setVisible(false);
 
+    // Separate hint for the Use/tool action (F / X / Use button), so the equipped
+    // tool's contextual prompt can show alongside the interact prompt (#83).
+    // Tinted gold to read as the "Use" action, mirroring the Use button.
+    this.toolPrompt = this.add.text(0, 0, '', {
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: '13px', color: '#ffe08a',
+      backgroundColor: '#1c1f2ecc',
+      padding: { x: 8, y: 5 },
+    }).setOrigin(0.5, 1).setDepth(9999).setVisible(false);
+
     // Lead rope drawn each frame when leading a horse
     this.leadRope = this.add.graphics().setDepth(9998);
 
@@ -356,6 +366,67 @@ export const WithPlayer = (Base) => class extends Base {
       }
     }
     if (inst && instD <= inst.reachDist) inst.activate();
+  }
+
+  // Per-frame: show a contextual prompt for the equipped tool/carrier's Use
+  // action (#83). Mirrors useActiveTool's targeting, but only surfaces a hint —
+  // the action still fires on F / X / the Use button. Uses its own toolPrompt
+  // (gold) so it can sit alongside the interact (E/A) prompt without clobbering
+  // it. Hidden when prompts are off, riding, a menu/info panel is open, or no
+  // valid target is in reach.
+  checkToolProximity() {
+    if (!this.promptsOn || this.riding ||
+        this.scene.get('HotbarScene')?.invOpen ||
+        this.scene.isActive('InfoPanelScene')) { this.toolPrompt.setVisible(false); return; }
+
+    const item = this.getActiveItem();
+    if (!item || item.action === 'interact') { this.toolPrompt.setVisible(false); return; }
+
+    const useKey = this.usingPad ? '[ X ]' : '[ F ]';
+    const { player } = this;
+
+    // Animal-targeted tools: brush / saddle / lead on the nearest valid horse.
+    if (item.action === 'brush' || item.action === 'saddle' || item.action === 'lead') {
+      const target = this._nearestToolHorse(item);
+      const d = target && Phaser.Math.Distance.Between(
+        player.sprite.x, player.sprite.y, target.sprite.x, target.sprite.y);
+      if (!target || d > USE_REACH) { this.toolPrompt.setVisible(false); return; }
+      let label;
+      if (item.action === 'saddle')    label = target.saddled ? 'Unsaddle' : 'Saddle';
+      else if (item.action === 'lead') label = this.leadHorses.includes(target) ? 'Stop Leading' : 'Lead';
+      else                             label = 'Brush';
+      // 146 keeps it just above the pet prompt (118) over the same horse.
+      this._showToolPrompt(`${useKey}  ${label}`, target.sprite.x, target.sprite.y - 146);
+      return;
+    }
+
+    // Feed: dropped at the player's feet — always usable when carrying food.
+    if (item.action === 'feed') {
+      this._showToolPrompt(`${useKey}  Drop ${item.label}`, player.sprite.x, player.sprite.y - 70);
+      return;
+    }
+
+    // World-spot tools (fill trough / fill bucket / gather / collect egg / sell):
+    // the nearest actionable instance within reach. Reuse the descriptors' labels.
+    let inst = null, instD = Infinity;
+    for (const instancesOf of this.toolWorld) {
+      for (const c of instancesOf(item)) {
+        if (!c.canAct) continue;
+        const dd = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, c.x, c.y);
+        if (dd < instD) { instD = dd; inst = c; }
+      }
+    }
+    if (inst && instD <= inst.reachDist) {
+      this._showToolPrompt(`${useKey}  ${inst.label}`, inst.x, inst.y - inst.promptOffsetY);
+    } else {
+      this.toolPrompt.setVisible(false);
+    }
+  }
+
+  _showToolPrompt(text, x, y) {
+    this.toolPrompt.setText(text);
+    this.toolPrompt.setPosition(x, y);
+    this.toolPrompt.setVisible(true);
   }
 
   // Pick the horse a tool should act on: nearest within CARE_DIST, but for the

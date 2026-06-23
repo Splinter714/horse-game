@@ -465,6 +465,7 @@ export default class PaddockScene
     this.updateLeading(delta);
     this.updateFoals(delta);
     this.checkProximity();
+    this.checkToolProximity();
     this.separateHorses();
     this.depthSort();
     this.tickDecay(delta);
