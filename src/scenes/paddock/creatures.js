@@ -7,8 +7,19 @@ import Phaser from 'phaser';
 import { EVENTS } from '../../data/events.js';
 import { playNicker, playSqueal } from '../../audio/sounds.js';
 import { BOUNDS, PASTURE_BOUNDS, S, HERD } from './constants.js';
+import { SPECIES } from '../../data/species/index.js';
+
+// Generic movement feel for any creature whose species declares no `movement`
+// block (e.g. the cat). Species defs override these per-animal.
+const GENERIC_MOVEMENT = { wanderMin: 4000, wanderMax: 10000 };
 
 export const WithCreatures = (Base) => class extends Base {
+  // Paddock "feel" knobs for a species id, falling back to GENERIC_MOVEMENT for
+  // creatures without a species def. The single source of truth is each species'
+  // `movement` block (src/data/species/<name>/index.js).
+  _movementFor(speciesId) {
+    return { ...GENERIC_MOVEMENT, ...(SPECIES[speciesId]?.movement ?? {}) };
+  }
   // ─── Other animals ───────────────────────────────────────────────────────
 
   buildAnimals() {
@@ -17,7 +28,7 @@ export const WithCreatures = (Base) => class extends Base {
     // this.spawnAnimal( 900,  820, 'sheep', 0.65, 6, 14);
     // this.spawnAnimal(1300,  700, 'pig',   0.50, 7, 13);
     // this.spawnAnimal( 700,  570, 'dog',   0.44, 8, 10);
-    // this.spawnAnimal(1100,  580, 'cat',   0.34, 7, 12);
+    this.spawnAnimal(700, 600, 'cat', 0.34, 5, 16); // slow, low-slung prowl
 
     // Chicken flock — 5 birds, each with identity, name, and appearance
     const allChickens = this.registry.get('allChickens');
@@ -69,9 +80,13 @@ export const WithCreatures = (Base) => class extends Base {
       .setOrigin(0.5, 1).setScale(S).setDepth(startY)
       .play(`idle_${key}`);
 
+    // Keyless creatures (e.g. the cat) carry no model; derive the species from the
+    // sprite key by stripping any roster index ('chicken0' → 'chicken', 'cat' → 'cat').
+    const speciesId = model?.species ?? key.replace(/\d+$/, '');
+    const mv = this._movementFor(speciesId);
     const a = { sprite, shadow, key, state: 'idle', wanderTween: null, tweenRate,
                 homeX: homeX ?? null, homeY: homeY ?? null, wanderRadius: wanderRadius ?? null,
-                homeBounds: BOUNDS, bodyR: 11, wanderMin: 4000, wanderMax: 10000, tick: null,
+                homeBounds: BOUNDS, bodyR: 11, wanderMin: mv.wanderMin, wanderMax: mv.wanderMax, tick: null,
                 _eatPile: null, eatTimer: null, model };
     this.animals.push(a);
     this.scheduleCreatureWander(a, Phaser.Math.Between(500, 3000));
@@ -414,6 +429,7 @@ export const WithCreatures = (Base) => class extends Base {
       .setOrigin(0.5, 1).setScale(S).setDepth(startY).setAlpha(0);
 
     const model = this.registry.get('allHorses')[key];
+    const mv = this._movementFor(model?.species ?? 'horse');
     // Horses share the same movement/wander helpers as every other animal; their
     // "home" is the whole pasture (no fixed point), and they get a goal-tick that
     // sends them to hay/water before falling back to a plain wander.
@@ -421,7 +437,7 @@ export const WithCreatures = (Base) => class extends Base {
                 dustOverlay, stinkOverlay, _stinkPhase: Math.random() * 6.28,
                 saddled: model?.saddled ?? false, saddleImg: null,
                 homeX: null, homeY: null, wanderRadius: null, homeBounds: PASTURE_BOUNDS,
-                bodyR: 16, tweenRate: 11, wanderMin: 2000, wanderMax: 5000,
+                bodyR: 16, tweenRate: 11, wanderMin: mv.wanderMin, wanderMax: mv.wanderMax,
                 needTarget: (c) => this._needTarget(c),
                 onSettle:   (c) => this._maybeRoll(c),
                 tick:       (c) => this.horseTickForHorse(c) };
@@ -564,8 +580,8 @@ export const WithCreatures = (Base) => class extends Base {
     if (this.isNight || h.state !== 'idle') return;
     const horse = this.registry.get('allHorses')?.[h.key];
     if (!horse) return;
-    const temp = horse.temperament;
-    const chance = temp === 'spirited' ? 0.16 : temp === 'lazy' ? 0.14 : 0.07;
+    const roll = this._movementFor(horse.species).roll ?? {};
+    const chance = roll[horse.temperament] ?? roll.default ?? 0;
     if (Math.random() > chance) return;
     this._rollInDirt(h, horse);
   }

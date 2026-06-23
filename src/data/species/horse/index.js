@@ -56,6 +56,17 @@ export const HORSE = {
 
   capabilities: { saddleable: true, rideable: true, leadable: true, laysEggs: false },
 
+  // Paddock "feel" knobs read by the scene movement primitives (creatures.js).
+  // `wanderMin`/`wanderMax` are the ms delay range between wanders (bigger = the
+  // horse pauses and chills longer between strolls). `roll.<temperament>` is the
+  // per-settle chance a relaxed horse flops for a dirt roll (issue #26); higher =
+  // gets dusty more often. `default` covers any temperament not listed.
+  movement: {
+    wanderMin: 4500,
+    wanderMax: 9000,
+    roll: { spirited: 0.10, lazy: 0.09, default: 0.045 },
+  },
+
   // AI priority list, highest first. The dispatcher walks these in order; the first
   // whose condition fires and successfully claims the horse wins. Wander is the
   // implicit fallback. Modules: ./behaviors.js.
