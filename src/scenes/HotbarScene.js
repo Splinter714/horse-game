@@ -20,7 +20,7 @@ const INV_COLS  = 5;
 const INV_ROWS  = 10;
 // A carrier fly-out picker auto-dismisses after this long if you don't pick from
 // it (#75) — it no longer closes the instant you move, but it dismisses quickly.
-const FLYOUT_CLOSE_MS = 1200;
+const FLYOUT_CLOSE_MS = 600;
 
 export default class HotbarScene extends Phaser.Scene {
   constructor() { super('HotbarScene'); }
