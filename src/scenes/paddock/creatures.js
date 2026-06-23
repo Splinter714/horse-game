@@ -5,7 +5,7 @@
 
 import Phaser from 'phaser';
 import { EVENTS } from '../../data/events.js';
-import { playNicker, playSqueal } from '../../audio/sounds.js';
+import { playNicker, playSqueal, playPeck } from '../../audio/sounds.js';
 import { BOUNDS, PASTURE_BOUNDS, S, HERD } from './constants.js';
 import { SPECIES } from '../../data/species/index.js';
 
@@ -280,8 +280,21 @@ export const WithCreatures = (Base) => class extends Base {
       a.wanderTween = null;
       a.sprite.play(`eat_${a.key}`, true); // pecking animation
 
+      // Light, repeated peck taps spread across the eating window so it reads
+      // by ear. Cleared if the chicken stops eating early.
+      a.peckTimer = this.time.addEvent({
+        delay: 460, loop: true,
+        callback: () => {
+          if (a.state !== 'eating') { a.peckTimer?.remove(); a.peckTimer = null; return; }
+          playPeck();
+        },
+      });
+      playPeck();
+
       a.eatTimer = this.time.delayedCall(2200, () => {
         a.eatTimer = null;
+        a.peckTimer?.remove();
+        a.peckTimer = null;
         if (a.state !== 'eating') return;
         pile.sprite.destroy();
         this.props.seedPiles = this.props.seedPiles.filter(p => p !== pile);

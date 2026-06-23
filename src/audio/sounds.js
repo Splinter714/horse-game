@@ -252,6 +252,53 @@ export function playBrush() {
   src.stop(now + dur);
 }
 
+// ─── Chicken peck (light tap on ground/feed) ─────────────────────────────────
+
+// A single short, light peck tap: a tiny high click of filtered noise plus a
+// quick tonal tick for the "beak" snap. Callers fire it a few times in a row
+// (see chickenGoEat) to read as repeated pecking.
+export function playPeck() {
+  const c = getCtx();
+  const now = c.currentTime;
+  const dur = 0.045;
+
+  // Click: high band of noise, very short.
+  const buf = c.createBuffer(1, Math.ceil(c.sampleRate * dur), c.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+
+  const src = c.createBufferSource();
+  src.buffer = buf;
+
+  const bp = c.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = 2800 + Math.random() * 600;
+  bp.Q.value = 1.4;
+
+  const env = c.createGain();
+  env.gain.setValueAtTime(0.10, now);
+  env.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+  src.connect(bp);
+  bp.connect(env);
+  env.connect(master(1));
+  src.start(now);
+  src.stop(now + dur);
+
+  // Tick: tiny tonal beak snap an octave-ish above, even shorter.
+  const osc = c.createOscillator();
+  const g   = c.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(2400 + Math.random() * 400, now);
+  osc.frequency.exponentialRampToValueAtTime(1600, now + 0.02);
+  g.gain.setValueAtTime(0.06, now);
+  g.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+  osc.connect(g);
+  g.connect(master(1));
+  osc.start(now);
+  osc.stop(now + 0.03);
+}
+
 // ─── Happiness chime (pet / care action) ─────────────────────────────────────
 
 export function playChime() {
