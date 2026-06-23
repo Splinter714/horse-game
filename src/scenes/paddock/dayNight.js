@@ -24,6 +24,9 @@ export const WithDayNight = (Base) => class extends Base {
   // the day before wakes up grumpy (and recovers as soon as you tend it). The
   // first morning at game start is skipped so nobody starts neglected. (issue #26)
   _dawnNewDay() {
+    // A new day means the flock is hungry again — they'll crowd the grain bin
+    // until fed. (Reset before the first-morning short-circuit so it always runs.)
+    this._chickensFedToday = false;
     if (!this._sawFirstMorning) { this._sawFirstMorning = true; return; }
     const allHorses = this.registry.get('allHorses');
     for (const h of this.horses) allHorses[h.key]?.rollNewDay();

@@ -151,23 +151,99 @@ export const WithCreatures = (Base) => class extends Base {
 
   chickenTick() {
     if (this.isNight) return;
-    if (!this.props.seedPiles?.length) return;
     const gateOpen = !!this.props.gate?.open;
+
+    // A basket with seed in the active hand lures the whole flock — they trail
+    // the player around hoping to be fed.
+    const item = this.getActiveItem();
+    const luring = !!this.player && item?.carrier === 'basket' &&
+                   item.content === 'seed' && item.count > 0;
+
+    // Fresh-morning anticipation: until they've been fed today, the chickens
+    // crowd the grain bin waiting for breakfast.
+    const grainBin = this.props.sources?.find(s => s.content === 'seed');
+    const anticipating = this._phase === 'Morning' && !this._chickensFedToday && !!grainBin;
+
     for (const a of this.animals) {
       if (!a.key.startsWith('chicken')) continue;
-      if (a.state !== 'idle' && a.state !== 'wandering') continue;
-      let closest = null, closestDist = Infinity;
-      for (const pile of this.props.seedPiles) {
-        if (this.animals.some(o => o !== a && o._eatPile === pile)) continue; // 1 chicken per pile
-        // Seed inside the pasture is only reachable when the gate is open
-        if (this._inPasture(pile.x, pile.y) && !gateOpen) continue;
-        const d = Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, pile.x, pile.y);
-        if (d < closestDist) { closestDist = d; closest = pile; }
-      }
-      if (closest) {
-        this.chickenGoEat(a, closest);
+      // Only redirect a chicken that's free to move — never yank one out of
+      // eating, laying, roosting, or leaving the coop.
+      if (!['idle', 'wandering', 'following', 'gathering'].includes(a.state)) continue;
+
+      // Dropped seed on the ground always wins — go peck it.
+      const pile = this._nearestReachableSeed(a, gateOpen);
+      if (pile) { this.chickenGoEat(a, pile); continue; }
+
+      // Otherwise follow a seed-carrying player, or crowd the bin in the morning.
+      if (luring)            { this.chickenFollow(a); continue; }
+      if (anticipating)      { this.chickenGatherAt(a, grainBin); continue; }
+
+      // Nothing pulling at it anymore — resume ordinary wandering.
+      if (a.state === 'following' || a.state === 'gathering') {
+        a.state = 'idle';
+        this.scheduleAnimalWander(a, Phaser.Math.Between(500, 2000));
       }
     }
+  }
+
+  // Nearest unclaimed seed pile this chicken can actually get to (seed inside the
+  // pasture needs the gate open), or null.
+  _nearestReachableSeed(a, gateOpen) {
+    if (!this.props.seedPiles?.length) return null;
+    let closest = null, closestDist = Infinity;
+    for (const pile of this.props.seedPiles) {
+      if (this.animals.some(o => o !== a && o._eatPile === pile)) continue; // 1 chicken per pile
+      if (this._inPasture(pile.x, pile.y) && !gateOpen) continue;
+      const d = Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, pile.x, pile.y);
+      if (d < closestDist) { closestDist = d; closest = pile; }
+    }
+    return closest;
+  }
+
+  // Trail along just behind the player. Each bird sits at its own angle so the
+  // flock spreads into a loose cluster instead of stacking on one point. Only
+  // re-paths when it has fallen behind, so a chicken keeping pace pecks in place.
+  chickenFollow(a) {
+    const p = this.player.sprite;
+    const idx = a.key.charCodeAt(a.key.length - 1) || 0;
+    const angle = idx * 1.3;
+    const tx = p.x + Math.cos(angle) * 46;
+    const ty = p.y + 30 + Math.sin(angle) * 22;
+
+    a.state = 'following';
+    const d = Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, p.x, p.y);
+    if (d < 70) { // close enough — settle and peck rather than re-path every tick
+      if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
+      a.sprite.play(`idle_${a.key}`, true);
+      return;
+    }
+    if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
+    this.moveCreatureTo(a, tx, ty, () => {
+      if (a.state === 'following') a.sprite.play(`idle_${a.key}`, true);
+    });
+  }
+
+  // Drift over to the grain bin and wait there in a loose arc. Each bird targets
+  // a fixed spot, so once parked it stays put (no per-tick re-pathing) until it's
+  // fed or the morning ends.
+  chickenGatherAt(a, bin) {
+    const idx = a.key.charCodeAt(a.key.length - 1) || 0;
+    const angle = Math.PI * (0.2 + idx * 0.16);
+    const r = 36 + (idx % 3) * 12;
+    const tx = bin.x + Math.cos(angle) * r;
+    const ty = bin.y + 20 + Math.sin(angle) * (r * 0.45);
+
+    a.state = 'gathering';
+    const d = Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, tx, ty);
+    if (d < 18) { // already at its spot — just mill about
+      if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
+      a.sprite.play(`idle_${a.key}`, true);
+      return;
+    }
+    if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
+    this.moveCreatureTo(a, tx, ty, () => {
+      if (a.state === 'gathering') a.sprite.play(`idle_${a.key}`, true);
+    });
   }
 
   chickenGoEat(a, pile) {
@@ -189,6 +265,7 @@ export const WithCreatures = (Base) => class extends Base {
         if (a.state !== 'eating') return;
         pile.sprite.destroy();
         this.props.seedPiles = this.props.seedPiles.filter(p => p !== pile);
+        this._chickensFedToday = true; // breakfast served — stop crowding the bin
         a._eatPile = null;
         a.state = 'idle';
         this.scheduleAnimalWander(a, Phaser.Math.Between(1000, 3000));
