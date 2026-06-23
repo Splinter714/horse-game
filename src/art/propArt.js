@@ -281,12 +281,51 @@ export function buildPropTextures(scene) {
     // a little spilled grain at the foot
     g.fillStyle(0xc8a030, 1); g.fillRect(3, 41, 2, 1); g.fillRect(35, 41, 2, 1); g.fillRect(30, 42, 2, 1);
   });
-  // Water stream — a still pool/stream segment to fill buckets
-  gen(scene, 'stream', 64, 40, (g) => {
-    g.fillStyle(0x4a7a3a, 1); g.fillEllipse(32, 20, 64, 38); // muddy bank
-    g.fillStyle(0x3f7fb5, 1); g.fillEllipse(32, 20, 56, 30); // water
-    g.fillStyle(0x5fa6d6, 1); g.fillEllipse(30, 17, 44, 20);
-    g.fillStyle(0x9ae0f8, 0.8); // ripples
-    g.fillRect(14, 14, 12, 1); g.fillRect(34, 18, 14, 1); g.fillRect(20, 24, 10, 1); g.fillRect(40, 26, 8, 1);
+  // Water stream — a wide meandering channel flowing across the plot, with
+  // grassy banks, current ripples, stepping stones, and reed tufts.
+  gen(scene, 'stream', 120, 44, (g) => {
+    const W = 120;
+    const cy = (x) => 23 + 5 * Math.sin(x / 11) + 2 * Math.sin(x / 4); // wavy centerline
+    // grassy bank (the channel cut, slightly wider than the water)
+    g.fillStyle(0x4a7a3a, 1);
+    for (let x = 0; x < W; x++) { const y = cy(x); g.fillRect(x, y - 13, 1, 26); }
+    // darker damp mud rim along both edges
+    g.fillStyle(0x3e6630, 1);
+    for (let x = 0; x < W; x++) { const y = cy(x); g.fillRect(x, y - 13, 1, 2); g.fillRect(x, y + 11, 1, 2); }
+    // water body
+    g.fillStyle(0x3f7fb5, 1);
+    for (let x = 0; x < W; x++) { const y = cy(x); g.fillRect(x, y - 9, 1, 18); }
+    // deeper shade along the far (top) edge
+    g.fillStyle(0x356f9e, 1);
+    for (let x = 0; x < W; x++) { const y = cy(x); g.fillRect(x, y - 9, 1, 2); }
+    // sunlit surface on the upper half
+    g.fillStyle(0x5fa6d6, 1);
+    for (let x = 0; x < W; x++) { const y = cy(x); g.fillRect(x, y - 7, 1, 6); }
+    // bright current ripples streaking along the flow
+    g.fillStyle(0x9ae0f8, 0.85);
+    for (const rx of [8, 26, 44, 70, 92, 108]) {
+      const y = cy(rx);
+      g.fillRect(rx, y - 4, 5, 1); g.fillRect(rx + 2, y - 1, 4, 1); g.fillRect(rx - 1, y + 3, 4, 1);
+    }
+    g.fillStyle(0xc8f0ff, 0.7);
+    for (const rx of [16, 54, 84, 102]) { const y = cy(rx); g.fillRect(rx, y - 2, 3, 1); }
+    // stepping stones / rocks in and beside the water
+    const rock = (x, y, r, c) => {
+      g.fillStyle(0x000000, 0.12); g.fillEllipse(x, y + r - 1, r * 2.2, r); // tiny shadow
+      g.fillStyle(c, 1); g.fillEllipse(x, y, r * 2, r * 1.6);
+      g.fillStyle(0x9aa0a4, 1); g.fillEllipse(x - r * 0.4, y - r * 0.4, r, r * 0.7); // highlight
+    };
+    rock(34, cy(34) + 1, 4, 0x747b80);
+    rock(64, cy(64) - 1, 3, 0x6c7378);
+    rock(96, cy(96) + 2, 4, 0x747b80);
+    // reed / grass tufts along the banks (a blade spans [y-len, y] up, or [y, y+len] down)
+    const reeds = (x, top) => {
+      const y = top ? cy(x) - 12 : cy(x) + 12;
+      const blade = (bx, len) => g.fillRect(bx, top ? y - len : y, 1, len);
+      g.fillStyle(0x3b8a26, 1); blade(x - 1, 3); blade(x + 1, 4); blade(x + 3, 2);
+      g.fillStyle(0x4fa838, 1); blade(x, 3); blade(x + 2, 3);
+    };
+    reeds(12, true); reeds(50, true); reeds(88, true);
+    reeds(28, false); reeds(74, false); reeds(106, false);
   });
 }
