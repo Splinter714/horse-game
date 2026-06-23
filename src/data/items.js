@@ -33,7 +33,7 @@ export const ALL_ITEMS = [
   { key: 'bucket1', label: 'Bucket', type: 'carrier', carrier: 'bucket' },
   { key: 'bucket2', label: 'Bucket', type: 'carrier', carrier: 'bucket' },
   { key: 'brush',  label: 'Brush',  icon: 'iconBrush',  action: 'brush',    type: 'tool' },
-  { key: 'saddle', label: 'Saddle', icon: 'iconSaddle', action: 'ride',     type: 'tool' },
+  { key: 'saddle', label: 'Saddle', icon: 'iconSaddle', action: 'saddle',   type: 'tool' },
   { key: 'lead',   label: 'Lead',   icon: 'iconLead',   action: 'lead',     type: 'tool' },
   { key: 'hand',   label: 'Hand',   icon: 'iconHand',   action: 'interact', type: 'tool' },
 ];
