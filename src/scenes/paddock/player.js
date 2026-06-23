@@ -311,7 +311,7 @@ export const WithPlayer = (Base) => class extends Base {
       if (d < 60) {
         const tx = a.sprite.x + (world.x < a.sprite.x ? -40 : 40);
         this.tapMoveTo(tx, a.sprite.y, () => {
-          this.petOrInfo(a.key, a.sprite, () => this.openChickenInfo(a.key));
+          this.petOrInfo(a.key, a.sprite, () => this.openCreatureInfo(a));
         });
         return;
       }

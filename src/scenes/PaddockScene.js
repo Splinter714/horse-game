@@ -324,7 +324,7 @@ export default class PaddockScene
       const d = dist(a.sprite);
       if (d < CARE_DIST) cands.push({
         key: a.key, sprite: a.sprite, d, offY: 54,
-        loved: this._petTodayHas(a.key), open: () => this.openChickenInfo(a.key),
+        loved: this._petTodayHas(a.key), open: () => this.openCreatureInfo(a),
       });
     }
     for (const foal of this.foals) {
@@ -371,6 +371,19 @@ export default class PaddockScene
       animal:      allChickens[key],
       portraitKey: `portrait_${key}`,
       key,
+    });
+    this._openInfoPanel();
+  }
+
+  // Open the info panel for any creature in this.animals (chicken or cat) using
+  // its attached model directly — so keyless species (the cat, #84) get a panel
+  // too, without a registry roster.
+  openCreatureInfo(a) {
+    if (!a.model) return;
+    this.registry.set('viewingAnimal', {
+      animal:      a.model,
+      portraitKey: `portrait_${a.key}`,
+      key:         a.key,
     });
     this._openInfoPanel();
   }

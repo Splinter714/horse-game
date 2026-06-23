@@ -8,6 +8,7 @@ import { EVENTS } from '../../data/events.js';
 import { playNicker, playSqueal, playPeck, playGather } from '../../audio/sounds.js';
 import { BOUNDS, PASTURE_BOUNDS, S, HERD } from './constants.js';
 import { SPECIES } from '../../data/species/index.js';
+import { Animal } from '../../data/Animal.js';
 
 // Generic movement feel for any creature whose species declares no `movement`
 // block (e.g. the cat). Species defs override these per-animal.
@@ -28,7 +29,10 @@ export const WithCreatures = (Base) => class extends Base {
     // this.spawnAnimal( 900,  820, 'sheep', 0.65, 6, 14);
     // this.spawnAnimal(1300,  700, 'pig',   0.50, 7, 13);
     // this.spawnAnimal( 700,  570, 'dog',   0.44, 8, 10);
-    this.spawnAnimal(700, 600, 'cat', 0.34, 5, 16); // slow, low-slung prowl
+    // The cat carries an in-memory Animal model (identity-only) so it gets a
+    // working info panel (#84). Not persisted yet — it's rebuilt each load.
+    const catModel = new Animal(SPECIES.cat);
+    this.spawnAnimal(700, 600, 'cat', 0.34, 5, 16, undefined, undefined, undefined, undefined, catModel); // slow, low-slung prowl
 
     // Chicken flock — 5 birds, each with identity, name, and appearance
     const allChickens = this.registry.get('allChickens');
