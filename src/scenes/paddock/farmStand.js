@@ -24,8 +24,10 @@ export const WithFarmStand = (Base) => class extends Base {
       padding: { x: 7, y: 3 },
     }).setOrigin(0.5, 1).setDepth(sy + 10).setVisible(false);
 
-    // Obstacle: the solid table area (72*2=144 wide, ~22*2=44 tall, top-half of sprite)
-    this.obstacles.push({ x: sx - 72, y: sy - 88, w: 144, h: 60, isFarmStand: true });
+    // Obstacle: the solid table/counter the player actually bumps into — NOT the
+    // overhead canopy. The art's table body is texture x4–68, y22–44 (origin is
+    // bottom-centre, scale S=2), i.e. ~128 wide, ~44 tall, with its base at sy.
+    this.obstacles.push({ x: sx - 64, y: sy - 44, w: 128, h: 44, isFarmStand: true });
 
     this._refreshStand();
   }
