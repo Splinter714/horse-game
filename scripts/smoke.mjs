@@ -54,6 +54,7 @@ try {
       'buildPlayer', 'movePlayer', 'handleTap', '_findPath', 'gatherFrom',
       'mountHorse', 'dismount', 'toggleSaddle', 'toggleLead',
       'horseTick', 'horseGoEat', 'horseGoDrink', 'spawnHorse', 'spawnAnimal',
+      'separateHorses', '_horseBeg', '_begWait',
       'onPhaseChange', 'doAction', 'depthSort', 'tickDecay',
     ];
     const missingMethods = expectMethods.filter((m) => typeof paddock[m] !== 'function');
