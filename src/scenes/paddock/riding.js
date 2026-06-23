@@ -226,45 +226,46 @@ export const WithRiding = (Base) => class extends Base {
   updateLeading(delta) {
     if (this.leadHorses.length === 0) { this.leadRope.clear(); return; }
 
-    const p = this.player.sprite;
-    const { facing } = this.player;
-
+    const dt = delta / 1000;
     this.leadRope.clear();
     this.leadRope.lineStyle(3, 0xc8a040, 0.85);
 
-    // Each led horse trails further behind, forming a line. The rope chains from
-    // the player to the first horse, then horse-to-horse.
-    let prevX = p.x, prevY = p.y - 16;
-    this.leadHorses.forEach((h, idx) => {
-      const behind = 100 + idx * 70;
-      let tx = p.x, ty = p.y;
-      if      (facing === 'right') tx = p.x - behind;
-      else if (facing === 'left')  tx = p.x + behind;
-      else if (facing === 'down')  ty = p.y - behind;
-      else                         ty = p.y + behind;
+    // Natural follow-the-leader trailing (#115): the first horse follows the
+    // player, each next follows the horse ahead. A horse only closes the gap once
+    // the leader pulls more than GAP away — within that it has slack and rests, so
+    // it eases *into* a walk and trails behind on its own line rather than being
+    // rigidly pinned to a point off the player's facing (which made it look
+    // dragged). It heads toward wherever the leader actually is, at a believable
+    // angle, and faces the way it travels.
+    const GAP     = 88;                        // desired trailing distance
+    const maxStep = PLAYER_SPEED * 1.25 * dt;  // can outpace the player a touch to keep up
 
-      const dx = tx - h.sprite.x;
-      const dy = ty - h.sprite.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
+    let leadX = this.player.sprite.x, leadY = this.player.sprite.y;
+    let prevX = this.player.sprite.x, prevY = this.player.sprite.y - 16;
+
+    this.leadHorses.forEach((h) => {
+      const dx = leadX - h.sprite.x;
+      const dy = leadY - h.sprite.y;
+      const dist = Math.hypot(dx, dy) || 1;
 
       const fromX = h.sprite.x, fromY = h.sprite.y;
-      if (dist > 30) {
-        const speed = PLAYER_SPEED * 1.15 * (delta / 1000);
-        const ratio = Math.min(1, speed / dist);
+      if (dist > GAP) {
+        const pull = Math.min(dist - GAP, maxStep);
+        const ux = dx / dist, uy = dy / dist;
         // Axis-separated move with collision so a led horse slides along the
         // fence and can only cross the pasture boundary through the open gate.
-        const nx = h.sprite.x + dx * ratio;
-        const ny = h.sprite.y + dy * ratio;
+        const nx = h.sprite.x + ux * pull;
+        const ny = h.sprite.y + uy * pull;
         if (!this._collides(nx, h.sprite.y, 16)) h.sprite.x = nx;
         if (!this._collides(h.sprite.x, ny, 16)) h.sprite.y = ny;
-        if (Math.abs(dx) > 1) h.sprite.setFlipX(dx < 0);
       }
 
-      // Animate from actual movement, not distance-to-target. A led horse trots
-      // at 1.15x player speed, so at steady state it hovers around the stop
-      // threshold and would otherwise flicker between walk and idle each frame.
-      // A short hysteresis window keeps the walk cycle alive through the brief
-      // catch-up pauses, so it only drops to idle once it has truly settled.
+      // Face the way it's actually travelling (horses only flip horizontally).
+      const movedX = h.sprite.x - fromX;
+      if (Math.abs(movedX) > 0.2) h.sprite.setFlipX(movedX < 0);
+
+      // Walk while moving, with a short hysteresis so the trot doesn't flicker to
+      // idle during the brief catch-up pauses; settle to idle once truly stopped.
       const moved = Math.hypot(h.sprite.x - fromX, h.sprite.y - fromY);
       if (moved > 0.3) {
         h._ledStillFor = 0;
@@ -276,13 +277,25 @@ export const WithRiding = (Base) => class extends Base {
         }
       }
 
-      // Draw rope segment from previous point to this horse
+      // Rope with a little sag — slack when the horse is bunched up close, taut
+      // as it trails at the full gap. Sampled as a shallow arc so the lead reads
+      // as a soft rope, not a rigid tow-bar.
+      const hx = h.sprite.x, hy = h.sprite.y - 32;
+      const sag = 10 + Phaser.Math.Clamp(GAP - dist, 0, GAP) * 0.6;
       this.leadRope.beginPath();
       this.leadRope.moveTo(prevX, prevY);
-      this.leadRope.lineTo(h.sprite.x, h.sprite.y - 32);
+      const SEG = 8;
+      for (let s = 1; s <= SEG; s++) {
+        const t = s / SEG;
+        const x = prevX + (hx - prevX) * t;
+        const y = prevY + (hy - prevY) * t + Math.sin(Math.PI * t) * sag;
+        this.leadRope.lineTo(x, y);
+      }
       this.leadRope.strokePath();
-      prevX = h.sprite.x;
-      prevY = h.sprite.y - 32;
+
+      // The next link in the chain follows this horse.
+      leadX = h.sprite.x; leadY = h.sprite.y;
+      prevX = hx; prevY = hy;
     });
   }
 
