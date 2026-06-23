@@ -5,7 +5,7 @@ import Phaser from 'phaser';
 import { CONTENT_DEFS } from '../../data/items.js';
 import { EVENTS } from '../../data/events.js';
 import { playGather } from '../../audio/sounds.js';
-import { WORLD_W, WORLD_H, CARE_DIST, PLAYER_SPEED, HOLD_MS, HOLD_DRAG_PX, PLAYER_BOUNDS, S, STAND_DEFS, TROUGH_CAP } from './constants.js';
+import { WORLD_W, WORLD_H, CARE_DIST, PLAYER_SPEED, HOLD_MS, HOLD_DRAG_PX, PLAYER_BOUNDS, PASTURE_BOUNDS, S, STAND_DEFS, TROUGH_CAP } from './constants.js';
 
 // In-place reach for using a tool on a horse (brush/saddle/lead). Use never
 // walks you anywhere — the horse has to already be within this range.
@@ -170,11 +170,14 @@ export const WithPlayer = (Base) => class extends Base {
       // bucket to top it up (#103) — not just when it's bone dry.
       if (!t || t.level >= TROUGH_CAP || item?.content !== 'water') return [];
       return [{
-        x: t.x, y: t.y, tapRadius: 220, reachDist: 130, promptOffsetY: 40,
+        x: t.x, y: t.y, tapRadius: 200, reachDist: 145, promptOffsetY: 40,
         canAct: true, label: 'Fill Trough',
+        // Walk to the side the player is on: the well side (just north of the
+        // fence) to fill over it, or just inside the pasture from the south (#106).
         approach: (world) => {
-          const refX = world ? world.x : this.player.sprite.x;
-          return { x: t.x + (refX < t.x ? 1 : -1) * 110, y: t.y };
+          const refY = world ? world.y : this.player.sprite.y;
+          const onWellSide = refY < t.y;
+          return { x: t.x, y: onWellSide ? PASTURE_BOUNDS.minY - 34 : t.y + 56 };
         },
         activate: () => this.fillTrough(),
       }];

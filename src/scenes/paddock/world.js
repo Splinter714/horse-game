@@ -66,8 +66,11 @@ export const WithWorld = (Base) => class extends Base {
     // Egg-laying timer: every 45 seconds a random chicken may lay in a free nest
     this.time.addEvent({ delay: 45_000, loop: true, callback: this.eggLayTick, callbackScope: this });
 
-    // Water trough (interactive) — inside the gated pasture
-    const tx = 740, ty = 1100;
+    // Water trough (interactive) — just south of the fence, right of the gate, so
+    // it sits below the well and the player can top it up by reaching over the
+    // fence from the well side without entering the pasture, while horses drink
+    // from the inside (#106). (Fence band ≈ y892–912; pasture starts at y910.)
+    const tx = 1130, ty = 992;
     const troughSprite = this.add.image(tx, ty, 'trough')
       .setScale(S).setDepth(ty).setOrigin(0.5, 0.5);
     // level = numeric water (0..TROUGH_CAP); `filled` mirrors level>0 for the many
