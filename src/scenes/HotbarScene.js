@@ -8,8 +8,11 @@ import { growHitArea } from './uiUtils.js';
 // Gameplay scenes frozen while the pause menu is open
 const PAUSABLE_SCENES = ['PaddockScene', 'DayNightScene', 'InfoPanelScene'];
 
-const SLOT_SIZE = 52;
-const SLOT_GAP  = 6;
+// Base slot dimensions. Bigger than before for readability (#119); on narrow /
+// portrait screens the whole strip is scaled down by `fit` so it never overflows
+// the viewport width.
+const SLOT_SIZE = 84;
+const SLOT_GAP  = 8;
 // Only as many slots as we actually use (2 carrier groups + 3 tools). Add more
 // here as new tools/items arrive rather than pre-allocating empties (#118).
 const NUM_SLOTS = 5;
@@ -187,10 +190,12 @@ export default class HotbarScene extends Phaser.Scene {
       const g = this.add.graphics().setDepth(2);
       this._drawSlot(g, x, slotY, ss, radius, active);
 
-      const numLbl = this.add.text(x + 3, slotY + 2, String((i + 1) % 10), {
+      // Text/icon scale with the actual slot size (#119) so bigger slots read as
+      // bigger, clearer icons + labels — not just a wider box with tiny glyphs.
+      const numLbl = this.add.text(x + 4, slotY + 3, String((i + 1) % 10), {
         fontFamily: 'system-ui, sans-serif',
-        fontSize: `${Math.max(7, Math.floor(9 * fit))}px`,
-        color: '#6a7090',
+        fontSize: `${Math.max(9, Math.round(ss * 0.13))}px`,
+        color: '#8a90b0',
       }).setDepth(3);
 
       const key  = this.hotbar[i];
@@ -199,23 +204,23 @@ export default class HotbarScene extends Phaser.Scene {
 
       if (item) {
         const view = this._slotView(item, key);
-        const iconSize = Math.max(14, Math.floor(26 * fit));
-        icon = this.add.image(x + ss / 2, slotY + ss * 0.38, view.icon)
+        const iconSize = Math.round(ss * 0.46);
+        icon = this.add.image(x + ss / 2, slotY + ss * 0.40, view.icon)
           .setDisplaySize(iconSize, iconSize).setDepth(3);
-        itemLbl = this.add.text(x + ss / 2, slotY + ss - 8, view.label, {
+        itemLbl = this.add.text(x + ss / 2, slotY + ss - Math.max(9, Math.round(ss * 0.12)), view.label, {
           fontFamily: 'system-ui, sans-serif',
-          fontSize: `${Math.max(6, Math.floor(8 * fit))}px`,
-          color: '#c8cce0',
+          fontSize: `${Math.max(9, Math.round(ss * 0.145))}px`,
+          color: '#dde1f0',
         }).setOrigin(0.5, 0.5).setDepth(3);
 
         const qty = view.count;
         if (qty !== undefined) {
-          qtyLbl = this.add.text(x + ss - 3, slotY + 3, `${qty}`, {
+          qtyLbl = this.add.text(x + ss - 4, slotY + 4, `${qty}`, {
             fontFamily: 'system-ui, sans-serif',
-            fontSize: `${Math.max(6, Math.floor(8 * fit))}px`,
+            fontSize: `${Math.max(10, Math.round(ss * 0.165))}px`,
             color: '#ffdd66',
             backgroundColor: '#000a',
-            padding: { x: 1, y: 0 },
+            padding: { x: 2, y: 0 },
           }).setOrigin(1, 0).setDepth(4);
         }
       }
@@ -507,7 +512,6 @@ export default class HotbarScene extends Phaser.Scene {
     this._flyoutNodes = [];
 
     const { x, slotY, ss, radius } = slot;
-    const fit = this._fit ?? 1;
     const gap = 4;
     const stripTop = slotY - 8;
 
@@ -524,20 +528,20 @@ export default class HotbarScene extends Phaser.Scene {
       this._flyoutNodes.push(g);
 
       const view = this._slotView(ITEM_MAP[mKey], mKey);
-      const iconSize = Math.max(14, Math.floor(26 * fit));
-      this._flyoutNodes.push(this.add.image(x + ss / 2, ey + ss * 0.38, view.icon)
+      const iconSize = Math.round(ss * 0.46);
+      this._flyoutNodes.push(this.add.image(x + ss / 2, ey + ss * 0.40, view.icon)
         .setDisplaySize(iconSize, iconSize).setDepth(42));
-      this._flyoutNodes.push(this.add.text(x + ss / 2, ey + ss - 8, view.label, {
+      this._flyoutNodes.push(this.add.text(x + ss / 2, ey + ss - Math.max(9, Math.round(ss * 0.12)), view.label, {
         fontFamily: 'system-ui, sans-serif',
-        fontSize: `${Math.max(6, Math.floor(8 * fit))}px`,
-        color: '#c8cce0',
+        fontSize: `${Math.max(9, Math.round(ss * 0.145))}px`,
+        color: '#dde1f0',
       }).setOrigin(0.5, 0.5).setDepth(42));
 
       if (view.count !== undefined) {
-        this._flyoutNodes.push(this.add.text(x + ss - 3, ey + 3, `${view.count}`, {
+        this._flyoutNodes.push(this.add.text(x + ss - 4, ey + 4, `${view.count}`, {
           fontFamily: 'system-ui, sans-serif',
-          fontSize: `${Math.max(6, Math.floor(8 * fit))}px`,
-          color: '#ffdd66', backgroundColor: '#000a', padding: { x: 1, y: 0 },
+          fontSize: `${Math.max(10, Math.round(ss * 0.165))}px`,
+          color: '#ffdd66', backgroundColor: '#000a', padding: { x: 2, y: 0 },
         }).setOrigin(1, 0).setDepth(43));
       }
 
