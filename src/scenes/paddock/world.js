@@ -89,7 +89,7 @@ export const WithWorld = (Base) => class extends Base {
     const defs = [
       { x: 430,  y: 620, content: 'hay',    tex: 'haystack',     label: 'Hay Pile',      reach: 100, ob: { w: 84,  h: 36 } },
       { x: 760,  y: 560, content: 'carrot', tex: 'carrotGarden', label: 'Carrot Garden', reach: 100, ob: { w: 104, h: 42 } },
-      { x: 1180, y: 560, content: 'apple',  tex: 'appleTree',    label: 'Apple Tree',    reach: 90,  ob: { w: 44,  h: 26 } },
+      { x: 1660, y: 560, content: 'apple',  tex: 'appleTree',    label: 'Apple Tree',    reach: 90,  ob: { w: 44,  h: 26 } },
       { x: 1120, y: 470, content: 'seed',   tex: 'grainBin',     label: 'Grain Bin',     reach: 95,  ob: { w: 66,  h: 40 } },
       { x: 1480, y: 640, content: 'water',  tex: 'stream',       label: 'Stream',        reach: 110, ob: { w: 118, h: 56 } },
     ];

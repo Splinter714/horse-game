@@ -24,7 +24,14 @@ export const WithCreatures = (Base) => class extends Base {
     const offsets = [[-40,-20],[30,-30],[0,30],[-60,20],[50,10]];
     offsets.forEach(([ox, oy], i) => {
       const chickenModel = allChickens[`chicken${i}`];
-      this.spawnAnimal(cx + ox, cy + oy, `chicken${i}`, 0.25, 8, 10, cx, cy, 180, 6, chickenModel);
+      const a = this.spawnAnimal(cx + ox, cy + oy, `chicken${i}`, 0.25, 8, 10, cx, cy, 180, 6, chickenModel);
+      // Hold the flock hidden until the first phase change decides how they enter:
+      // out of the coop in the morning, or already milling in the yard otherwise.
+      // (Avoids a one-frame flash in the yard before they emerge from the coop.)
+      a.state = 'roosting';
+      a.sprite.setVisible(false);
+      a.shadow.setVisible(false);
+      if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
     });
 
     this.time.addEvent({ delay: 2000, loop: true, callback: this.chickenTick, callbackScope: this });
@@ -80,6 +87,7 @@ export const WithCreatures = (Base) => class extends Base {
   // (the same one tap-to-move uses), then call onArrive. The creature's own
   // obstacle list is used, so it ignores its own home (e.g. a chicken's coop).
   moveCreatureTo(a, tx, ty, onArrive) {
+    a._pathTarget = { x: tx, y: ty };
     const path = this._findPath(a.sprite.x, a.sprite.y, tx, ty,
       { R: a.bodyR ?? 16, obstacles: this._obstaclesFor(a.key) });
     this._runPath(a, (path && path.length) ? path : [{ x: tx, y: ty }], onArrive);
@@ -220,6 +228,10 @@ export const WithCreatures = (Base) => class extends Base {
       a.sprite.play(`idle_${a.key}`, true);
       return;
     }
+    // Don't restart an in-progress walk unless the player (and thus the target
+    // spot) has drifted meaningfully — restarting every tick causes a lurch.
+    if (a.wanderTween && a._pathTarget &&
+        Phaser.Math.Distance.Between(a._pathTarget.x, a._pathTarget.y, tx, ty) < 24) return;
     if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
     this.moveCreatureTo(a, tx, ty, () => {
       if (a.state === 'following') a.sprite.play(`idle_${a.key}`, true);
@@ -243,6 +255,10 @@ export const WithCreatures = (Base) => class extends Base {
       a.sprite.play(`idle_${a.key}`, true);
       return;
     }
+    // Already walking to this fixed spot — let the tween finish instead of
+    // restarting it every tick (the restart is what made the flock lurch).
+    if (a.wanderTween && a._pathTarget &&
+        Phaser.Math.Distance.Between(a._pathTarget.x, a._pathTarget.y, tx, ty) < 4) return;
     if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
     this.moveCreatureTo(a, tx, ty, () => {
       if (a.state === 'gathering') a.sprite.play(`idle_${a.key}`, true);

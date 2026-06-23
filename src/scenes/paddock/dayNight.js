@@ -17,7 +17,30 @@ export const WithDayNight = (Base) => class extends Base {
       this.isNight = false;
       this.wakeAllAnimals();
     }
+    if (!this._chickensEntered) {
+      this._chickensEntered = true;
+      this._enterChickensForStart(isNight, phase);
+    }
     setMusicMode(isNight);
+  }
+
+  // First phase change after boot: the flock was spawned hidden (see buildAnimals).
+  // In the morning they wake up roosting and file out of the coop; if the game
+  // opens later in the day they're simply already milling in the yard; at night
+  // they stay tucked in the coop (restAllAnimals already roosted them).
+  _enterChickensForStart(isNight, phase) {
+    if (isNight) return;
+    for (const a of this.animals) {
+      if (!a.key.startsWith('chicken')) continue;
+      if (phase === 'Morning') {
+        this.chickenLeaveCoop(a);
+      } else {
+        a.state = 'idle';
+        a.sprite.setVisible(true).setAlpha(1);
+        a.shadow.setVisible(true);
+        this.scheduleAnimalWander(a, Phaser.Math.Between(500, 3000));
+      }
+    }
   }
 
   // Each morning is a new care day: a horse that didn't get both fed and watered
