@@ -31,6 +31,10 @@ export class Animal {
     this.breed = data.breed ?? def.breed;
     this.coat = data.coat ?? def.coat;
     this.age = data.age ?? def.age;
+    // Biological sex ('female' | 'male') — shown in the info panel and used by
+    // breeding later (#113/#15). Falls back to the species default for older
+    // saves that predate the attribute.
+    this.sex = data.sex ?? def.sex ?? 'female';
     this.lastSeen = data.lastSeen ?? Date.now();
 
     // ── Always-present traits with defaults (e.g. horse temperament/saddled,
@@ -142,6 +146,7 @@ export class Animal {
       breed: this.breed,
       coat: this.coat,
       age: this.age,
+      sex: this.sex,
       lastSeen: this.lastSeen,
     };
     for (const key of Object.keys(this._spec.traits ?? {})) out[key] = this[key];

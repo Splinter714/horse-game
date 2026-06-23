@@ -10,7 +10,7 @@
 
 export const HORSE = {
   id: 'horse',
-  defaults: { id: 'horse-1', name: 'Buttercup', breed: 'Palomino', coat: 'palomino', age: 3 },
+  defaults: { id: 'horse-1', name: 'Buttercup', breed: 'Palomino', coat: 'palomino', age: 3, sex: 'female' },
 
   // Per-second decay while playing. Tuned gentle (hunger fully depletes in ~30 min
   // of continuous play). `default` is the fresh-animal starting value. `label`/

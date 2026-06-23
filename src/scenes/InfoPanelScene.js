@@ -109,7 +109,10 @@ export default class InfoPanelScene extends Phaser.Scene {
       color: '#2c2c2a', fontStyle: 'bold',
     }).setOrigin(0.5, 0));
 
-    this.panel.add(this.add.text(CARD_W / 2, 168, `${animal.breed}  ·  ${animal.age} ${animal.age === 1 ? 'yr' : 'yrs'}`, {
+    const ageStr = `${animal.age} ${animal.age === 1 ? 'yr' : 'yrs'}`;
+    // Sex with a ♀/♂ glyph (#113) — identity now carried on every animal.
+    const sexStr = animal.sex ? `  ·  ${animal.sex === 'male' ? '♂ Male' : '♀ Female'}` : '';
+    this.panel.add(this.add.text(CARD_W / 2, 168, `${animal.breed}  ·  ${ageStr}${sexStr}`, {
       fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: '#6a6860',
     }).setOrigin(0.5, 0));
 

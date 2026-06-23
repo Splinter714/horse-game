@@ -48,6 +48,37 @@ describe('loadAllHorses (defaults)', () => {
     save.loadAllHorses();
     expect(globalThis.localStorage.getItem(HORSES_KEY)).not.toBeNull();
   });
+
+  it('gives every horse a sex, with both sexes represented in the herd (#113)', () => {
+    const all = save.loadAllHorses();
+    const sexes = Object.values(all).map((h) => h.sex);
+    expect(sexes.every((s) => s === 'female' || s === 'male')).toBe(true);
+    expect(sexes).toContain('female');
+    expect(sexes).toContain('male');
+    expect(all.horse7.sex).toBe('male'); // Ebony the Friesian stallion
+  });
+});
+
+describe('loadAllHorses (sex migration, #113)', () => {
+  it('backfills sex from the roster for an older save that predates it', () => {
+    // A v2 save written before `sex` existed: no sex field on the entry.
+    globalThis.localStorage.setItem(HORSES_KEY, JSON.stringify({
+      horse3: { id: 'horse-3', name: 'Ash', coat: 'dappleGrey',
+        stats: { hunger: 80, thirst: 80, grooming: 80, happiness: 80 }, lastSeen: Date.now() },
+    }));
+    const all = save.loadAllHorses();
+    expect(all.horse3.sex).toBe('male'); // inherited from the roster default
+    expect(all.horse3.name).toBe('Ash');  // saved identity still wins
+  });
+
+  it('persists sex through a save/reload round-trip', () => {
+    const all = save.loadAllHorses();
+    save.saveAllHorses(all);
+    const raw = JSON.parse(globalThis.localStorage.getItem(HORSES_KEY));
+    expect(raw.horse.sex).toBe('female');
+    const reloaded = save.loadAllHorses();
+    expect(reloaded.horse7.sex).toBe('male');
+  });
 });
 
 describe('loadAllHorses (offline decay)', () => {
@@ -123,6 +154,11 @@ describe('loadAllChickens / saveAllChickens', () => {
     save.saveAllChickens(all);
     const reloaded = save.loadAllChickens();
     expect(reloaded.chicken0.name).toBe('Renamed');
+  });
+
+  it('marks every chicken a hen (female) (#113)', () => {
+    const all = save.loadAllChickens();
+    expect(Object.values(all).every((c) => c.sex === 'female')).toBe(true);
   });
 });
 

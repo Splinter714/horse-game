@@ -7,7 +7,7 @@ export const CAT = {
   id: 'cat',
   defaults: {
     id: () => `cat-${Math.random().toString(36).slice(2, 9)}`,
-    name: 'Mittens', breed: 'Barn Cat', coat: 0, age: 2,
+    name: 'Mittens', breed: 'Barn Cat', coat: 0, age: 2, sex: 'male',
   },
   // No survival needs yet, but a love/happiness stat so petting the cat lands on
   // something and completes (#104). No needs to average, so happiness eases toward

@@ -16,18 +16,18 @@ const HORSES_KEY = 'horse-care-save-v2';
 // optional fixed attributes. The `horse` slot keeps the old fresh-game default.
 function defaultHorseRoster() {
   return {
-    horse:  { id: 'horse-1', name: 'Buttercup', breed: 'Palomino', coat: 'palomino', age: 3, temperament: 'calm' },
-    horse2: { id: 'horse-2', name: 'Clover', breed: 'Bay', coat: 'bay', age: 5, temperament: 'needy',
+    horse:  { id: 'horse-1', name: 'Buttercup', breed: 'Palomino', coat: 'palomino', age: 3, temperament: 'calm', sex: 'female' },
+    horse2: { id: 'horse-2', name: 'Clover', breed: 'Bay', coat: 'bay', age: 5, temperament: 'needy', sex: 'female',
       stats: { hunger: 90, thirst: 85, grooming: 80, happiness: 92 } },
-    horse3: { id: 'horse-3', name: 'Ash', breed: 'Dapple Grey', coat: 'dappleGrey', age: 7, temperament: 'lazy',
+    horse3: { id: 'horse-3', name: 'Ash', breed: 'Dapple Grey', coat: 'dappleGrey', age: 7, temperament: 'lazy', sex: 'male',
       stats: { hunger: 78, thirst: 82, grooming: 95, happiness: 88 } },
-    horse4: { id: 'horse-4', name: 'Splash', breed: 'Paint', coat: 'paint', age: 4, temperament: 'spirited',
+    horse4: { id: 'horse-4', name: 'Splash', breed: 'Paint', coat: 'paint', age: 4, temperament: 'spirited', sex: 'male',
       stats: { hunger: 85, thirst: 80, grooming: 70, happiness: 90 } },
-    horse5: { id: 'horse-5', name: 'Ember', breed: 'Chestnut', coat: 'chestnut', age: 6, temperament: 'spirited',
+    horse5: { id: 'horse-5', name: 'Ember', breed: 'Chestnut', coat: 'chestnut', age: 6, temperament: 'spirited', sex: 'female',
       stats: { hunger: 82, thirst: 88, grooming: 75, happiness: 86 } },
-    horse6: { id: 'horse-6', name: 'Pearl', breed: 'Cremello', coat: 'cremello', age: 2, temperament: 'shy',
+    horse6: { id: 'horse-6', name: 'Pearl', breed: 'Cremello', coat: 'cremello', age: 2, temperament: 'shy', sex: 'female',
       stats: { hunger: 88, thirst: 76, grooming: 90, happiness: 94 } },
-    horse7: { id: 'horse-friesian-ebony', name: 'Ebony', breed: 'Friesian', coat: 'friesian', age: 5, temperament: 'calm',
+    horse7: { id: 'horse-friesian-ebony', name: 'Ebony', breed: 'Friesian', coat: 'friesian', age: 5, temperament: 'calm', sex: 'male',
       stats: { hunger: 86, thirst: 82, grooming: 88, happiness: 91 },
       health: EBONY_BASE_STATS.health, speed: EBONY_BASE_STATS.speed, stamina: EBONY_BASE_STATS.stamina },
   };
@@ -40,11 +40,12 @@ const CHICKENS_KEY = 'horse-care-chickens-v1';
 
 function defaultChickenRoster() {
   return {
-    chicken0: { id: 'chicken-1', name: 'Daisy',  coat: 0, personality: 'friendly' },
-    chicken1: { id: 'chicken-2', name: 'Ruby',   coat: 1, personality: 'broody' },
-    chicken2: { id: 'chicken-3', name: 'Shadow', coat: 2, personality: 'adventurous' },
-    chicken3: { id: 'chicken-4', name: 'Sunny',  coat: 3, personality: 'cheerful' },
-    chicken4: { id: 'chicken-5', name: 'Pearl',  coat: 4, personality: 'calm' },
+    // All hens (they lay the eggs) — so sex is uniform here on purpose.
+    chicken0: { id: 'chicken-1', name: 'Daisy',  coat: 0, personality: 'friendly',    sex: 'female' },
+    chicken1: { id: 'chicken-2', name: 'Ruby',   coat: 1, personality: 'broody',      sex: 'female' },
+    chicken2: { id: 'chicken-3', name: 'Shadow', coat: 2, personality: 'adventurous', sex: 'female' },
+    chicken3: { id: 'chicken-4', name: 'Sunny',  coat: 3, personality: 'cheerful',    sex: 'female' },
+    chicken4: { id: 'chicken-5', name: 'Pearl',  coat: 4, personality: 'calm',        sex: 'female' },
   };
 }
 
@@ -59,7 +60,9 @@ export function loadAllChickens() {
   }
   const allChickens = {};
   for (const key of Object.keys(roster)) {
-    allChickens[key] = new Chicken(saved[key] ?? roster[key]);
+    // Merge roster defaults under saved data so older saves inherit any newly
+    // added identity field (e.g. `sex`, #113) while saved values still win.
+    allChickens[key] = new Chicken({ ...roster[key], ...saved[key] });
   }
   saveAllChickens(allChickens); // seed immediately
   return allChickens;
@@ -154,7 +157,9 @@ export function loadAllHorses() {
 
   const allHorses = {};
   for (const key of Object.keys(roster)) {
-    const data = saved[key] ?? roster[key];
+    // Merge roster defaults under saved data so older saves inherit any newly
+    // added identity field (e.g. `sex`, #113) while saved values still win.
+    const data = { ...roster[key], ...saved[key] };
     const horse = new Horse(data);
     const elapsedSeconds = Math.max(0, (Date.now() - horse.lastSeen) / 1000);
     if (elapsedSeconds > 1) horse.applyDecay(elapsedSeconds, true);

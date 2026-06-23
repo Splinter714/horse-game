@@ -7,7 +7,7 @@ export const CHICKEN = {
   id: 'chicken',
   defaults: {
     id: () => `chicken-${Math.random().toString(36).slice(2, 9)}`,
-    name: 'Hen', breed: 'Chicken', coat: 0, age: 1,
+    name: 'Hen', breed: 'Chicken', coat: 0, age: 1, sex: 'female', // hens — they lay the eggs
   },
   // Chickens have no survival needs (no hunger/thirst decay yet), but they do have
   // a love/happiness stat so petting lands on something and the interaction
