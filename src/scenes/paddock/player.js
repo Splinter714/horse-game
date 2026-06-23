@@ -916,14 +916,14 @@ export const WithPlayer = (Base) => class extends Base {
     return this.scene.get('HotbarScene')?.getActiveItem() ?? null;
   }
 
-  // Fill the active carrier from a source. Tops it up to capacity in one go
-  // (sources are infinite). Refuses if it already holds something else.
+  // Gather from a source — one unit per interaction (#122), the same tactile loop
+  // as collecting eggs. Each use adds a single item to the active carrier (up to
+  // capacity); the carrier refuses if it's full or already holds something else.
   gatherFrom(source) {
     const hot = this.scene.get('HotbarScene');
     const item = this.getActiveItem();
     if (!item || item.type !== 'carrier') return;
-    const space = item.capacity - (item.content === source.content ? item.count : 0);
-    const added = hot?.fillActiveCarrier(source.content, space || item.capacity) ?? 0;
+    const added = hot?.fillActiveCarrier(source.content, 1) ?? 0;
     if (added <= 0) return;
     playGather(source.content); // distinct per-source pickup sound (water → splash)
     this.showIcon(CONTENT_DEFS[source.content].icon, this.player.sprite);
