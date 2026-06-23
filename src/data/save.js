@@ -176,6 +176,32 @@ export function saveAllHorses(allHorses) {
   }
 }
 
+// ── Audio settings (mute + per-bus volumes) ──────────────────────────────────
+
+const AUDIO_KEY = 'horse-game-audio-v1';
+
+const DEFAULT_AUDIO = { muted: false, volumes: { master: 1, music: 1, ambient: 1, effects: 1 } };
+
+export function loadAudioSettings() {
+  try {
+    const raw = localStorage.getItem(AUDIO_KEY);
+    if (!raw) return { muted: DEFAULT_AUDIO.muted, volumes: { ...DEFAULT_AUDIO.volumes } };
+    const data = JSON.parse(raw) ?? {};
+    return {
+      muted: typeof data.muted === 'boolean' ? data.muted : DEFAULT_AUDIO.muted,
+      volumes: { ...DEFAULT_AUDIO.volumes, ...(data.volumes ?? {}) },
+    };
+  } catch {
+    return { muted: DEFAULT_AUDIO.muted, volumes: { ...DEFAULT_AUDIO.volumes } };
+  }
+}
+
+export function saveAudioSettings(settings) {
+  try {
+    localStorage.setItem(AUDIO_KEY, JSON.stringify(settings));
+  } catch {}
+}
+
 export function hasSave() {
   try {
     return !!(localStorage.getItem(HORSES_KEY) || localStorage.getItem(LEGACY_KEY));

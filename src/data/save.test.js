@@ -151,3 +151,25 @@ describe('game state (hotbar / carriers)', () => {
     expect(gs.hotbar).toContain('basket1');
   });
 });
+
+describe('audio settings', () => {
+  it('returns unmuted full-volume defaults when nothing is stored', () => {
+    const a = save.loadAudioSettings();
+    expect(a.muted).toBe(false);
+    expect(a.volumes).toEqual({ master: 1, music: 1, ambient: 1, effects: 1 });
+  });
+
+  it('round-trips mute + per-bus volumes', () => {
+    save.saveAudioSettings({ muted: true, volumes: { master: 0.5, music: 0, ambient: 0.3, effects: 0.8 } });
+    const a = save.loadAudioSettings();
+    expect(a.muted).toBe(true);
+    expect(a.volumes).toEqual({ master: 0.5, music: 0, ambient: 0.3, effects: 0.8 });
+  });
+
+  it('fills missing buses with defaults from a partial save', () => {
+    globalThis.localStorage.setItem('horse-game-audio-v1', JSON.stringify({ volumes: { music: 0.2 } }));
+    const a = save.loadAudioSettings();
+    expect(a.muted).toBe(false);
+    expect(a.volumes).toEqual({ master: 1, music: 0.2, ambient: 1, effects: 1 });
+  });
+});
