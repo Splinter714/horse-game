@@ -30,7 +30,7 @@ const HORSE = {
   actions: {
     feed:  { stat: 'hunger',    amount: 35, care: 'fed',     label: 'Feed',  sound: 'eat',   icon: 'iconFeed'  },
     water: { stat: 'thirst',    amount: 40, care: 'watered', label: 'Water', sound: 'drink', icon: 'iconWater' },
-    brush: { stat: 'grooming',  amount: 30, care: 'brushed', label: 'Brush', sound: 'brush', icon: 'iconBrush' },
+    brush: { stat: 'grooming',  amount: 18, care: 'brushed', label: 'Brush', sound: 'brush', icon: 'iconBrush' },
     pet:   { stat: 'happiness', amount: 8,                    label: 'Love',  sound: 'chime', icon: 'iconHeart' },
   },
 

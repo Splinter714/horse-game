@@ -33,6 +33,7 @@ export const WithDayNight = (Base) => class extends Base {
     const stopOne = (a) => {
       if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
       if (a.eatTimer)    { a.eatTimer.remove?.() ?? this.time.removeEvent(a.eatTimer); a.eatTimer = null; }
+      if (a._begTimer)   { this.time.removeEvent(a._begTimer); a._begTimer = null; }
       a._eatPile = null;
       a.state = 'resting';
       a.sprite.play(`idle_${a.key}`, true);

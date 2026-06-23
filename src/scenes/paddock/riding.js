@@ -52,6 +52,7 @@ export const WithRiding = (Base) => class extends Base {
     // Interrupt any current behavior
     if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
     if (h.eatTimer) { h.eatTimer.remove(); h.eatTimer = null; }
+    if (h._begTimer) { this.time.removeEvent(h._begTimer); h._begTimer = null; }
     h.state = 'riding';
 
     // Freeze player on side-view idle frame so they appear to sit
@@ -203,6 +204,7 @@ export const WithRiding = (Base) => class extends Base {
 
     if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
     if (h.eatTimer) { h.eatTimer.remove(); h.eatTimer = null; }
+    if (h._begTimer) { this.time.removeEvent(h._begTimer); h._begTimer = null; }
     h.state = 'led';
     this.leadHorses.push(h);
   }

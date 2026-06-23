@@ -32,6 +32,20 @@ export const GATE_GAP_X1 = 1020;
 // Global sprite scale.
 export const S = 2;
 
+// ── Horse begging behaviour (horseAI.js) ────────────────────────────────────
+// The main "feel" knobs for hungry horses coming to beg / gathering at the gate.
+// Tweak here rather than hunting through the AI mixin.
+export const BEG = {
+  HUNGER:        50,   // start begging when hunger drops below this
+  KEEP_HUNGER:   55,   // keep loitering until a feed pushes hunger back over this
+  NOTICE_DIST:  520,   // gate shut: only gather if the player is within this
+  LINGER_DIST:  480,   // keep waiting only while the player stays within this
+  THROTTLE_MS: 8000,   // min gap between a horse re-launching a beg trip
+  STANDOFF:     120,   // stop this far from the player (don't pile on)
+  AT_PLAYER:    150,   // already close enough to the player → just wait
+  AT_GATE:       70,   // already at the gate gap → just wait
+};
+
 // Cleanliness (issue #26): below DUST_CLEAN_AT grooming the dust overlay starts
 // to show, ramping to DUST_MAX_ALPHA opacity at grooming 0. Below STINK_AT a
 // very dirty horse also gets wavering "stink" lines above its back.

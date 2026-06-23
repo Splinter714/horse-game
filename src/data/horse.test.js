@@ -38,7 +38,7 @@ describe('Horse care actions', () => {
     const h = new Horse({ stats: { hunger: 0, thirst: 0, grooming: 0, happiness: 0 } });
     h.feed();  expect(h.stats.hunger).toBe(35);   expect(h.caredToday.fed).toBe(true);
     h.water(); expect(h.stats.thirst).toBe(40);   expect(h.caredToday.watered).toBe(true);
-    h.brush(); expect(h.stats.grooming).toBe(30); expect(h.caredToday.brushed).toBe(true);
+    h.brush(); expect(h.stats.grooming).toBe(18); expect(h.caredToday.brushed).toBe(true);
     h.pet();   expect(h.stats.happiness).toBe(8);
   });
 
