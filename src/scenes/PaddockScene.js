@@ -274,32 +274,53 @@ export default class PaddockScene
     }
   }
 
-  // ─── Pet-then-info interaction ───────────────────────────────────────────
+  // ─── Pet / info interaction ──────────────────────────────────────────────
 
-  // The first interaction with a given animal each day is a pet (heart + a
-  // happiness bump for species that support it); every interaction after that
-  // opens the info panel. The "petted today" set is cleared at dawn
-  // (`_dawnNewDay`). Returns true if this interaction was the pet.
+  // Interact (E / gamepad A / tap) ALWAYS pets/loves an animal — every press
+  // shows affection (#79). Info moved to its own input: the C key, gamepad Y, or
+  // a double-tap (see openProxInfo / the tap handler).
   _petTodayHas(key) {
     return !!this._petToday?.has(key);
   }
 
-  petOrInfo(key, sprite, openInfo) {
+  petAnimal(key, sprite) {
     if (!this._petToday) this._petToday = new Set();
-    if (this._petToday.has(key)) { openInfo(); return; }
+    const firstToday = !this._petToday.has(key);
     this._petToday.add(key);
 
-    // Apply the pet care action for species that have one (horses); for others
-    // (chickens, foals) the heart is purely affectionate feedback.
-    const horse = this.registry.get('allHorses')?.[key];
-    if (horse?.actionDef?.('pet')) {
-      horse.applyAction('pet');
-      this._saveHorses();
-      this.game.events.emit(EVENTS.STATS_CHANGED);
+    // The happiness bump for species with a pet action applies only once per day
+    // (cleared at dawn) so it can't be spammed — but the heart/chime play every
+    // time so every interaction reads as affection.
+    if (firstToday) {
+      const horse = this.registry.get('allHorses')?.[key];
+      if (horse?.actionDef?.('pet')) {
+        horse.applyAction('pet');
+        this._saveHorses();
+        this.game.events.emit(EVENTS.STATS_CHANGED);
+      }
     }
 
     playChime();
     this.showHeart(sprite);
+  }
+
+  // Pet the current proximity target (foals just get a heart — they have no
+  // care model). Used by the interact button.
+  _petTarget(t) {
+    if (t.foal) { playChime(); this.showHeart(t.sprite); return; }
+    this.petAnimal(t.key, t.sprite);
+  }
+
+  // Open the info panel for the animal currently in reach (the separate Info
+  // input: C key / gamepad Y / double-tap). Foals have no panel. No-op while a
+  // menu/panel is open or there's no animal in range.
+  openProxInfo() {
+    if (this._paused || this._sleeping || this.riding) return;
+    if (this.scene.get('HotbarScene')?.invOpen) return;
+    if (this.scene.isActive('InfoPanelScene')) return;
+    const t = this._proxAnimal;
+    if (!t || t.foal || !t.open) return;
+    t.open();
   }
 
   // Empty-hand proximity: gather every pettable animal in reach, prefer the ones
@@ -332,20 +353,24 @@ export default class PaddockScene
       if (d < CARE_DIST) cands.push({ key: foal.key, sprite: foal.sprite, d, offY: 78,
         loved: false, foal: true }); // foals have no panel — always pet
     }
-    if (!cands.length) return false;
+    if (!cands.length) { this._proxAnimal = null; return false; }
 
+    // Prefer animals that still need their daily love so the prompt guides you to
+    // pet everyone, but the interact button pets regardless of whether they're
+    // already loved today.
     const needLove = cands.filter(c => !c.loved);
     const pool = (needLove.length ? needLove : cands).sort((a, b) => a.d - b.d);
     const t = pool[0];
+    this._proxAnimal = t; // remembered for the separate Info input (C / Y / double-tap)
 
-    this.interactPrompt.setText(`${useKey}  ${t.loved ? 'Info' : 'Pet'}`);
+    // Interact always pets now; Info is its own input. Show both (foals have no
+    // panel, so no Info hint for them).
+    const infoKey = this.usingPad ? '[ Y ]' : '[ C ]';
+    this.interactPrompt.setText(t.foal ? `${useKey}  Pet` : `${useKey}  Pet     ${infoKey}  Info`);
     this.interactPrompt.setPosition(t.sprite.x, t.sprite.y - t.offY);
     this.interactPrompt.setVisible(this.promptsOn);
 
-    if (useJust) {
-      if (t.foal) { playChime(); this.showHeart(t.sprite); }
-      else this.petOrInfo(t.key, t.sprite, t.open);
-    }
+    if (useJust) this._petTarget(t);
     return true;
   }
 
@@ -588,6 +613,7 @@ export default class PaddockScene
       btnA:    btns[0]?.pressed  ?? false,
       btnB:    btns[1]?.pressed  ?? false,
       btnX:    btns[2]?.pressed  ?? false,
+      btnY:    btns[3]?.pressed  ?? false,
       btnLT:   (btns[6]?.value ?? 0) > 0.3,
       btnRT:   (btns[7]?.value ?? 0) > 0.3,
       btnBack: btns[8]?.pressed  ?? false,
@@ -611,6 +637,11 @@ export default class PaddockScene
     if (this._rawPad.btnX && !prev.btnX) {
       this.usingPad = true;
       this.useActiveTool();
+    }
+    // Y = open the info panel for the animal in reach (interact/A always pets, #79)
+    if (this._rawPad.btnY && !prev.btnY) {
+      this.usingPad = true;
+      this.openProxInfo();
     }
     // LT/RT = cycle hotbar (same as LB/RB)
     if (this._rawPad.btnLT && !prev.btnLT) {
@@ -636,6 +667,7 @@ export default class PaddockScene
       btnA:     this._rawPad.btnA,
       btnB:     this._rawPad.btnB,
       btnX:     this._rawPad.btnX,
+      btnY:     this._rawPad.btnY,
       btnLT:    this._rawPad.btnLT,
       btnRT:    this._rawPad.btnRT,
       btnBack:  this._rawPad.btnBack,
@@ -810,6 +842,11 @@ export default class PaddockScene
     // saddled horse, and petting/opening animals.
     const useJust = eJust || aJust;
     const useKey  = this.usingPad ? '[ A ]' : '[ E ]';
+
+    // No animal is the proximity target unless _petPreferenceProximity claims one
+    // below. Cleared each frame so the Info input (C / Y) can't fire on a stale
+    // animal when a gate/barn/mount prompt is showing instead.
+    this._proxAnimal = null;
 
     // Bare-hand world interactables — gate, barn.
     if (this._proximityInteractable(item, useKey, useJust)) return;

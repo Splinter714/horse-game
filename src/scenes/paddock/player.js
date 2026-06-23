@@ -64,6 +64,10 @@ export const WithPlayer = (Base) => class extends Base {
     // F = use the currently-armed hotbar tool (interact stays on tap/click/E).
     this.fKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
     this.fKey.on('down', () => this.useActiveTool());
+    // C = open the info panel for the animal in reach. Interact (E) always pets
+    // now (#79), so info is its own key (gamepad Y / double-tap on touch).
+    this.cKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
+    this.cKey.on('down', () => this.openProxInfo());
 
     this.input.on('pointerdown', this.handleTap, this);
     this.input.on('pointermove', this.handlePointerMove, this);
@@ -258,6 +262,17 @@ export const WithPlayer = (Base) => class extends Base {
     return true;
   }
 
+  // True when this tap is a quick second tap on the same animal — used so a
+  // single tap pets and a double-tap opens info (#79; the touch equivalent of
+  // the C key / gamepad Y).
+  _isDoubleTap(key) {
+    const now = this.time.now;
+    const isDouble = this._lastTapKey === key && (now - (this._lastTapAt ?? 0)) < 320;
+    this._lastTapKey = key;
+    this._lastTapAt  = now;
+    return isDouble;
+  }
+
   handleTap(pointer) {
     if (this.scene.isActive('InfoPanelScene')) return;
     if (this.scene.get('HotbarScene')?.invOpen) return;
@@ -291,15 +306,18 @@ export const WithPlayer = (Base) => class extends Base {
     const item  = this.getActiveItem();
 
     // Tapping an animal is always an interact (never a tool use — tools go
-    // through the Use button / F / controller). Walk up, then mount a saddled
-    // horse or pet/open it; chickens just pet/open.
+    // through the Use button / F / controller). A single tap pets/loves; a quick
+    // double-tap on the same animal opens its info panel (#79). Saddled horses
+    // mount instead.
     for (const h of this.horses) {
       const d = Phaser.Math.Distance.Between(world.x, world.y, h.sprite.x, h.sprite.y);
       if (d < 80) {
+        const wantInfo = !h.saddled && this._isDoubleTap(h.key);
         const tx = h.sprite.x + (world.x < h.sprite.x ? -70 : 70);
         this.tapMoveTo(tx, h.sprite.y, () => {
-          if (h.saddled) this.mountHorse(h);
-          else this.petOrInfo(h.key, h.sprite, () => this.openPortrait(h.key));
+          if (h.saddled)       this.mountHorse(h);
+          else if (wantInfo)   this.openPortrait(h.key);
+          else                 this.petAnimal(h.key, h.sprite);
         });
         return;
       }
@@ -309,9 +327,11 @@ export const WithPlayer = (Base) => class extends Base {
       if (!a.sprite.visible) continue; // tucked inside the coop at night
       const d = Phaser.Math.Distance.Between(world.x, world.y, a.sprite.x, a.sprite.y);
       if (d < 60) {
+        const wantInfo = this._isDoubleTap(a.key);
         const tx = a.sprite.x + (world.x < a.sprite.x ? -40 : 40);
         this.tapMoveTo(tx, a.sprite.y, () => {
-          this.petOrInfo(a.key, a.sprite, () => this.openCreatureInfo(a));
+          if (wantInfo) this.openCreatureInfo(a);
+          else          this.petAnimal(a.key, a.sprite);
         });
         return;
       }
