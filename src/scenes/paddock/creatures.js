@@ -6,7 +6,7 @@
 import Phaser from 'phaser';
 import { EVENTS } from '../../data/events.js';
 import { playNicker, playSqueal, playPeck, playGather } from '../../audio/sounds.js';
-import { BOUNDS, PASTURE_BOUNDS, S, HERD } from './constants.js';
+import { BOUNDS, PASTURE_BOUNDS, S, HERD, GATE_X, GATE_GAP_X0, GATE_GAP_X1 } from './constants.js';
 import { SPECIES } from '../../data/species/index.js';
 import { Animal } from '../../data/Animal.js';
 
@@ -108,9 +108,26 @@ export const WithCreatures = (Base) => class extends Base {
   // obstacle list is used, so it ignores its own home (e.g. a chicken's coop).
   moveCreatureTo(a, tx, ty, onArrive) {
     a._pathTarget = { x: tx, y: ty };
-    const path = this._findPath(a.sprite.x, a.sprite.y, tx, ty,
-      { R: a.bodyR ?? 16, obstacles: this._obstaclesFor(a.key) });
-    this._runPath(a, (path && path.length) ? path : [{ x: tx, y: ty }], onArrive);
+    const R = a.bodyR ?? 16;
+    const obstacles = this._obstaclesFor(a.key);
+    let path = this._findPath(a.sprite.x, a.sprite.y, tx, ty, { R, obstacles });
+    if (!path || !path.length) {
+      // No route to the target. The usual cause is a shut gate between the
+      // creature and a target on the far side — e.g. a horse left outside the
+      // fence still wandering toward inside points. Don't fall back to a straight
+      // line: that walks it through the fence, and the gate guard then snaps it
+      // across (#81). Head to the gate on the creature's *current* side and wait;
+      // once the gate opens, a later wander finds a real path across.
+      const line = PASTURE_BOUNDS.minY;
+      const acrossShutGate = ((a.sprite.y - line) * (ty - line) < 0) && !this.props.gate?.open;
+      if (acrossShutGate) {
+        const gx = Phaser.Math.Clamp(GATE_X, GATE_GAP_X0 + 14, GATE_GAP_X1 - 14);
+        const gy = a.sprite.y < line ? line - 40 : line + 40; // wait on our own side
+        path = this._findPath(a.sprite.x, a.sprite.y, gx, gy, { R, obstacles });
+      }
+      if (!path || !path.length) { onArrive?.(); return; } // nowhere reachable — stay put
+    }
+    this._runPath(a, path, onArrive);
   }
 
   // Pick a wander destination for a creature, returning { x, y, nicker? }. A

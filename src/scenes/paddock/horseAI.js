@@ -150,8 +150,12 @@ export const WithHorseAI = (Base) => class extends Base {
   _settleAtGate(a) {
     const isHorse = this.horses.includes(a);
     const line = PASTURE_BOUNDS.minY;
+    // Settle on the side the mover is *currently* on — never snap it across the
+    // fence to the far side (#81). (Previously a horse was always put inside, so a
+    // horse caught outside a closing gate teleported into the pasture.)
+    const outside = a.sprite.y < line;
     a.sprite.x = Phaser.Math.Clamp(a.sprite.x, GATE_GAP_X0 + 12, GATE_GAP_X1 - 12);
-    a.sprite.y = isHorse ? line + 30 : line - 30;
+    a.sprite.y = outside ? line - 30 : line + 30;
     a.shadow.setPosition(a.sprite.x, a.sprite.y).setDepth(a.sprite.y - 1);
     a.sprite.setDepth(a.sprite.y).play(`idle_${a.key}`, true);
     if (a.eatTimer) { this.time.removeEvent(a.eatTimer); a.eatTimer = null; }
