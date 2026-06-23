@@ -1,0 +1,108 @@
+// Behavior dispatcher — the generic, data-driven AI tick. Each species declares an
+// ordered `behaviors` list (src/data/species/<x>/index.js); the modules themselves
+// ({ id, test, run }) live in that species' behaviors.js. This mixin walks the list
+// in priority order and lets the first behavior that fires *and* successfully claims
+// the agent win — exactly the semantics of the old hand-written if-ladders, just
+// driven by data so a new animal composes a list instead of needing new tick code.
+//
+// The decision is split: `test(ctx)` is pure (unit-tested in the species'
+// behaviors.test.js), `run(scene, agent)` reuses the existing movement primitives
+// (horseGoEat/horseGoDrink/_horseBeg, chickenGoEat/chickenFollow/chickenGatherAt) —
+// those are untouched, so the living-paddock feel is unchanged. `_behaviorContext`
+// gathers the same quantities the old ladders computed inline into one plain object.
+
+import Phaser from 'phaser';
+import { getSpecies, BEHAVIORS } from '../../data/species/index.js';
+import { BEG } from './constants.js';
+
+export const WithBehaviors = (Base) => class extends Base {
+  // Walk the agent's species behavior list; return true if a behavior claimed it
+  // (so the caller skips wandering), false if none did.
+  runBehaviors(agent) {
+    // _speciesOf (world.js) maps a creature key to its species id: 'horse2' →
+    // 'horse', 'chicken0' → 'chicken'.
+    const species = this._speciesOf(agent.key);
+    const ctx = species === 'chicken' ? this._chickenContext(agent) : this._horseContext(agent);
+    const spec = getSpecies(species);
+    const registry = BEHAVIORS[species] ?? {};
+    for (const id of spec.behaviors ?? []) {
+      const b = registry[id];
+      // test() gates; run() does the work and may still bail (e.g. pile taken),
+      // in which case we fall through to the next behavior — never strand idle.
+      if (b && b.test(ctx) && b.run(this, agent)) return true;
+    }
+    return false;
+  }
+
+  // ─── Context snapshots (pure data the behavior `test`s read) ───────────────
+
+  _horseContext(h) {
+    const horse = this.registry.get('allHorses')?.[h.key];
+    if (!horse) {
+      return { hunger: 100, thirst: 100, nearestHayDist: Infinity, troughDist: Infinity, hasPlayer: false };
+    }
+    const pile = this._nearestReachableHay(h);
+    const nearestHayDist = pile
+      ? Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, pile.x, pile.y)
+      : Infinity;
+
+    const t = this.props.trough;
+    const troughDist = (t?.filled && this._inPasture(t.x, t.y))
+      ? Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, t.x, t.y)
+      : Infinity;
+
+    const hasPlayer = !!this.player;
+    const playerDist = hasPlayer
+      ? Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, this.player.sprite.x, this.player.sprite.y)
+      : Infinity;
+
+    return {
+      hunger: horse.stats.hunger,
+      thirst: horse.stats.thirst,
+      temperament: horse.temperament,
+      nearestHayDist,
+      troughDist,
+      hasPlayer,
+      gateOpen: this._gateOpen(),
+      playerDist,
+      now: this.time.now,
+      lastSeek: h._lastSeek ?? null,
+      // Begging tuning is shared with the begging primitive, so it rides in via ctx.
+      begHunger: BEG.HUNGER,
+      begNoticeDist: BEG.NOTICE_DIST,
+      begThrottleMs: BEG.THROTTLE_MS,
+    };
+  }
+
+  _chickenContext(a) {
+    const gateOpen = this._gateOpen();
+    const item = this.getActiveItem();
+    const grainBin = this._grainBin();
+    return {
+      nearestSeed: this._nearestReachableSeed(a, gateOpen),
+      luring: !!this.player && item?.carrier === 'basket' && item.content === 'seed' && item.count > 0,
+      anticipating: this._phase === 'Morning' && !this._chickensFedToday && !!grainBin,
+      gateOpen,
+    };
+  }
+
+  // ─── Small shared lookups used by both contexts and behavior `run`s ────────
+
+  _gateOpen() { return !!this.props.gate?.open; }
+
+  _grainBin() { return this.props.sources?.find(s => s.content === 'seed'); }
+
+  // Nearest hay pile this horse can actually reach (hay outside the fence needs the
+  // gate open), or null. Mirrors the old horseTickForHorse scan.
+  _nearestReachableHay(h) {
+    if (!this.props.hayPiles?.length) return null;
+    const gateOpen = this._gateOpen();
+    let closest = null, closestDist = Infinity;
+    for (const pile of this.props.hayPiles) {
+      if (!this._inPasture(pile.x, pile.y) && !gateOpen) continue;
+      const d = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, pile.x, pile.y);
+      if (d < closestDist) { closestDist = d; closest = pile; }
+    }
+    return closest;
+  }
+};

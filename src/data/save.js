@@ -1,8 +1,8 @@
 // localStorage persistence. Saves every horse and applies gentle offline decay on
 // load so the herd "missed you" without being punished.
 
-import { Horse, EBONY_BASE_STATS } from './horse.js';
-import { Chicken } from './chicken.js';
+import { Horse, EBONY_BASE_STATS } from './species/horse/model.js';
+import { Chicken } from './species/chicken/model.js';
 
 // Legacy single-horse save (the old "player horse"). Still read once, to migrate
 // an existing player's horse into the unified roster below.

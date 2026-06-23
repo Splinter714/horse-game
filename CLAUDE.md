@@ -50,28 +50,47 @@ emitter** (`this.game.events`).
 ## The data-driven entity model (`src/data/`) — the key generalization
 
 Animals are **one generic model driven by data**, so adding an animal type is mostly
-a data entry (mirrors how `coats.js` and `items.js` are data-driven).
+a data entry (mirrors how coat tables and `items.js` are data-driven). **Everything
+about one species is co-located** under `src/data/species/<name>/` (the one exception
+is procedural art, which lives in `src/art/`).
 
 - `Animal.js` — generic model: needs/decay, derived happiness, daily-care cycle,
   `applyAction(key)`, `mood()`, `toJSON()`. Knows nothing horse-specific.
-- `species/index.js` — the `SPECIES` registry. Each entry declares `needs` (decay
-  rates + defaults), optional `happiness`, care `actions` (stat/amount/care-flag/
-  sound/icon), `dailyCare`, `mood` thresholds, `traits`, `optionalAttrs`, `capabilities`.
-- `horse.js` / `chicken.js` — thin `class X extends Animal { super(SPECIES.x, data) }`.
+- `species/index.js` — aggregator: imports each species def, exports the `SPECIES`
+  registry, `getSpecies(id)`, the `BEHAVIORS` map, and the pure `chooseBehavior(id, ctx)`.
+- `species/<name>/index.js` — the species definition. Declares `needs` (decay rates +
+  defaults), optional `happiness`, care `actions` (stat/amount/care-flag/sound/icon),
+  `dailyCare`, `mood` thresholds, `traits`, `optionalAttrs`, `capabilities`, and the
+  ordered `behaviors` AI priority list.
+- `species/<name>/model.js` — thin `class X extends Animal { super(SPECIES.x, data) }`.
   `Horse` keeps `feed/water/brush/pet` convenience wrappers around `applyAction`.
-- `coats.js` — horse coat color tables. `items.js` — carrier/content inventory data.
+- `species/horse/coats.js` — horse coat color tables. `items.js` — carrier/content data.
+- `species/<name>/behaviors.js` — the AI behavior modules `{ id, test(ctx), run(scene,
+  agent) }`. `test` is pure (unit-tested in `behaviors.test.js`); `run` reuses the
+  scene movement primitives. See "behavior registry" below.
 - `save.js` — localStorage persistence (`loadAllHorses`/`saveAllHorses`,
   `loadAllChickens`/`saveAllChickens`, `loadGameState`/`saveGameState`). Applies
   forgiving offline decay on load.
 
+### The behavior registry (data-driven AI)
+Each species declares an ordered `behaviors` list; the generic dispatcher
+(`scenes/paddock/behaviors.js`, `WithBehaviors`) walks it via `runBehaviors(agent)`
+and the first behavior whose `test(ctx)` fires and whose `run` claims the agent wins
+(wander is the implicit fallback). `horseTickForHorse` and `chickenTick` just delegate
+to `runBehaviors`. The eat/drink/beg and chicken movement *primitives* still live in
+the `horseAI`/`creatures` mixins — behaviors only wire condition → primitive.
+
 ### How to add things
-- **A horse coat:** add an entry to `COATS` in `data/coats.js`.
-- **A care action (e.g. `treat`):** add it to a species' `actions` in `species/index.js`
-  (stat, amount, care flag, sound, icon). `doAction` and the model pick it up via data.
-- **A new animal species:** add a `SPECIES` entry (needs/actions/capabilities), a
-  thin model class (or reuse `Animal`), an art builder in `src/art/`, build its
-  textures in `BootScene`, give it a roster + persistence in `save.js`, and a
-  behavior set (today: hand-written in the `creatures`/`horseAI` mixins; see Roadmap).
+- **A horse coat:** add an entry to `COATS` in `species/horse/coats.js`.
+- **A care action (e.g. `treat`):** add it to a species' `actions` in its
+  `species/<name>/index.js` (stat, amount, care flag, sound, icon). `doAction` and the
+  model pick it up via data.
+- **A new AI behavior:** add a module to the species' `behaviors.js` and its id to the
+  `behaviors` list in `index.js`. Add a pure-decision case to `behaviors.test.js`.
+- **A new animal species:** create `src/data/species/<name>/` (an `index.js` definition
+  with needs/actions/capabilities/behaviors, a `model.js` class or reuse `Animal`, a
+  `behaviors.js`), register it in `species/index.js`, add an art builder in `src/art/`,
+  build its textures in `BootScene`, and give it a roster + persistence in `save.js`.
 
 ## PaddockScene structure — functional mixins (`src/scenes/paddock/`)
 
@@ -130,10 +149,6 @@ renderer-agnostic.
 
 ## Roadmap (planned, not yet done)
 
-- **Behavior registry:** replace the hand-written AI tick functions in `creatures.js`/
-  `horseAI.js` with data-driven, per-species behavior modules `(ctx, agent) => handled`,
-  so a new animal picks a behavior list instead of needing new tick code. (Now isolated
-  to those two mixins, so it's a contained change.)
 - **Unify info panels:** merge `PortraitScene` + `ChickenInfoScene` into one panel that
   renders stat bars from `species.needs` and buttons from `species.actions`.
 - Future features tracked in GitHub issues: breeding/genetics (#15), herd personalities

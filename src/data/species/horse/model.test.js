@@ -3,7 +3,7 @@
 // to a data-driven Animal model can be verified as behavior-neutral.
 
 import { describe, it, expect } from 'vitest';
-import { Horse, EBONY_BASE_STATS } from './horse.js';
+import { Horse, EBONY_BASE_STATS } from './model.js';
 
 describe('Horse construction', () => {
   it('applies sensible defaults', () => {

@@ -55,6 +55,7 @@ try {
       'mountHorse', 'dismount', 'toggleSaddle', 'toggleLead',
       'horseTick', 'horseGoEat', 'horseGoDrink', 'spawnHorse', 'spawnAnimal',
       'separateHorses', '_horseBeg', '_begWait',
+      'runBehaviors', '_horseContext', '_chickenContext', '_nearestReachableHay',
       'onPhaseChange', 'doAction', 'depthSort', 'tickDecay',
     ];
     const missingMethods = expectMethods.filter((m) => typeof paddock[m] !== 'function');
@@ -69,9 +70,24 @@ try {
       if (chicken) { chicken.state = 'idle'; paddock.creatureWander(chicken); }
     } catch (e) { movementOk = false; movementError = String(e); }
 
+    // Behavior registry (issue #73): the data-driven dispatcher must pick seekFood
+    // for a hungry horse with hay in reach — and actually claim it (state→eating).
+    let behaviorDecision = '';
+    try {
+      const horse = paddock.horses[0];
+      horses[horse.key].stats.hunger = 10;
+      paddock.props.hayPiles.push({ x: horse.sprite.x + 20, y: horse.sprite.y, sprite: { destroy() {} } });
+      horse.state = 'idle';
+      const claimed = paddock.runBehaviors(horse);
+      behaviorDecision = (claimed && horse.state === 'eating')
+        ? 'seekFood'
+        : `claimed=${claimed},state=${horse.state}`;
+    } catch (e) { behaviorDecision = 'threw: ' + String(e); }
+
     return {
       renderer: g.config.renderType, // 1=Canvas, 2=WebGL
       movementOk, movementError,
+      behaviorDecision,
       horseCount: Object.keys(horses).length,
       chickenCount: Object.keys(chickens).length,
       sampleHorse: { name: h.name, species: h.species, hasMood: typeof h.mood === 'function' },
@@ -119,6 +135,7 @@ try {
   if (result.horsesInScene !== 7) fail(`expected 7 horse sprites in scene, got ${result.horsesInScene}`);
   if (!result.hasFarmStand) fail('farm stand not built — farmStand mixin not wired');
   if (!result.movementOk) fail('creature movement/pathfinding threw: ' + result.movementError);
+  if (result.behaviorDecision !== 'seekFood') fail(`hungry horse with hay nearby did not select seekFood (got ${result.behaviorDecision})`);
   if (!result.horsePanel.active) fail('InfoPanelScene did not open for a horse');
   if (result.horsePanel.parts < 15) fail(`horse panel looks too sparse (parts=${result.horsePanel.parts}) — stat bars/buttons missing?`);
   if (!result.chickenPanel.active) fail('InfoPanelScene did not open for a chicken');
