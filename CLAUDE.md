@@ -36,9 +36,13 @@ net that lets us ship without the owner manually playing.
   dispatch (`doAction`).
 - `DayNightScene` — day/night cycle, lighting tint, sleep. (Dev-only: tap the time
   label to skip a phase — gated behind `import.meta.env.DEV`.)
-- `HotbarScene` — hotbar, carriers, pause menu, money label.
-- `PortraitScene` / `ChickenInfoScene` — slide-in info panels. (Unifying these into
-  one data-driven panel is a planned next step — see Roadmap.)
+- `HotbarScene` — hotbar, carriers, pause menu (mute, control-prompt toggle, volume
+  sliders), money label.
+- `InfoPanelScene` — the single data-driven info popup for **any** animal (horses,
+  chickens, the cat). Renders stat bars from `species.needs` and identity/trait/portrait
+  from the species' `panel` block. Purely informational — care is done in-world, so it
+  has no action buttons. (This is the unified panel that replaced the old
+  `PortraitScene` + `ChickenInfoScene`.)
 
 Scenes share state via Phaser's **registry** and communicate via the **global event
 emitter** (`this.game.events`).
@@ -46,11 +50,22 @@ emitter** (`this.game.events`).
 ### Registry keys
 - `allHorses` — `{ [key]: Horse }` keyed by texture/registry key (`horse`, `horse2`…`horse7`).
 - `allChickens` — `{ [key]: Chicken }` (`chicken0`…`chicken4`).
-- `viewingHorse` / `viewingChicken` — what the info panel is showing (or null).
+- `viewingAnimal` — `{ animal, portraitKey, key }` for whatever the info panel is showing
+  (or null). The cat carries an in-memory `Animal` model (not persisted yet) so it gets a
+  panel too.
 
 ### Events — use the constants in `src/data/events.js`, never bare strings
 `ANIMAL_ACTION` (`{type, horseKey}`), `PHASE_CHANGE` (`{isNight, phase}`), `SLEEP`,
-`SLEEP_DONE`, `STATS_CHANGED`, `MONEY_CHANGED`, `INVENTORY_CHANGED`, `BASKET_CHANGED`.
+`SLEEP_DONE`, `STATS_CHANGED`, `MONEY_CHANGED`, `INVENTORY_CHANGED`, `BASKET_CHANGED`,
+`PROMPTS_CHANGED` (control-prompt visibility toggled, payload = boolean).
+
+### Animal interaction (in-world)
+Care happens in the world, not via panel buttons. Interact (E / gamepad A / tap) always
+**pets** the nearest animal; **info** is a separate input (C key / gamepad Y / double-tap).
+Tools/carriers act on **Use** (F / gamepad X / on-screen Use button) — brush/saddle/lead on
+the nearest horse, feed drops at your feet (or stocks the farm stand when you're at it),
+carriers gather/fill/sell at the matching world spot. Contextual prompts for both interact
+and Use are shown near the target (toggleable in the pause menu).
 
 ## The data-driven entity model (`src/data/`) — the key generalization
 
@@ -154,8 +169,9 @@ renderer-agnostic.
 
 ## Roadmap (planned, not yet done)
 
-- **Unify info panels:** merge `PortraitScene` + `ChickenInfoScene` into one panel that
-  renders stat bars from `species.needs` and buttons from `species.actions`.
+- **Unify info panels — DONE.** `PortraitScene` + `ChickenInfoScene` are now the single
+  data-driven `InfoPanelScene` (stat bars from `species.needs`, identity/portrait from the
+  species `panel` block). It's purely informational (no action buttons).
 - Future features tracked in GitHub issues: breeding/genetics (#15), herd personalities
-  (#31), other animal types (#4), crops/cooking (#27/#40/#41), economy/shop (#29), world
-  expansion (#35/#36/#56).
+  (#31), animal personality & preferences (#88), other animal types (#4),
+  crops/cooking (#27/#40/#41), economy/shop (#29), world expansion (#35/#36/#56).
