@@ -189,27 +189,39 @@ export function buildIconTextures(scene) {
     g.fillStyle(0xfffdf5, 1); g.fillEllipse(6, 5, 2, 2); g.fillEllipse(12, 5, 2, 2);
   });
 
-  // Empty bucket (a metal pail)
+  // Empty bucket — a metal pail tilted slightly forward so you see down into it.
+  // The open mouth is a dark interior oval, so "empty" reads at a glance vs. the
+  // water-filled version below (#125).
   gen(scene, 'iconBucket', 20, 20, (g) => {
-    g.fillStyle(0x8a93a6, 1); g.fillRect(5, 2, 10, 1); // handle
-    g.fillRect(4, 2, 1, 4); g.fillRect(15, 2, 1, 4);
-    g.fillStyle(0xb8c0d0, 1); g.fillRect(3, 6, 14, 2); // rim
-    g.fillStyle(0x9aa3b6, 1); // tapered body
-    g.fillTriangle(4, 8, 16, 8, 14, 18); g.fillTriangle(4, 8, 14, 18, 6, 18);
-    g.fillStyle(0xb8c0d0, 1); g.fillRect(5, 9, 1, 8); // highlight
-    g.fillStyle(0x7a8396, 1); g.fillRect(6, 17, 8, 1);
-  });
-  // Filled bucket — water visible at the brim
-  gen(scene, 'iconBucketWater', 20, 20, (g) => {
-    g.fillStyle(0x8a93a6, 1); g.fillRect(5, 2, 10, 1);
-    g.fillRect(4, 2, 1, 4); g.fillRect(15, 2, 1, 4);
-    g.fillStyle(0x5fa6d6, 1); g.fillRect(4, 7, 12, 2); // water surface
-    g.fillStyle(0x9ae0f8, 1); g.fillRect(5, 7, 6, 1);
-    g.fillStyle(0xb8c0d0, 1); g.fillRect(3, 6, 14, 1);
+    // Handle arcing over the top
+    g.fillStyle(0x6f7889, 1);
+    g.fillRect(3, 4, 1, 3); g.fillRect(16, 4, 1, 3);
+    g.fillRect(4, 2, 12, 1); g.fillRect(3, 3, 2, 1); g.fillRect(15, 3, 2, 1);
+    // Tapered body (front face)
     g.fillStyle(0x9aa3b6, 1);
-    g.fillTriangle(4, 9, 16, 9, 14, 18); g.fillTriangle(4, 9, 14, 18, 6, 18);
-    g.fillStyle(0xb8c0d0, 1); g.fillRect(5, 10, 1, 7);
-    g.fillStyle(0x7a8396, 1); g.fillRect(6, 17, 8, 1);
+    g.fillTriangle(3, 8, 17, 8, 15, 18); g.fillTriangle(3, 8, 15, 18, 5, 18);
+    // Raised rim oval (the lip we look over)
+    g.fillStyle(0xb8c0d0, 1); g.fillEllipse(10, 8, 14, 5);
+    // Dark inside oval — empty pail
+    g.fillStyle(0x474d5b, 1); g.fillEllipse(10, 8, 10.5, 3.4);
+    // Body highlight + base shadow
+    g.fillStyle(0xb8c0d0, 1); g.fillRect(5, 10, 1, 6);
+    g.fillStyle(0x7a8396, 1); g.fillRect(7, 17, 6, 1);
+  });
+  // Filled bucket — same tilted pail, but the mouth oval is full of water with a
+  // glint, so "filled" is obvious at a glance next to the empty one (#125).
+  gen(scene, 'iconBucketWater', 20, 20, (g) => {
+    g.fillStyle(0x6f7889, 1);
+    g.fillRect(3, 4, 1, 3); g.fillRect(16, 4, 1, 3);
+    g.fillRect(4, 2, 12, 1); g.fillRect(3, 3, 2, 1); g.fillRect(15, 3, 2, 1);
+    g.fillStyle(0x9aa3b6, 1);
+    g.fillTriangle(3, 8, 17, 8, 15, 18); g.fillTriangle(3, 8, 15, 18, 5, 18);
+    g.fillStyle(0xb8c0d0, 1); g.fillEllipse(10, 8, 14, 5); // rim
+    // Water filling the mouth oval, with a brighter glint near-left
+    g.fillStyle(0x5fa6d6, 1); g.fillEllipse(10, 8, 10.5, 3.4);
+    g.fillStyle(0x9ae0f8, 1); g.fillEllipse(8.4, 7.4, 4.6, 1.6);
+    g.fillStyle(0xb8c0d0, 1); g.fillRect(5, 10, 1, 6);
+    g.fillStyle(0x7a8396, 1); g.fillRect(7, 17, 6, 1);
   });
 
   // --- hand icon (20 × 20) ---
