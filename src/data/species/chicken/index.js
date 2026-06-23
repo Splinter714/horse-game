@@ -32,11 +32,11 @@ export const CHICKEN = {
   capabilities: { saddleable: false, rideable: false, leadable: false, laysEggs: true },
 
   // Paddock "feel" knobs read by the scene movement primitives (creatures.js).
-  // ms delay range between wanders — chickens potter around their coop fairly
-  // often. (No `roll`: only horses roll in the dirt.)
+  // ms delay range between wanders — shortened so the flock potters around more
+  // often and feels livelier (#130). (No `roll`: only horses roll in the dirt.)
   movement: {
-    wanderMin: 4000,
-    wanderMax: 10000,
+    wanderMin: 2500,
+    wanderMax: 6500,
   },
 
   // Info-panel presentation: static portrait, an italic personality line, no stat
@@ -46,5 +46,5 @@ export const CHICKEN = {
   // AI priority list walked per-tick by the dispatcher (modules: ./behaviors.js).
   // Note: egg laying (eggLayTick, 45s timer) and roosting are scheduler-driven, not
   // per-tick decisions, so they stay in the scene mixins and are NOT listed here.
-  behaviors: ['seekSeed', 'followForSeed', 'gatherAtBin'],
+  behaviors: ['seekSeed', 'followForSeed', 'followWhenHungry', 'gatherAtBin'],
 };

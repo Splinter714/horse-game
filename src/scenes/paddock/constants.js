@@ -57,6 +57,12 @@ export const BEG = {
   AT_GATE:       70,   // already at the gate gap → just wait
 };
 
+// ── Hungry chickens (behaviors.js / creatures.js) ───────────────────────────
+// While a chicken is unfed for the day it crowds the grain bin and, when the
+// player wanders within this range, trails them hoping to be fed — even with no
+// seeds out yet (#128). Reset to ordinary behaviour once fed (#129).
+export const CHICKEN_HUNGRY_FOLLOW_DIST = 200;
+
 // ── Herd clustering (creatures.js) ──────────────────────────────────────────
 // Buddy pairing (the head-to-tail "fly-swatting" pose) and the gentle drift that
 // keeps an idle cluster from collapsing into one overlapping blob.

@@ -14,6 +14,11 @@ import { Animal } from '../../data/Animal.js';
 // block (e.g. the cat). Species defs override these per-animal.
 const GENERIC_MOVEMENT = { wanderMin: 4000, wanderMax: 10000 };
 
+// How often the flock re-decides (notice dropped seed, a seed-carrying or nearby
+// player, the grain bin). Kept short so chickens react promptly to seeds (#127) —
+// the follow/gather primitives already guard against re-pathing every tick.
+const CHICKEN_TICK_MS = 700;
+
 export const WithCreatures = (Base) => class extends Base {
   // Paddock "feel" knobs for a species id, falling back to GENERIC_MOVEMENT for
   // creatures without a species def. The single source of truth is each species'
@@ -40,7 +45,9 @@ export const WithCreatures = (Base) => class extends Base {
     const offsets = [[-40,-20],[30,-30],[0,30],[-60,20],[50,10]];
     offsets.forEach(([ox, oy], i) => {
       const chickenModel = allChickens[`chicken${i}`];
-      const a = this.spawnAnimal(cx + ox, cy + oy, `chicken${i}`, 0.25, 8, 10, cx, cy, 180, 6, chickenModel);
+      // Wider roam radius (180→220) so they range a bit more around the coop (#130).
+      const a = this.spawnAnimal(cx + ox, cy + oy, `chicken${i}`, 0.25, 8, 10, cx, cy, 220, 6, chickenModel);
+      a.onSettle = (c) => this._maybeChickenPeck(c); // occasional peck between wanders (#130)
       // Hold the flock hidden until the first phase change decides how they enter:
       // out of the coop in the morning, or already milling in the yard otherwise.
       // (Avoids a one-frame flash in the yard before they emerge from the coop.)
@@ -50,7 +57,7 @@ export const WithCreatures = (Base) => class extends Base {
       if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
     });
 
-    this.time.addEvent({ delay: 2000, loop: true, callback: this.chickenTick, callbackScope: this });
+    this.time.addEvent({ delay: CHICKEN_TICK_MS, loop: true, callback: this.chickenTick, callbackScope: this });
   }
 
 
@@ -272,9 +279,11 @@ export const WithCreatures = (Base) => class extends Base {
 
     a.state = 'gathering';
     const d = Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, tx, ty);
-    if (d < 18) { // already at its spot — just mill about
+    if (d < 18) { // already at its spot — mill about, with the odd eager peck (#128)
       if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
-      a.sprite.play(`idle_${a.key}`, true);
+      if (a._pecking) return;
+      if (Phaser.Math.FloatBetween(0, 1) < 0.25) this.chickenPeck(a);
+      else a.sprite.play(`idle_${a.key}`, true);
       return;
     }
     // Already walking to this fixed spot — let the tween finish instead of
@@ -285,6 +294,29 @@ export const WithCreatures = (Base) => class extends Base {
     this.moveCreatureTo(a, tx, ty, () => {
       if (a.state === 'gathering') a.sprite.play(`idle_${a.key}`, true);
     });
+  }
+
+  // A quick ground-peck: dip into the pecking animation with a soft peck sound,
+  // then settle back. Occasional liveliness while a chicken waits, unfed, at the
+  // grain bin (#128) or pauses between wanders (#130). Never interrupts a walk.
+  chickenPeck(a) {
+    if (!a.sprite.active || a._pecking || a.wanderTween) return;
+    if (a.state !== 'idle' && a.state !== 'gathering') return;
+    a._pecking = true;
+    a.sprite.play(`eat_${a.key}`, true); // the pecking frames
+    playPeck();
+    this.time.delayedCall(Phaser.Math.Between(360, 560), () => {
+      a._pecking = false;
+      if (a.sprite.active && (a.state === 'idle' || a.state === 'gathering')) {
+        a.sprite.play(`idle_${a.key}`, true);
+      }
+    });
+  }
+
+  // onSettle hook for chickens: a low-odds peck when one finishes a wander, so the
+  // flock feels alive without pecking constantly (#130). (Horses settle by rolling.)
+  _maybeChickenPeck(a) {
+    if (Phaser.Math.FloatBetween(0, 1) < 0.35) this.chickenPeck(a);
   }
 
   chickenGoEat(a, pile) {

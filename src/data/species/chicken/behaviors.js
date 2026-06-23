@@ -21,7 +21,17 @@ export const followForSeed = {
   run: (scene, a) => { scene.chickenFollow(a); return true; },
 };
 
-// Fresh-morning anticipation: until fed today, the flock crowds the grain bin.
+// Hungry (unfed today) and the player has wandered close: trail them hoping to be
+// fed, even with no seeds out yet (#128). Reuses the seed-follow movement; the only
+// difference is the trigger — proximity while hungry rather than seeds in hand.
+export const followWhenHungry = {
+  id: 'followWhenHungry',
+  test: (ctx) => ctx.anticipating && ctx.playerDist <= ctx.hungryFollowDist,
+  run: (scene, a) => { scene.chickenFollow(a); return true; },
+};
+
+// Fresh-morning anticipation: until fed today, the flock crowds the grain bin
+// (and mills/pecks there so it reads as eager waiting, not idling — #128).
 export const gatherAtBin = {
   id: 'gatherAtBin',
   test: (ctx) => ctx.anticipating,

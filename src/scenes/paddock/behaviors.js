@@ -13,7 +13,7 @@
 
 import Phaser from 'phaser';
 import { getSpecies, BEHAVIORS } from '../../data/species/index.js';
-import { BEG } from './constants.js';
+import { BEG, CHICKEN_HUNGRY_FOLLOW_DIST } from './constants.js';
 
 export const WithBehaviors = (Base) => class extends Base {
   // Walk the agent's species behavior list; return true if a behavior claimed it
@@ -84,10 +84,19 @@ export const WithBehaviors = (Base) => class extends Base {
     const gateOpen = this._gateOpen();
     const item = this.getActiveItem();
     const grainBin = this._grainBin();
+    const playerDist = this.player
+      ? Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, this.player.sprite.x, this.player.sprite.y)
+      : Infinity;
     return {
       nearestSeed: this._nearestReachableSeed(a, gateOpen),
       luring: !!this.player && item?.carrier === 'basket' && item.content === 'seed' && item.count > 0,
-      anticipating: this._phase === 'Morning' && !this._chickensFedToday && !!grainBin,
+      // Hungry until actually fed today — NOT until the morning phase ends (#129).
+      // An unfed flock keeps anticipating breakfast at the bin all day rather than
+      // drifting back to wandering on a clock. Reset at dawn (dayNight.js).
+      anticipating: !this._chickensFedToday && !!grainBin,
+      // A hungry chicken trails a nearby player even with no seeds out yet (#128).
+      playerDist,
+      hungryFollowDist: CHICKEN_HUNGRY_FOLLOW_DIST,
       gateOpen,
     };
   }
