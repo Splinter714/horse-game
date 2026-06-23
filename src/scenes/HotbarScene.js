@@ -486,8 +486,8 @@ export default class HotbarScene extends Phaser.Scene {
     this._buildHotbar();
   }
 
-  // Gamepad trigger / D-pad cycling of the active group's instances (#121): step
-  // the member by `dir` and flash the fly-out so the controller user sees the choice.
+  // Gamepad D-pad up/down cycling of the active group's instances (#121): step the
+  // member by `dir` and flash the fly-out so the controller user sees the choice.
   _padCycleMember(dir) {
     const key = this.hotbar[this.activeSlot];
     if (!this._isGroup(key)) return;

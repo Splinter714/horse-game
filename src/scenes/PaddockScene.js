@@ -723,8 +723,9 @@ export default class PaddockScene
     }
     // Hotbar navigation (#121): the D-pad now drives the hotbar (it no longer moves
     // the player — see movePlayer). D-pad left/right and the bumpers step between
-    // slots; D-pad up/down and the triggers cycle the instances inside a carrier
-    // group. navSlot wraps internally so the count lives in HotbarScene.
+    // slots; D-pad up/down cycle the instances inside a carrier group. navSlot wraps
+    // internally so the count lives in HotbarScene. The triggers (btnLT/btnRT) are
+    // intentionally left unbound here — reserved for a future action.
     const rp = this._rawPad;
     if (rp.dLeft  && !prev.dLeft)  { this.usingPad = true; hotbar?.navSlot(-1); }
     if (rp.dRight && !prev.dRight) { this.usingPad = true; hotbar?.navSlot(+1); }
@@ -732,8 +733,6 @@ export default class PaddockScene
     if (rp.btnRB  && !prev.btnRB)  { this.usingPad = true; hotbar?.navSlot(+1); }
     if (rp.dUp    && !prev.dUp)    { this.usingPad = true; hotbar?._padCycleMember(-1); }
     if (rp.dDown  && !prev.dDown)  { this.usingPad = true; hotbar?._padCycleMember(+1); }
-    if (rp.btnLT  && !prev.btnLT)  { this.usingPad = true; hotbar?._padCycleMember(-1); }
-    if (rp.btnRT  && !prev.btnRT)  { this.usingPad = true; hotbar?._padCycleMember(+1); }
     // Back = toggle inventory
     if (this._rawPad.btnBack && !prev.btnBack) {
       this.usingPad = true;
