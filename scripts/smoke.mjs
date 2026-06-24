@@ -84,10 +84,22 @@ try {
         : `claimed=${claimed},state=${horse.state}`;
     } catch (e) { behaviorDecision = 'threw: ' + String(e); }
 
+    // Demand-based gathering (#136): a full gather pulls one food per animal that
+    // eats it — hay/apple/carrot = horse count, seed = chicken count — capped at the
+    // carrier capacity. Non-food (water) ignores demand and fills to capacity.
+    const gatherTargets = {
+      hay:    paddock._gatherTarget('hay', 10),
+      apple:  paddock._gatherTarget('apple', 10),
+      carrot: paddock._gatherTarget('carrot', 10),
+      seed:   paddock._gatherTarget('seed', 10),
+      water:  paddock._gatherTarget('water', 1),
+    };
+
     return {
       renderer: g.config.renderType, // 1=Canvas, 2=WebGL
       movementOk, movementError,
       behaviorDecision,
+      gatherTargets,
       horseCount: Object.keys(horses).length,
       chickenCount: Object.keys(chickens).length,
       sampleHorse: { name: h.name, species: h.species, hasMood: typeof h.mood === 'function' },
@@ -172,6 +184,13 @@ try {
   if (Math.abs(result.scaleRatio - 4) > 0.01) fail(`chicken/horse display-scale ratio ${result.scaleRatio} ≠ ART_SCALE (4) — chickens/cat wrongly sized?`);
   if (!result.movementOk) fail('creature movement/pathfinding threw: ' + result.movementError);
   if (result.behaviorDecision !== 'seekFood') fail(`hungry horse with hay nearby did not select seekFood (got ${result.behaviorDecision})`);
+  // #136: gather one food per animal that eats it (7 horses, 5 chickens), water → capacity.
+  const gt = result.gatherTargets;
+  for (const food of ['hay', 'apple', 'carrot']) {
+    if (gt[food] !== 7) fail(`gather target for ${food} = ${gt[food]}, expected 7 (one per horse, #136)`);
+  }
+  if (gt.seed !== 5) fail(`gather target for seed = ${gt.seed}, expected 5 (one per chicken, #136)`);
+  if (gt.water !== 1) fail(`gather target for water = ${gt.water}, expected 1 (capacity — water ignores demand)`);
   if (!result.horsePanel.active) fail('InfoPanelScene did not open for a horse');
   if (result.horsePanel.parts < 15) fail(`horse panel looks too sparse (parts=${result.horsePanel.parts}) — identity/stat bars missing?`);
   if (!result.chickenPanel.active) fail('InfoPanelScene did not open for a chicken');

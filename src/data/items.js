@@ -16,14 +16,29 @@ export const CARRIER_DEFS = {
 //   action 'feed'  → dropped as food (horses eat hay/apple/carrot; chickens eat seed)
 //   action 'water' → fills the trough
 //   action 'egg'   → sold at the farm stand
+// `feeds` lists the species ids whose members eat this food. It drives both where a
+// dropped pile lands and how much a basket auto-gathers (#136): one per animal that
+// can eat it. A food eaten by several species sums their counts (e.g. apples eaten by
+// horses + pigs → horses + pigs). Multiple foods overlapping the same animals is fine
+// and intended — the owner wants "N apples for N horses", overlap with carrots and all.
 export const CONTENT_DEFS = {
-  hay:    { label: 'Hay',     icon: 'iconBasketHay',    action: 'feed',  ground: 'hayPile' },
-  apple:  { label: 'Apples',  icon: 'iconBasketApple',  action: 'feed',  ground: 'applePile' },
-  carrot: { label: 'Carrots', icon: 'iconBasketCarrot', action: 'feed',  ground: 'carrotPile' },
-  seed:   { label: 'Seed',    icon: 'iconBasketSeed',   action: 'feed',  ground: 'seedPile', feeds: 'chicken' },
+  hay:    { label: 'Hay',     icon: 'iconBasketHay',    action: 'feed',  ground: 'hayPile',    feeds: ['horse'] },
+  apple:  { label: 'Apples',  icon: 'iconBasketApple',  action: 'feed',  ground: 'applePile',  feeds: ['horse'] },
+  carrot: { label: 'Carrots', icon: 'iconBasketCarrot', action: 'feed',  ground: 'carrotPile', feeds: ['horse'] },
+  seed:   { label: 'Seed',    icon: 'iconBasketSeed',   action: 'feed',  ground: 'seedPile',   feeds: ['chicken'] },
   egg:    { label: 'Eggs',    icon: 'iconBasketEgg',    action: 'egg' },
   water:  { label: 'Water',   icon: 'iconBucketWater',  action: 'water' },
 };
+
+// How many of a food to gather in one fill-up (#136): one unit per live animal that
+// can mechanically eat it, summed across every species in its `feeds` diet. Returns
+// 0 for non-food contents (water, egg) — those keep their own fill-to-capacity rule.
+// Pure: `speciesCounts` maps species id → number of live animals (e.g. {horse:7}).
+export function foodDemand(content, speciesCounts = {}) {
+  const feeds = CONTENT_DEFS[content]?.feeds;
+  if (!feeds) return 0;
+  return feeds.reduce((n, sp) => n + (speciesCounts[sp] || 0), 0);
+}
 
 // Same-type carriers are grouped into a single hotbar slot with a fly-out picker
 // (#75): the 3 baskets share one "Basket" slot, the 3 buckets one "Bucket" slot.

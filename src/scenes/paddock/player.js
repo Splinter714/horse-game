@@ -2,7 +2,7 @@
 // world interactables + gathering. Applied as a functional mixin.
 
 import Phaser from 'phaser';
-import { CONTENT_DEFS } from '../../data/items.js';
+import { CONTENT_DEFS, foodDemand } from '../../data/items.js';
 import { EVENTS } from '../../data/events.js';
 import { playGather } from '../../audio/sounds.js';
 import { WORLD_W, WORLD_H, CARE_DIST, PLAYER_SPEED, HOLD_MS, HOLD_DRAG_PX, PLAYER_BOUNDS, PASTURE_BOUNDS, S, STAND_DEFS, TROUGH_CAP } from './constants.js';
@@ -200,11 +200,16 @@ export const WithPlayer = (Base) => class extends Base {
       return this.props.sources
         .filter(s => item.accepts.includes(s.content))
         .map(s => {
-          const full = item.content === s.content && item.count >= item.capacity;
+          // Food gathers one unit per animal that eats it (#136); other contents
+          // (water) just fill to capacity. `target` is what a full gather lands on.
+          const target = this._gatherTarget(s.content, item.capacity);
+          const have   = item.content === s.content ? item.count : 0;
+          const full   = have >= target;
+          const fullMsg = have >= item.capacity ? 'carrier full' : 'enough gathered';
           return {
             x: s.x, y: s.y, tapRadius: 120, reachDist: s.reach, promptOffsetY: 80,
             canAct: !full,
-            label: full ? `${s.label}  •  carrier full`
+            label: full ? `${s.label}  •  ${fullMsg}`
                         : `Gather ${CONTENT_DEFS[s.content].label}`,
             approach: (world) => {
               const refX = world ? world.x : this.player.sprite.x;
@@ -932,15 +937,33 @@ export const WithPlayer = (Base) => class extends Base {
     return this.scene.get('HotbarScene')?.getActiveItem() ?? null;
   }
 
-  // Gather from a source. Tops the carrier up to capacity in one Use (sources are
-  // infinite) — owner preferred a single fill-up over the one-at-a-time loop (#78,
-  // reverting #122). Refuses if the carrier already holds a different content.
+  // Live animal counts by species id, for demand-based gathering (#136).
+  _speciesCounts() {
+    return {
+      horse:   Object.keys(this.registry.get('allHorses')   ?? {}).length,
+      chicken: Object.keys(this.registry.get('allChickens') ?? {}).length,
+    };
+  }
+
+  // How many of `content` a full gather should land on. Food: one per animal that can
+  // eat it (#136), capped at carrier capacity. Non-food (water): just capacity.
+  _gatherTarget(content, capacity) {
+    const demand = foodDemand(content, this._speciesCounts());
+    return demand > 0 ? Math.min(demand, capacity) : capacity;
+  }
+
+  // Gather from a source in one Use (sources are infinite). Food tops the carrier up
+  // to one unit per animal that eats it (#136); water just fills to capacity. Owner
+  // preferred a single fill-up over the one-at-a-time loop (#78, reverting #122).
+  // Refuses if the carrier already holds a different content.
   gatherFrom(source) {
     const hot = this.scene.get('HotbarScene');
     const item = this.getActiveItem();
     if (!item || item.type !== 'carrier') return;
-    const space = item.capacity - (item.content === source.content ? item.count : 0);
-    const added = hot?.fillActiveCarrier(source.content, space || item.capacity) ?? 0;
+    const target = this._gatherTarget(source.content, item.capacity);
+    const have   = item.content === source.content ? item.count : 0;
+    const want   = Math.max(0, target - have);
+    const added  = want > 0 ? (hot?.fillActiveCarrier(source.content, want) ?? 0) : 0;
     if (added <= 0) return;
     playGather(source.content); // distinct per-source pickup sound (water → splash)
     this.showIcon(CONTENT_DEFS[source.content].icon, this.player.sprite);
