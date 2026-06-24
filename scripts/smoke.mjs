@@ -124,6 +124,34 @@ try {
   result.horsePanel = horsePanel;
   result.chickenPanel = chickenPanel;
 
+  // Appearance editor (#147): the per-horse info panel opens a sticky in-world
+  // editor; applying a coat colour re-skins live and persists. Guards that the
+  // ManagementPanelScene removal didn't break the relocated customizer, and that
+  // edit mode pauses/restores the world cleanly.
+  result.editor = await page.evaluate(async () => {
+    const g = window.__game;
+    const p = g.scene.getScene('PaddockScene');
+    if (g.scene.isActive('InfoPanelScene')) g.scene.stop('InfoPanelScene');
+    p.openPortrait('horse2');
+    await new Promise((r) => setTimeout(r, 300));
+    const info = g.scene.getScene('InfoPanelScene');
+    info._enterEdit();
+    await new Promise((r) => setTimeout(r, 60));
+    const opened = info._mode === 'edit' && !!info.contentC;
+    const focusCount = info._focusables.length;
+    const paused = g.scene.isPaused('PaddockScene');
+    info._pickColor('grey');
+    const coat = g.registry.get('allHorses').horse2.coat;
+    info.custExit();
+    await new Promise((r) => setTimeout(r, 60));
+    return {
+      opened, focusCount, paused, coat,
+      resumed: !g.scene.isPaused('PaddockScene') && info._mode === 'info',
+      noStable: !g.scene.getScene('ManagementPanelScene'),
+    };
+  });
+  await page.screenshot({ path: '/tmp/panel-editor.png' });
+
   console.log(JSON.stringify(result, null, 2));
 
   if (pageErrors.length) fail('uncaught page errors:\n' + pageErrors.join('\n'));
@@ -140,6 +168,12 @@ try {
   if (!result.horsePanel.active) fail('InfoPanelScene did not open for a horse');
   if (result.horsePanel.parts < 15) fail(`horse panel looks too sparse (parts=${result.horsePanel.parts}) — identity/stat bars missing?`);
   if (!result.chickenPanel.active) fail('InfoPanelScene did not open for a chicken');
+  if (!result.editor.opened) fail('appearance editor did not open from the info panel');
+  if (result.editor.focusCount < 20) fail(`editor registered too few focusables (${result.editor.focusCount})`);
+  if (!result.editor.paused) fail('world was not paused while editing');
+  if (result.editor.coat !== 'grey') fail(`coat edit did not apply (got ${result.editor.coat})`);
+  if (!result.editor.resumed) fail('world/info not restored after closing the editor');
+  if (!result.editor.noStable) fail('ManagementPanelScene still registered (should be removed)');
 
   if (!process.exitCode) console.log('SMOKE OK ✔  (screenshot: /tmp/horsegame-smoke.png)');
 } catch (e) {
