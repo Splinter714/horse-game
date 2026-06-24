@@ -12,6 +12,36 @@
 
 export const MIN_TAP = 44;
 
+// ── HiDPI helpers ────────────────────────────────────────────────────────────
+// The game renders its buffer at the device's PHYSICAL pixels (so art + text are
+// crisp on Retina screens like the iPad), but ALL game/world/UI coordinates stay
+// LOGICAL (CSS px). Each scene's camera zoom = DPR absorbs the difference, so
+// layout code is unchanged except for reading the *logical* viewport size and
+// converting raw pointer coords (which Phaser reports in physical/buffer px).
+//
+// `dpr` is computed once in main.js and stashed on the registry, so every scene
+// reads the same value. At DPR 1 (standard monitors, headless smoke) everything
+// here is a no-op and behaviour is identical to before.
+
+export const dprOf = (scene) => scene.registry.get('dpr') || 1;
+
+// Zoom this scene's main camera by the device pixel ratio. Call in create().
+// The camera origin is moved to the top-left (0,0) so the zoom is anchored there
+// rather than at the viewport centre — otherwise screen-fixed UI laid out from the
+// top-left in logical coords would be pushed off-screen (Phaser zooms about the
+// camera origin). The world camera follows the player, which works the same with a
+// top-left origin (only the scroll value differs).
+export function applyDpr(scene) {
+  const cam = scene.cameras.main;
+  cam.setOrigin(0, 0);
+  cam.setZoom(dprOf(scene));
+  return scene;
+}
+
+// Viewport size in LOGICAL px (scale.width/height are physical buffer px).
+export const logicalW = (scene) => scene.scale.width / dprOf(scene);
+export const logicalH = (scene) => scene.scale.height / dprOf(scene);
+
 export function growHitArea(obj, min = MIN_TAP) {
   const hit = obj?.input?.hitArea;
   if (!hit || typeof hit.setTo !== 'function') return obj;

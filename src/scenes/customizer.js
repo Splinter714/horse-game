@@ -5,7 +5,7 @@ import {
 } from '../data/species/horse/coats.js';
 import { PATTERN_VARIANT_COUNT } from '../data/species/horse/patterns.js';
 import { S } from './paddock/constants.js';
-import { growHitArea } from './uiUtils.js';
+import { growHitArea, dprOf, logicalW, logicalH } from './uiUtils.js';
 
 // Patterns and face markings are each single-select (mutually exclusive) with a
 // "None" option (#147 follow-up).
@@ -127,7 +127,7 @@ export const WithCustomizer = (Base) => class extends Base {
   // panel on the RIGHT, world on the LEFT; portrait = panel as a BOTTOM sheet,
   // world on top. The world region is handed to the camera focus above.
   _custBuildChrome() {
-    const sw = this.scale.width, sh = this.scale.height;
+    const sw = logicalW(this), sh = logicalH(this);
     const landscape = sw >= 720 && sw >= sh;
     if (landscape) {
       this.panelW = Phaser.Math.Clamp(Math.round(sw * 0.42), 320, 440);
@@ -503,11 +503,13 @@ export const WithCustomizer = (Base) => class extends Base {
       if (this._focusActive) { this._focusActive = false; this._focusRing?.clear(); }
       if (!this._inView(p)) return;
       this._drag = true; this._dragMoved = false;
-      this._dragStartY = p.y; this._dragStartScroll = this.scrollY;
+      // Pointer is physical (buffer) px under HiDPI; scroll content is laid out in
+      // logical px, so track the drag in logical space (no-op at DPR 1).
+      this._dragStartY = p.y / dprOf(this); this._dragStartScroll = this.scrollY;
     });
     this.input.on('pointermove', (p) => {
       if (!this._drag || !p.isDown) return;
-      const dy = p.y - this._dragStartY;
+      const dy = p.y / dprOf(this) - this._dragStartY;
       if (Math.abs(dy) > 6) this._dragMoved = true;
       this._setScroll(this._dragStartScroll - dy);
     });
@@ -515,7 +517,9 @@ export const WithCustomizer = (Base) => class extends Base {
   }
 
   _inView(p) {
-    return p.x >= this.px && p.x <= this.px + this.panelW && p.y >= this.viewTop && p.y <= this.viewBottom;
+    const dpr = dprOf(this);
+    const x = p.x / dpr, y = p.y / dpr;
+    return x >= this.px && x <= this.px + this.panelW && y >= this.viewTop && y <= this.viewBottom;
   }
 
   _setScroll(v) {

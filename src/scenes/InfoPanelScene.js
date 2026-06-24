@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { getSpecies } from '../data/species/index.js';
-import { growHitArea } from './uiUtils.js';
+import { growHitArea, applyDpr, logicalW, logicalH } from './uiUtils.js';
 import { WithCustomizer } from './customizer.js';
 
 // Lightweight, ephemeral info popup for any animal. It's a small floating card
@@ -28,6 +28,7 @@ export default class InfoPanelScene extends WithCustomizer(Phaser.Scene) {
   }
 
   create() {
+    applyDpr(this); // HiDPI: zoom this scene's camera by the device pixel ratio
     this.closing = false;
     this._mode = 'info';
     this.build();
@@ -78,8 +79,8 @@ export default class InfoPanelScene extends WithCustomizer(Phaser.Scene) {
   }
 
   build() {
-    const sw = this.scale.width;
-    const sh = this.scale.height;
+    const sw = logicalW(this);
+    const sh = logicalH(this);
     this._sw = sw;
     this._sh = sh;
 

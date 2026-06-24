@@ -3,7 +3,7 @@ import { ALL_ITEMS, ITEM_MAP, CARRIER_DEFS, CONTENT_DEFS } from '../data/items.j
 import { loadGameState, saveGameState, loadUiSettings, saveUiSettings, resetAllHorses } from '../data/save.js';
 import { toggleMute, isMuted, setVolume, getAudioSettings } from '../audio/sounds.js';
 import { EVENTS } from '../data/events.js';
-import { growHitArea } from './uiUtils.js';
+import { growHitArea, applyDpr, logicalW, logicalH } from './uiUtils.js';
 
 // Gameplay scenes frozen while the pause menu is open
 const PAUSABLE_SCENES = ['PaddockScene', 'DayNightScene', 'InfoPanelScene'];
@@ -31,6 +31,8 @@ export default class HotbarScene extends Phaser.Scene {
   constructor() { super('HotbarScene'); }
 
   create() {
+    applyDpr(this); // HiDPI: zoom this scene's camera by the device pixel ratio
+
     const saved      = loadGameState();
     this.hotbar      = saved.hotbar;
     this.inventory   = saved.inventory;
@@ -154,8 +156,8 @@ export default class HotbarScene extends Phaser.Scene {
     this._stripBg    = null;
     this._actionBtns = null;
 
-    const sw = this.scale.width;
-    const sh = this.scale.height;
+    const sw = logicalW(this);
+    const sh = logicalH(this);
 
     const naturalW = NUM_SLOTS * SLOT_SIZE + (NUM_SLOTS - 1) * SLOT_GAP;
     const fit    = Math.min(1, (sw - 16) / naturalW);
@@ -684,8 +686,8 @@ export default class HotbarScene extends Phaser.Scene {
     // Inventory and pause are mutually exclusive overlays
     if (this.pauseOpen) this._closePause();
 
-    const sw = this.scale.width;
-    const sh = this.scale.height;
+    const sw = logicalW(this);
+    const sh = logicalH(this);
 
     const CELL  = Math.max(44, Math.min(70, Math.floor((sw - 40) / INV_COLS)));
     const GAP   = 4;
@@ -853,8 +855,8 @@ export default class HotbarScene extends Phaser.Scene {
       if (this.scene.isActive(key)) this.scene.pause(key);
     }
 
-    const sw = this.scale.width;
-    const sh = this.scale.height;
+    const sw = logicalW(this);
+    const sh = logicalH(this);
 
     const panelW = Math.min(320, sw - 40);
     const rowH   = 48;

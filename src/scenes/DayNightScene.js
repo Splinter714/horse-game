@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { EVENTS } from '../data/events.js';
+import { applyDpr, logicalW, logicalH } from './uiUtils.js';
 
 // Total cycle ~10.5 min. Long daylight so there's plenty of time for chores:
 // morning 2 min + afternoon 5 min + evening 2 min = 9 min day, night 1.5 min.
@@ -24,6 +25,8 @@ export default class DayNightScene extends Phaser.Scene {
   }
 
   create() {
+    applyDpr(this); // HiDPI: zoom this scene's camera by the device pixel ratio
+
     this.elapsed     = 0;
     this.currentPhase = -1; // triggers initial phase-change event
     this._sleeping   = false;
@@ -50,11 +53,13 @@ export default class DayNightScene extends Phaser.Scene {
 
     this.overlay.setScrollFactor(0);
 
-    this._sw = this.scale.width;
-    this._sh = this.scale.height;
-    this.scale.on('resize', (gameSize) => {
-      this._sw = gameSize.width;
-      this._sh = gameSize.height;
+    // Full-screen overlay/label work in LOGICAL px (the camera zoom scales them to
+    // the physical buffer). gameSize is physical, so read the logical size.
+    this._sw = logicalW(this);
+    this._sh = logicalH(this);
+    this.scale.on('resize', () => {
+      this._sw = logicalW(this);
+      this._sh = logicalH(this);
     });
 
     this.game.events.on(EVENTS.SLEEP, this.doSleep, this);

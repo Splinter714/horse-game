@@ -24,6 +24,7 @@ import { WithHorseAI } from './paddock/horseAI.js';
 import { WithBehaviors } from './paddock/behaviors.js';
 import { WithRiding } from './paddock/riding.js';
 import { WithPlayer } from './paddock/player.js';
+import { applyDpr, logicalW, logicalH } from './uiUtils.js';
 
 // Maps a species action's `sound` name (see data/species) to the synth function.
 const SOUND_FNS = { eat: playEat, drink: playDrink, brush: playBrush, chime: playChime };
@@ -35,6 +36,8 @@ export default class PaddockScene
   }
 
   create() {
+    applyDpr(this); // HiDPI: zoom the world camera by the device pixel ratio
+
     this.decayAccum = 0;
     this.saveAccum  = 0;
     this.horses     = [];
@@ -680,7 +683,7 @@ export default class PaddockScene
   _togglePause() {
     this._paused = !this._paused;
     if (this._paused) {
-      const sw = this.scale.width, sh = this.scale.height;
+      const sw = logicalW(this), sh = logicalH(this);
       const bg = this.add.graphics().setDepth(9990);
       bg.fillStyle(0x000000, 0.55);
       bg.fillRect(0, 0, sw, sh);

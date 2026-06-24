@@ -175,7 +175,59 @@ try {
   if (!result.editor.resumed) fail('world/info not restored after closing the editor');
   if (!result.editor.noStable) fail('ManagementPanelScene still registered (should be removed)');
 
-  if (!process.exitCode) console.log('SMOKE OK ✔  (screenshot: /tmp/horsegame-smoke.png)');
+  // ── HiDPI rendering: the game must render at the device's PHYSICAL pixels so
+  // pixel-art/text are crisp on Retina screens (e.g. iPad, devicePixelRatio 2).
+  // The main boot above runs at deviceScaleFactor 1, where the DPR path is a no-op
+  // (so the assertions above guard there's no regression). Here we boot a second
+  // context at deviceScaleFactor 2 — the iPad's ratio — and assert the canvas
+  // backing store is 2× the CSS size and the camera zoom compensates (so on-screen
+  // size is unchanged). fps is captured at both ratios for a real perf number.
+  const probeFps = async (pg) => {
+    await pg.waitForTimeout(1200); // let the loop settle
+    return pg.evaluate(() => Math.round(window.__game.loop.actualFps));
+  };
+  const dpr1Fps = await probeFps(page);
+
+  const hctx  = await browser.newContext({ deviceScaleFactor: 2, viewport: { width: 1024, height: 768 } });
+  const hpage = await hctx.newPage();
+  const hErrors = [];
+  hpage.on('pageerror', (e) => hErrors.push(String(e)));
+  hpage.on('console', (m) => { if (m.type() === 'error') hErrors.push(m.text()); });
+  await hpage.goto(URL, { waitUntil: 'load', timeout: 20000 });
+  await hpage.waitForFunction(() => {
+    const g = window.__game;
+    return !!(g && g.scene && g.scene.isActive('PaddockScene') && g.registry.get('allHorses'));
+  }, { timeout: 20000 });
+  const hidpi = await hpage.evaluate(() => {
+    const g = window.__game, c = g.canvas;
+    // Camera origin must be top-left (0,0) on every active scene — otherwise the zoom
+    // anchors at the viewport centre and screen-fixed UI (hotbar, panels) gets pushed
+    // off-screen. This guards the regression the size/zoom checks alone missed.
+    const badOrigins = g.scene.scenes
+      .filter((s) => s.scene.isActive())
+      .filter((s) => s.cameras.main.originX !== 0 || s.cameras.main.originY !== 0)
+      .map((s) => s.scene.key);
+    return {
+      dpr: g.registry.get('dpr'),
+      canvasW: c.width, cssW: parseInt(c.style.width, 10),
+      cameraZoom: g.scene.getScene('PaddockScene').cameras.main.zoom,
+      badOrigins,
+      devicePixelRatio: window.devicePixelRatio,
+    };
+  });
+  const dpr2Fps = await probeFps(hpage);
+  await hpage.screenshot({ path: '/tmp/horsegame-smoke-hidpi.png' });
+  await hctx.close();
+
+  console.log('HiDPI probe:', JSON.stringify({ ...hidpi, dpr1Fps, dpr2Fps }, null, 2));
+
+  if (hidpi.dpr !== 2) fail(`HiDPI: expected registry dpr 2, got ${hidpi.dpr}`);
+  if (Math.abs(hidpi.canvasW - hidpi.cssW * 2) > 2) fail(`HiDPI: canvas buffer ${hidpi.canvasW}px is not ~2× the CSS width ${hidpi.cssW}px (not rendering at physical pixels)`);
+  if (hidpi.cameraZoom !== 2) fail(`HiDPI: PaddockScene camera zoom is ${hidpi.cameraZoom}, expected 2 (on-screen size would change)`);
+  if (hidpi.badOrigins.length) fail(`HiDPI: camera origin not top-left on: ${hidpi.badOrigins.join(', ')} (UI would render off-screen)`);
+  if (hErrors.length) fail('HiDPI (DPR 2) boot errors:\n' + hErrors.join('\n'));
+
+  if (!process.exitCode) console.log(`SMOKE OK ✔  (fps: DPR1=${dpr1Fps} DPR2=${dpr2Fps}; screenshots: /tmp/horsegame-smoke.png, /tmp/horsegame-smoke-hidpi.png)`);
 } catch (e) {
   fail(e.message + (pageErrors.length ? '\npageErrors:\n' + pageErrors.join('\n') : ''));
 } finally {

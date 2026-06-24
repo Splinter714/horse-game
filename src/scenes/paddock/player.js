@@ -6,6 +6,7 @@ import { CONTENT_DEFS } from '../../data/items.js';
 import { EVENTS } from '../../data/events.js';
 import { playGather } from '../../audio/sounds.js';
 import { WORLD_W, WORLD_H, CARE_DIST, PLAYER_SPEED, HOLD_MS, HOLD_DRAG_PX, PLAYER_BOUNDS, PASTURE_BOUNDS, S, STAND_DEFS, TROUGH_CAP } from './constants.js';
+import { dprOf, logicalH } from '../uiUtils.js';
 
 // In-place reach for using a tool on a horse (brush/saddle/lead). Use never
 // walks you anywhere — the horse has to already be within this range.
@@ -325,7 +326,7 @@ export const WithPlayer = (Base) => class extends Base {
       return;
     }
     panel.setText(lines.join('\n'));
-    panel.setPosition(12, this.scale.height - 84).setVisible(true);
+    panel.setPosition(12, logicalH(this) - 84).setVisible(true);
   }
 
   // Build the {interact, info, use} action set and broadcast it when it changes,
@@ -381,14 +382,18 @@ export const WithPlayer = (Base) => class extends Base {
     this.usingTouch = !!pointer.wasTouch;
     this.usingPad   = false;
 
+    // Pointer coords are in physical (buffer) px under HiDPI; UI rects are logical,
+    // so convert before any screen-space hit-test (a no-op at DPR 1).
+    const dpr = dprOf(this);
+    const lpx = pointer.x / dpr, lpy = pointer.y / dpr;
     // Ignore taps in the badge area at the bottom of the canvas
-    if (pointer.y > this.scale.height - 72) return;
+    if (lpy > logicalH(this) - 72) return;
     // Taps on an on-screen action button are handled by that button — don't also
     // start a walk toward where it sits on screen (#101).
-    if (this.scene.get('HotbarScene')?.isPointerOnActionButton?.(pointer.x, pointer.y)) return;
+    if (this.scene.get('HotbarScene')?.isPointerOnActionButton?.(lpx, lpy)) return;
     // Likewise, a tap that picks from an open carrier fly-out shouldn't also move
     // the player toward it (#75).
-    if (this.scene.get('HotbarScene')?.isPointerOnFlyout?.(pointer.x, pointer.y)) return;
+    if (this.scene.get('HotbarScene')?.isPointerOnFlyout?.(lpx, lpy)) return;
 
     const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
 
@@ -637,8 +642,9 @@ export const WithPlayer = (Base) => class extends Base {
     this._holdTarget = { x: w.x, y: w.y };
     // Only treat it as a drag once the finger has actually travelled — a couple of
     // pixels of tap jitter shouldn't short-circuit the hold delay.
+    // pointer + _holdDown are physical (buffer) px, so the drag threshold scales by DPR.
     if (Phaser.Math.Distance.Between(pointer.x, pointer.y,
-                                     this._holdDownX, this._holdDownY) > HOLD_DRAG_PX) {
+                                     this._holdDownX, this._holdDownY) > HOLD_DRAG_PX * dprOf(this)) {
       this._holdMoved = true;
     }
   }
