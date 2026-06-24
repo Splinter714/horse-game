@@ -22,6 +22,7 @@ const PAUSABLE = ['PaddockScene', 'DayNightScene'];
 const HIDE_DURING_EDIT = ['HotbarScene', 'DayNightScene'];
 const LEG_CYCLE = [undefined, 'sock', 'stocking']; // bare → sock → stocking → bare
 const SOCK_WHITE = 0xf0ead0;
+const FEATHER_BLACK = 0x1a1614; // black sock/stocking tone (matches horseArt)
 
 // Perceived brightness of a 0xRRGGBB colour (for picking dark vs light chip text).
 const luminance = (hex) =>
@@ -172,12 +173,23 @@ export const WithCustomizer = (Base) => class extends Base {
     const eff = effectiveMarkings(horse.coat, horse.markings);
     const naturalMane = COATS[colorKeyOf(horse.coat)].mane.mid;
 
+    const naturalLeg = COATS[colorKeyOf(horse.coat)].points;
+    const hasLegMark = Object.values(eff.legs || {}).some(Boolean);
+
     let y = 8;
     y = this._secCoat(c, y) + 14;
     y = this._secColorPalette(c, 'Mane color', eff.maneColor, naturalMane, (k) => this._setManeColor(k), y) + 14;
     y = this._secChips(c, 'Patterns', PATTERN_LABELS, y) + 14;
     y = this._secChips(c, 'Face markings', FACE_MARKING_LABELS, y) + 14;
     y = this._secLegs(c, y) + 14;
+    // Sock colour only matters once a leg actually has a sock/stocking (#141).
+    if (hasLegMark) {
+      y = this._secOptions(c, 'Sock color', [['white', 'White'], ['black', 'Black']],
+        eff.sockColor || 'white', (k) => this._setSockColor(k), y) + 14;
+    }
+    y = this._secColorPalette(c, 'Leg color', eff.legColor,
+      naturalLeg !== undefined ? naturalLeg : 0x3a4060, (k) => this._setLegColor(k), y,
+      [['none', 'None', 0x2a2f45]]) + 14;
     y = this._secFeather(c, y) + 14;
     y = this._secBreeds(c, y) + 10;
     this.contentH = y;
@@ -234,9 +246,9 @@ export const WithCustomizer = (Base) => class extends Base {
   // followed by every coat colour as a swatch. `currentKey` highlights the active
   // choice ('natural' or a coat key); `onPick(key)` receives 'natural' or a coat key.
   // Used for mane (#140) and feathering (#143) so they offer identical options.
-  _secColorPalette(c, title, currentKey, naturalTone, onPick, y0) {
+  _secColorPalette(c, title, currentKey, naturalTone, onPick, y0, extras = []) {
     let y = this._heading(c, title, y0);
-    const entries = [['natural', 'Natural', naturalTone],
+    const entries = [...extras, ['natural', 'Natural', naturalTone],
       ...Object.keys(COATS).map(k => [k, COATS[k].label, COATS[k].body.mid])];
     const cols = 4, gap = 8;
     const cellW = Math.floor((this.panelW - 32 - (cols - 1) * gap) / cols);
@@ -259,6 +271,31 @@ export const WithCustomizer = (Base) => class extends Base {
       c.add([g, lbl, zone]);
     });
     return y + Math.ceil(entries.length / cols) * (cellH + gap);
+  }
+
+  // A heading + a row of mutually-exclusive option pills (active = highlighted).
+  // `options` is [[key, label], …]; `onPick(key)` fires on tap. Reused for sock
+  // colour (#141) and gender (#145).
+  _secOptions(c, title, options, currentKey, onPick, y0) {
+    let y = this._heading(c, title, y0);
+    const gap = 8;
+    let x = 16;
+    for (const [key, label] of options) {
+      const w = Math.max(56, 18 + label.length * 8);
+      if (x + w > this.panelW - 16) { x = 16; y += 36; }
+      const on = key === currentKey;
+      const g = this.add.graphics();
+      g.fillStyle(on ? 0x3a6a44 : 0x1a1e30, 1); g.fillRoundedRect(x, y, w, 30, 15);
+      g.lineStyle(on ? 3 : 1, on ? 0xffe066 : 0x3a4060, 1); g.strokeRoundedRect(x, y, w, 30, 15);
+      const lbl = this.add.text(x + w / 2, y + 15, label, {
+        fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: on ? '#eafff0' : '#aab0d0',
+      }).setOrigin(0.5, 0.5);
+      const zone = this.add.zone(x, y, w, 30).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+      this._tap(zone, () => onPick(key));
+      c.add([g, lbl, zone]);
+      x += w + gap;
+    }
+    return y + 30;
   }
 
   // A heading + a wrapping row of toggle chips for a {key: label} map.
@@ -292,6 +329,7 @@ export const WithCustomizer = (Base) => class extends Base {
     let y = this._heading(c, 'Leg markings — tap to add a sock, again for a stocking', y0);
     const coat = composeCoat(this.allHorses[this._editKey].coat, this.allHorses[this._editKey].markings);
     const legs = coat.markings.legs || {};
+    const sockTone = coat.markings.sockColor === 'black' ? FEATHER_BLACK : SOCK_WHITE;
     const order = ['hindFar', 'hindNear', 'foreFar', 'foreNear'];
     const bw = 48, bh = 56, gap = 12;
     const totalW = order.length * bw + (order.length - 1) * gap;
@@ -304,7 +342,7 @@ export const WithCustomizer = (Base) => class extends Base {
       const lx = x + bw / 2 - 5, lw = 10, top = y + 8, legH = 30;
       g.fillStyle(coat.body.mid, 1); g.fillRect(lx, top, lw, legH);
       if (coat.points !== undefined) { g.fillStyle(coat.points, 1); g.fillRect(lx, top + legH - 16, lw, 16); }
-      if (mark) { const wh = mark === 'stocking' ? 22 : 12; g.fillStyle(SOCK_WHITE, 1); g.fillRect(lx, top + legH - wh, lw, wh); }
+      if (mark) { const wh = mark === 'stocking' ? 22 : 12; g.fillStyle(sockTone, 1); g.fillRect(lx, top + legH - wh, lw, wh); }
       g.fillStyle(coat.hoof, 1); g.fillRect(lx, top + legH, lw, 5);
       const lbl = this.add.text(x + bw / 2, y + bh - 9, mark || '—', {
         fontFamily: 'system-ui, sans-serif', fontSize: '9px', color: mark ? '#eafff0' : '#7a80a0',
@@ -454,6 +492,24 @@ export const WithCustomizer = (Base) => class extends Base {
     const horse = this.allHorses[this._editKey];
     const next = { ...effectiveMarkings(horse.coat, horse.markings) };
     if (key === 'natural') delete next.maneColor; else next.maneColor = key;
+    horse.markings = next;
+    this._applyEdit();
+  }
+
+  // Leg ("points") colour: 'natural' clears (coat default), else 'none'/coat key (#141).
+  _setLegColor(key) {
+    const horse = this.allHorses[this._editKey];
+    const next = { ...effectiveMarkings(horse.coat, horse.markings) };
+    if (key === 'natural') delete next.legColor; else next.legColor = key;
+    horse.markings = next;
+    this._applyEdit();
+  }
+
+  // Sock/stocking colour: 'white' (default) clears, 'black' sets the override (#141).
+  _setSockColor(key) {
+    const horse = this.allHorses[this._editKey];
+    const next = { ...effectiveMarkings(horse.coat, horse.markings) };
+    if (key === 'white') delete next.sockColor; else next.sockColor = key;
     horse.markings = next;
     this._applyEdit();
   }

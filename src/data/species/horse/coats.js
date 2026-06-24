@@ -204,6 +204,13 @@ export function composeCoat(colorKey, markingsOverride) {
   const mc = finalMarks.maneColor;
   if (mc && mc !== 'natural' && COATS[mc]) out.mane = maneRampFor(mc);
 
+  // Leg ("points") colour is independent too (#141): 'natural'/undefined keeps the
+  // coat's built-in points (black on bays/duns); 'none' removes them; any coat key
+  // recolours the lower leg to that hue's shadow tone.
+  const lc = finalMarks.legColor;
+  if (lc === 'none') out.points = undefined;
+  else if (lc && lc !== 'natural' && COATS[lc]) out.points = COATS[lc].body.lo;
+
   return out;
 }
 

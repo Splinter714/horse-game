@@ -51,3 +51,22 @@ describe('mane colour decoupling (#140)', () => {
     expect(effectiveMarkings('bay', { maneColor: 'grey' }).maneColor).toBe('grey');
   });
 });
+
+describe('leg colour decoupling + black socks (#141)', () => {
+  it("legColor 'natural'/absent keeps the coat's built-in points", () => {
+    expect(composeCoat('bay', {}).points).toBe(COATS.bay.points);          // bay = black points
+    expect(composeCoat('chestnut', {}).points).toBeUndefined();            // chestnut = none
+  });
+
+  it("legColor 'none' removes the points even on a coat that has them", () => {
+    expect(composeCoat('bay', { legColor: 'none' }).points).toBeUndefined();
+  });
+
+  it('legColor of a coat key recolours the lower leg to that hue', () => {
+    expect(composeCoat('chestnut', { legColor: 'black' }).points).toBe(COATS.black.body.lo);
+  });
+
+  it('sockColor is carried on the markings for the art to read', () => {
+    expect(effectiveMarkings('grey', { sockColor: 'black' }).sockColor).toBe('black');
+  });
+});

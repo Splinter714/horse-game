@@ -127,10 +127,11 @@ const WALK_LEGS = [
   [0, 3, 3, 0]
 ];
 
-// `legMark` is undefined | 'sock' (short white) | 'stocking' (tall white).
-// `points` (optional) darkens the lower leg — real bays/buckskins/duns have
-// black points. Sock/stocking white is drawn over the points.
-function leg(g, x, lift, tone, hoof, legMark, featherColor, points, offsetY = 0) {
+// `legMark` is undefined | 'sock' (short) | 'stocking' (tall). `sockTone` is the
+// sock/stocking colour (white by default, or black, #141). `points` (optional)
+// darkens the lower leg — real bays/buckskins/duns have black points; it's
+// independently colourable now (#141). Sock/stocking is drawn over the points.
+function leg(g, x, lift, tone, hoof, legMark, sockTone = SOCK, featherColor, points, offsetY = 0) {
   const topY = 35 + offsetY;
   const fullH = 15;
   const h = fullH - lift;
@@ -143,7 +144,7 @@ function leg(g, x, lift, tone, hoof, legMark, featherColor, points, offsetY = 0)
   }
   if (legMark) {
     const sH = Math.min(h, legMark === 'stocking' ? 11 : 6);
-    g.fillStyle(SOCK, 1);
+    g.fillStyle(sockTone, 1);
     g.fillRect(x, topY + h - sH, 4, sH);
   }
   g.fillStyle(hoof, 1);
@@ -165,10 +166,11 @@ function drawHorse(g, coat, bob, legLift) {
   const feather = featherTone(coat);
   const lm = mk.legs || {};
   const pts = coat.points;
-  leg(g, 7,  legLift[0], b.lo,  coat.hoof, lm.hindFar,  feather, pts); // hind far
-  leg(g, 38, legLift[2], b.lo,  coat.hoof, lm.foreFar,  feather, pts); // fore far
-  leg(g, 13, legLift[1], b.mid, coat.hoof, lm.hindNear, feather, pts); // hind near
-  leg(g, 44, legLift[3], b.mid, coat.hoof, lm.foreNear, feather, pts); // fore near
+  const sockTone = mk.sockColor === 'black' ? FEATHER_BLACK : SOCK;
+  leg(g, 7,  legLift[0], b.lo,  coat.hoof, lm.hindFar,  sockTone, feather, pts); // hind far
+  leg(g, 38, legLift[2], b.lo,  coat.hoof, lm.foreFar,  sockTone, feather, pts); // fore far
+  leg(g, 13, legLift[1], b.mid, coat.hoof, lm.hindNear, sockTone, feather, pts); // hind near
+  leg(g, 44, legLift[3], b.mid, coat.hoof, lm.foreNear, sockTone, feather, pts); // fore near
 
   // --- tail ---
   g.fillStyle(m.mid, 1); g.fillRect(6, 22 + bob, 2, 4);
@@ -240,10 +242,11 @@ function drawHorseSleep(g, coat, bob) {
   // Legs tucked/bent (very short — sleeping position)
   const lm = mk.legs || {};
   const pts = coat.points;
-  leg(g, 7,  10, b.lo,  coat.hoof, lm.hindFar,  undefined, pts, dy); // hind far (folded)
-  leg(g, 38, 10, b.lo,  coat.hoof, lm.foreFar,  undefined, pts, dy); // fore far (folded)
-  leg(g, 13, 10, b.mid, coat.hoof, lm.hindNear, undefined, pts, dy); // hind near (folded)
-  leg(g, 44, 10, b.mid, coat.hoof, lm.foreNear, undefined, pts, dy); // fore near (folded)
+  const sockTone = mk.sockColor === 'black' ? FEATHER_BLACK : SOCK;
+  leg(g, 7,  10, b.lo,  coat.hoof, lm.hindFar,  sockTone, undefined, pts, dy); // hind far (folded)
+  leg(g, 38, 10, b.lo,  coat.hoof, lm.foreFar,  sockTone, undefined, pts, dy); // fore far (folded)
+  leg(g, 13, 10, b.mid, coat.hoof, lm.hindNear, sockTone, undefined, pts, dy); // hind near (folded)
+  leg(g, 44, 10, b.mid, coat.hoof, lm.foreNear, sockTone, undefined, pts, dy); // fore near (folded)
 
   // Tail relaxed
   g.fillStyle(m.mid, 1); g.fillRect(6, 22 + bob + dy, 2, 2);
@@ -308,10 +311,11 @@ function drawHorseEat(g, coat, bob) {
   // Legs all planted
   const lm = mk.legs || {};
   const pts = coat.points;
-  leg(g, 7,  0, b.lo,  coat.hoof, lm.hindFar,  feather, pts);
-  leg(g, 38, 0, b.lo,  coat.hoof, lm.foreFar,  feather, pts);
-  leg(g, 13, 0, b.mid, coat.hoof, lm.hindNear, feather, pts);
-  leg(g, 44, 0, b.mid, coat.hoof, lm.foreNear, feather, pts);
+  const sockTone = mk.sockColor === 'black' ? FEATHER_BLACK : SOCK;
+  leg(g, 7,  0, b.lo,  coat.hoof, lm.hindFar,  sockTone, feather, pts);
+  leg(g, 38, 0, b.lo,  coat.hoof, lm.foreFar,  sockTone, feather, pts);
+  leg(g, 13, 0, b.mid, coat.hoof, lm.hindNear, sockTone, feather, pts);
+  leg(g, 44, 0, b.mid, coat.hoof, lm.foreNear, sockTone, feather, pts);
 
   // Tail
   g.fillStyle(m.mid, 1); g.fillRect(6, 22 + bob, 2, 4);
