@@ -134,17 +134,6 @@ export const LEG_LABELS = {
   foreNear: 'Front', foreFar: 'Front (far)', hindNear: 'Back', hindFar: 'Back (far)',
 };
 
-// Legacy whole-coat keys that used to be in COATS but are really colour+pattern
-// combos. Kept resolvable so existing saves and the fixed foal presets still
-// render correctly without a migration step.
-const LEGACY_COATS = {
-  dappleGrey: { color: 'grey', markings: { dapples: true } },
-  paint:      { color: 'chestnut', markings: { pinto: true } },
-  friesian:   { color: 'black', markings: { feather: true } },
-  blueRoan:   { color: 'black', markings: { roan: true } },
-  redRoan:    { color: 'chestnut', markings: { roan: true } },
-};
-
 // Breed presets (#2): one-tap combos that set colour + pattern + markings at once.
 // `label` becomes the horse's displayed breed.
 export const BREEDS = {
@@ -162,51 +151,41 @@ function allLegs(kind) {
   return { foreNear: kind, foreFar: kind, hindNear: kind, hindFar: kind };
 }
 
-// Normalize a markings object to the current vocabulary: rename the old `paint`
-// flag to `pinto`, and fold the old single `sock: true` flag into the per-leg
-// model (it meant the near front leg). Non-destructive on already-current data.
-function normalizeMarkings(mk) {
+// Shallow-clone a markings object (with its per-leg `legs` map) so callers and the
+// art never mutate a COATS default in place.
+function cloneMarks(mk) {
   if (!mk) return {};
   const out = { ...mk };
-  if (out.paint) { out.pinto = true; delete out.paint; }
-  if (out.sock) {
-    out.legs = { foreNear: 'sock', ...(out.legs || {}) };
-    delete out.sock;
-  }
+  if (out.legs) out.legs = { ...out.legs };
   return out;
 }
 
-// Resolve any coat key — a pure colour, a legacy combo key, or a breed key —
-// into { colorKey, colorEntry, markings }. Presets (legacy/breed) carry their OWN
-// complete markings; they don't inherit the base colour's default markings.
-function resolveCoatKey(key) {
-  if (COATS[key]) return { colorKey: key, colorEntry: COATS[key], markings: COATS[key].markings };
-  const preset = LEGACY_COATS[key] || BREEDS[key];
-  if (preset) {
-    const colorEntry = COATS[preset.color] || COATS.palomino;
-    return { colorKey: preset.color, colorEntry, markings: preset.markings };
-  }
-  return { colorKey: 'palomino', colorEntry: COATS.palomino, markings: COATS.palomino.markings };
+// Resolve a coat colour key into { colorKey, colorEntry }. Unknown keys fall back
+// to palomino. (Horses always store a pure colour key — breeds are applied by
+// writing colour + markings, never stored as a coat key.)
+function resolveColor(key) {
+  if (COATS[key]) return { colorKey: key, colorEntry: COATS[key] };
+  return { colorKey: 'palomino', colorEntry: COATS.palomino };
 }
 
-// The pure base-colour key behind any coat key (so the panel can highlight the
-// right swatch even when a horse is on a legacy/breed key).
+// The pure base-colour key behind a coat key (so the panel can highlight the
+// right swatch). Unknown keys resolve to palomino.
 export function colorKeyOf(coatKey) {
-  return resolveCoatKey(coatKey).colorKey;
+  return resolveColor(coatKey).colorKey;
 }
 
 export function getCoat(key) {
   return composeCoat(key, null);
 }
 
-// Compose a horse's drawable coat from its colour (or preset) key plus optional
-// per-animal marking overrides (the customization panel, #2/#17). A markings
-// override is AUTHORITATIVE — it fully defines the markings (it doesn't merge with
-// the colour's defaults), so applying a breed or toggling produces exactly what
-// the player chose. With no override, the colour/preset's own markings are used.
+// Compose a horse's drawable coat from its colour key plus optional per-animal
+// marking overrides (the customization panel, #2/#17). A markings override is
+// AUTHORITATIVE — it fully defines the markings (it doesn't merge with the
+// colour's defaults), so applying a breed or toggling produces exactly what the
+// player chose. With no override, the colour's own default markings are used.
 export function composeCoat(colorKey, markingsOverride) {
-  const { colorEntry, markings } = resolveCoatKey(colorKey);
-  const finalMarks = normalizeMarkings(markingsOverride == null ? markings : markingsOverride);
+  const { colorEntry } = resolveColor(colorKey);
+  const finalMarks = cloneMarks(markingsOverride == null ? colorEntry.markings : markingsOverride);
   return { ...colorEntry, markings: finalMarks };
 }
 

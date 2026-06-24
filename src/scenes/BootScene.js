@@ -51,9 +51,9 @@ export default class BootScene extends Phaser.Scene {
       // buildPortraitTexture(this, `portrait_${key}`, coat);
     }
 
-    // Foal textures (foal1 = grey, foal2 = paint, foal3 = bay)
-    buildFoalTextures(this, 'foal1', getCoat('dappleGrey'));
-    buildFoalTextures(this, 'foal2', getCoat('paint'));
+    // Foal textures (foal1 = dapple grey, foal2 = chestnut pinto, foal3 = bay)
+    buildFoalTextures(this, 'foal1', composeCoat('grey', { dapples: true }));
+    buildFoalTextures(this, 'foal2', composeCoat('chestnut', { pinto: true }));
     buildFoalTextures(this, 'foal3', getCoat('bay'));
 
     // Chicken portrait textures — one per coat
