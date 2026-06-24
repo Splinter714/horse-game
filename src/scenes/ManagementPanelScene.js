@@ -1,9 +1,13 @@
 import Phaser from 'phaser';
 import {
   COATS, BREEDS, FACE_MARKING_LABELS, PATTERN_LABELS, FEATHER_LABEL,
-  composeCoat, effectiveMarkings, colorKeyOf,
+  FEATHER_COLOR_LABELS, FEATHER_SWATCH, composeCoat, effectiveMarkings, colorKeyOf,
 } from '../data/species/horse/coats.js';
 import { growHitArea } from './uiUtils.js';
+
+// Perceived brightness of a 0xRRGGBB colour (for picking dark vs light chip text).
+const luminance = (hex) =>
+  0.299 * ((hex >> 16) & 255) + 0.587 * ((hex >> 8) & 255) + 0.114 * (hex & 255);
 
 // The stable / animal-management panel (#2/#16/#17). A modal overlay for managing
 // the herd: pick a horse, then customize it. The horse chips + live preview stay
@@ -140,7 +144,7 @@ export default class ManagementPanelScene extends Phaser.Scene {
     y = this._secChips(c, 'Patterns', PATTERN_LABELS, y) + 14;
     y = this._secChips(c, 'Face markings', FACE_MARKING_LABELS, y) + 14;
     y = this._secLegs(c, y) + 14;
-    y = this._secChips(c, 'Feathering', { feather: FEATHER_LABEL }, y) + 14;
+    y = this._secFeather(c, y) + 14;
     y = this._secBreeds(c, y) + 10;
     this.contentH = y;
 
@@ -248,6 +252,51 @@ export default class ManagementPanelScene extends Phaser.Scene {
     return y + bh;
   }
 
+  // Feathering: a toggle, plus colour options (Natural / White / Black) that
+  // appear only when feathering is on. Each colour chip is filled with its tone.
+  _secFeather(c, y0) {
+    let y = this._heading(c, 'Feathering', y0);
+    const horse = this.allHorses[this.sel];
+    const eff = effectiveMarkings(horse.coat, horse.markings);
+    const on = !!eff.feather;
+
+    const w = 18 + FEATHER_LABEL.length * 7.4;
+    const g = this.add.graphics();
+    g.fillStyle(on ? 0x3a6a44 : 0x1a1e30, 1); g.fillRoundedRect(16, y, w, 28, 14);
+    g.lineStyle(1, on ? 0x7fd68f : 0x3a4060, 1); g.strokeRoundedRect(16, y, w, 28, 14);
+    const lbl = this.add.text(16 + w / 2, y + 14, FEATHER_LABEL, {
+      fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: on ? '#eafff0' : '#aab0d0',
+    }).setOrigin(0.5, 0.5);
+    const zone = this.add.zone(16, y, w, 28).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+    this._tap(zone, () => this._toggleMarking('feather'));
+    c.add([g, lbl, zone]);
+
+    if (!on) return y + 28;
+
+    // Colour chips on the next line.
+    const coat = composeCoat(horse.coat, horse.markings);
+    const cur = eff.featherColor || 'natural';
+    y += 34;
+    let x = 16;
+    for (const [key, label] of Object.entries(FEATHER_COLOR_LABELS)) {
+      const w2 = 18 + label.length * 7.4;
+      const tone = key === 'natural' ? coat.mane.mid : FEATHER_SWATCH[key];
+      const active = key === cur;
+      const cg = this.add.graphics();
+      cg.fillStyle(tone, 1); cg.fillRoundedRect(x, y, w2, 28, 14);
+      cg.lineStyle(active ? 3 : 1, active ? 0xffe066 : 0x3a4060, 1); cg.strokeRoundedRect(x, y, w2, 28, 14);
+      const cl = this.add.text(x + w2 / 2, y + 14, label, {
+        fontFamily: 'system-ui, sans-serif', fontSize: '12px',
+        color: luminance(tone) > 140 ? '#202434' : '#eef0fa',
+      }).setOrigin(0.5, 0.5);
+      const cz = this.add.zone(x, y, w2, 28).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+      this._tap(cz, () => this._setFeatherColor(key));
+      c.add([cg, cl, cz]);
+      x += w2 + 8;
+    }
+    return y + 28;
+  }
+
   _secBreeds(c, y0) {
     let y = this._heading(c, 'Breed presets — one tap sets colour + pattern + markings', y0);
     const keys = Object.keys(BREEDS);
@@ -342,6 +391,13 @@ export default class ManagementPanelScene extends Phaser.Scene {
     const next = LEG_CYCLE[(i + 1) % LEG_CYCLE.length];
     if (next) legs[id] = next; else delete legs[id];
     horse.markings = { ...eff, legs };
+    this._apply();
+  }
+
+  _setFeatherColor(color) {
+    const horse = this.allHorses[this.sel];
+    const eff = effectiveMarkings(horse.coat, horse.markings);
+    horse.markings = { ...eff, feather: true, featherColor: color };
     this._apply();
   }
 

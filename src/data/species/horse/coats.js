@@ -126,6 +126,10 @@ export const PATTERN_LABELS = {
 };
 // Hair feature.
 export const FEATHER_LABEL = 'Feathering';
+// Feathering colour options (shown when feathering is on). 'natural' tracks the
+// mane (the default); 'white'/'black' are fixed overrides. Swatch colours below.
+export const FEATHER_COLOR_LABELS = { natural: 'Natural', white: 'White', black: 'Black' };
+export const FEATHER_SWATCH = { white: 0xf0ead0, black: 0x1a1614 };
 
 // The four legs (side-view sprite), in display order. Each can be bare, 'sock'
 // (short white) or 'stocking' (tall white). Labels drive the per-leg UI.
@@ -138,11 +142,11 @@ export const LEG_LABELS = {
 // `label` becomes the horse's displayed breed.
 export const BREEDS = {
   friesian:    { label: 'Friesian',     color: 'black',    markings: { feather: true } },
-  clydesdale:  { label: 'Clydesdale',   color: 'bay',      markings: { feather: true, legs: allLegs('stocking') } },
-  gypsyVanner: { label: 'Gypsy Vanner', color: 'black',    markings: { pinto: true, feather: true } },
+  clydesdale:  { label: 'Clydesdale',   color: 'bay',      markings: { feather: true, featherColor: 'white', legs: allLegs('stocking') } },
+  gypsyVanner: { label: 'Gypsy Vanner', color: 'black',    markings: { pinto: true, feather: true, featherColor: 'white' } },
   appaloosa:   { label: 'Appaloosa',    color: 'chestnut', markings: { appaloosa: true } },
   paintHorse:  { label: 'Paint Horse',  color: 'chestnut', markings: { pinto: true, blaze: true } },
-  shire:       { label: 'Shire',        color: 'grey',     markings: { feather: true, legs: allLegs('stocking') } },
+  shire:       { label: 'Shire',        color: 'grey',     markings: { feather: true, featherColor: 'white', legs: allLegs('stocking') } },
   mustang:     { label: 'Mustang',      color: 'dun',      markings: {} },
   lipizzaner:  { label: 'Lipizzaner',   color: 'grey',     markings: {} },
 };

@@ -13,6 +13,17 @@ export const FRAME_H = 54;
 const WHITE = 0xf4efe6;
 const SOCK = 0xf0ead0;
 const EAR_PINK = 0xe0a890;
+const FEATHER_BLACK = 0x1a1614;
+
+// Drawable feathering colour for a composed coat, or undefined if not feathered.
+// 'natural' (default) tracks the mane; 'white'/'black' are fixed overrides (#2).
+function featherTone(coat) {
+  const mk = coat.markings || {};
+  if (!mk.feather) return undefined;
+  if (mk.featherColor === 'white') return SOCK;
+  if (mk.featherColor === 'black') return FEATHER_BLACK;
+  return coat.mane.mid;
+}
 
 // Fixed scatter of single-pixel white flecks over the body for a roan coat (#2) —
 // blue/red roan = base colour shot through with white hairs.
@@ -151,7 +162,7 @@ function drawHorse(g, coat, bob, legLift) {
   const mk = coat.markings || {};
 
   // --- legs first (behind body), far legs in shadow tone ---
-  const feather = mk.feather ? m.mid : undefined;
+  const feather = featherTone(coat);
   const lm = mk.legs || {};
   const pts = coat.points;
   leg(g, 7,  legLift[0], b.lo,  coat.hoof, lm.hindFar,  feather, pts); // hind far
@@ -292,7 +303,7 @@ function drawHorseEat(g, coat, bob) {
   const b = coat.body;
   const m = coat.mane;
   const mk = coat.markings || {};
-  const feather = mk.feather ? m.mid : undefined;
+  const feather = featherTone(coat);
 
   // Legs all planted
   const lm = mk.legs || {};
