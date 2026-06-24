@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { getSpecies } from '../data/species/index.js';
 import { growHitArea } from './uiUtils.js';
+import { WithCustomizer } from './customizer.js';
 
 // Lightweight, ephemeral info popup for any animal. It's a small floating card
 // (not a modal panel) that auto-dismisses the moment you do almost anything else:
@@ -16,17 +17,19 @@ const PAD    = 16;
 // instantly close it on the same input.
 const OPEN_GRACE_MS = 140;
 
-export default class InfoPanelScene extends Phaser.Scene {
+export default class InfoPanelScene extends WithCustomizer(Phaser.Scene) {
   constructor() {
     super('InfoPanelScene');
     this.statFills = {};
     this.moodText  = null;
     this.panel     = null;
     this.closing   = false;
+    this._mode     = 'info';
   }
 
   create() {
     this.closing = false;
+    this._mode = 'info';
     this.build();
     this._wireDismiss();
   }
@@ -176,8 +179,20 @@ export default class InfoPanelScene extends Phaser.Scene {
 
     // The panel is purely informational (#91): care actions (feed/water/brush/
     // pet) are all performed in-world with equipped items/tools, so there are no
-    // action buttons here anymore. The card ends just below the stat bars.
-    const bottomY = barY;
+    // care buttons here. The one action is appearance editing, for species that
+    // support it (horses, #147) — it opens a sticky, scrollable editor in place.
+    let bottomY = barY;
+    if (spec.capabilities?.customizable) {
+      const btnY = barY + 4;
+      const editBtn = this.add.text(CARD_W / 2, btnY, '✎  Edit appearance', {
+        fontFamily: 'system-ui, sans-serif', fontSize: '14px', color: '#10131f',
+        fontStyle: 'bold', backgroundColor: '#ffe066', padding: { x: 14, y: 8 }, align: 'center',
+      }).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
+      growHitArea(editBtn);
+      editBtn.on('pointerdown', () => this._enterEdit());
+      this.panel.add(editBtn);
+      bottomY = btnY + editBtn.height + 4;
+    }
 
     const cardH = bottomY + PAD;
 
@@ -227,8 +242,41 @@ export default class InfoPanelScene extends Phaser.Scene {
     if (this.moodText) this.moodText.setText(`Feeling ${animal.mood()}`);
   }
 
+  // ── Appearance editor (#147) ───────────────────────────────────────────────
+  // Swap the info card out for the sticky, scrollable editor (mixin: customizer.js)
+  // for the horse this panel is showing.
+  _enterEdit() {
+    this.closing = false;
+    this.children.removeAll(true);
+    this.input.keyboard.removeAllListeners();
+    this.input.removeAllListeners();
+    this.statFills = {};
+    this.moodText  = null;
+    this.panel     = null;
+    this._mode     = 'edit';
+    this.custEnter();
+  }
+
+  // Called by the mixin's custExit(): the world is already resumed and the editor
+  // torn down — rebuild the info card for the same animal.
+  _onCustExit() {
+    this._mode    = 'info';
+    this.closing  = false;
+    this.statFills = {};
+    this.moodText  = null;
+    this.panel     = null;
+    this.build();
+    this._wireDismiss();
+  }
+
   close() {
     if (this.closing) return;
+    // Safety: never leave the world paused if we're torn down mid-edit.
+    if (this._custPaused) {
+      for (const k of this._custPaused) if (this.scene.isPaused(k)) this.scene.resume(k);
+      this._custPaused = null;
+    }
+    if (!this.panel) { this.scene.stop(); return; } // edit mode (or already gone)
     this.closing = true;
     this.tweens.add({
       targets: this.panel,

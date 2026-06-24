@@ -610,8 +610,8 @@ export default class PaddockScene
 
   // Re-skin a horse live from its current coat + marking data (#2/#17). gen()
   // redraws the frame + portrait textures in place, so the existing sprite and its
-  // running animations show the new coat with no rebuild. Used by the customization
-  // panel (ManagementPanelScene).
+  // running animations show the new coat with no rebuild. Used by the appearance
+  // editor embedded in the info panel (customizer.js / InfoPanelScene, #147).
   reskinHorse(key) {
     const data = this.registry.get('allHorses')?.[key];
     if (!data) return;

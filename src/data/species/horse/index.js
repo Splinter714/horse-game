@@ -62,7 +62,9 @@ export const HORSE = {
   // Serialized only when present (e.g. Ebony the Friesian).
   optionalAttrs: ['health', 'speed', 'stamina'],
 
-  capabilities: { saddleable: true, rideable: true, leadable: true, laysEggs: false },
+  // `customizable` gates the appearance editor on the info panel (#147) — horses
+  // have coats/markings to edit; chickens and the cat don't.
+  capabilities: { saddleable: true, rideable: true, leadable: true, laysEggs: false, customizable: true },
 
   // Paddock "feel" knobs read by the scene movement primitives (creatures.js).
   // `wanderMin`/`wanderMax` are the ms delay range between wanders (bigger = the

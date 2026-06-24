@@ -146,12 +146,10 @@ export default class HotbarScene extends Phaser.Scene {
     }
     this._stripBg?.destroy();
     this._pauseBtn?.destroy();
-    this._stableBtn?.destroy();
     this._moneyLbl?.destroy();
     for (const b of this._actionBtns ?? []) { b.g.destroy(); b.lbl.destroy(); b.zone.destroy(); }
     this._slots      = [];
     this._pauseBtn   = null;
-    this._stableBtn  = null;
     this._moneyLbl   = null;
     this._stripBg    = null;
     this._actionBtns = null;
@@ -187,18 +185,8 @@ export default class HotbarScene extends Phaser.Scene {
     growHitArea(this._pauseBtn); // comfortable tap target (#100)
     this._pauseBtn.on('pointerdown', () => this._togglePause());
 
-    // Stable / manage-animals button, just right of pause — opens the management
-    // panel (recolor coats, toggle markings, rename) (#2/#16/#17).
-    this._stableBtn = this.add.text(this._pauseBtn.x + this._pauseBtn.width + 8, 14, '🐴', {
-      fontFamily: 'system-ui, sans-serif',
-      fontSize: `${Math.max(16, Math.floor(22 * fit))}px`,
-      backgroundColor: '#111622cc',
-      padding: { x: 6, y: 3 },
-    }).setOrigin(0, 0).setDepth(2).setInteractive({ useHandCursor: true });
-    growHitArea(this._stableBtn);
-    this._stableBtn.on('pointerdown', () => {
-      if (!this.scene.isActive('ManagementPanelScene')) this.scene.launch('ManagementPanelScene');
-    });
+    // (The old 🐴 "Stable" button is gone: appearance editing now lives on each
+    // horse's info panel — walk up and open it, then "Edit appearance" (#147).)
 
     // Money label — created empty, filled by _updateStatusLabels. Bigger, bolder,
     // and dark-stroked so it stays legible over the bright world (#120).

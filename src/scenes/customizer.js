@@ -5,152 +5,165 @@ import {
 } from '../data/species/horse/coats.js';
 import { growHitArea } from './uiUtils.js';
 
+// Shared horse-appearance editor (#2/#17), hosted *inside* a scene as a sticky,
+// scrollable "edit mode" rather than its own menu (#147). It used to be the
+// standalone ManagementPanelScene; the section-builders + scroll machinery now live
+// here as a mixin so the per-horse info panel can embed the same well-tested UI.
+//
+// The host scene calls `custEnter()` to open the editor for the currently-viewed
+// horse (registry `viewingAnimal`) and gets `_onCustExit()` called when the player
+// taps Done / ✕ / Esc. Edits apply live via PaddockScene.reskinHorse() + save, and
+// the sections scroll beneath a pinned live preview, in real-world order:
+//   Coat color → Patterns → Face markings → Leg markings → Feathering → Breeds.
+
+const PAUSABLE = ['PaddockScene', 'DayNightScene'];
+// Scenes hidden while editing so the editor owns the screen — the hotbar and the
+// day/night tint + clock label (which otherwise renders over the panel).
+const HIDE_DURING_EDIT = ['HotbarScene', 'DayNightScene'];
+const LEG_CYCLE = [undefined, 'sock', 'stocking']; // bare → sock → stocking → bare
+const SOCK_WHITE = 0xf0ead0;
+
 // Perceived brightness of a 0xRRGGBB colour (for picking dark vs light chip text).
 const luminance = (hex) =>
   0.299 * ((hex >> 16) & 255) + 0.587 * ((hex >> 8) & 255) + 0.114 * (hex & 255);
 
-// The stable / animal-management panel (#2/#16/#17). A modal overlay for managing
-// the herd: pick a horse, then customize it. The horse chips + live preview stay
-// pinned at the top; the editing sections scroll beneath them, in real-world order:
-//   Coat color → Patterns → Face markings → Leg markings → Feathering → Breeds.
-// Edits apply live via PaddockScene.reskinHorse() and are persisted.
-
-const PAUSABLE = ['PaddockScene', 'DayNightScene'];
-const LEG_CYCLE = [undefined, 'sock', 'stocking']; // bare → sock → stocking → bare
-const SOCK_WHITE = 0xf0ead0;
-
-export default class ManagementPanelScene extends Phaser.Scene {
-  constructor() { super('ManagementPanelScene'); }
-
-  create() {
-    this.paddock = this.scene.get('PaddockScene');
+export const WithCustomizer = (Base) => class extends Base {
+  // ── Lifecycle ───────────────────────────────────────────────────────────────
+  custEnter() {
     this.allHorses = this.registry.get('allHorses');
-    this.keys = Object.keys(this.allHorses);
-    this.sel = this.keys[0];
+    this._editKey = this.registry.get('viewingAnimal')?.key;
+    if (!this._editKey || !this.allHorses?.[this._editKey]) return;
+    this.paddock = this.scene.get('PaddockScene');
     this.scrollY = 0;
+    this._dragMoved = false;
 
-    for (const k of PAUSABLE) if (this.scene.isActive(k)) this.scene.pause(k);
+    // Pause the world so it freezes (no decay/autosave) and its update-loop closers
+    // can't yank the editor away mid-edit. The full-screen overlay below hides the
+    // busy scene; we only show an isolated copy of the edited horse.
+    this._custPaused = [];
+    for (const k of PAUSABLE) if (this.scene.isActive(k)) { this.scene.pause(k); this._custPaused.push(k); }
+    // Hide the other UI/world overlays so only the editor shows.
+    this._custHidden = [];
+    for (const k of HIDE_DURING_EDIT) if (this.scene.isVisible(k)) { this.scene.setVisible(false, k); this._custHidden.push(k); }
+    this.scene.bringToTop(); // keep the editor above everything
 
-    this._buildChrome();
-    this._buildSelector();
-    this._buildHeader();
-    this._buildContent();
+    this._custBuildChrome();      // computes the split layout + world region
+    this._buildPreview();         // isolated, idle-animating horse on green pasture
+    this._custHeader();
+    this._custContent();
     this._installScrollInput();
 
-    this.input.keyboard.on('keydown-ESC', () => this.close());
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      for (const k of PAUSABLE) if (this.scene.isPaused(k)) this.scene.resume(k);
-    });
+    this.input.keyboard.on('keydown-ESC', this._custEscHandler = () => this.custExit());
   }
 
-  // ── Static chrome: backdrop, panel, title, close, scroll viewport + mask ───
-  _buildChrome() {
-    const sw = this.scale.width, sh = this.scale.height;
-    this.panelW = Math.min(sw - 20, 600);
-    this.panelH = Math.min(sh - 20, 680);
-    this.px = Math.round((sw - this.panelW) / 2);
-    this.py = Math.round((sh - this.panelH) / 2);
+  custExit() {
+    if (this._custPaused) { for (const k of this._custPaused) if (this.scene.isPaused(k)) this.scene.resume(k); this._custPaused = null; }
+    if (this._custHidden) { for (const k of this._custHidden) this.scene.setVisible(true, k); this._custHidden = null; }
+    this._maskG?.destroy(); this._maskG = null; this._mask = null;
+    this.contentC = null; this._sb = null; this._previewSprite = null;
+    this.children.removeAll(true);
+    this.input.removeAllListeners();
+    this.input.keyboard.removeAllListeners();
+    this._onCustExit?.();
+  }
 
-    const dim = this.add.rectangle(0, 0, sw, sh, 0x000000, 0.62).setOrigin(0, 0).setInteractive().setDepth(0);
-    dim.on('pointerdown', () => this.close());
+  // An isolated, idle-animating copy of the edited horse, centered on a plain green
+  // pasture filling the world region — so you see only this horse (not the bunched-up
+  // herd or scene props). It re-skins live because it shares the `${key}_idle_*`
+  // textures that reskinHorse() redraws in place.
+  _buildPreview() {
+    const r = this._worldRegion;
+    const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+    this.add.tileSprite(cx, cy, r.w, r.h, 'grass').setOrigin(0.5, 0.5).setDepth(0);
+
+    // Size the horse to fill ~70% of whichever region dimension is the limit, so it's
+    // big on a wide screen and scales down gracefully on a small/portrait one — with a
+    // margin of pasture left around it (sprite aspect is 64×54).
+    const dh = Math.max(120, Math.min(r.h * 0.7, r.w * 0.7 * 54 / 64));
+    const dw = dh * 64 / 54;
+    const shadow = this.add.graphics().setDepth(0);
+    shadow.fillStyle(0x123a14, 0.28);
+    shadow.fillEllipse(cx, cy + dh * 0.45, dw * 0.7, dh * 0.14);
+
+    const animKey = `cust_idle_${this._editKey}`;
+    if (!this.anims.exists(animKey)) {
+      this.anims.create({
+        key: animKey,
+        frames: [{ key: `${this._editKey}_idle_0` }, { key: `${this._editKey}_idle_1` }],
+        frameRate: 2, repeat: -1,
+      });
+    }
+    this._previewSprite = this.add.sprite(cx, cy, `${this._editKey}_idle_0`)
+      .setDisplaySize(dw, dh).setOrigin(0.5, 0.5).setDepth(1);
+    this._previewSprite.play(animKey);
+  }
+
+  // ── Chrome: side (or bottom) editor panel + scroll viewport + mask ────────────
+  // No full-screen dim — the world stays visible on the other side. Landscape =
+  // panel on the RIGHT, world on the LEFT; portrait = panel as a BOTTOM sheet,
+  // world on top. The world region is handed to the camera focus above.
+  _custBuildChrome() {
+    const sw = this.scale.width, sh = this.scale.height;
+    const landscape = sw >= 720 && sw >= sh;
+    if (landscape) {
+      this.panelW = Phaser.Math.Clamp(Math.round(sw * 0.42), 320, 440);
+      this.panelH = sh;
+      this.px = sw - this.panelW;
+      this.py = 0;
+      this._worldRegion = { x: 0, y: 0, w: this.px, h: sh };
+    } else {
+      this.panelH = Phaser.Math.Clamp(Math.round(sh * 0.55), 280, sh - 140);
+      this.panelW = sw;
+      this.px = 0;
+      this.py = sh - this.panelH;
+      this._worldRegion = { x: 0, y: 0, w: sw, h: this.py };
+    }
 
     const bg = this.add.graphics().setDepth(1);
-    bg.fillStyle(0x10131f, 0.99); bg.fillRoundedRect(this.px, this.py, this.panelW, this.panelH, 14);
-    bg.lineStyle(2, 0x3a4060, 1); bg.strokeRoundedRect(this.px, this.py, this.panelW, this.panelH, 14);
-    this.add.zone(this.px, this.py, this.panelW, this.panelH).setOrigin(0, 0).setInteractive().setDepth(1); // absorb
+    bg.fillStyle(0x10131f, 0.98); bg.fillRect(this.px, this.py, this.panelW, this.panelH);
+    bg.lineStyle(2, 0x3a4060, 1);
+    if (landscape) bg.lineBetween(this.px, 0, this.px, sh);
+    else bg.lineBetween(0, this.py, sw, this.py);
+    this.add.zone(this.px, this.py, this.panelW, this.panelH).setOrigin(0, 0).setInteractive().setDepth(1); // absorb taps
 
-    this.add.text(this.px + this.panelW / 2, this.py + 14, 'Stable', {
-      fontFamily: 'system-ui, sans-serif', fontSize: '20px', color: '#eef0fa', fontStyle: 'bold',
-    }).setOrigin(0.5, 0).setDepth(6);
-
-    const close = this.add.text(this.px + this.panelW - 12, this.py + 10, '✕', {
-      fontFamily: 'system-ui, sans-serif', fontSize: '20px', color: '#9aa0c0',
+    const done = this.add.text(this.px + this.panelW - 12, this.py + 10, 'Done', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '15px', color: '#10131f', fontStyle: 'bold',
+      backgroundColor: '#ffe066', padding: { x: 12, y: 6 },
     }).setOrigin(1, 0).setInteractive({ useHandCursor: true }).setDepth(6);
-    growHitArea(close);
-    close.on('pointerdown', () => this.close());
+    growHitArea(done);
+    done.on('pointerup', () => { if (!this._dragMoved) this.custExit(); });
 
-    // Fixed-header geometry (deterministic so the scroll viewport is stable).
-    const n = this.keys.length, gap = 8;
-    this._selCell = Math.min(56, Math.floor((this.panelW - 24 - (n - 1) * gap) / n));
-    this._selY = this.py + 44;
-    this._previewTop = this._selY + this._selCell + 10;
-    // Grass "pasture" viewport behind the preview so the horse (and its markings)
-    // read against the same green as the game world, not the dark panel.
-    this._pvW = Math.min(180, this.panelW - 80);
-    this._pvH = 92;
-    this._pvX = Math.round(this.px + this.panelW / 2 - this._pvW / 2);
-    this._pvY = this._previewTop;
-    this._nameY = this._previewTop + this._pvH + 10;
+    // Header (name + breed) then the scroll viewport beneath it.
+    this._nameY = this.py + 12;
     this._breedY = this._nameY + 24;
-    this.viewTop = this._breedY + 26;
+    this.viewTop = this._breedY + 24;
     this.viewBottom = this.py + this.panelH - 12;
     this.viewH = this.viewBottom - this.viewTop;
 
-    const mg = this.make.graphics();
-    mg.fillStyle(0xffffff); mg.fillRect(this.px, this.viewTop, this.panelW, this.viewH);
-    this._mask = mg.createGeometryMask();
-
-    const pmg = this.make.graphics();
-    pmg.fillStyle(0xffffff); pmg.fillRoundedRect(this._pvX, this._pvY, this._pvW, this._pvH, 10);
-    this._previewMask = pmg.createGeometryMask();
+    this._maskG = this.make.graphics();
+    this._maskG.fillStyle(0xffffff); this._maskG.fillRect(this.px, this.viewTop, this.panelW, this.viewH);
+    this._mask = this._maskG.createGeometryMask();
   }
 
-  // ── Horse selector: a row of side-view sprite chips (pinned) ──────────────
-  _buildSelector() {
-    this._selNodes?.forEach(n => n.destroy());
-    this._selNodes = [];
-    const n = this.keys.length, gap = 8, cell = this._selCell;
-    const totalW = n * cell + (n - 1) * gap;
-    const x0 = this.px + Math.round((this.panelW - totalW) / 2);
-    const y = this._selY;
+  // ── Pinned header: name (tap to rename) + breed label ─────────────────────────
+  _custHeader() {
+    this._custHeaderNodes?.forEach(n => n.destroy());
+    this._custHeaderNodes = [];
+    const add = (n) => { this._custHeaderNodes.push(n.setDepth(5)); return n; };
+    const horse = this.allHorses[this._editKey];
 
-    this.keys.forEach((k, i) => {
-      const x = x0 + i * (cell + gap);
-      const active = k === this.sel;
-      const g = this.add.graphics().setDepth(5);
-      g.fillStyle(0x82c24e, 1); g.fillRoundedRect(x, y, cell, cell, 7); // grass, so dark horses read
-      g.lineStyle(active ? 3 : 1, active ? 0xffe066 : 0x3a4060, 1); g.strokeRoundedRect(x, y, cell, cell, 7);
-      const img = this.add.image(x + cell / 2, y + cell / 2, `${k}_idle_0`)
-        .setDisplaySize(cell - 10, (cell - 10) * 54 / 64).setDepth(5);
-      const zone = this.add.zone(x, y, cell, cell).setOrigin(0, 0).setInteractive({ useHandCursor: true }).setDepth(5);
-      zone.on('pointerdown', () => this._select(k));
-      this._selNodes.push(g, img, zone);
-    });
-  }
-
-  // ── Pinned header: preview, name + rename, breed label ────────────────────
-  _buildHeader() {
-    this._headerNodes?.forEach(n => n.destroy());
-    this._headerNodes = [];
-    const add = (n) => { this._headerNodes.push(n.setDepth(5)); return n; };
-    const horse = this.allHorses[this.sel];
-    const cx = this.px + this.panelW / 2;
-    const pvCy = this._pvY + this._pvH / 2;
-
-    // Grass pasture backdrop (tiled world grass, rounded), then the live preview.
-    const grass = add(this.add.tileSprite(cx, pvCy, this._pvW, this._pvH, 'grass'));
-    grass.setMask(this._previewMask);
-    const frame = add(this.add.graphics());
-    frame.lineStyle(2, 0x3a4060, 1); frame.strokeRoundedRect(this._pvX, this._pvY, this._pvW, this._pvH, 10);
-    add(this.add.image(cx, pvCy, `${this.sel}_idle_0`).setDisplaySize(96, 81).setOrigin(0.5, 0.5));
-
-    const nameText = add(this.add.text(cx, this._nameY, horse.name, {
+    const name = add(this.add.text(this.px + 16, this._nameY, `${horse.name}  ✎`, {
       fontFamily: 'system-ui, sans-serif', fontSize: '18px', color: '#eef0fa', fontStyle: 'bold',
-    }).setOrigin(0.5, 0));
-    const rename = add(this.add.text(cx + nameText.width / 2 + 12, this._nameY + 1, '✎', {
-      fontFamily: 'system-ui, sans-serif', fontSize: '16px', color: '#ffe066',
-      backgroundColor: '#2a3050', padding: { x: 6, y: 3 },
     }).setOrigin(0, 0).setInteractive({ useHandCursor: true }));
-    growHitArea(rename);
-    rename.on('pointerdown', () => this._rename());
+    name.on('pointerup', () => { if (!this._dragMoved) this._custRename(); });
 
-    add(this.add.text(cx, this._breedY, horse.breed || COATS[colorKeyOf(horse.coat)]?.label || '', {
+    add(this.add.text(this.px + 16, this._breedY, horse.breed || COATS[colorKeyOf(horse.coat)]?.label || '', {
       fontFamily: 'system-ui, sans-serif', fontSize: '13px', color: '#9aa0c0',
-    }).setOrigin(0.5, 0));
+    }).setOrigin(0, 0));
   }
 
-  // ── Scrollable content ─────────────────────────────────────────────────────
-  _buildContent() {
+  // ── Scrollable content ────────────────────────────────────────────────────────
+  _custContent() {
     this.contentC?.destroy();
     const c = this.add.container(this.px, this.viewTop).setDepth(3);
     this.contentC = c;
@@ -189,7 +202,7 @@ export default class ManagementPanelScene extends Phaser.Scene {
     const cols = 4, gap = 8;
     const cellW = Math.floor((this.panelW - 32 - (cols - 1) * gap) / cols);
     const cellH = 40;
-    const activeColor = colorKeyOf(this.allHorses[this.sel].coat);
+    const activeColor = colorKeyOf(this.allHorses[this._editKey].coat);
     keys.forEach((ck, i) => {
       const col = i % cols, row = Math.floor(i / cols);
       const x = 16 + col * (cellW + gap);
@@ -215,7 +228,7 @@ export default class ManagementPanelScene extends Phaser.Scene {
   // A heading + a wrapping row of toggle chips for a {key: label} map.
   _secChips(c, title, labels, y0) {
     let y = this._heading(c, title, y0);
-    const eff = effectiveMarkings(this.allHorses[this.sel].coat, this.allHorses[this.sel].markings);
+    const eff = effectiveMarkings(this.allHorses[this._editKey].coat, this.allHorses[this._editKey].markings);
     const gap = 7;
     let x = 16, row = 0;
     for (const [key, label] of Object.entries(labels)) {
@@ -241,7 +254,7 @@ export default class ManagementPanelScene extends Phaser.Scene {
   // front-near), each drawn with the horse's own colours + current sock/stocking.
   _secLegs(c, y0) {
     let y = this._heading(c, 'Leg markings — tap to add a sock, again for a stocking', y0);
-    const coat = composeCoat(this.allHorses[this.sel].coat, this.allHorses[this.sel].markings);
+    const coat = composeCoat(this.allHorses[this._editKey].coat, this.allHorses[this._editKey].markings);
     const legs = coat.markings.legs || {};
     const order = ['hindFar', 'hindNear', 'foreFar', 'foreNear'];
     const bw = 48, bh = 56, gap = 12;
@@ -272,7 +285,7 @@ export default class ManagementPanelScene extends Phaser.Scene {
   // appear only when feathering is on. Each colour chip is filled with its tone.
   _secFeather(c, y0) {
     let y = this._heading(c, 'Feathering', y0);
-    const horse = this.allHorses[this.sel];
+    const horse = this.allHorses[this._editKey];
     const eff = effectiveMarkings(horse.coat, horse.markings);
     const on = !!eff.feather;
 
@@ -386,74 +399,61 @@ export default class ManagementPanelScene extends Phaser.Scene {
 
   // ── Edits ─────────────────────────────────────────────────────────────────
   _pickColor(colorKey) {
-    const horse = this.allHorses[this.sel];
+    const horse = this.allHorses[this._editKey];
     horse.coat = colorKey;
     horse.breed = COATS[colorKey].label;
-    this._apply();
+    this._applyEdit();
   }
 
   _toggleMarking(m) {
-    const horse = this.allHorses[this.sel];
+    const horse = this.allHorses[this._editKey];
     const eff = effectiveMarkings(horse.coat, horse.markings);
     horse.markings = { ...eff, [m]: !eff[m] }; // authoritative override
-    this._apply();
+    this._applyEdit();
   }
 
   _cycleLeg(id) {
-    const horse = this.allHorses[this.sel];
+    const horse = this.allHorses[this._editKey];
     const eff = effectiveMarkings(horse.coat, horse.markings);
     const legs = { ...(eff.legs || {}) };
     const i = LEG_CYCLE.indexOf(legs[id] ?? undefined);
     const next = LEG_CYCLE[(i + 1) % LEG_CYCLE.length];
     if (next) legs[id] = next; else delete legs[id];
     horse.markings = { ...eff, legs };
-    this._apply();
+    this._applyEdit();
   }
 
   _setFeatherColor(color) {
-    const horse = this.allHorses[this.sel];
+    const horse = this.allHorses[this._editKey];
     const eff = effectiveMarkings(horse.coat, horse.markings);
     horse.markings = { ...eff, feather: true, featherColor: color };
-    this._apply();
+    this._applyEdit();
   }
 
   _applyBreed(breedKey) {
-    const horse = this.allHorses[this.sel];
+    const horse = this.allHorses[this._editKey];
     const breed = BREEDS[breedKey];
     horse.coat = breed.color;
     horse.markings = JSON.parse(JSON.stringify(breed.markings)); // authoritative copy
     horse.breed = breed.label;
-    this._apply();
+    this._applyEdit();
   }
 
-  _rename() {
-    const horse = this.allHorses[this.sel];
+  _custRename() {
+    const horse = this.allHorses[this._editKey];
     const name = window.prompt('Name this horse:', horse.name);
     if (name == null) return;
     const trimmed = name.trim().slice(0, 18);
     if (!trimmed) return;
     horse.name = trimmed;
-    this._apply();
+    this._applyEdit();
   }
 
-  _select(key) {
-    if (key === this.sel) return;
-    this.sel = key;
-    this._buildSelector();
-    this._buildHeader();
-    this._buildContent();
-  }
-
-  // Apply current selection's data to the live world + persist, then refresh UI.
-  _apply() {
-    this.paddock.reskinHorse(this.sel);
+  // Apply current data to the live world + persist, then refresh the editor UI.
+  _applyEdit() {
+    this.paddock.reskinHorse(this._editKey);
     this.paddock._saveHorses();
-    this._buildSelector();
-    this._buildHeader();
-    this._buildContent();
+    this._custHeader();
+    this._custContent();
   }
-
-  close() {
-    this.scene.stop();
-  }
-}
+};
