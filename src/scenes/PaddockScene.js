@@ -781,10 +781,12 @@ export default class PaddockScene
       this.usingPad = true;
       hotbar?._toggleInventory();
     }
-    // Start = pause / unpause
+    // Start = open the full pause menu (volume/mute/dev tools), so a controller
+    // player reaches the same menu as touch/keyboard and can adjust volume (#159).
+    // While that menu is open this scene is paused, so HotbarScene polls Start to close.
     if (this._rawPad.btnStart && !prev.btnStart) {
       this.usingPad = true;
-      this._togglePause();
+      this.scene.get('HotbarScene')?._togglePause();
     }
 
     this._prevRawButtons = {

@@ -80,6 +80,10 @@ export default class HotbarScene extends Phaser.Scene {
     // hold = fly-out; see _slotDown).
     this.input.on('pointerup',        () => this._slotPointerUp());
     this.input.on('pointerupoutside', () => this._slotPointerUp());
+    // Volume-slider drag works for mouse AND touch: a slider's pointerdown sets
+    // `_activeSlider`, then any pointer move while held drives it, until release (#159).
+    this.input.on('pointermove', (p) => { if (this._activeSlider && p.isDown) this._activeSlider(p.x); });
+    this.input.on('pointerup',   () => { this._activeSlider = null; });
     this.input.keyboard.on('keydown-I', () => this._toggleInventory());
     this.input.keyboard.on('keydown-M', () => this._toggleMute());
     // Esc closes an open info popup first; only when none is open does it
@@ -838,6 +842,8 @@ export default class HotbarScene extends Phaser.Scene {
     zone.on('pointerout',  () => drawRow(0x1a1e30));
     zone.on('pointerdown', onClick);
     this._pauseNodes.push(zone);
+    // Register as a controller-focusable button row (#159).
+    this._pauseFocus?.push({ x: rowX, y: rowY, w: rowW, h: rowH - 8, kind: 'button', activate: onClick });
     return lbl;
   }
 
@@ -846,6 +852,11 @@ export default class HotbarScene extends Phaser.Scene {
     for (const o of this._pauseNodes) o.destroy();
     this._pauseNodes = [];
     this.pauseOpen   = true;
+    // Controller-nav state (#159): focusables are collected as rows/sliders build.
+    this._pauseFocus = [];
+    this._pauseFocusIdx = 0;
+    this._pauseFocusActive = false;
+    this._pauseJustOpened = true; // 1-frame grace so a held Start doesn't insta-close
 
     // Inventory and pause are mutually exclusive overlays
     if (this.invOpen) this._closeInventory();
@@ -930,6 +941,10 @@ export default class HotbarScene extends Phaser.Scene {
     this._addToggleRow(rowX, dy, rowW, rowH, '⏭ Advance Time of Day', () => this._advanceTime());
     dy += rowH;
     this._addToggleRow(rowX, dy, rowW, rowH, '♻ Reset Herd to Default', () => this._resetHerd());
+
+    // Controller focus highlight, drawn above the rows (#159).
+    this._pauseRing = this.add.graphics().setDepth(106);
+    this._pauseNodes.push(this._pauseRing);
   }
 
   // TEMP dev tool: jump the day/night clock forward one phase WITHOUT unpausing.
@@ -984,20 +999,30 @@ export default class HotbarScene extends Phaser.Scene {
     draw();
 
     const zone = this.add.zone(trackX - 8, y - 4, trackW + 16, 40)
-      .setOrigin(0, 0).setInteractive({ useHandCursor: true, draggable: true }).setDepth(105);
+      .setOrigin(0, 0).setInteractive({ useHandCursor: true }).setDepth(105);
     const setFromX = (px) => {
       v = Math.max(0, Math.min(1, (px - trackX) / trackW));
       draw();
       setVolume(bus, v);
     };
-    zone.on('pointerdown', (p) => setFromX(p.x));
-    zone.on('drag', (p) => setFromX(p.x));
+    const adjustBy = (d) => {
+      v = Math.max(0, Math.min(1, v + d));
+      draw();
+      setVolume(bus, v);
+    };
+    // Mouse + touch: arm the shared drag handler so a press-and-move tracks (#159).
+    zone.on('pointerdown', (p) => { this._activeSlider = setFromX; setFromX(p.x); });
     this._pauseNodes.push(zone);
+    // Controller-focusable: left/right nudges the value (#159).
+    this._pauseFocus?.push({ x: trackX - 8, y: y - 4, w: trackW + 16, h: 40, kind: 'slider', adjust: adjustBy });
   }
 
   _closePause() {
     this.pauseOpen   = false;
     this._muteRowLbl = null;
+    this._pauseFocus = null;
+    this._pauseRing  = null;
+    this._activeSlider = null;
     for (const o of this._pauseNodes) o.destroy();
     this._pauseNodes = [];
 
@@ -1005,6 +1030,56 @@ export default class HotbarScene extends Phaser.Scene {
     for (const key of PAUSABLE_SCENES) {
       if (this.scene.isPaused(key)) this.scene.resume(key);
     }
+  }
+
+  // While the pause menu is open the world scenes are paused, so HotbarScene drives
+  // the gamepad here: d-pad/stick to focus a row, A to activate a toggle/button,
+  // left/right to adjust the focused slider, B/Start to close (#159).
+  update() {
+    if (!this.pauseOpen || !this._pauseFocus?.length) return;
+    const pad = this.input.gamepad && this.input.gamepad.getPad(0);
+    if (!pad) return;
+    const ls = pad.leftStick || { x: 0, y: 0 };
+    const cur = {
+      up: pad.up || ls.y < -0.5, down: pad.down || ls.y > 0.5,
+      left: pad.left || ls.x < -0.5, right: pad.right || ls.x > 0.5,
+      A: pad.A, B: pad.B, start: !!(pad.buttons && pad.buttons[9] && pad.buttons[9].pressed),
+    };
+    // 1-frame grace after opening so a still-held Start (which opened it) won't close.
+    if (this._pauseJustOpened) { this._pauseJustOpened = false; this._pausePadPrev = cur; return; }
+    const prev = this._pausePadPrev || {};
+    if ((cur.B && !prev.B) || (cur.start && !prev.start)) { this._closePause(); return; }
+    if (!this._pauseFocusActive && (cur.up || cur.down || cur.left || cur.right || cur.A)) {
+      this._pauseFocusActive = true; this._pauseFocusIdx = 0; this._drawPauseRing(); // first press: show ring
+    } else if (this._pauseFocusActive) {
+      if (cur.up && !prev.up) this._movePauseFocus(-1);
+      if (cur.down && !prev.down) this._movePauseFocus(1);
+      const f = this._pauseFocus[this._pauseFocusIdx];
+      if (f) {
+        if (f.kind === 'slider') {
+          if (cur.left && !prev.left) f.adjust(-0.1);
+          if (cur.right && !prev.right) f.adjust(0.1);
+        }
+        if (cur.A && !prev.A && f.activate) f.activate();
+      }
+    }
+    this._pausePadPrev = cur;
+  }
+
+  _movePauseFocus(d) {
+    const n = this._pauseFocus.length;
+    this._pauseFocusIdx = (this._pauseFocusIdx + d + n) % n;
+    this._drawPauseRing();
+  }
+
+  _drawPauseRing() {
+    if (!this._pauseRing) return;
+    this._pauseRing.clear();
+    if (!this._pauseFocusActive) return;
+    const f = this._pauseFocus[this._pauseFocusIdx];
+    if (!f) return;
+    this._pauseRing.lineStyle(3, 0xffe066, 0.95);
+    this._pauseRing.strokeRoundedRect(f.x - 3, f.y - 3, f.w + 6, f.h + 6, 8);
   }
 
   // ── Public API ─────────────────────────────────────────────────────────────
