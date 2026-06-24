@@ -219,6 +219,13 @@ function drawHorse(g, coat, bob, legLift) {
   g.fillStyle(m.lo, 1); g.fillRect(41, 9 + bob, 3, 8);
   g.fillStyle(m.mid, 1); g.fillRect(40, 16 + bob, 3, 9);
   g.fillStyle(m.lo, 1); g.fillRect(40, 24 + bob, 2, 6);
+  // Pinto: the white pattern carries into the lower mane + tail tip, giving a
+  // two-tone mane (#144). Overpaint the lower segments (same rects = clean edge).
+  if (mk.pinto) {
+    g.fillStyle(WHITE, 1);
+    g.fillRect(40, 16 + bob, 3, 9); g.fillRect(40, 24 + bob, 2, 6); // lower mane
+    g.fillRect(3, 31 + bob, 2, 7);  g.fillRect(4, 37 + bob, 2, 5);  // tail tip
+  }
 }
 
 // Horse sleeping: laid out on side, head and neck relaxed.
@@ -290,6 +297,11 @@ function drawHorseSleep(g, coat, bob) {
   g.fillStyle(m.mid, 1); g.fillRect(42, 18 + bob + dy, 2, 4);
   g.fillStyle(m.lo, 1);  g.fillRect(41, 22 + bob + dy, 2, 4);
   g.fillStyle(m.mid, 1); g.fillRect(40, 26 + bob + dy, 2, 3);
+  if (mk.pinto) { // two-tone pinto mane + tail tip (#144)
+    g.fillStyle(WHITE, 1);
+    g.fillRect(40, 26 + bob + dy, 2, 3); // lower mane
+    g.fillRect(3, 27 + bob + dy, 2, 3);  // tail tip
+  }
 }
 
 // Horse eating/drinking: head drops to ground level, body stays the same.
@@ -362,6 +374,11 @@ function drawHorseEat(g, coat, bob) {
   g.fillStyle(m.lo, 1);  g.fillRect(40, 24 + bob, 3, 8);
   g.fillStyle(m.mid, 1); g.fillRect(42, 30 + bob, 3, 8);
   g.fillStyle(m.lo, 1);  g.fillRect(43, 36 + bob, 2, 4);
+  if (mk.pinto) { // two-tone pinto mane + tail tip (#144)
+    g.fillStyle(WHITE, 1);
+    g.fillRect(42, 30 + bob, 3, 8); g.fillRect(43, 36 + bob, 2, 4); // lower mane
+    g.fillRect(3, 31 + bob, 2, 7);  g.fillRect(4, 37 + bob, 2, 5);  // tail tip
+  }
 }
 
 // ─── Foal ────────────────────────────────────────────────────────────────────
