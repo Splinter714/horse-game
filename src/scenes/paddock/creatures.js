@@ -311,7 +311,9 @@ export const WithCreatures = (Base) => class extends Base {
     if (a.state !== 'idle' && a.state !== 'gathering') return;
     a._pecking = true;
     a.sprite.play(`eat_${a.key}`, true); // the pecking frames
-    playPeck();
+    // No sound: this is an autonomous/ambient peck (between wanders, idling at the
+    // bin). Per #148 only player-initiated care makes noise — the peck still shows
+    // visually, and the directed eating peck (chickenGoEat) keeps its sound.
     this.time.delayedCall(Phaser.Math.Between(360, 560), () => {
       a._pecking = false;
       if (a.sprite.active && (a.state === 'idle' || a.state === 'gathering')) {
