@@ -6,6 +6,10 @@ const WHITE = 0xf4efe6;
 const HORSE_SIZE = 200;
 const CHICKEN_SIZE = 120;
 
+// DEPRECATED: the front-facing horse portrait looked worse than the animated
+// side-view sprite, so the info panel and the Stable both use the side view now and
+// nothing calls this. Kept (not deleted) in case a future, improved front portrait
+// wants this as a starting point. `buildChickenPortraitTexture` below is still used.
 export function buildPortraitTexture(scene, key, coat) {
   const b = coat.body;
   const m = coat.mane;

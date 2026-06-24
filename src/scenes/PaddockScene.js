@@ -451,7 +451,7 @@ export default class PaddockScene
     const allHorses = this.registry.get('allHorses');
     this.registry.set('viewingAnimal', {
       animal:      allHorses[key],
-      portraitKey: `portrait_${key}`,
+      // portraitKey: `portrait_${key}`, // deprecated front portrait — panel uses the side view
       key,
     });
     // The horse reacts to you engaging it — nicker if content, grumpy squeal if

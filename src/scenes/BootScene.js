@@ -5,7 +5,12 @@ import { buildCatTextures } from '../art/catArt.js';
 // Other barnyard animals (cow/sheep/pig/dog) are disabled — their art lives in
 // src/art/{cow,sheep,pig,dog}Art.js, ready to build here when re-enabled.
 import { buildHorseTextures, buildFoalTextures } from '../art/horseArt.js';
-import { buildPortraitTexture, buildChickenPortraitTexture } from '../art/portraitArt.js';
+import { buildChickenPortraitTexture } from '../art/portraitArt.js';
+// `buildPortraitTexture` builds the front-facing HORSE portrait, which is deprecated
+// (the info panel + Stable both use the animated side view because the front portrait
+// looked bad). It's kept in portraitArt.js for potential future use, so it's left
+// defined but not imported while unused:
+// import { buildPortraitTexture } from '../art/portraitArt.js';
 import { buildPlayerTextures } from '../art/playerArt.js';
 import { getCoat, composeCoat } from '../data/species/horse/coats.js';
 import { loadAllHorses, loadAllChickens, loadAudioSettings, saveAudioSettings } from '../data/save.js';
@@ -42,7 +47,8 @@ export default class BootScene extends Phaser.Scene {
     for (const key of Object.keys(allHorses)) {
       const coat = composeCoat(allHorses[key].coat, allHorses[key].markings);
       buildHorseTextures(this, key, coat);
-      buildPortraitTexture(this, `portrait_${key}`, coat);
+      // Deprecated front-facing horse portrait — kept around for future use:
+      // buildPortraitTexture(this, `portrait_${key}`, coat);
     }
 
     // Foal textures (foal1 = grey, foal2 = paint, foal3 = bay)
