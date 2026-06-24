@@ -189,6 +189,9 @@ export function maneRampFor(colorKey) {
   return (COATS[colorKey] || COATS.palomino).body;
 }
 
+// Fallback "points" colour when dark legs are toggled on for a coat that has none.
+const POINTS_DARK = 0x171313;
+
 // Compose a horse's drawable coat from its colour key plus optional per-animal
 // marking overrides (the customization panel, #2/#17). A markings override is
 // AUTHORITATIVE — it fully defines the markings (it doesn't merge with the
@@ -206,6 +209,12 @@ export function composeCoat(colorKey, markingsOverride) {
   // editable, but socks/stockings have their own colour, see sockToneFor.)
   const mc = finalMarks.maneColor;
   out.mane = maneRampFor(mc && COATS[mc] ? mc : ck);
+
+  // Primitive markings — dark legs ("points") and the dun-gene dorsal stripe — are
+  // coat defaults but can be toggled per-horse (decoupled from the coat). Absent =
+  // the coat's own default, so old saves are unchanged.
+  if ('darkLegs' in finalMarks) out.points = finalMarks.darkLegs ? (colorEntry.points ?? POINTS_DARK) : undefined;
+  if ('dorsal' in finalMarks) out.dorsal = finalMarks.dorsal;
 
   return out;
 }

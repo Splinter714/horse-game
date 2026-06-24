@@ -67,6 +67,25 @@ describe('sock/stocking colour (#141 follow-up)', () => {
   });
 });
 
+describe('primitive markings: dark legs + dorsal stripe (decoupled, follow-up)', () => {
+  it('default to the coat (bay has dark legs, chestnut does not; dun has a dorsal)', () => {
+    expect(composeCoat('bay', {}).points).toBe(COATS.bay.points);
+    expect(composeCoat('chestnut', {}).points).toBeUndefined();
+    expect(composeCoat('dun', {}).dorsal).toBe(true);
+    expect(!!composeCoat('chestnut', {}).dorsal).toBe(false);
+  });
+
+  it('darkLegs toggles the points independently of the coat', () => {
+    expect(composeCoat('bay', { darkLegs: false }).points).toBeUndefined();   // remove a bay's
+    expect(composeCoat('chestnut', { darkLegs: true }).points).toBeDefined(); // add to a chestnut
+  });
+
+  it('dorsal toggles the stripe independently of the coat', () => {
+    expect(composeCoat('dun', { dorsal: false }).dorsal).toBe(false);
+    expect(composeCoat('chestnut', { dorsal: true }).dorsal).toBe(true);
+  });
+});
+
 describe('feathering colour — full palette, matching the mane (#143)', () => {
   it('is undefined when feathering is off', () => {
     expect(featherToneFor(composeCoat('black', {}))).toBeUndefined();

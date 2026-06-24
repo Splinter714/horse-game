@@ -199,10 +199,11 @@ export const WithCustomizer = (Base) => class extends Base {
     this._focusables = []; // rebuilt as sections register their zones (via _tap)
 
     const horse = this.allHorses[this._editKey];
-    const eff = effectiveMarkings(horse.coat, horse.markings);
+    const composed = composeCoat(horse.coat, horse.markings);
+    const eff = composed.markings;
     // Mane has no coat-bundled "natural"; it defaults to the coat colour (#140 FU).
     const maneCur = (eff.maneColor && COATS[eff.maneColor]) ? eff.maneColor : colorKeyOf(horse.coat);
-    const naturalFeather = composeCoat(horse.coat, horse.markings).mane.mid;
+    const naturalFeather = composed.mane.mid;
     const curPattern = PATTERN_KEYS.find(k => eff[k]) || 'none';
     const curFace = FACE_KEYS.find(k => eff[k]) || 'none';
     const hasLegMark = Object.values(eff.legs || {}).some(Boolean);
@@ -226,6 +227,10 @@ export const WithCustomizer = (Base) => class extends Base {
     if (hasLegMark) {
       y = this._secSwatches(c, 'Sock color', this._sockEntries(), eff.sockColor || 'white', (k) => this._setSockColor(k), y) + 14;
     }
+    // Primitive markings (decoupled from the coat, follow-up): dark legs ("points")
+    // and the dun dorsal stripe, each defaulting to the coat's natural look.
+    y = this._secToggle(c, 'Dark legs', composed.points !== undefined, () => this._toggleDarkLegs(), y) + 8;
+    y = this._secToggle(c, 'Dorsal stripe', !!composed.dorsal, () => this._toggleDorsal(), y) + 14;
     y = this._secFeather(c, y, naturalFeather) + 14;
     y = this._secBreeds(c, y) + 10;
     this.contentH = y;
@@ -673,6 +678,22 @@ export const WithCustomizer = (Base) => class extends Base {
     const next = { ...effectiveMarkings(horse.coat, horse.markings) };
     if (key === 'white') delete next.sockColor; else next.sockColor = key;
     horse.markings = next;
+    this._applyEdit();
+  }
+
+  // Dark legs ("points") and the dorsal stripe are decoupled toggles (follow-up):
+  // store an explicit boolean override flipped from the current effective state.
+  _toggleDarkLegs() {
+    const horse = this.allHorses[this._editKey];
+    const on = composeCoat(horse.coat, horse.markings).points !== undefined;
+    horse.markings = { ...effectiveMarkings(horse.coat, horse.markings), darkLegs: !on };
+    this._applyEdit();
+  }
+
+  _toggleDorsal() {
+    const horse = this.allHorses[this._editKey];
+    const on = !!composeCoat(horse.coat, horse.markings).dorsal;
+    horse.markings = { ...effectiveMarkings(horse.coat, horse.markings), dorsal: !on };
     this._applyEdit();
   }
 
