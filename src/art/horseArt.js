@@ -15,6 +15,7 @@ const WHITE = 0xf4efe6;
 const SOCK = 0xf0ead0;
 const EAR_PINK = 0xe0a890;
 const LIGHT_HOOF = 0xd9c2a6; // unpigmented (light/tan-pink) hoof under a white marking (#151)
+const DARK_MARK = 0x1a140f;  // near-black for the optional "dark markings" set (#152)
 // Coat-agnostic shading overlays (Stage 2 detail, #2). Drawn as low-alpha white/black
 // on top of the 3-tone coat so every coat colour gets soft rounded form for free. The
 // hi-res grid (ART_SCALE) lets these be thin (sub-design-pixel) so they read as a
@@ -26,6 +27,11 @@ const SHADE  = 0x000000;
 // right-facing horse (#2). A blaze is the broad connected band; otherwise star,
 // stripe, and snip are drawn independently per flag.
 function faceMarkings(g, mk, bob) {
+  if (mk.cobwebbing) { // fine dark radial lines / mask on the forehead (#152)
+    g.fillStyle(DARK_MARK, 0.5);
+    g.fillRect(50, 4 + bob, 1, 5); g.fillRect(49, 6 + bob, 1, 2);
+    g.fillRect(52, 6 + bob, 1, 2); g.fillRect(51, 3 + bob, 1, 1);
+  }
   g.fillStyle(WHITE, 1);
   if (mk.blaze) {
     g.fillRect(51, 4 + bob, 2, 2);   // forehead
@@ -45,6 +51,7 @@ function faceMarkings(g, mk, bob) {
 // The eating head sits low-right in a different pose, so face markings need their
 // own coordinates there (otherwise a star/blaze vanishes when a horse eats).
 function faceMarkingsEat(g, mk, headY) {
+  if (mk.cobwebbing) { g.fillStyle(DARK_MARK, 0.5); g.fillRect(49, headY + 1, 1, 4); } // #152
   g.fillStyle(WHITE, 1);
   if (mk.blaze) {
     g.fillRect(48, headY, 3, 2);
@@ -97,6 +104,42 @@ function drawDorsal(g, coat, yo) {
   if (!coat.dorsal) return;
   g.fillStyle(coat.points ?? coat.mane.lo, 1);
   g.fillRect(8, 18 + yo, 39, 1);
+}
+
+// Optional "dark markings" set (#152) — toggleable detail layers, each matching a
+// real reference. Body-level: sooty topline, shoulder stripe, Bend-Or spots.
+const BENDOR_SPOTS = [[18, 25], [30, 28], [24, 33], [38, 24], [14, 30], [34, 21], [27, 27]];
+function darkMarkings(g, coat, yo) {
+  const mk = coat.markings || {};
+  if (mk.sooty) { // smutty dusting along the topline, fading downward
+    g.fillStyle(SHADE, 0.16); g.fillRect(8, 18 + yo, 39, 3);
+    g.fillStyle(SHADE, 0.10); g.fillRect(8, 21 + yo, 39, 3);
+  }
+  if (mk.shoulderStripe) { // dark crossbar over the shoulder/withers
+    g.fillStyle(DARK_MARK, 0.8);
+    g.fillRect(41, 16 + yo, 2, 13);
+    g.fillRect(43, 18 + yo, 2, 9);
+  }
+  if (mk.bendOr) { // random small dark smudges (Bend-Or / grease spots)
+    g.fillStyle(DARK_MARK, 0.7);
+    for (const [sx, sy] of BENDOR_SPOTS) g.fillRect(sx, sy + yo, 2, 2);
+  }
+}
+
+// Leg-level dark markings (#152): horizontal zebra bars + ermine spots in a sock.
+function legDark(g, x, lift, mk, legMark, offsetY = 0) {
+  const topY = 35 + offsetY, h = 15 - lift;
+  if (mk.legBars) {
+    g.fillStyle(DARK_MARK, 0.55);
+    g.fillRect(x, topY + Math.max(1, h - 11), 4, 1);
+    g.fillRect(x, topY + Math.max(3, h - 8), 4, 1);
+    g.fillRect(x, topY + Math.max(5, h - 5), 4, 1);
+  }
+  if (mk.ermine && legMark) { // dark spots inside the white sock/stocking
+    g.fillStyle(DARK_MARK, 0.85);
+    g.fillRect(x + 1, topY + h - 4, 1, 1);
+    g.fillRect(x + 2, topY + h - 7, 1, 1);
+  }
 }
 
 // Leg lift patterns per frame: [hindFar, hindNear, foreFar, foreNear]
@@ -166,6 +209,8 @@ function drawHorse(g, coat, bob, legLift) {
   leg(g, 38, legLift[2], b.lo,  coat.hoof, lm.foreFar,  sockTone, feather, pts); // fore far
   leg(g, 13, legLift[1], b.mid, coat.hoof, lm.hindNear, sockTone, feather, pts); // hind near
   leg(g, 44, legLift[3], b.mid, coat.hoof, lm.foreNear, sockTone, feather, pts); // fore near
+  legDark(g, 7, legLift[0], mk, lm.hindFar);  legDark(g, 38, legLift[2], mk, lm.foreFar);  // dark leg marks (#152)
+  legDark(g, 13, legLift[1], mk, lm.hindNear); legDark(g, 44, legLift[3], mk, lm.foreNear);
 
   // --- tail ---
   g.fillStyle(m.mid, 1); g.fillRect(6, 22 + bob, 2, 4);
@@ -207,6 +252,7 @@ function drawHorse(g, coat, bob, legLift) {
   // dorsal stripe (dun gene) + whole-body patterns (pinto / appaloosa / dapples / roan)
   drawDorsal(g, coat, bob);
   bodyPatterns(g, coat, bob);
+  darkMarkings(g, coat, bob);
 
   // --- neck ---
   g.fillStyle(b.mid, 1); g.fillRect(42, 14 + bob, 8, 12);
@@ -268,6 +314,8 @@ function drawHorseSleep(g, coat, bob) {
   leg(g, 38, 10, b.lo,  coat.hoof, lm.foreFar,  sockTone, undefined, pts, dy); // fore far (folded)
   leg(g, 13, 10, b.mid, coat.hoof, lm.hindNear, sockTone, undefined, pts, dy); // hind near (folded)
   leg(g, 44, 10, b.mid, coat.hoof, lm.foreNear, sockTone, undefined, pts, dy); // fore near (folded)
+  legDark(g, 7, 10, mk, lm.hindFar, dy);  legDark(g, 38, 10, mk, lm.foreFar, dy);  // dark leg marks (#152)
+  legDark(g, 13, 10, mk, lm.hindNear, dy); legDark(g, 44, 10, mk, lm.foreNear, dy);
 
   // Tail relaxed
   g.fillStyle(m.mid, 1); g.fillRect(6, 22 + bob + dy, 2, 2);
@@ -298,6 +346,7 @@ function drawHorseSleep(g, coat, bob) {
 
   drawDorsal(g, coat, bob + dy);
   bodyPatterns(g, coat, bob + dy);
+  darkMarkings(g, coat, bob + dy);
 
   // Neck angled back/down (horse on its side)
   g.fillStyle(b.mid, 1);
@@ -346,6 +395,8 @@ function drawHorseEat(g, coat, bob) {
   leg(g, 38, 0, b.lo,  coat.hoof, lm.foreFar,  sockTone, feather, pts);
   leg(g, 13, 0, b.mid, coat.hoof, lm.hindNear, sockTone, feather, pts);
   leg(g, 44, 0, b.mid, coat.hoof, lm.foreNear, sockTone, feather, pts);
+  legDark(g, 7, 0, mk, lm.hindFar);  legDark(g, 38, 0, mk, lm.foreFar);   // dark leg marks (#152)
+  legDark(g, 13, 0, mk, lm.hindNear); legDark(g, 44, 0, mk, lm.foreNear);
 
   // Tail
   g.fillStyle(m.mid, 1); g.fillRect(6, 22 + bob, 2, 4);
@@ -369,6 +420,7 @@ function drawHorseEat(g, coat, bob) {
 
   drawDorsal(g, coat, bob);
   bodyPatterns(g, coat, bob);
+  darkMarkings(g, coat, bob);
 
   // Neck angled downward (head eating from ground)
   g.fillStyle(b.mid, 1);

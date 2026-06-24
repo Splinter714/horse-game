@@ -224,10 +224,18 @@ export const WithCustomizer = (Base) => class extends Base {
     // Face markings: single-select with None (#147 FU).
     y = this._secOptions(c, 'Face markings', opt(FACE_MARKING_LABELS), curFace, (k) => this._setFace(k), y) + 14;
     y = this._secLegs(c, y) + 14;
-    // Primitive markings (decoupled from the coat, follow-up): dark legs ("points")
-    // and the dun dorsal stripe, each defaulting to the coat's natural look.
-    y = this._secToggle(c, 'Dark legs', composed.points !== undefined, () => this._toggleDarkLegs(), y) + 8;
-    y = this._secToggle(c, 'Dorsal stripe', !!composed.dorsal, () => this._toggleDorsal(), y) + 14;
+    // One "Dark markings" group of toggleable detail layers (#152). Dark legs +
+    // dorsal default to the coat's natural look; the rest are off until applied.
+    y = this._secToggleChips(c, 'Dark markings', [
+      ['Dark legs', composed.points !== undefined, () => this._toggleDarkLegs()],
+      ['Dorsal stripe', !!composed.dorsal, () => this._toggleDorsal()],
+      ['Leg barring', !!eff.legBars, () => this._toggleMarking('legBars')],
+      ['Shoulder stripe', !!eff.shoulderStripe, () => this._toggleMarking('shoulderStripe')],
+      ['Cobwebbing', !!eff.cobwebbing, () => this._toggleMarking('cobwebbing')],
+      ['Sooty', !!eff.sooty, () => this._toggleMarking('sooty')],
+      ['Ermine spots', !!eff.ermine, () => this._toggleMarking('ermine')],
+      ['Bend-Or spots', !!eff.bendOr, () => this._toggleMarking('bendOr')],
+    ], y) + 14;
     y = this._secFeather(c, y) + 14;
     y = this._secBreeds(c, y) + 10;
     this.contentH = y;
@@ -337,6 +345,30 @@ export const WithCustomizer = (Base) => class extends Base {
     this._tap(zone, onTap);
     c.add([g, lbl, zone]);
     return y0 + h;
+  }
+
+  // A heading + a wrapping row of independent on/off toggle chips. `items` =
+  // [[label, isOn, onTap], …]. Used for the "Dark markings" group (#152).
+  _secToggleChips(c, title, items, y0) {
+    let y = this._heading(c, title, y0);
+    const gap = 8, h = TAP, r = h / 2, step = h + 8;
+    let x = 16, row = 0;
+    for (const [label, on, onTap] of items) {
+      const w = Math.max(56, 22 + label.length * 8);
+      if (x + w > this.panelW - 16) { x = 16; row++; }
+      const yy = y + row * step;
+      const g = this.add.graphics();
+      g.fillStyle(on ? 0x3a6a44 : 0x1a1e30, 1); g.fillRoundedRect(x, yy, w, h, r);
+      g.lineStyle(on ? 3 : 1, on ? 0x7fd68f : 0x3a4060, 1); g.strokeRoundedRect(x, yy, w, h, r);
+      const lbl = this.add.text(x + w / 2, yy + h / 2, `${on ? '✓ ' : ''}${label}`, {
+        fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: on ? '#eafff0' : '#aab0d0',
+      }).setOrigin(0.5, 0.5);
+      const zone = this.add.zone(x, yy, w, h).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+      this._tap(zone, onTap);
+      c.add([g, lbl, zone]);
+      x += w + gap;
+    }
+    return y + (row + 1) * step;
   }
 
   // A heading + a row of mutually-exclusive option pills (active = highlighted).
