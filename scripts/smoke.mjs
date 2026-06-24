@@ -96,6 +96,12 @@ try {
       missingMethods,
       horsesInScene: paddock.horses?.length ?? 0,
       hasFarmStand: !!paddock.farmStand,
+      // Display scales: the horse uses super-sampled (ART_SCALE×) art shown at S/ART_SCALE;
+      // chickens/cat use 1× art shown at the full S. A broad edit once shrank the chickens/
+      // cat to the horse's divided scale, so guard that the chicken scale is ART_SCALE×
+      // the horse's (i.e. they weren't accidentally shrunk).
+      scaleRatio: (paddock.animals.find((a) => a.key.startsWith('chicken'))?.sprite?.scaleX ?? 0)
+                / (paddock.horses[0]?.sprite?.scaleX ?? 1),
     };
   });
 
@@ -163,6 +169,7 @@ try {
   if (result.missingMethods.length) fail('PaddockScene missing methods (mixin not wired?): ' + result.missingMethods.join(', '));
   if (result.horsesInScene !== 7) fail(`expected 7 horse sprites in scene, got ${result.horsesInScene}`);
   if (!result.hasFarmStand) fail('farm stand not built — farmStand mixin not wired');
+  if (Math.abs(result.scaleRatio - 4) > 0.01) fail(`chicken/horse display-scale ratio ${result.scaleRatio} ≠ ART_SCALE (4) — chickens/cat wrongly sized?`);
   if (!result.movementOk) fail('creature movement/pathfinding threw: ' + result.movementError);
   if (result.behaviorDecision !== 'seekFood') fail(`hungry horse with hay nearby did not select seekFood (got ${result.behaviorDecision})`);
   if (!result.horsePanel.active) fail('InfoPanelScene did not open for a horse');

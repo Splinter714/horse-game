@@ -88,8 +88,11 @@ export const WithCreatures = (Base) => class extends Base {
 
     const shadow = this.add.image(startX, startY, 'shadow')
       .setScale(S * shadowScale).setDepth(startY - 1);
+    // Chickens / cat use 1× (non-super-sampled) art, so they keep the full S scale —
+    // unlike the horse/foal whose textures are ART_SCALE× larger. (A broad replace
+    // had wrongly shrunk these to S/ART_SCALE.)
     const sprite = this.add.sprite(startX, startY, `${key}_idle_0`)
-      .setOrigin(0.5, 1).setScale(S / ART_SCALE).setDepth(startY)
+      .setOrigin(0.5, 1).setScale(S).setDepth(startY)
       .play(`idle_${key}`);
 
     // Keyless creatures (e.g. the cat) carry no model; derive the species from the
