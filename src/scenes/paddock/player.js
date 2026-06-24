@@ -6,7 +6,7 @@ import { CONTENT_DEFS } from '../../data/items.js';
 import { EVENTS } from '../../data/events.js';
 import { playGather } from '../../audio/sounds.js';
 import { WORLD_W, WORLD_H, CARE_DIST, PLAYER_SPEED, HOLD_MS, HOLD_DRAG_PX, PLAYER_BOUNDS, PASTURE_BOUNDS, S, STAND_DEFS, TROUGH_CAP } from './constants.js';
-import { dprOf, logicalH } from '../uiUtils.js';
+import { dprOf, logicalH, worldUiOffset } from '../uiUtils.js';
 
 // In-place reach for using a tool on a horse (brush/saddle/lead). Use never
 // walks you anywhere — the horse has to already be within this range.
@@ -326,7 +326,9 @@ export const WithPlayer = (Base) => class extends Base {
       return;
     }
     panel.setText(lines.join('\n'));
-    panel.setPosition(12, logicalH(this) - 84).setVisible(true);
+    // Screen-fixed overlay on the centred-origin world camera — offset to compensate.
+    const o = worldUiOffset(this);
+    panel.setPosition(12 + o.x, logicalH(this) - 84 + o.y).setVisible(true);
   }
 
   // Build the {interact, info, use} action set and broadcast it when it changes,

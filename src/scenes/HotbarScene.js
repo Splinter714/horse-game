@@ -31,7 +31,7 @@ export default class HotbarScene extends Phaser.Scene {
   constructor() { super('HotbarScene'); }
 
   create() {
-    applyDpr(this); // HiDPI: zoom this scene's camera by the device pixel ratio
+    applyDpr(this, { topLeft: true }); // HiDPI: zoom this UI scene's camera (top-left anchored)
 
     const saved      = loadGameState();
     this.hotbar      = saved.hotbar;

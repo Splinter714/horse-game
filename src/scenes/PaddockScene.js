@@ -24,7 +24,7 @@ import { WithHorseAI } from './paddock/horseAI.js';
 import { WithBehaviors } from './paddock/behaviors.js';
 import { WithRiding } from './paddock/riding.js';
 import { WithPlayer } from './paddock/player.js';
-import { applyDpr, logicalW, logicalH } from './uiUtils.js';
+import { applyDpr, logicalW, logicalH, worldUiOffset } from './uiUtils.js';
 
 // Maps a species action's `sound` name (see data/species) to the synth function.
 const SOUND_FNS = { eat: playEat, drink: playDrink, brush: playBrush, chime: playChime };
@@ -684,15 +684,16 @@ export default class PaddockScene
     this._paused = !this._paused;
     if (this._paused) {
       const sw = logicalW(this), sh = logicalH(this);
-      const bg = this.add.graphics().setDepth(9990);
+      const o = worldUiOffset(this); // screen-fixed overlay on the centred-origin world camera
+      const bg = this.add.graphics().setDepth(9990).setScrollFactor(0);
       bg.fillStyle(0x000000, 0.55);
-      bg.fillRect(0, 0, sw, sh);
-      const lbl = this.add.text(sw / 2, sh / 2, 'PAUSED', {
+      bg.fillRect(-sw, -sh, sw * 3, sh * 3); // oversized so it covers the screen regardless of zoom origin
+      const lbl = this.add.text(sw / 2 + o.x, sh / 2 + o.y, 'PAUSED', {
         fontFamily: 'system-ui, sans-serif',
         fontSize: '32px',
         color: '#ffffff',
       }).setOrigin(0.5).setDepth(9991).setScrollFactor(0);
-      const hint = this.add.text(sw / 2, sh / 2 + 48, 'Press Start to resume', {
+      const hint = this.add.text(sw / 2 + o.x, sh / 2 + 48 + o.y, 'Press Start to resume', {
         fontFamily: 'system-ui, sans-serif',
         fontSize: '14px',
         color: '#9aa0c0',

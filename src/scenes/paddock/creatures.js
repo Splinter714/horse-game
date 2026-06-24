@@ -7,6 +7,7 @@ import Phaser from 'phaser';
 import { EVENTS } from '../../data/events.js';
 import { playNicker, playSqueal, playPeck, playGather } from '../../audio/sounds.js';
 import { BOUNDS, PASTURE_BOUNDS, S, HERD, GATE_X, GATE_GAP_X0, GATE_GAP_X1 } from './constants.js';
+import { ART_SCALE } from '../../art/_frames.js';
 import { SPECIES } from '../../data/species/index.js';
 import { Animal } from '../../data/Animal.js';
 
@@ -88,7 +89,7 @@ export const WithCreatures = (Base) => class extends Base {
     const shadow = this.add.image(startX, startY, 'shadow')
       .setScale(S * shadowScale).setDepth(startY - 1);
     const sprite = this.add.sprite(startX, startY, `${key}_idle_0`)
-      .setOrigin(0.5, 1).setScale(S).setDepth(startY)
+      .setOrigin(0.5, 1).setScale(S / ART_SCALE).setDepth(startY)
       .play(`idle_${key}`);
 
     // Keyless creatures (e.g. the cat) carry no model; derive the species from the
@@ -454,7 +455,7 @@ export const WithCreatures = (Base) => class extends Base {
     const shadow = this.add.image(startX, startY, 'shadow')
       .setScale(S * 0.7).setDepth(startY - 1);
     const sprite = this.add.sprite(startX, startY, `${key}_idle_0`)
-      .setOrigin(0.5, 1).setScale(S).setDepth(startY)
+      .setOrigin(0.5, 1).setScale(S / ART_SCALE).setDepth(startY)
       .play(`idle_${key}`);
 
     const foal = { sprite, shadow, key, parentH };
@@ -492,7 +493,7 @@ export const WithCreatures = (Base) => class extends Base {
     const shadow = this.add.image(startX, startY, 'shadow')
       .setScale(S).setDepth(startY - 1);
     const sprite = this.add.sprite(startX, startY, `${key}_idle_0`)
-      .setOrigin(0.5, 1).setScale(S).setDepth(startY)
+      .setOrigin(0.5, 1).setScale(S / ART_SCALE).setDepth(startY)
       .play(`idle_${key}`);
 
     // Dust-splotch overlay — same transform as the sprite, alpha driven by the

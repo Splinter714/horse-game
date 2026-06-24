@@ -26,16 +26,28 @@ export const MIN_TAP = 44;
 export const dprOf = (scene) => scene.registry.get('dpr') || 1;
 
 // Zoom this scene's main camera by the device pixel ratio. Call in create().
-// The camera origin is moved to the top-left (0,0) so the zoom is anchored there
-// rather than at the viewport centre — otherwise screen-fixed UI laid out from the
-// top-left in logical coords would be pushed off-screen (Phaser zooms about the
-// camera origin). The world camera follows the player, which works the same with a
-// top-left origin (only the scroll value differs).
-export function applyDpr(scene) {
+//
+// `topLeft: true` moves the camera origin to (0,0) so the zoom is anchored at the
+// top-left rather than the viewport centre — needed for PURE-UI scenes (hotbar,
+// info panel, day/night) whose screen-fixed UI is laid out from the top-left in
+// logical coords; otherwise the zoom-about-centre pushes it off-screen.
+//
+// The WORLD scene (PaddockScene) must NOT use topLeft: a top-left origin breaks
+// Phaser's startFollow (the player ends up off-centre, not followed). It keeps the
+// default centred origin; its few screen-fixed overlays use worldUiOffset() instead.
+export function applyDpr(scene, { topLeft = false } = {}) {
   const cam = scene.cameras.main;
-  cam.setOrigin(0, 0);
+  if (topLeft) cam.setOrigin(0, 0);
   cam.setZoom(dprOf(scene));
   return scene;
+}
+
+// Offset to add to a logical screen position for a scrollFactor-0 overlay drawn on a
+// scene whose camera keeps the default CENTRED origin (the world scene). Counteracts
+// the zoom-about-centre so the overlay lands where the logical coordinate intends.
+export function worldUiOffset(scene) {
+  const k = (dprOf(scene) - 1) / 2;
+  return { x: logicalW(scene) * k, y: logicalH(scene) * k };
 }
 
 // Viewport size in LOGICAL px (scale.width/height are physical buffer px).

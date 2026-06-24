@@ -25,7 +25,7 @@ export default class DayNightScene extends Phaser.Scene {
   }
 
   create() {
-    applyDpr(this); // HiDPI: zoom this scene's camera by the device pixel ratio
+    applyDpr(this, { topLeft: true }); // HiDPI: zoom this UI scene's camera (top-left anchored)
 
     this.elapsed     = 0;
     this.currentPhase = -1; // triggers initial phase-change event

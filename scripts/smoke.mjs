@@ -200,18 +200,21 @@ try {
   }, { timeout: 20000 });
   const hidpi = await hpage.evaluate(() => {
     const g = window.__game, c = g.canvas;
-    // Camera origin must be top-left (0,0) on every active scene — otherwise the zoom
-    // anchors at the viewport centre and screen-fixed UI (hotbar, panels) gets pushed
-    // off-screen. This guards the regression the size/zoom checks alone missed.
-    const badOrigins = g.scene.scenes
-      .filter((s) => s.scene.isActive())
-      .filter((s) => s.cameras.main.originX !== 0 || s.cameras.main.originY !== 0)
-      .map((s) => s.scene.key);
+    const worldCam = g.scene.getScene('PaddockScene').cameras.main;
+    // UI scenes must anchor the zoom at the top-left (0,0), else their screen-fixed UI
+    // is pushed off-screen. The WORLD scene must instead keep the default CENTRED
+    // origin AND a follow target — a top-left origin silently breaks startFollow (the
+    // player ends up off-map / not followed). Both regressions slipped past the
+    // size/zoom checks before, so assert them directly.
+    const uiBadOrigins = ['HotbarScene', 'InfoPanelScene', 'DayNightScene']
+      .filter((k) => g.scene.isActive(k))
+      .filter((k) => { const cam = g.scene.getScene(k).cameras.main; return cam.originX !== 0 || cam.originY !== 0; });
     return {
       dpr: g.registry.get('dpr'),
       canvasW: c.width, cssW: parseInt(c.style.width, 10),
-      cameraZoom: g.scene.getScene('PaddockScene').cameras.main.zoom,
-      badOrigins,
+      cameraZoom: worldCam.zoom,
+      worldFollows: !!worldCam._follow && worldCam.originX === 0.5 && worldCam.originY === 0.5,
+      uiBadOrigins,
       devicePixelRatio: window.devicePixelRatio,
     };
   });
@@ -224,7 +227,8 @@ try {
   if (hidpi.dpr !== 2) fail(`HiDPI: expected registry dpr 2, got ${hidpi.dpr}`);
   if (Math.abs(hidpi.canvasW - hidpi.cssW * 2) > 2) fail(`HiDPI: canvas buffer ${hidpi.canvasW}px is not ~2× the CSS width ${hidpi.cssW}px (not rendering at physical pixels)`);
   if (hidpi.cameraZoom !== 2) fail(`HiDPI: PaddockScene camera zoom is ${hidpi.cameraZoom}, expected 2 (on-screen size would change)`);
-  if (hidpi.badOrigins.length) fail(`HiDPI: camera origin not top-left on: ${hidpi.badOrigins.join(', ')} (UI would render off-screen)`);
+  if (!hidpi.worldFollows) fail('HiDPI: world camera lost its centred origin + follow (off-map / player-not-followed regression)');
+  if (hidpi.uiBadOrigins.length) fail(`HiDPI: UI camera origin not top-left on: ${hidpi.uiBadOrigins.join(', ')} (UI would render off-screen)`);
   if (hErrors.length) fail('HiDPI (DPR 2) boot errors:\n' + hErrors.join('\n'));
 
   if (!process.exitCode) console.log(`SMOKE OK ✔  (fps: DPR1=${dpr1Fps} DPR2=${dpr2Fps}; screenshots: /tmp/horsegame-smoke.png, /tmp/horsegame-smoke-hidpi.png)`);

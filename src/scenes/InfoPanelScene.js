@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { getSpecies } from '../data/species/index.js';
 import { growHitArea, applyDpr, logicalW, logicalH } from './uiUtils.js';
+import { ART_SCALE } from '../art/_frames.js';
 import { WithCustomizer } from './customizer.js';
 
 // Lightweight, ephemeral info popup for any animal. It's a small floating card
@@ -28,7 +29,7 @@ export default class InfoPanelScene extends WithCustomizer(Phaser.Scene) {
   }
 
   create() {
-    applyDpr(this); // HiDPI: zoom this scene's camera by the device pixel ratio
+    applyDpr(this, { topLeft: true }); // HiDPI: zoom this UI scene's camera (top-left anchored)
     this.closing = false;
     this._mode = 'info';
     this.build();
@@ -109,8 +110,11 @@ export default class InfoPanelScene extends WithCustomizer(Phaser.Scene) {
           frameRate: 2, repeat: -1,
         });
       }
+      // Horse art is super-sampled (ART_SCALE×) for HiDPI crispness, so its textures
+      // are larger — divide that out. Other animated portraits (the cat) are 1×.
+      const pScale = animal.species === 'horse' ? 3 / ART_SCALE : 3;
       const sprite = this.add.sprite(CARD_W / 2, 78, `${key}_idle_0`)
-        .setScale(3).setOrigin(0.5, 0.5);
+        .setScale(pScale).setOrigin(0.5, 0.5);
       sprite.play(animKey);
       this.panel.add(sprite);
     } else {

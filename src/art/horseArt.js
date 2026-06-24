@@ -5,7 +5,7 @@
 // helper (`gen`) and the simple two-rect leg (`makeLeg`) from _frames.js; the horse's
 // own `leg` is kept local because it adds socks and feathering.
 
-import { gen, makeLeg } from './_frames.js';
+import { gen, makeLeg, scaledGraphics, ART_SCALE } from './_frames.js';
 import { featherToneFor, sockToneFor } from '../data/species/horse/coats.js';
 import { dappleCircles, roanFlecks, pintoSpec, appaloosaSpec } from '../data/species/horse/patterns.js';
 
@@ -15,6 +15,12 @@ export const FRAME_H = 54;
 const WHITE = 0xf4efe6;
 const SOCK = 0xf0ead0;
 const EAR_PINK = 0xe0a890;
+// Coat-agnostic shading overlays (Stage 2 detail, #2). Drawn as low-alpha white/black
+// on top of the 3-tone coat so every coat colour gets soft rounded form for free. The
+// hi-res grid (ART_SCALE) lets these be thin (sub-design-pixel) so they read as a
+// gradient, not a band.
+const HILITE = 0xffffff;
+const SHADE  = 0x000000;
 
 // Face markings (real-world: star / stripe / snip / blaze), white on the face of a
 // right-facing horse (#2). A blaze is the broad connected band; otherwise star,
@@ -122,13 +128,23 @@ function leg(g, x, lift, tone, hoof, legMark, sockTone = SOCK, featherColor, poi
     g.fillStyle(sockTone, 1);
     g.fillRect(x, topY + h - sH, 4, sH);
   }
+  // Cylindrical shading: a soft highlight down the front (viewer-facing) edge and a
+  // shadow down the back, so the leg reads as round rather than a flat bar.
+  g.fillStyle(HILITE, 0.12); g.fillRect(x + 3, topY, 1, h);
+  g.fillStyle(SHADE, 0.13);  g.fillRect(x, topY, 0.75, h);
+  // Hoof — small shine on top + a contact shadow at the ground.
   g.fillStyle(hoof, 1);
   g.fillRect(x, topY + h, 4, 3);
+  g.fillStyle(HILITE, 0.18); g.fillRect(x + 0.5, topY + h + 0.25, 1.25, 0.75);
+  g.fillStyle(SHADE, 0.16);  g.fillRect(x, topY + h + 2.25, 4, 0.75);
   if (featherColor !== undefined) {
-    // Feathering: a wider fluffy tuft above the hoof, widens toward the ground.
+    // Feathering: a fluffy tuft that widens toward the ground, broken into a few
+    // tapering strands (hi-res) so it looks wispy rather than two solid blocks.
     g.fillStyle(featherColor, 1);
-    g.fillRect(x - 1, topY + h - 5, 6, 3); // mid tuft
-    g.fillRect(x - 2, topY + h - 2, 8, 3); // wide base fringe
+    g.fillRect(x - 1.5, topY + h - 5, 7, 2.5);   // mid tuft
+    g.fillRect(x - 2, topY + h - 2.5, 8, 2.25);  // wide base fringe
+    g.fillRect(x - 0.5, topY + h - 1, 2.5, 2.5); // inner strand
+    g.fillRect(x + 3, topY + h - 0.75, 2, 2.25); // outer strand
   }
 }
 
@@ -172,6 +188,18 @@ function drawHorse(g, coat, bob, legLift) {
   g.fillRect(12, 33 + bob, 35, 4);    // belly shadow
   g.fillRect(47, 33 + bob, 1, 2);     // right shadow patch
 
+  // Rounded-barrel shading (Stage 2): a bright sheen along the topline fading to a
+  // soft shadow under the belly, plus a curved highlight on the haunch, so the body
+  // reads as a 3-D barrel instead of a flat slab. Coat-agnostic alpha overlays.
+  g.fillStyle(HILITE, 0.10);
+  g.fillRect(13, 18.5 + bob, 33, 1.25);  // back topline sheen
+  g.fillRect(9, 18.5 + bob, 6, 1.25);    // rump topline sheen
+  g.fillRect(9.5, 22 + bob, 4, 5);       // rounded haunch highlight
+  g.fillStyle(SHADE, 0.07);
+  g.fillRect(12, 31 + bob, 35, 1.5);     // lower-barrel soft shade
+  g.fillStyle(SHADE, 0.11);
+  g.fillRect(12, 34.5 + bob, 34, 1.5);   // belly core shadow
+
   // dorsal stripe (dun gene) + whole-body patterns (pinto / appaloosa / dapples / roan)
   drawDorsal(g, coat, bob);
   bodyPatterns(g, coat, bob);
@@ -194,15 +222,22 @@ function drawHorse(g, coat, bob, legLift) {
   // stays on top
   faceMarkings(g, mk, bob);
 
-  // eye
-  g.fillStyle(coat.eye, 1); g.fillRect(50, 7 + bob, 2, 2);
-  g.fillStyle(WHITE, 0.8); g.fillRect(50, 7 + bob, 1, 1);
+  // eye — upper-lid shadow + a small catch-light glint
+  g.fillStyle(coat.eye, 1);  g.fillRect(50, 7 + bob, 2, 2);
+  g.fillStyle(SHADE, 0.30);  g.fillRect(50, 7 + bob, 2, 0.5);
+  g.fillStyle(HILITE, 0.85); g.fillRect(50.25, 7.5 + bob, 0.5, 0.5);
 
   // --- mane (over neck) ---
   g.fillStyle(m.mid, 1); g.fillRect(43, 3 + bob, 3, 6);
   g.fillStyle(m.lo, 1); g.fillRect(41, 9 + bob, 3, 8);
   g.fillStyle(m.mid, 1); g.fillRect(40, 16 + bob, 3, 9);
   g.fillStyle(m.lo, 1); g.fillRect(40, 24 + bob, 2, 6);
+  // A soft highlight ribbon down the front of the mane gives it a bit of sheen
+  // without busying up the blocky locks.
+  g.fillStyle(HILITE, 0.10);
+  g.fillRect(43.25, 3.5 + bob, 0.6, 5);
+  g.fillRect(41.25, 9.5 + bob, 0.6, 7);
+  g.fillRect(40.25, 16.5 + bob, 0.6, 7);
   // Pinto: optionally carry the white pattern into the lower mane + tail tip for a
   // two-tone mane (#144, opt-in via mk.pintoMane). Overpaint the lower segments.
   if (mk.pinto && mk.pintoMane) {
@@ -252,6 +287,10 @@ function drawHorseSleep(g, coat, bob) {
   g.fillRect(47, 23 + bob + dy, 1, 1);     // right highlight
   g.fillStyle(b.lo, 1);
   g.fillRect(12, 32 + bob + dy, 35, 2);    // belly shadow (thinner)
+
+  // Soft rounded shading (lying pose) — lighter than the standing barrel.
+  g.fillStyle(HILITE, 0.09); g.fillRect(13, 20.5 + bob + dy, 33, 1.25);
+  g.fillStyle(SHADE, 0.10);  g.fillRect(12, 32.5 + bob + dy, 34, 1.25);
 
   drawDorsal(g, coat, bob + dy);
   bodyPatterns(g, coat, bob + dy);
@@ -317,6 +356,12 @@ function drawHorseEat(g, coat, bob) {
   g.fillStyle(b.mid, 1); g.fillRect(12, 20 + bob, 35, 16); g.fillRect(47, 22 + bob, 1, 11);
   g.fillStyle(b.hi, 1);  g.fillRect(12, 18 + bob, 35, 5);  g.fillRect(47, 21 + bob, 1, 2);
   g.fillStyle(b.lo, 1);  g.fillRect(12, 33 + bob, 35, 4);  g.fillRect(47, 33 + bob, 1, 2);
+
+  // Rounded-barrel shading (matches the standing pose)
+  g.fillStyle(HILITE, 0.10);
+  g.fillRect(13, 18.5 + bob, 33, 1.25); g.fillRect(9, 18.5 + bob, 6, 1.25); g.fillRect(9.5, 22 + bob, 4, 5);
+  g.fillStyle(SHADE, 0.07);  g.fillRect(12, 31 + bob, 35, 1.5);
+  g.fillStyle(SHADE, 0.11);  g.fillRect(12, 34.5 + bob, 34, 1.5);
 
   drawDorsal(g, coat, bob);
   bodyPatterns(g, coat, bob);
@@ -498,7 +543,8 @@ export function buildFoalTextures(scene, baseKey, coat) {
     { name: 'sleep_1', bob: 1, sleep: true },
   ];
   for (const f of frames) {
-    gen(scene, `${baseKey}_${f.name}`, FOAL_W, FOAL_H, g => {
+    gen(scene, `${baseKey}_${f.name}`, FOAL_W * ART_SCALE, FOAL_H * ART_SCALE, g0 => {
+      const g = scaledGraphics(g0);
       if (f.sleep) drawFoalSleep(g, coat, f.bob);
       else drawFoal(g, coat, f.bob, f.legs);
     });
@@ -524,7 +570,8 @@ export function buildHorseTextures(scene, baseKey, coat) {
   );
 
   for (const f of frames) {
-    gen(scene, `${baseKey}_${f.name}`, FRAME_W, FRAME_H, g => {
+    gen(scene, `${baseKey}_${f.name}`, FRAME_W * ART_SCALE, FRAME_H * ART_SCALE, g0 => {
+      const g = scaledGraphics(g0);
       if (f.eat) drawHorseEat(g, coat, f.bob);
       else if (f.sleep) drawHorseSleep(g, coat, f.bob);
       else drawHorse(g, coat, f.bob, f.legs);

@@ -20,6 +20,32 @@ export function gen(scene, key, w, h, drawFn) {
   g.destroy();
 }
 
+// Super-sampling factor for a creature's procedural art (#2 follow-up). The game
+// renders at HiDPI (the canvas buffer is the device's physical pixels — see main.js),
+// so a sprite drawn on a small grid and scaled up is sharp but coarse. Drawing the
+// art on an R× grid and displaying the sprite at 1/R the scale keeps the on-screen
+// size identical while giving R× the detail. On an iPad (devicePixelRatio 2) a horse
+// occupies ~256 device px, so R=4 maps ~1 art-pixel per device-pixel.
+export const ART_SCALE = 4;
+
+// Wrap a Phaser Graphics so existing draw code written in the small "design grid"
+// renders onto the R× texture transparently: geometry args are multiplied by R,
+// colours/alpha pass through. Draw fns can keep using design-grid coords (decimals
+// allowed — e.g. an x of 0.25 lands on the R=4 sub-pixel grid). `.raw` exposes the
+// underlying Graphics for any detail that prefers native R× coordinates.
+export function scaledGraphics(g, r = ART_SCALE) {
+  const s = (n) => n * r;
+  return {
+    raw: g,
+    fillStyle: (c, a) => g.fillStyle(c, a),
+    lineStyle: (w, c, a) => g.lineStyle(w * r, c, a),
+    fillRect: (x, y, w, h) => g.fillRect(s(x), s(y), s(w), s(h)),
+    fillCircle: (x, y, rad) => g.fillCircle(s(x), s(y), s(rad)),
+    fillEllipse: (x, y, w, h) => g.fillEllipse(s(x), s(y), s(w), s(h)),
+    fillTriangle: (a, b, c, d, e, f) => g.fillTriangle(s(a), s(b), s(c), s(d), s(e), s(f)),
+  };
+}
+
 // Standard 4-frame walk leg-lift cycle: [hindFar, hindNear, foreFar, foreNear].
 // `lift` is how many pixels a stepping leg pulls up (bigger animals step higher).
 export const walkCycle = (lift) => [ [0, 0, 0, 0], [lift, 0, 0, lift], [0, 0, 0, 0], [0, lift, lift, 0] ];
