@@ -251,6 +251,17 @@ export function saveUiSettings(settings) {
   } catch {}
 }
 
+// TEMP dev tool: wipe the saved herd so the next load re-seeds the defaults.
+// Caller should reload the page afterward. Remove with the dev-tools UI later.
+export function resetAllHorses() {
+  try {
+    localStorage.removeItem(HORSES_KEY);
+    localStorage.removeItem(LEGACY_KEY);
+  } catch (e) {
+    // localStorage unavailable — nothing to clear.
+  }
+}
+
 export function hasSave() {
   try {
     return !!(localStorage.getItem(HORSES_KEY) || localStorage.getItem(LEGACY_KEY));

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { ALL_ITEMS, ITEM_MAP, CARRIER_DEFS, CONTENT_DEFS } from '../data/items.js';
-import { loadGameState, saveGameState, loadUiSettings, saveUiSettings } from '../data/save.js';
+import { loadGameState, saveGameState, loadUiSettings, saveUiSettings, resetAllHorses } from '../data/save.js';
 import { toggleMute, isMuted, setVolume, getAudioSettings } from '../audio/sounds.js';
 import { EVENTS } from '../data/events.js';
 import { growHitArea } from './uiUtils.js';
@@ -877,7 +877,8 @@ export default class HotbarScene extends Phaser.Scene {
       ['Ambient', 'ambient'],
       ['Effects', 'effects'],
     ];
-    const panelH = 56 + rowH * 2 + sliders.length * sliderH + 8; // title + 2 toggles + sliders
+    const devH   = 24 + rowH * 2;  // TEMP dev-tools section: heading + 2 buttons
+    const panelH = 56 + rowH * 2 + sliders.length * sliderH + 8 + devH;
     const px = Math.round((sw - panelW) / 2);
     const py = Math.round((sh - panelH) / 2);
 
@@ -929,6 +930,33 @@ export default class HotbarScene extends Phaser.Scene {
       this._addVolumeSlider(rowX, sy, rowW, label, bus, vols[bus]);
       sy += sliderH;
     }
+
+    // ── TEMP dev tools (remove before a real release) ──────────────────────────
+    const devLbl = this.add.text(rowX, sy + 4, '🛠 Dev tools', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: '#7a80a0',
+    }).setOrigin(0, 0).setDepth(104);
+    this._pauseNodes.push(devLbl);
+    let dy = sy + 24;
+    this._addToggleRow(rowX, dy, rowW, rowH, '⏭ Advance Time of Day', () => this._advanceTime());
+    dy += rowH;
+    this._addToggleRow(rowX, dy, rowW, rowH, '♻ Reset Herd to Default', () => this._resetHerd());
+  }
+
+  // TEMP dev tool: jump the day/night clock forward one phase, then close the
+  // menu so the new lighting is visible (the world is frozen while paused).
+  _advanceTime() {
+    this.scene.get('DayNightScene')?._advancePhase();
+    this._closePause();
+  }
+
+  // TEMP dev tool: wipe every horse's saved data back to the default herd.
+  _resetHerd() {
+    const ok = window.confirm(
+      'Reset the whole herd to defaults?\n\nThis erases every horse’s custom colour, markings, and name.'
+    );
+    if (!ok) return;
+    resetAllHorses();
+    window.location.reload();
   }
 
   // Draggable horizontal volume slider for one mixer bus (0–1). Calls setVolume
