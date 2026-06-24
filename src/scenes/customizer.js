@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import {
   COATS, BREEDS, FACE_MARKING_LABELS, PATTERN_LABELS, FEATHER_LABEL,
-  FEATHER_COLOR_LABELS, FEATHER_SWATCH, composeCoat, effectiveMarkings, colorKeyOf,
+  composeCoat, effectiveMarkings, colorKeyOf,
 } from '../data/species/horse/coats.js';
 import { growHitArea } from './uiUtils.js';
 
@@ -355,8 +355,8 @@ export const WithCustomizer = (Base) => class extends Base {
     return y + bh;
   }
 
-  // Feathering: a toggle, plus colour options (Natural / White / Black) that
-  // appear only when feathering is on. Each colour chip is filled with its tone.
+  // Feathering: a toggle, plus (when on) the full coat-colour palette for its
+  // colour, matching the mane picker (#143).
   _secFeather(c, y0) {
     let y = this._heading(c, 'Feathering', y0);
     const horse = this.allHorses[this._editKey];
@@ -376,28 +376,9 @@ export const WithCustomizer = (Base) => class extends Base {
 
     if (!on) return y + 28;
 
-    // Colour chips on the next line.
-    const coat = composeCoat(horse.coat, horse.markings);
-    const cur = eff.featherColor || 'natural';
-    y += 34;
-    let x = 16;
-    for (const [key, label] of Object.entries(FEATHER_COLOR_LABELS)) {
-      const w2 = 18 + label.length * 7.4;
-      const tone = key === 'natural' ? coat.mane.mid : FEATHER_SWATCH[key];
-      const active = key === cur;
-      const cg = this.add.graphics();
-      cg.fillStyle(tone, 1); cg.fillRoundedRect(x, y, w2, 28, 14);
-      cg.lineStyle(active ? 3 : 1, active ? 0xffe066 : 0x3a4060, 1); cg.strokeRoundedRect(x, y, w2, 28, 14);
-      const cl = this.add.text(x + w2 / 2, y + 14, label, {
-        fontFamily: 'system-ui, sans-serif', fontSize: '12px',
-        color: luminance(tone) > 140 ? '#202434' : '#eef0fa',
-      }).setOrigin(0.5, 0.5);
-      const cz = this.add.zone(x, y, w2, 28).setOrigin(0, 0).setInteractive({ useHandCursor: true });
-      this._tap(cz, () => this._setFeatherColor(key));
-      c.add([cg, cl, cz]);
-      x += w2 + 8;
-    }
-    return y + 28;
+    const naturalFeather = composeCoat(horse.coat, horse.markings).mane.mid;
+    return this._secColorPalette(c, 'Feather color', eff.featherColor, naturalFeather,
+      (k) => this._setFeatherColor(k), y + 34);
   }
 
   _secBreeds(c, y0) {
@@ -527,8 +508,9 @@ export const WithCustomizer = (Base) => class extends Base {
 
   _setFeatherColor(color) {
     const horse = this.allHorses[this._editKey];
-    const eff = effectiveMarkings(horse.coat, horse.markings);
-    horse.markings = { ...eff, feather: true, featherColor: color };
+    const next = { ...effectiveMarkings(horse.coat, horse.markings), feather: true };
+    if (color === 'natural') delete next.featherColor; else next.featherColor = color;
+    horse.markings = next;
     this._applyEdit();
   }
 

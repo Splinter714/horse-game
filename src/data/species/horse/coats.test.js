@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { COATS, composeCoat, effectiveMarkings, maneRampFor, getCoat } from './coats.js';
+import { COATS, composeCoat, effectiveMarkings, maneRampFor, getCoat, featherToneFor, FEATHER_SWATCH } from './coats.js';
 
 // composeCoat is the linchpin of the customizer (#2/#17/#140…): it turns a pure
 // colour key + an authoritative `markings` override into the drawable coat the art
@@ -68,5 +68,26 @@ describe('leg colour decoupling + black socks (#141)', () => {
 
   it('sockColor is carried on the markings for the art to read', () => {
     expect(effectiveMarkings('grey', { sockColor: 'black' }).sockColor).toBe('black');
+  });
+});
+
+describe('feathering colour — full palette, matching the mane (#143)', () => {
+  it('is undefined when feathering is off', () => {
+    expect(featherToneFor(composeCoat('black', {}))).toBeUndefined();
+  });
+
+  it("'natural'/absent tracks the (possibly overridden) mane", () => {
+    expect(featherToneFor(composeCoat('black', { feather: true }))).toBe(COATS.black.mane.mid);
+    // mane override flows through to natural feathering too
+    expect(featherToneFor(composeCoat('black', { feather: true, maneColor: 'grey' }))).toBe(COATS.grey.body.mid);
+  });
+
+  it('a coat key recolours the feathering to that hue', () => {
+    expect(featherToneFor(composeCoat('black', { feather: true, featherColor: 'palomino' }))).toBe(COATS.palomino.body.mid);
+  });
+
+  it("legacy 'white'/'black' values still resolve (breed presets)", () => {
+    expect(featherToneFor(composeCoat('black', { feather: true, featherColor: 'white' }))).toBe(FEATHER_SWATCH.white);
+    expect(featherToneFor(composeCoat('black', { feather: true, featherColor: 'black' }))).toBe(FEATHER_SWATCH.black);
   });
 });

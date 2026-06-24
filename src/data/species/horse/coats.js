@@ -218,3 +218,17 @@ export function composeCoat(colorKey, markingsOverride) {
 export function effectiveMarkings(colorKey, markingsOverride) {
   return composeCoat(colorKey, markingsOverride).markings;
 }
+
+// Drawable feathering colour for a composed coat, or undefined if not feathered
+// (#2/#143). 'natural' (default) tracks the — possibly overridden — mane; any coat
+// key recolours the feathering to that hue (full palette, matching mane). Legacy
+// 'white'/'black' values (used by breed presets) are still honoured.
+export function featherToneFor(coat) {
+  const mk = coat.markings || {};
+  if (!mk.feather) return undefined;
+  const fc = mk.featherColor;
+  if (fc === 'white') return FEATHER_SWATCH.white;
+  if (fc === 'black') return FEATHER_SWATCH.black;
+  if (fc && fc !== 'natural' && COATS[fc]) return COATS[fc].body.mid;
+  return coat.mane.mid;
+}
