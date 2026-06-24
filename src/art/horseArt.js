@@ -34,12 +34,77 @@ function faceMarkings(g, mk, bob) {
     g.fillRect(56, 9 + bob, 3, 2);   // down onto the muzzle
     return;
   }
-  if (mk.star) g.fillRect(51, 4 + bob, 2, 2);            // forehead spot
+  if (mk.star) g.fillRect(50, 3 + bob, 3, 3);            // forehead spot (bigger)
   if (mk.stripe) {                                        // thin line down the nose
     g.fillRect(53, 6 + bob, 1, 1); g.fillRect(54, 7 + bob, 1, 1);
     g.fillRect(55, 8 + bob, 1, 1); g.fillRect(56, 9 + bob, 1, 1);
   }
-  if (mk.snip) g.fillRect(58, 10 + bob, 2, 1);           // muzzle spot
+  if (mk.snip) g.fillRect(58, 10 + bob, 2, 2);           // muzzle spot (bigger)
+}
+
+// The eating head sits low-right in a different pose, so face markings need their
+// own coordinates there (otherwise a star/blaze vanishes when a horse eats).
+function faceMarkingsEat(g, mk, headY) {
+  g.fillStyle(WHITE, 1);
+  if (mk.blaze) {
+    g.fillRect(48, headY, 3, 2);
+    g.fillRect(50, headY + 3, 3, 2);
+    g.fillRect(53, headY + 7, 4, 2);
+    return;
+  }
+  if (mk.star) g.fillRect(48, headY, 3, 2);
+  if (mk.stripe) { g.fillRect(51, headY + 3, 1, 2); g.fillRect(53, headY + 6, 1, 2); }
+  if (mk.snip) g.fillRect(57, headY + 9, 2, 1);
+}
+
+// Whole-body PATTERNS (pinto / appaloosa / dapples / roan), drawn over the body in
+// any pose. `yo` is the vertical offset for that pose (bob, plus the sleep drop).
+// Centralized so patterns no longer disappear when a horse eats or sleeps.
+const APPALOOSA_SPOTS = [
+  [11, 25], [16, 23], [20, 28], [14, 31], [24, 26], [27, 31], [19, 24], [10, 30], [23, 33],
+];
+function bodyPatterns(g, coat, yo) {
+  const b = coat.body;
+  const mk = coat.markings || {};
+
+  if (mk.pinto) {
+    g.fillStyle(WHITE, 1);
+    g.fillRect(14, 19 + yo, 14, 12); // big patch on side/barrel
+    g.fillRect(28, 23 + yo, 8, 8);   // second patch
+    g.fillRect(10, 22 + yo, 5, 9);   // rump patch
+    g.fillRect(43, 20 + yo, 5, 7);   // chest patch
+    g.fillStyle(0xe8e0d0, 1);        // slight shadow edge on patches
+    g.fillRect(14, 29 + yo, 14, 2);
+    g.fillRect(28, 29 + yo, 8, 2);
+  }
+
+  if (mk.appaloosa) {
+    g.fillStyle(WHITE, 1);
+    g.fillRect(8, 22 + yo, 22, 13);  // spotted blanket over hindquarters/barrel
+    g.fillRect(30, 24 + yo, 4, 9);
+    g.fillStyle(0x352620, 1);        // dark leopard spots
+    for (const [sx, sy] of APPALOOSA_SPOTS) g.fillRect(sx, sy + yo, 2, 2);
+  }
+
+  if (mk.dapples) {
+    g.fillStyle(b.hi, 0.6);
+    g.fillCircle(22, 27 + yo, 3);
+    g.fillCircle(31, 30 + yo, 2.5);
+    g.fillCircle(38, 26 + yo, 2.5);
+    g.fillCircle(44, 29 + yo, 2);
+  }
+
+  if (mk.roan) {
+    g.fillStyle(WHITE, 0.45);
+    for (const [sx, sy] of ROAN_FLECKS) g.fillRect(sx, sy + yo, 1, 1);
+  }
+}
+
+// Dun-gene dorsal stripe: a thin dark line down the spine (drawn after the body).
+function drawDorsal(g, coat, yo) {
+  if (!coat.dorsal) return;
+  g.fillStyle(coat.points ?? coat.mane.lo, 1);
+  g.fillRect(8, 18 + yo, 39, 1);
 }
 
 // Leg lift patterns per frame: [hindFar, hindNear, foreFar, foreNear]
@@ -51,15 +116,24 @@ const WALK_LEGS = [
   [0, 3, 3, 0]
 ];
 
-function leg(g, x, lift, tone, hoof, sock, featherColor, offsetY = 0) {
+// `legMark` is undefined | 'sock' (short white) | 'stocking' (tall white).
+// `points` (optional) darkens the lower leg — real bays/buckskins/duns have
+// black points. Sock/stocking white is drawn over the points.
+function leg(g, x, lift, tone, hoof, legMark, featherColor, points, offsetY = 0) {
   const topY = 35 + offsetY;
   const fullH = 15;
   const h = fullH - lift;
   g.fillStyle(tone, 1);
   g.fillRect(x, topY, 4, h);
-  if (sock) {
+  if (points !== undefined) {
+    const pH = Math.min(h, 9);
+    g.fillStyle(points, 1);
+    g.fillRect(x, topY + h - pH, 4, pH);
+  }
+  if (legMark) {
+    const sH = Math.min(h, legMark === 'stocking' ? 11 : 6);
     g.fillStyle(SOCK, 1);
-    g.fillRect(x, topY + h - 7, 4, 7);
+    g.fillRect(x, topY + h - sH, 4, sH);
   }
   g.fillStyle(hoof, 1);
   g.fillRect(x, topY + h, 4, 3);
@@ -78,10 +152,12 @@ function drawHorse(g, coat, bob, legLift) {
 
   // --- legs first (behind body), far legs in shadow tone ---
   const feather = mk.feather ? m.mid : undefined;
-  leg(g, 7,  legLift[0], b.lo, coat.hoof, false,      feather); // hind far
-  leg(g, 38, legLift[2], b.lo, coat.hoof, false,      feather); // fore far
-  leg(g, 13, legLift[1], b.mid, coat.hoof, false,     feather); // hind near
-  leg(g, 44, legLift[3], b.mid, coat.hoof, !!mk.sock, feather); // fore near (sock)
+  const lm = mk.legs || {};
+  const pts = coat.points;
+  leg(g, 7,  legLift[0], b.lo,  coat.hoof, lm.hindFar,  feather, pts); // hind far
+  leg(g, 38, legLift[2], b.lo,  coat.hoof, lm.foreFar,  feather, pts); // fore far
+  leg(g, 13, legLift[1], b.mid, coat.hoof, lm.hindNear, feather, pts); // hind near
+  leg(g, 44, legLift[3], b.mid, coat.hoof, lm.foreNear, feather, pts); // fore near
 
   // --- tail ---
   g.fillStyle(m.mid, 1); g.fillRect(6, 22 + bob, 2, 4);
@@ -108,32 +184,9 @@ function drawHorse(g, coat, bob, legLift) {
   g.fillRect(12, 33 + bob, 35, 4);    // belly shadow
   g.fillRect(47, 33 + bob, 1, 2);     // right shadow patch
 
-  // optional paint patches (large white irregular blotches over body)
-  if (mk.paint) {
-    g.fillStyle(WHITE, 1);
-    g.fillRect(14, 19 + bob, 14, 12); // big patch on side/barrel
-    g.fillRect(28, 23 + bob, 8, 8);   // second patch
-    g.fillRect(10, 22 + bob, 5, 9);   // rump patch
-    g.fillRect(43, 20 + bob, 5, 7);   // chest patch
-    g.fillStyle(0xe8e0d0, 1);         // slight shadow edge on patches
-    g.fillRect(14, 29 + bob, 14, 2);
-    g.fillRect(28, 29 + bob, 8, 2);
-  }
-
-  // optional dapples
-  if (mk.dapples) {
-    g.fillStyle(b.hi, 0.6);
-    g.fillCircle(22, 27 + bob, 3);
-    g.fillCircle(31, 30 + bob, 2.5);
-    g.fillCircle(38, 26 + bob, 2.5);
-    g.fillCircle(44, 29 + bob, 2);
-  }
-
-  // optional roan — white flecks mixed through the body (blue / red roan)
-  if (mk.roan) {
-    g.fillStyle(WHITE, 0.45);
-    for (const [sx, sy] of ROAN_FLECKS) g.fillRect(sx, sy + bob, 1, 1);
-  }
+  // dorsal stripe (dun gene) + whole-body patterns (pinto / appaloosa / dapples / roan)
+  drawDorsal(g, coat, bob);
+  bodyPatterns(g, coat, bob);
 
   // --- neck ---
   g.fillStyle(b.mid, 1); g.fillRect(42, 14 + bob, 8, 12);
@@ -174,10 +227,12 @@ function drawHorseSleep(g, coat, bob) {
   const dy = 11;
 
   // Legs tucked/bent (very short — sleeping position)
-  leg(g, 7,  10, b.lo,  coat.hoof, false,     undefined, dy); // hind far (folded)
-  leg(g, 38, 10, b.lo,  coat.hoof, false,     undefined, dy); // fore far (folded)
-  leg(g, 13, 10, b.mid, coat.hoof, false,     undefined, dy); // hind near (folded)
-  leg(g, 44, 10, b.mid, coat.hoof, !!mk.sock, undefined, dy); // fore near (folded)
+  const lm = mk.legs || {};
+  const pts = coat.points;
+  leg(g, 7,  10, b.lo,  coat.hoof, lm.hindFar,  undefined, pts, dy); // hind far (folded)
+  leg(g, 38, 10, b.lo,  coat.hoof, lm.foreFar,  undefined, pts, dy); // fore far (folded)
+  leg(g, 13, 10, b.mid, coat.hoof, lm.hindNear, undefined, pts, dy); // hind near (folded)
+  leg(g, 44, 10, b.mid, coat.hoof, lm.foreNear, undefined, pts, dy); // fore near (folded)
 
   // Tail relaxed
   g.fillStyle(m.mid, 1); g.fillRect(6, 22 + bob + dy, 2, 2);
@@ -202,12 +257,8 @@ function drawHorseSleep(g, coat, bob) {
   g.fillStyle(b.lo, 1);
   g.fillRect(12, 32 + bob + dy, 35, 2);    // belly shadow (thinner)
 
-  if (mk.dapples) {
-    g.fillStyle(b.hi, 0.6);
-    g.fillCircle(22, 27 + bob + dy, 2.5);
-    g.fillCircle(31, 28 + bob + dy, 2);
-    g.fillCircle(38, 25 + bob + dy, 2);
-  }
+  drawDorsal(g, coat, bob + dy);
+  bodyPatterns(g, coat, bob + dy);
 
   // Neck angled back/down (horse on its side)
   g.fillStyle(b.mid, 1);
@@ -244,10 +295,12 @@ function drawHorseEat(g, coat, bob) {
   const feather = mk.feather ? m.mid : undefined;
 
   // Legs all planted
-  leg(g, 7,  0, b.lo,  coat.hoof, false,      feather);
-  leg(g, 38, 0, b.lo,  coat.hoof, false,      feather);
-  leg(g, 13, 0, b.mid, coat.hoof, false,      feather);
-  leg(g, 44, 0, b.mid, coat.hoof, !!mk.sock,  feather);
+  const lm = mk.legs || {};
+  const pts = coat.points;
+  leg(g, 7,  0, b.lo,  coat.hoof, lm.hindFar,  feather, pts);
+  leg(g, 38, 0, b.lo,  coat.hoof, lm.foreFar,  feather, pts);
+  leg(g, 13, 0, b.mid, coat.hoof, lm.hindNear, feather, pts);
+  leg(g, 44, 0, b.mid, coat.hoof, lm.foreNear, feather, pts);
 
   // Tail
   g.fillStyle(m.mid, 1); g.fillRect(6, 22 + bob, 2, 4);
@@ -263,11 +316,8 @@ function drawHorseEat(g, coat, bob) {
   g.fillStyle(b.hi, 1);  g.fillRect(12, 18 + bob, 35, 5);  g.fillRect(47, 21 + bob, 1, 2);
   g.fillStyle(b.lo, 1);  g.fillRect(12, 33 + bob, 35, 4);  g.fillRect(47, 33 + bob, 1, 2);
 
-  if (mk.dapples) {
-    g.fillStyle(b.hi, 0.6);
-    g.fillCircle(22, 27 + bob, 3); g.fillCircle(31, 30 + bob, 2.5);
-    g.fillCircle(38, 26 + bob, 2.5); g.fillCircle(44, 29 + bob, 2);
-  }
+  drawDorsal(g, coat, bob);
+  bodyPatterns(g, coat, bob);
 
   // Neck angled downward (head eating from ground)
   g.fillStyle(b.mid, 1);
@@ -295,6 +345,8 @@ function drawHorseEat(g, coat, bob) {
   g.fillStyle(EAR_PINK, 1);  g.fillRect(49, headY - 2, 1, 3);
   // Nostril at tip of muzzle
   g.fillStyle(coat.hoof, 0.6); g.fillRect(58, headY + 11, 1, 1);
+  // Face markings on the lowered head (drawn before the eye so the eye stays on top)
+  faceMarkingsEat(g, mk, headY);
   // Eye on upper part of skull
   g.fillStyle(coat.eye, 1);  g.fillRect(50, headY + 1, 2, 2);
   g.fillStyle(WHITE, 0.8);   g.fillRect(50, headY + 1, 1, 1);
@@ -347,7 +399,7 @@ function drawFoalSleep(g, coat, bob) {
   g.fillStyle(b.hi, 1);  g.fillRect(10, 15 + bob, 22, 2);  g.fillRect(32, 17 + bob, 1, 1);
   g.fillStyle(b.lo, 1);  g.fillRect(10, 23 + bob, 22, 1);
 
-  if (mk.paint) {
+  if (mk.pinto) {
     g.fillStyle(WHITE, 1);
     g.fillRect(12, 16 + bob, 8, 6);
     g.fillRect(22, 18 + bob, 5, 4);
@@ -398,7 +450,7 @@ function drawFoal(g, coat, bob, legLift) {
   g.fillStyle(b.hi, 1);  g.fillRect(10, 14 + bob, 22, 3);  g.fillRect(32, 16 + bob, 1, 2);
   g.fillStyle(b.lo, 1);  g.fillRect(10, 24 + bob, 22, 2);
 
-  if (mk.paint) {
+  if (mk.pinto) {
     g.fillStyle(WHITE, 1);
     g.fillRect(12, 15 + bob, 8, 8);
     g.fillRect(22, 17 + bob, 5, 5);
