@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import {
   COATS, BREEDS, FACE_MARKING_LABELS, PATTERN_LABELS, FEATHER_LABEL,
+  MANE_COLORS, MANE_COLOR_LABELS, DEFAULT_MANE,
   composeCoat, effectiveMarkings, colorKeyOf,
 } from '../data/species/horse/coats.js';
 import { PATTERN_VARIANT_COUNT } from '../data/species/horse/patterns.js';
@@ -202,9 +203,9 @@ export const WithCustomizer = (Base) => class extends Base {
     const horse = this.allHorses[this._editKey];
     const composed = composeCoat(horse.coat, horse.markings);
     const eff = composed.markings;
-    // Mane has no coat-bundled "natural"; it defaults to the coat colour (#140 FU).
-    const maneCur = (eff.maneColor && COATS[eff.maneColor]) ? eff.maneColor : colorKeyOf(horse.coat);
-    const naturalFeather = composed.mane.mid;
+    // Mane is a curated realistic colour with a per-coat default (#155).
+    const maneCur = MANE_COLORS[eff.maneColor] ? eff.maneColor : (DEFAULT_MANE[colorKeyOf(horse.coat)] || 'black');
+    const maneEntries = Object.entries(MANE_COLOR_LABELS).map(([k, l]) => [k, l, MANE_COLORS[k].mid]);
     const curPattern = PATTERN_KEYS.find(k => eff[k]) || 'none';
     const curFace = FACE_KEYS.find(k => eff[k]) || 'none';
     const opt = (labels) => [['none', 'None'], ...Object.entries(labels)];
@@ -213,7 +214,7 @@ export const WithCustomizer = (Base) => class extends Base {
     y = this._secOptions(c, 'Gender', [['female', 'Female'], ['male', 'Male']],
       horse.sex || 'female', (k) => this._setGender(k), y) + 14;
     y = this._secCoat(c, y) + 14;
-    y = this._secColorPalette(c, 'Mane color', maneCur, (k) => this._setManeColor(k), y) + 14;
+    y = this._secSwatches(c, 'Mane color', maneEntries, maneCur, (k) => this._setManeColor(k), y) + 14;
     // Patterns: single-select with None (#147 FU), then the active one's variant.
     y = this._secOptions(c, 'Patterns', opt(PATTERN_LABELS), curPattern, (k) => this._setPattern(k), y) + 8;
     y = this._secPatternVariants(c, y) + 6;
@@ -227,7 +228,7 @@ export const WithCustomizer = (Base) => class extends Base {
     // and the dun dorsal stripe, each defaulting to the coat's natural look.
     y = this._secToggle(c, 'Dark legs', composed.points !== undefined, () => this._toggleDarkLegs(), y) + 8;
     y = this._secToggle(c, 'Dorsal stripe', !!composed.dorsal, () => this._toggleDorsal(), y) + 14;
-    y = this._secFeather(c, y, naturalFeather) + 14;
+    y = this._secFeather(c, y) + 14;
     y = this._secBreeds(c, y) + 10;
     this.contentH = y;
 
@@ -285,14 +286,6 @@ export const WithCustomizer = (Base) => class extends Base {
       c.add([g, lbl, zone]);
     });
     return y + Math.ceil(keys.length / cols) * (cellH + gap);
-  }
-
-  // The full coat-colour palette as swatches (no "Natural" — a coat carries no
-  // bundled mane colour, #140 FU). `extras` prepends extra entries [key,label,tone]
-  // (feathering passes its own "Natural = match mane"). `onPick(key)` fires on tap.
-  _secColorPalette(c, title, currentKey, onPick, y0, extras = []) {
-    const entries = [...extras, ...Object.keys(COATS).map(k => [k, COATS[k].label, COATS[k].body.mid])];
-    return this._secSwatches(c, title, entries, currentKey, onPick, y0);
   }
 
   // A grid of colour swatches. `entries` = [[key, label, tone], …]; `currentKey`
@@ -433,14 +426,12 @@ export const WithCustomizer = (Base) => class extends Base {
     return y + bh;
   }
 
-  // Feathering: a toggle, plus (when on) the full coat-colour palette for its colour
-  // — with a "Natural" entry that matches the mane (#143). `naturalFeather` is that
-  // matching tone (computed by the caller).
-  _secFeather(c, y0, naturalFeather) {
+  // Feathering: just an on/off toggle now — its colour auto-derives per leg in the
+  // art (white over socks, dark over dark legs, else the leg tone), #155.
+  _secFeather(c, y0) {
     let y = this._heading(c, 'Feathering', y0);
     const horse = this.allHorses[this._editKey];
-    const eff = effectiveMarkings(horse.coat, horse.markings);
-    const on = !!eff.feather;
+    const on = !!effectiveMarkings(horse.coat, horse.markings).feather;
 
     const w = Math.max(64, 24 + FEATHER_LABEL.length * 8), h = TAP;
     const g = this.add.graphics();
@@ -452,11 +443,7 @@ export const WithCustomizer = (Base) => class extends Base {
     const zone = this.add.zone(16, y, w, h).setOrigin(0, 0).setInteractive({ useHandCursor: true });
     this._tap(zone, () => this._toggleMarking('feather'));
     c.add([g, lbl, zone]);
-
-    if (!on) return y + h;
-
-    return this._secColorPalette(c, 'Feather color', eff.featherColor || 'natural',
-      (k) => this._setFeatherColor(k), y + h + 8, [['natural', 'Natural', naturalFeather]]);
+    return y + h;
   }
 
   _secBreeds(c, y0) {
@@ -691,14 +678,6 @@ export const WithCustomizer = (Base) => class extends Base {
     const next = LEG_CYCLE[(i + 1) % LEG_CYCLE.length];
     if (next) legs[id] = next; else delete legs[id];
     horse.markings = { ...eff, legs };
-    this._applyEdit();
-  }
-
-  _setFeatherColor(color) {
-    const horse = this.allHorses[this._editKey];
-    const next = { ...effectiveMarkings(horse.coat, horse.markings), feather: true };
-    if (color === 'natural') delete next.featherColor; else next.featherColor = color;
-    horse.markings = next;
     this._applyEdit();
   }
 

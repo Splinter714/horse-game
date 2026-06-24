@@ -6,7 +6,6 @@
 // own `leg` is kept local because it adds socks and feathering.
 
 import { gen, makeLeg, scaledGraphics, ART_SCALE } from './_frames.js';
-import { featherToneFor } from '../data/species/horse/coats.js';
 import { dappleCircles, roanFlecks, pintoSpec, appaloosaSpec } from '../data/species/horse/patterns.js';
 
 export const FRAME_W = 64;
@@ -112,7 +111,7 @@ const WALK_LEGS = [
 // sock/stocking colour (white by default, or black, #141). `points` (optional)
 // darkens the lower leg — real bays/buckskins/duns have black points; it's
 // independently colourable now (#141). Sock/stocking is drawn over the points.
-function leg(g, x, lift, tone, hoof, legMark, sockTone = SOCK, featherColor, points, offsetY = 0) {
+function leg(g, x, lift, tone, hoof, legMark, sockTone = SOCK, feather, points, offsetY = 0) {
   const topY = 35 + offsetY;
   const fullH = 15;
   const h = fullH - lift;
@@ -137,10 +136,12 @@ function leg(g, x, lift, tone, hoof, legMark, sockTone = SOCK, featherColor, poi
   g.fillRect(x, topY + h, 4, 3);
   g.fillStyle(HILITE, 0.18); g.fillRect(x + 0.5, topY + h + 0.25, 1.25, 0.75);
   g.fillStyle(SHADE, 0.16);  g.fillRect(x, topY + h + 2.25, 4, 0.75);
-  if (featherColor !== undefined) {
-    // Feathering: a fluffy tuft that widens toward the ground, broken into a few
-    // tapering strands (hi-res) so it looks wispy rather than two solid blocks.
-    g.fillStyle(featherColor, 1);
+  if (feather) {
+    // Feathering matches the bottom of the leg (#155): white over a sock/stocking,
+    // dark over dark legs ("points"), otherwise the leg's own tone. A fluffy tuft
+    // that widens toward the ground, broken into tapering strands so it looks wispy.
+    const ft = legMark ? sockTone : (points !== undefined ? points : tone);
+    g.fillStyle(ft, 1);
     g.fillRect(x - 1.5, topY + h - 5, 7, 2.5);   // mid tuft
     g.fillRect(x - 2, topY + h - 2.5, 8, 2.25);  // wide base fringe
     g.fillRect(x - 0.5, topY + h - 1, 2.5, 2.5); // inner strand
@@ -154,7 +155,7 @@ function drawHorse(g, coat, bob, legLift) {
   const mk = coat.markings || {};
 
   // --- legs first (behind body), far legs in shadow tone ---
-  const feather = featherToneFor(coat);
+  const feather = !!mk.feather; // feathering is on/off; colour derives per-leg (#155)
   const lm = mk.legs || {};
   const pts = coat.points;
   const sockTone = SOCK; // socks/stockings are always white (#153)
@@ -332,7 +333,7 @@ function drawHorseEat(g, coat, bob) {
   const b = coat.body;
   const m = coat.mane;
   const mk = coat.markings || {};
-  const feather = featherToneFor(coat);
+  const feather = !!mk.feather; // feathering is on/off; colour derives per-leg (#155)
 
   // Legs all planted
   const lm = mk.legs || {};

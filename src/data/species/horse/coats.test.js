@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  COATS, composeCoat, effectiveMarkings, maneRampFor, getCoat,
-  featherToneFor, FEATHER_SWATCH,
+  COATS, composeCoat, effectiveMarkings, getCoat, MANE_COLORS, DEFAULT_MANE,
 } from './coats.js';
 
 // composeCoat is the linchpin of the customizer (#2/#17/#140…): it turns a pure
@@ -29,29 +28,24 @@ describe('composeCoat — base behaviour', () => {
   });
 });
 
-describe('mane colour decoupling (#140 + follow-up: no coat-bundled mane)', () => {
-  it('maneRampFor returns the colour\'s body ramp', () => {
-    expect(maneRampFor('black')).toEqual(COATS.black.body);
-    expect(maneRampFor('palomino')).toEqual(COATS.palomino.body);
+describe('mane colour — curated realistic palette with per-coat default (#155)', () => {
+  it('with no choice, the mane uses the per-coat default from MANE_COLORS', () => {
+    expect(composeCoat('chestnut', {}).mane).toEqual(MANE_COLORS[DEFAULT_MANE.chestnut]);
+    expect(composeCoat('palomino', null).mane).toEqual(MANE_COLORS[DEFAULT_MANE.palomino]);
   });
 
-  it('by default the mane matches the coat colour (its body ramp)', () => {
-    expect(composeCoat('chestnut', {}).mane).toEqual(COATS.chestnut.body);
-    expect(composeCoat('bay', null).mane).toEqual(COATS.bay.body);
-  });
-
-  it('maneColor recolours the mane to that hue, leaving the body alone', () => {
-    const coat = composeCoat('chestnut', { maneColor: 'black' });
-    expect(coat.mane).toEqual(COATS.black.body);     // mane took black's hue
+  it('maneColor sets the mane to that curated colour, leaving the body alone', () => {
+    const coat = composeCoat('chestnut', { maneColor: 'flaxen' });
+    expect(coat.mane).toEqual(MANE_COLORS.flaxen);   // mane took the flaxen ramp
     expect(coat.body).toEqual(COATS.chestnut.body);  // body unchanged
   });
 
-  it('an unknown maneColor key falls back to the coat colour', () => {
-    expect(composeCoat('bay', { maneColor: 'nope' }).mane).toEqual(COATS.bay.body);
+  it('an unknown/invalid maneColor falls back to the per-coat default', () => {
+    expect(composeCoat('bay', { maneColor: 'nope' }).mane).toEqual(MANE_COLORS[DEFAULT_MANE.bay]);
   });
 
   it('effectiveMarkings surfaces the maneColor choice for the picker', () => {
-    expect(effectiveMarkings('bay', { maneColor: 'grey' }).maneColor).toBe('grey');
+    expect(effectiveMarkings('bay', { maneColor: 'silver' }).maneColor).toBe('silver');
   });
 });
 
@@ -74,23 +68,13 @@ describe('primitive markings: dark legs + dorsal stripe (decoupled, follow-up)',
   });
 });
 
-describe('feathering colour — full palette, matching the mane (#143)', () => {
-  it('is undefined when feathering is off', () => {
-    expect(featherToneFor(composeCoat('black', {}))).toBeUndefined();
+describe('feathering (#155: on/off only, colour auto-derived per leg in the art)', () => {
+  it('feather is a plain boolean flag — no featherColor data', () => {
+    expect(composeCoat('black', { feather: true }).markings.feather).toBe(true);
+    expect(composeCoat('black', { feather: true }).markings.featherColor).toBeUndefined();
   });
 
-  it("'natural'/absent tracks the (possibly overridden) mane", () => {
-    // Mane now defaults to the coat's body, so natural feathering matches that.
-    expect(featherToneFor(composeCoat('black', { feather: true }))).toBe(COATS.black.body.mid);
-    expect(featherToneFor(composeCoat('black', { feather: true, maneColor: 'grey' }))).toBe(COATS.grey.body.mid);
-  });
-
-  it('a coat key recolours the feathering to that hue', () => {
-    expect(featherToneFor(composeCoat('black', { feather: true, featherColor: 'palomino' }))).toBe(COATS.palomino.body.mid);
-  });
-
-  it("legacy 'white'/'black' values still resolve (breed presets)", () => {
-    expect(featherToneFor(composeCoat('black', { feather: true, featherColor: 'white' }))).toBe(FEATHER_SWATCH.white);
-    expect(featherToneFor(composeCoat('black', { feather: true, featherColor: 'black' }))).toBe(FEATHER_SWATCH.black);
+  it('breed presets no longer carry a featherColor (auto-derived now)', () => {
+    expect(composeCoat('bay', { feather: true, legs: { foreNear: 'stocking' } }).markings.featherColor).toBeUndefined();
   });
 });

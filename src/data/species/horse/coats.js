@@ -124,12 +124,31 @@ export const FACE_MARKING_LABELS = {
 export const PATTERN_LABELS = {
   dapples: 'Dapples', roan: 'Roan', pinto: 'Pinto', appaloosa: 'Appaloosa',
 };
-// Hair feature.
+// Hair feature. Feathering is just on/off now — its colour is auto-derived per leg
+// from that leg's look (white over a sock/stocking, dark over dark legs, else the
+// leg's tone), so there's no feather-colour selector (#155).
 export const FEATHER_LABEL = 'Feathering';
-// Feathering colour options (shown when feathering is on). 'natural' tracks the
-// mane (the default); 'white'/'black' are fixed overrides. Swatch colours below.
-export const FEATHER_COLOR_LABELS = { natural: 'Natural', white: 'White', black: 'Black' };
-export const FEATHER_SWATCH = { white: 0xf0ead0, black: 0x1a1614 };
+
+// Mane/tail colour — a curated set of realistic hair colours (#155), NOT the full
+// coat palette. Each is a 3-tone ramp (hi/mid/lo). The mane is the player's own
+// choice from this set; DEFAULT_MANE picks a sensible per-coat starting colour.
+export const MANE_COLORS = {
+  black:  { hi: 0x2a2828, mid: 0x161414, lo: 0x080606 },
+  brown:  { hi: 0x5a3a22, mid: 0x3e2614, lo: 0x261509 },
+  flaxen: { hi: 0xeaddb8, mid: 0xd4c194, lo: 0xb6a274 },
+  grey:   { hi: 0xbcbcb8, mid: 0x9c9c98, lo: 0x7a7a78 },
+  cream:  { hi: 0xf6eedb, mid: 0xe9ddc4, lo: 0xd2c4a6 },
+  silver: { hi: 0xe8e2d8, mid: 0xcfc8bc, lo: 0xb0a89c },
+};
+export const MANE_COLOR_LABELS = {
+  black: 'Black', brown: 'Brown', flaxen: 'Flaxen', grey: 'Grey', cream: 'Cream', silver: 'Silver',
+};
+// Sensible realistic default mane per coat (the player can override from MANE_COLORS).
+export const DEFAULT_MANE = {
+  palomino: 'flaxen', bay: 'black', black: 'black', chestnut: 'brown', cremello: 'cream',
+  buckskin: 'black', grey: 'grey', sealBrown: 'black', flaxenChestnut: 'flaxen',
+  dun: 'black', grullo: 'black', silverDapple: 'silver',
+};
 
 // The four legs (side-view sprite), in display order. Each can be bare, 'sock'
 // (short white) or 'stocking' (tall white). Labels drive the per-leg UI.
@@ -142,11 +161,11 @@ export const LEG_LABELS = {
 // `label` becomes the horse's displayed breed.
 export const BREEDS = {
   friesian:    { label: 'Friesian',     color: 'black',    markings: { feather: true } },
-  clydesdale:  { label: 'Clydesdale',   color: 'bay',      markings: { feather: true, featherColor: 'white', legs: allLegs('stocking') } },
-  gypsyVanner: { label: 'Gypsy Vanner', color: 'black',    markings: { pinto: true, feather: true, featherColor: 'white' } },
+  clydesdale:  { label: 'Clydesdale',   color: 'bay',      markings: { feather: true, legs: allLegs('stocking') } },
+  gypsyVanner: { label: 'Gypsy Vanner', color: 'black',    markings: { pinto: true, feather: true } },
   appaloosa:   { label: 'Appaloosa',    color: 'chestnut', markings: { appaloosa: true } },
   paintHorse:  { label: 'Paint Horse',  color: 'chestnut', markings: { pinto: true, blaze: true } },
-  shire:       { label: 'Shire',        color: 'grey',     markings: { feather: true, featherColor: 'white', legs: allLegs('stocking') } },
+  shire:       { label: 'Shire',        color: 'grey',     markings: { feather: true, legs: allLegs('stocking') } },
   mustang:     { label: 'Mustang',      color: 'dun',      markings: {} },
   lipizzaner:  { label: 'Lipizzaner',   color: 'grey',     markings: {} },
 };
@@ -182,13 +201,6 @@ export function getCoat(key) {
   return composeCoat(key, null);
 }
 
-// A colour's representative 3-tone ramp when used as *hair* (mane/tail, feathering).
-// We reuse the colour's body ramp — that's the recognizable hue a player picks from
-// the palette (#140/#143). Unknown keys fall back to palomino.
-export function maneRampFor(colorKey) {
-  return (COATS[colorKey] || COATS.palomino).body;
-}
-
 // Fallback "points" colour when dark legs are toggled on for a coat that has none.
 const POINTS_DARK = 0x171313;
 
@@ -202,13 +214,11 @@ export function composeCoat(colorKey, markingsOverride) {
   const finalMarks = cloneMarks(markingsOverride == null ? colorEntry.markings : markingsOverride);
   const out = { ...colorEntry, markings: finalMarks };
 
-  // Mane colour is independent and never bundled with the coat (#140 + follow-up):
-  // a coat carries no "natural" mane, so by default the mane just matches the coat
-  // colour, and any coat key recolours it. (The coat's lower-leg `points` — e.g. a
-  // bay's black legs — stay part of the coat as the 'Dark legs' toggle; socks and
-  // stockings are always white, #153.)
-  const mc = finalMarks.maneColor;
-  out.mane = maneRampFor(mc && COATS[mc] ? mc : ck);
+  // Mane colour is the player's choice from a curated realistic set (#155), with a
+  // sensible per-coat default when unchosen. Independent of the coat and of
+  // feathering (which auto-derives per leg in the art).
+  const maneKey = MANE_COLORS[finalMarks.maneColor] ? finalMarks.maneColor : (DEFAULT_MANE[ck] || 'black');
+  out.mane = MANE_COLORS[maneKey];
 
   // Primitive markings — dark legs ("points") and the dun-gene dorsal stripe — are
   // coat defaults but can be toggled per-horse (decoupled from the coat). Absent =
@@ -222,18 +232,4 @@ export function composeCoat(colorKey, markingsOverride) {
 // The full effective markings for a horse (used by the panel to show what's on).
 export function effectiveMarkings(colorKey, markingsOverride) {
   return composeCoat(colorKey, markingsOverride).markings;
-}
-
-// Drawable feathering colour for a composed coat, or undefined if not feathered
-// (#2/#143). 'natural' (default) tracks the — possibly overridden — mane; any coat
-// key recolours the feathering to that hue (full palette, matching mane). Legacy
-// 'white'/'black' values (used by breed presets) are still honoured.
-export function featherToneFor(coat) {
-  const mk = coat.markings || {};
-  if (!mk.feather) return undefined;
-  const fc = mk.featherColor;
-  if (fc === 'white') return FEATHER_SWATCH.white;
-  if (fc === 'black') return FEATHER_SWATCH.black;
-  if (fc && fc !== 'natural' && COATS[fc]) return COATS[fc].body.mid;
-  return coat.mane.mid;
 }
