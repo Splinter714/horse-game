@@ -209,8 +209,8 @@ export default class PaddockScene
     const pileSprite = this.add.image(spot.x, spot.y, groundTex).setScale(S).setDepth(spot.y);
     const pile = { x: spot.x, y: spot.y, sprite: pileSprite, feedsLeft: 3 };
     // Seed feeds chickens (seedPiles); everything else feeds horses (hayPiles).
-    if (CONTENT_DEFS[content]?.feeds === 'chicken') this.props.seedPiles.push(pile);
-    else                                            this.props.hayPiles.push(pile);
+    if (CONTENT_DEFS[content]?.feeds?.includes('chicken')) this.props.seedPiles.push(pile);
+    else                                                   this.props.hayPiles.push(pile);
   }
 
   fillTrough() {

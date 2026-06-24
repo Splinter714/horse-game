@@ -2,7 +2,7 @@
 // guard the data-driven inventory contract that the rest of the game reads.
 
 import { describe, it, expect } from 'vitest';
-import { CARRIER_DEFS, CONTENT_DEFS, CARRIER_GROUPS, CARRIER_MEMBERS, ALL_ITEMS, ITEM_MAP, ITEMS } from './items.js';
+import { CARRIER_DEFS, CONTENT_DEFS, CARRIER_GROUPS, CARRIER_MEMBERS, ALL_ITEMS, ITEM_MAP, ITEMS, foodDemand } from './items.js';
 
 describe('carrier definitions', () => {
   it('baskets hold solids, buckets hold liquids', () => {
@@ -23,7 +23,47 @@ describe('content definitions', () => {
     expect(CONTENT_DEFS.hay.action).toBe('feed');
     expect(CONTENT_DEFS.water.action).toBe('water');
     expect(CONTENT_DEFS.egg.action).toBe('egg');
-    expect(CONTENT_DEFS.seed.feeds).toBe('chicken');
+    expect(CONTENT_DEFS.seed.feeds).toEqual(['chicken']);
+  });
+
+  it('every feed content lists the species that eat it', () => {
+    for (const [key, def] of Object.entries(CONTENT_DEFS)) {
+      if (def.action === 'feed') expect(Array.isArray(def.feeds)).toBe(true);
+      else expect(def.feeds).toBeUndefined(); // water/egg aren't food
+    }
+  });
+});
+
+describe('foodDemand (#136 — gather one per animal that eats it)', () => {
+  const counts = { horse: 7, chicken: 5 };
+
+  it('horse foods pull one per horse', () => {
+    expect(foodDemand('hay', counts)).toBe(7);
+    expect(foodDemand('apple', counts)).toBe(7);
+    expect(foodDemand('carrot', counts)).toBe(7);
+  });
+
+  it('seed pulls one per chicken', () => {
+    expect(foodDemand('seed', counts)).toBe(5);
+  });
+
+  it('counts only the species in the food\'s diet, ignoring others', () => {
+    // Apples are horse food today → chickens don't count toward an apple gather,
+    // and seed (chicken food) ignores horses. When apples later gain a second eater
+    // (e.g. `feeds: ['horse','pig']`), foodDemand sums both — see the reduce below.
+    expect(foodDemand('apple', counts)).toBe(7);
+    expect(foodDemand('seed', counts)).toBe(5);
+  });
+
+  it('is zero for non-food contents and unknown contents', () => {
+    expect(foodDemand('water', counts)).toBe(0);
+    expect(foodDemand('egg', counts)).toBe(0);
+    expect(foodDemand('nope', counts)).toBe(0);
+  });
+
+  it('treats a missing species count as zero', () => {
+    expect(foodDemand('hay', {})).toBe(0);
+    expect(foodDemand('seed', { horse: 7 })).toBe(0);
   });
 });
 
