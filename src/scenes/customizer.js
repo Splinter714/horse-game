@@ -24,6 +24,7 @@ const HIDE_DURING_EDIT = ['HotbarScene', 'DayNightScene'];
 const LEG_CYCLE = [undefined, 'sock', 'stocking']; // bare → sock → stocking → bare
 const SOCK_WHITE = 0xf0ead0;
 const FEATHER_BLACK = 0x1a1614; // black sock/stocking tone (matches horseArt)
+const TAP = 44; // comfortable touch-target minimum (#100/#146)
 
 // Perceived brightness of a 0xRRGGBB colour (for picking dark vs light chip text).
 const luminance = (hex) =>
@@ -157,6 +158,7 @@ export const WithCustomizer = (Base) => class extends Base {
     const name = add(this.add.text(this.px + 16, this._nameY, `${horse.name}  ✎`, {
       fontFamily: 'system-ui, sans-serif', fontSize: '18px', color: '#eef0fa', fontStyle: 'bold',
     }).setOrigin(0, 0).setInteractive({ useHandCursor: true }));
+    growHitArea(name); // comfortable tap target (#146)
     name.on('pointerup', () => { if (!this._dragMoved) this._custRename(); });
 
     add(this.add.text(this.px + 16, this._breedY, horse.breed || COATS[colorKeyOf(horse.coat)]?.label || '', {
@@ -222,7 +224,7 @@ export const WithCustomizer = (Base) => class extends Base {
     const keys = Object.keys(COATS);
     const cols = 4, gap = 8;
     const cellW = Math.floor((this.panelW - 32 - (cols - 1) * gap) / cols);
-    const cellH = 40;
+    const cellH = TAP;
     const activeColor = colorKeyOf(this.allHorses[this._editKey].coat);
     keys.forEach((ck, i) => {
       const col = i % cols, row = Math.floor(i / cols);
@@ -256,7 +258,7 @@ export const WithCustomizer = (Base) => class extends Base {
       ...Object.keys(COATS).map(k => [k, COATS[k].label, COATS[k].body.mid])];
     const cols = 4, gap = 8;
     const cellW = Math.floor((this.panelW - 32 - (cols - 1) * gap) / cols);
-    const cellH = 34;
+    const cellH = TAP;
     const cur = currentKey || 'natural';
     entries.forEach(([key, label, tone], i) => {
       const col = i % cols, row = Math.floor(i / cols);
@@ -282,49 +284,49 @@ export const WithCustomizer = (Base) => class extends Base {
   // colour (#141) and gender (#145).
   _secOptions(c, title, options, currentKey, onPick, y0) {
     let y = this._heading(c, title, y0);
-    const gap = 8;
+    const gap = 8, h = TAP, r = h / 2;
     let x = 16;
     for (const [key, label] of options) {
-      const w = Math.max(56, 18 + label.length * 8);
-      if (x + w > this.panelW - 16) { x = 16; y += 36; }
+      const w = Math.max(64, 22 + label.length * 9);
+      if (x + w > this.panelW - 16) { x = 16; y += h + 8; }
       const on = key === currentKey;
       const g = this.add.graphics();
-      g.fillStyle(on ? 0x3a6a44 : 0x1a1e30, 1); g.fillRoundedRect(x, y, w, 30, 15);
-      g.lineStyle(on ? 3 : 1, on ? 0xffe066 : 0x3a4060, 1); g.strokeRoundedRect(x, y, w, 30, 15);
-      const lbl = this.add.text(x + w / 2, y + 15, label, {
-        fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: on ? '#eafff0' : '#aab0d0',
+      g.fillStyle(on ? 0x3a6a44 : 0x1a1e30, 1); g.fillRoundedRect(x, y, w, h, r);
+      g.lineStyle(on ? 3 : 1, on ? 0xffe066 : 0x3a4060, 1); g.strokeRoundedRect(x, y, w, h, r);
+      const lbl = this.add.text(x + w / 2, y + h / 2, label, {
+        fontFamily: 'system-ui, sans-serif', fontSize: '13px', color: on ? '#eafff0' : '#aab0d0',
       }).setOrigin(0.5, 0.5);
-      const zone = this.add.zone(x, y, w, 30).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+      const zone = this.add.zone(x, y, w, h).setOrigin(0, 0).setInteractive({ useHandCursor: true });
       this._tap(zone, () => onPick(key));
       c.add([g, lbl, zone]);
       x += w + gap;
     }
-    return y + 30;
+    return y + h;
   }
 
   // A heading + a wrapping row of toggle chips for a {key: label} map.
   _secChips(c, title, labels, y0) {
     let y = this._heading(c, title, y0);
     const eff = effectiveMarkings(this.allHorses[this._editKey].coat, this.allHorses[this._editKey].markings);
-    const gap = 7;
+    const gap = 8, h = TAP, r = h / 2, step = h + 8;
     let x = 16, row = 0;
     for (const [key, label] of Object.entries(labels)) {
-      const w = 18 + label.length * 7.4;
+      const w = Math.max(56, 24 + label.length * 8);
       if (x + w > this.panelW - 16) { x = 16; row++; }
-      const yy = y + row * 36;
+      const yy = y + row * step;
       const on = !!eff[key];
       const g = this.add.graphics();
-      g.fillStyle(on ? 0x3a6a44 : 0x1a1e30, 1); g.fillRoundedRect(x, yy, w, 28, 14);
-      g.lineStyle(1, on ? 0x7fd68f : 0x3a4060, 1); g.strokeRoundedRect(x, yy, w, 28, 14);
-      const lbl = this.add.text(x + w / 2, yy + 14, label, {
-        fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: on ? '#eafff0' : '#aab0d0',
+      g.fillStyle(on ? 0x3a6a44 : 0x1a1e30, 1); g.fillRoundedRect(x, yy, w, h, r);
+      g.lineStyle(on ? 3 : 1, on ? 0x7fd68f : 0x3a4060, 1); g.strokeRoundedRect(x, yy, w, h, r);
+      const lbl = this.add.text(x + w / 2, yy + h / 2, label, {
+        fontFamily: 'system-ui, sans-serif', fontSize: '13px', color: on ? '#eafff0' : '#aab0d0',
       }).setOrigin(0.5, 0.5);
-      const zone = this.add.zone(x, yy, w, 28).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+      const zone = this.add.zone(x, yy, w, h).setOrigin(0, 0).setInteractive({ useHandCursor: true });
       this._tap(zone, () => this._toggleMarking(key));
       c.add([g, lbl, zone]);
       x += w + gap;
     }
-    return y + (row + 1) * 36;
+    return y + (row + 1) * step;
   }
 
   // For each pattern that's on, a "◀ n / N ▶" stepper to pick its variant (#139).
@@ -336,29 +338,30 @@ export const WithCustomizer = (Base) => class extends Base {
       const N = PATTERN_VARIANT_COUNT[key] || 1;
       if (!eff[key] || N <= 1) continue;
       const cur = eff[key + 'Var'] ?? 1;
-      const rowH = 30;
+      const rowH = TAP, W = TAP;
       // Label
       c.add(this.add.text(16, y + rowH / 2, label, {
-        fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: '#cdd2ee',
+        fontFamily: 'system-ui, sans-serif', fontSize: '13px', color: '#cdd2ee',
       }).setOrigin(0, 0.5));
-      // ◀  n / N  ▶ on the right
+      // ◀  n / N  ▶ cluster, right-aligned
       const arrow = (x, glyph, delta) => {
         const g = this.add.graphics();
-        g.fillStyle(0x1a1e30, 1); g.fillRoundedRect(x, y, 30, rowH, 8);
-        g.lineStyle(1, 0x3a4060, 1); g.strokeRoundedRect(x, y, 30, rowH, 8);
-        const t = this.add.text(x + 15, y + rowH / 2, glyph, {
-          fontFamily: 'system-ui, sans-serif', fontSize: '14px', color: '#ffe066',
+        g.fillStyle(0x1a1e30, 1); g.fillRoundedRect(x, y, W, rowH, 10);
+        g.lineStyle(1, 0x3a4060, 1); g.strokeRoundedRect(x, y, W, rowH, 10);
+        const t = this.add.text(x + W / 2, y + rowH / 2, glyph, {
+          fontFamily: 'system-ui, sans-serif', fontSize: '16px', color: '#ffe066',
         }).setOrigin(0.5, 0.5);
-        const z = this.add.zone(x, y, 30, rowH).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+        const z = this.add.zone(x, y, W, rowH).setOrigin(0, 0).setInteractive({ useHandCursor: true });
         this._tap(z, () => this._setPatternVar(key, delta));
         c.add([g, t, z]);
       };
-      const rightX = this.panelW - 16;
-      arrow(rightX - 30, '▶', +1);
-      c.add(this.add.text(rightX - 30 - 14, y + rowH / 2, `${cur} / ${N}`, {
-        fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: '#eef0fa',
-      }).setOrigin(1, 0.5));
-      arrow(rightX - 30 - 18 - 60, '◀', -1);
+      const numW = 54, gap = 8;
+      const startX = this.panelW - 16 - (W * 2 + gap * 2 + numW);
+      arrow(startX, '◀', -1);
+      c.add(this.add.text(startX + W + gap + numW / 2, y + rowH / 2, `${cur} / ${N}`, {
+        fontFamily: 'system-ui, sans-serif', fontSize: '13px', color: '#eef0fa',
+      }).setOrigin(0.5, 0.5));
+      arrow(startX + W + gap + numW + gap, '▶', +1);
       y += rowH + 8;
     }
     return y;
@@ -404,22 +407,22 @@ export const WithCustomizer = (Base) => class extends Base {
     const eff = effectiveMarkings(horse.coat, horse.markings);
     const on = !!eff.feather;
 
-    const w = 18 + FEATHER_LABEL.length * 7.4;
+    const w = Math.max(64, 24 + FEATHER_LABEL.length * 8), h = TAP;
     const g = this.add.graphics();
-    g.fillStyle(on ? 0x3a6a44 : 0x1a1e30, 1); g.fillRoundedRect(16, y, w, 28, 14);
-    g.lineStyle(1, on ? 0x7fd68f : 0x3a4060, 1); g.strokeRoundedRect(16, y, w, 28, 14);
-    const lbl = this.add.text(16 + w / 2, y + 14, FEATHER_LABEL, {
-      fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: on ? '#eafff0' : '#aab0d0',
+    g.fillStyle(on ? 0x3a6a44 : 0x1a1e30, 1); g.fillRoundedRect(16, y, w, h, h / 2);
+    g.lineStyle(on ? 3 : 1, on ? 0x7fd68f : 0x3a4060, 1); g.strokeRoundedRect(16, y, w, h, h / 2);
+    const lbl = this.add.text(16 + w / 2, y + h / 2, FEATHER_LABEL, {
+      fontFamily: 'system-ui, sans-serif', fontSize: '13px', color: on ? '#eafff0' : '#aab0d0',
     }).setOrigin(0.5, 0.5);
-    const zone = this.add.zone(16, y, w, 28).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+    const zone = this.add.zone(16, y, w, h).setOrigin(0, 0).setInteractive({ useHandCursor: true });
     this._tap(zone, () => this._toggleMarking('feather'));
     c.add([g, lbl, zone]);
 
-    if (!on) return y + 28;
+    if (!on) return y + h;
 
     const naturalFeather = composeCoat(horse.coat, horse.markings).mane.mid;
     return this._secColorPalette(c, 'Feather color', eff.featherColor, naturalFeather,
-      (k) => this._setFeatherColor(k), y + 34);
+      (k) => this._setFeatherColor(k), y + h + 8);
   }
 
   _secBreeds(c, y0) {
@@ -427,7 +430,7 @@ export const WithCustomizer = (Base) => class extends Base {
     const keys = Object.keys(BREEDS);
     const cols = 2, gap = 8;
     const cellW = Math.floor((this.panelW - 32 - (cols - 1) * gap) / cols);
-    const cellH = 38;
+    const cellH = 46;
     keys.forEach((bk, i) => {
       const col = i % cols, row = Math.floor(i / cols);
       const x = 16 + col * (cellW + gap);
