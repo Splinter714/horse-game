@@ -1085,8 +1085,13 @@ export default class PaddockScene
         // lying-down frame is showing — i.e. while rolling and while asleep at
         // night (#102). They reappear (darker, if the roll dirtied it) on standing.
         const lying = h.sprite.anims?.currentAnim?.key === `sleep_${h.key}`;
+        // The body art bobs 1 design-pixel (= S world px) on the odd idle/walk
+        // frames; mirror that here so the dust splotches and stink lines bounce
+        // *with* the horse instead of floating over the breathing body.
+        const frameKey = h.sprite.frame?.texture?.key || '';
+        const bob = /(_1|_3)$/.test(frameKey) ? S : 0;
         h.dustOverlay.x = h.sprite.x;
-        h.dustOverlay.y = h.sprite.y;
+        h.dustOverlay.y = h.sprite.y + bob;
         h.dustOverlay.setFlipX(h.sprite.flipX);
         h.dustOverlay.angle = h.sprite.angle; // follow the body (e.g. while rolling)
         h.dustOverlay.setDepth(h.sprite.y);
@@ -1098,7 +1103,7 @@ export default class PaddockScene
           const stink = Phaser.Math.Clamp((STINK_AT - groom) / STINK_AT, 0, 1);
           const waver = Math.sin(this.time.now / 220 + h._stinkPhase);
           h.stinkOverlay.x = h.sprite.x;
-          h.stinkOverlay.y = h.sprite.y - 66 + waver * 3;
+          h.stinkOverlay.y = h.sprite.y - 66 + waver * 3 + bob;
           h.stinkOverlay.setDepth(h.sprite.y + 1);
           h.stinkOverlay.setAlpha(stink * (0.75 + 0.25 * waver));
           h.stinkOverlay.setVisible(stink > 0 && !lying);

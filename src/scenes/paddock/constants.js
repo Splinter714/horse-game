@@ -79,7 +79,7 @@ export const HERD = {
 // very dirty horse also gets wavering "stink" lines above its back.
 export const DUST_CLEAN_AT  = 55;
 export const DUST_MAX_ALPHA = 0.85;
-export const STINK_AT       = 30;
+export const STINK_AT       = 33;
 
 // What the farm stand can sell. Each product type has a sale price (per unit),
 // a counter texture (with its own scale), an emoji for the count badge, and the
