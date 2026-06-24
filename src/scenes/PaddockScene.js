@@ -349,6 +349,11 @@ export default class PaddockScene
     const model = this._animalModel(key);
     if (!this._canPetAnimal(model)) return false; // nothing to add (#98 / loved)
 
+    // First pet/love of the day for a horse plays the friendly chortle too — the
+    // same greeting as opening its info (#149). Captured before applyAction sets
+    // `loved`; greetHorse's nicker cooldown avoids doubling up with a fresh info open.
+    const firstLoveToday = model?.species === 'horse' && !model.caredToday?.loved;
+
     // Every pet nudges happiness up (clamped, so it no-ops at full) and records
     // 'loved' for today. Works for any species with a `pet` action now — horses,
     // chickens, and the cat (#104). A model without one just gets the heart.
@@ -356,6 +361,11 @@ export default class PaddockScene
       model.applyAction('pet');
       this._saveAnimal(model);
       this.game.events.emit(EVENTS.STATS_CHANGED);
+    }
+
+    if (firstLoveToday) {
+      const h = this.horses.find(x => x.key === key);
+      if (h) this.greetHorse(h); // applyAction cleared `neglected`, so this nickers
     }
 
     playChime();
