@@ -55,7 +55,7 @@ describe('loadAllHorses (defaults)', () => {
     expect(sexes.every((s) => s === 'female' || s === 'male')).toBe(true);
     expect(sexes).toContain('female');
     expect(sexes).toContain('male');
-    expect(all.horse7.sex).toBe('male'); // Ebony the Friesian stallion
+    expect(all.horse7.sex).toBe('male'); // Ebony the Friesian (male)
   });
 });
 

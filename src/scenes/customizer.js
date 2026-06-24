@@ -178,6 +178,8 @@ export const WithCustomizer = (Base) => class extends Base {
     const hasLegMark = Object.values(eff.legs || {}).some(Boolean);
 
     let y = 8;
+    y = this._secOptions(c, 'Gender', [['female', 'Female'], ['male', 'Male']],
+      horse.sex || 'female', (k) => this._setGender(k), y) + 14;
     y = this._secCoat(c, y) + 14;
     y = this._secColorPalette(c, 'Mane color', eff.maneColor, naturalMane, (k) => this._setManeColor(k), y) + 14;
     y = this._secChips(c, 'Patterns', PATTERN_LABELS, y) + 8;
@@ -570,6 +572,13 @@ export const WithCustomizer = (Base) => class extends Base {
     horse.coat = breed.color;
     horse.markings = JSON.parse(JSON.stringify(breed.markings)); // authoritative copy
     horse.breed = breed.label;
+    this._applyEdit();
+  }
+
+  // Gender is editable here too (#145); the info panel shows Male/Female and it
+  // persists via the model's toJSON.
+  _setGender(sex) {
+    this.allHorses[this._editKey].sex = sex;
     this._applyEdit();
   }
 
