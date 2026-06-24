@@ -7,6 +7,7 @@
 
 import { gen, makeLeg } from './_frames.js';
 import { featherToneFor } from '../data/species/horse/coats.js';
+import { dappleCircles, roanFlecks, pintoSpec, appaloosaSpec } from '../data/species/horse/patterns.js';
 
 export const FRAME_W = 64;
 export const FRAME_H = 54;
@@ -15,14 +16,6 @@ const WHITE = 0xf4efe6;
 const SOCK = 0xf0ead0;
 const EAR_PINK = 0xe0a890;
 const FEATHER_BLACK = 0x1a1614; // black sock/stocking tone (#141)
-
-// Fixed scatter of single-pixel white flecks over the body for a roan coat (#2) —
-// blue/red roan = base colour shot through with white hairs.
-const ROAN_FLECKS = [
-  [15, 23], [19, 27], [23, 22], [27, 29], [31, 24], [35, 28], [39, 23], [43, 27],
-  [17, 31], [25, 32], [33, 31], [41, 31], [13, 26], [37, 26], [21, 33], [45, 29],
-  [29, 21], [16, 29],
-];
 
 // Face markings (real-world: star / stripe / snip / blaze), white on the face of a
 // right-facing horse (#2). A blaze is the broad connected band; otherwise star,
@@ -61,44 +54,36 @@ function faceMarkingsEat(g, mk, headY) {
 
 // Whole-body PATTERNS (pinto / appaloosa / dapples / roan), drawn over the body in
 // any pose. `yo` is the vertical offset for that pose (bob, plus the sleep drop).
-// Centralized so patterns no longer disappear when a horse eats or sleeps.
-const APPALOOSA_SPOTS = [
-  [11, 25], [16, 23], [20, 28], [14, 31], [24, 26], [27, 31], [19, 24], [10, 30], [23, 33],
-];
+// Centralized so patterns no longer disappear when a horse eats or sleeps. Each
+// pattern's geometry is chosen by its numbered variant (#139); see patterns.js.
 function bodyPatterns(g, coat, yo) {
   const b = coat.body;
   const mk = coat.markings || {};
 
   if (mk.pinto) {
+    const { patches, shadows } = pintoSpec(mk.pintoVar ?? 1);
     g.fillStyle(WHITE, 1);
-    g.fillRect(14, 19 + yo, 14, 12); // big patch on side/barrel
-    g.fillRect(28, 23 + yo, 8, 8);   // second patch
-    g.fillRect(10, 22 + yo, 5, 9);   // rump patch
-    g.fillRect(43, 20 + yo, 5, 7);   // chest patch
-    g.fillStyle(0xe8e0d0, 1);        // slight shadow edge on patches
-    g.fillRect(14, 29 + yo, 14, 2);
-    g.fillRect(28, 29 + yo, 8, 2);
+    for (const [x, y, w, h] of patches) g.fillRect(x, y + yo, w, h);
+    g.fillStyle(0xe8e0d0, 1); // slight shadow edge on patches
+    for (const [x, y, w, h] of shadows) g.fillRect(x, y + yo, w, h);
   }
 
   if (mk.appaloosa) {
+    const { blanket, spots } = appaloosaSpec(mk.appaloosaVar ?? 1);
     g.fillStyle(WHITE, 1);
-    g.fillRect(8, 22 + yo, 22, 13);  // spotted blanket over hindquarters/barrel
-    g.fillRect(30, 24 + yo, 4, 9);
-    g.fillStyle(0x352620, 1);        // dark leopard spots
-    for (const [sx, sy] of APPALOOSA_SPOTS) g.fillRect(sx, sy + yo, 2, 2);
+    for (const [x, y, w, h] of blanket) g.fillRect(x, y + yo, w, h); // spotted blanket
+    g.fillStyle(0x352620, 1);                                        // dark leopard spots
+    for (const [sx, sy] of spots) g.fillRect(sx, sy + yo, 2, 2);
   }
 
   if (mk.dapples) {
     g.fillStyle(b.hi, 0.6);
-    g.fillCircle(22, 27 + yo, 3);
-    g.fillCircle(31, 30 + yo, 2.5);
-    g.fillCircle(38, 26 + yo, 2.5);
-    g.fillCircle(44, 29 + yo, 2);
+    for (const [x, y, r] of dappleCircles(mk.dapplesVar ?? 1)) g.fillCircle(x, y + yo, r);
   }
 
   if (mk.roan) {
     g.fillStyle(WHITE, 0.45);
-    for (const [sx, sy] of ROAN_FLECKS) g.fillRect(sx, sy + yo, 1, 1);
+    for (const [sx, sy] of roanFlecks(mk.roanVar ?? 1)) g.fillRect(sx, sy + yo, 1, 1);
   }
 }
 

@@ -3,6 +3,7 @@ import {
   COATS, BREEDS, FACE_MARKING_LABELS, PATTERN_LABELS, FEATHER_LABEL,
   composeCoat, effectiveMarkings, colorKeyOf,
 } from '../data/species/horse/coats.js';
+import { PATTERN_VARIANT_COUNT } from '../data/species/horse/patterns.js';
 import { growHitArea } from './uiUtils.js';
 
 // Shared horse-appearance editor (#2/#17), hosted *inside* a scene as a sticky,
@@ -179,7 +180,8 @@ export const WithCustomizer = (Base) => class extends Base {
     let y = 8;
     y = this._secCoat(c, y) + 14;
     y = this._secColorPalette(c, 'Mane color', eff.maneColor, naturalMane, (k) => this._setManeColor(k), y) + 14;
-    y = this._secChips(c, 'Patterns', PATTERN_LABELS, y) + 14;
+    y = this._secChips(c, 'Patterns', PATTERN_LABELS, y) + 8;
+    y = this._secPatternVariants(c, y) + 6;
     y = this._secChips(c, 'Face markings', FACE_MARKING_LABELS, y) + 14;
     y = this._secLegs(c, y) + 14;
     // Sock colour only matters once a leg actually has a sock/stocking (#141).
@@ -323,6 +325,43 @@ export const WithCustomizer = (Base) => class extends Base {
     return y + (row + 1) * 36;
   }
 
+  // For each pattern that's on, a "◀ n / N ▶" stepper to pick its variant (#139).
+  _secPatternVariants(c, y0) {
+    const horse = this.allHorses[this._editKey];
+    const eff = effectiveMarkings(horse.coat, horse.markings);
+    let y = y0;
+    for (const [key, label] of Object.entries(PATTERN_LABELS)) {
+      const N = PATTERN_VARIANT_COUNT[key] || 1;
+      if (!eff[key] || N <= 1) continue;
+      const cur = eff[key + 'Var'] ?? 1;
+      const rowH = 30;
+      // Label
+      c.add(this.add.text(16, y + rowH / 2, label, {
+        fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: '#cdd2ee',
+      }).setOrigin(0, 0.5));
+      // ◀  n / N  ▶ on the right
+      const arrow = (x, glyph, delta) => {
+        const g = this.add.graphics();
+        g.fillStyle(0x1a1e30, 1); g.fillRoundedRect(x, y, 30, rowH, 8);
+        g.lineStyle(1, 0x3a4060, 1); g.strokeRoundedRect(x, y, 30, rowH, 8);
+        const t = this.add.text(x + 15, y + rowH / 2, glyph, {
+          fontFamily: 'system-ui, sans-serif', fontSize: '14px', color: '#ffe066',
+        }).setOrigin(0.5, 0.5);
+        const z = this.add.zone(x, y, 30, rowH).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+        this._tap(z, () => this._setPatternVar(key, delta));
+        c.add([g, t, z]);
+      };
+      const rightX = this.panelW - 16;
+      arrow(rightX - 30, '▶', +1);
+      c.add(this.add.text(rightX - 30 - 14, y + rowH / 2, `${cur} / ${N}`, {
+        fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: '#eef0fa',
+      }).setOrigin(1, 0.5));
+      arrow(rightX - 30 - 18 - 60, '◀', -1);
+      y += rowH + 8;
+    }
+    return y;
+  }
+
   // Four mini-leg buttons in sprite order (back-far, back-near, front-far,
   // front-near), each drawn with the horse's own colours + current sock/stocking.
   _secLegs(c, y0) {
@@ -464,6 +503,17 @@ export const WithCustomizer = (Base) => class extends Base {
     const horse = this.allHorses[this._editKey];
     const eff = effectiveMarkings(horse.coat, horse.markings);
     horse.markings = { ...eff, [m]: !eff[m] }; // authoritative override
+    this._applyEdit();
+  }
+
+  // Step a pattern's variant 1..N (wraps), e.g. Dapples 1→2→…→5→1 (#139).
+  _setPatternVar(pattern, delta) {
+    const horse = this.allHorses[this._editKey];
+    const eff = effectiveMarkings(horse.coat, horse.markings);
+    const N = PATTERN_VARIANT_COUNT[pattern] || 1;
+    let next = (eff[pattern + 'Var'] ?? 1) + delta;
+    if (next < 1) next = N; if (next > N) next = 1;
+    horse.markings = { ...eff, [pattern + 'Var']: next };
     this._applyEdit();
   }
 
