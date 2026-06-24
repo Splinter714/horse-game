@@ -268,7 +268,6 @@ export function buildPropTextures(scene) {
   gen(scene, 'grainBin', 40, 44, (g) => {
     g.fillStyle(0xb98a4a, 1); g.fillRect(6, 14, 28, 25); // burlap sack body
     g.fillStyle(0xb98a4a, 1); g.fillEllipse(20, 39, 28, 9); // rounded bottom (matches the top rim's curve)
-    g.fillStyle(0xa87a3c, 1); g.fillEllipse(20, 41, 20, 4); // soft shaded base
     g.fillStyle(0xa87a3c, 1); g.fillRect(6, 14, 28, 3);
     g.fillStyle(0xcb9c58, 1); g.fillRect(8, 18, 3, 22); // fold highlight
     g.fillStyle(0xa87a3c, 1); g.fillRect(20, 18, 1, 22); g.fillRect(28, 18, 1, 22); // seams
