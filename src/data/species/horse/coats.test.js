@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   COATS, composeCoat, effectiveMarkings, maneRampFor, getCoat,
-  featherToneFor, sockToneFor, SOCK_COLORS, FEATHER_SWATCH,
+  featherToneFor, FEATHER_SWATCH,
 } from './coats.js';
 
 // composeCoat is the linchpin of the customizer (#2/#17/#140…): it turns a pure
@@ -52,18 +52,6 @@ describe('mane colour decoupling (#140 + follow-up: no coat-bundled mane)', () =
 
   it('effectiveMarkings surfaces the maneColor choice for the picker', () => {
     expect(effectiveMarkings('bay', { maneColor: 'grey' }).maneColor).toBe('grey');
-  });
-});
-
-describe('sock/stocking colour (#141 follow-up)', () => {
-  it('defaults to white, and resolves white/black/tan', () => {
-    expect(sockToneFor({})).toBe(SOCK_COLORS.white);
-    expect(sockToneFor({ sockColor: 'black' })).toBe(SOCK_COLORS.black);
-    expect(sockToneFor({ sockColor: 'tan' })).toBe(SOCK_COLORS.tan);
-  });
-
-  it("the coat's built-in leg points are unaffected (no separate leg colour)", () => {
-    expect(composeCoat('bay', { sockColor: 'tan' }).points).toBe(COATS.bay.points);
   });
 });
 

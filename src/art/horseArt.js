@@ -6,7 +6,7 @@
 // own `leg` is kept local because it adds socks and feathering.
 
 import { gen, makeLeg, scaledGraphics, ART_SCALE } from './_frames.js';
-import { featherToneFor, sockToneFor } from '../data/species/horse/coats.js';
+import { featherToneFor } from '../data/species/horse/coats.js';
 import { dappleCircles, roanFlecks, pintoSpec, appaloosaSpec } from '../data/species/horse/patterns.js';
 
 export const FRAME_W = 64;
@@ -157,7 +157,7 @@ function drawHorse(g, coat, bob, legLift) {
   const feather = featherToneFor(coat);
   const lm = mk.legs || {};
   const pts = coat.points;
-  const sockTone = sockToneFor(mk);
+  const sockTone = SOCK; // socks/stockings are always white (#153)
   leg(g, 7,  legLift[0], b.lo,  coat.hoof, lm.hindFar,  sockTone, feather, pts); // hind far
   leg(g, 38, legLift[2], b.lo,  coat.hoof, lm.foreFar,  sockTone, feather, pts); // fore far
   leg(g, 13, legLift[1], b.mid, coat.hoof, lm.hindNear, sockTone, feather, pts); // hind near
@@ -259,7 +259,7 @@ function drawHorseSleep(g, coat, bob) {
   // Legs tucked/bent (very short — sleeping position)
   const lm = mk.legs || {};
   const pts = coat.points;
-  const sockTone = sockToneFor(mk);
+  const sockTone = SOCK; // socks/stockings are always white (#153)
   leg(g, 7,  10, b.lo,  coat.hoof, lm.hindFar,  sockTone, undefined, pts, dy); // hind far (folded)
   leg(g, 38, 10, b.lo,  coat.hoof, lm.foreFar,  sockTone, undefined, pts, dy); // fore far (folded)
   leg(g, 13, 10, b.mid, coat.hoof, lm.hindNear, sockTone, undefined, pts, dy); // hind near (folded)
@@ -337,7 +337,7 @@ function drawHorseEat(g, coat, bob) {
   // Legs all planted
   const lm = mk.legs || {};
   const pts = coat.points;
-  const sockTone = sockToneFor(mk);
+  const sockTone = SOCK; // socks/stockings are always white (#153)
   leg(g, 7,  0, b.lo,  coat.hoof, lm.hindFar,  sockTone, feather, pts);
   leg(g, 38, 0, b.lo,  coat.hoof, lm.foreFar,  sockTone, feather, pts);
   leg(g, 13, 0, b.mid, coat.hoof, lm.hindNear, sockTone, feather, pts);

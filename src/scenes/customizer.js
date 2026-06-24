@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import {
   COATS, BREEDS, FACE_MARKING_LABELS, PATTERN_LABELS, FEATHER_LABEL,
-  SOCK_COLORS, SOCK_COLOR_LABELS, composeCoat, effectiveMarkings, colorKeyOf,
+  composeCoat, effectiveMarkings, colorKeyOf,
 } from '../data/species/horse/coats.js';
 import { PATTERN_VARIANT_COUNT } from '../data/species/horse/patterns.js';
 import { S } from './paddock/constants.js';
@@ -28,6 +28,7 @@ const PAUSABLE = ['PaddockScene', 'DayNightScene'];
 // day/night tint + clock label (which otherwise renders over the panel).
 const HIDE_DURING_EDIT = ['HotbarScene', 'DayNightScene'];
 const LEG_CYCLE = [undefined, 'sock', 'stocking']; // bare → sock → stocking → bare
+const SOCK_WHITE = 0xf0ead0; // socks/stockings are always white (#153)
 const TAP = 44; // comfortable touch-target minimum (#100/#146)
 
 // Perceived brightness of a 0xRRGGBB colour (for picking dark vs light chip text).
@@ -206,7 +207,6 @@ export const WithCustomizer = (Base) => class extends Base {
     const naturalFeather = composed.mane.mid;
     const curPattern = PATTERN_KEYS.find(k => eff[k]) || 'none';
     const curFace = FACE_KEYS.find(k => eff[k]) || 'none';
-    const hasLegMark = Object.values(eff.legs || {}).some(Boolean);
     const opt = (labels) => [['none', 'None'], ...Object.entries(labels)];
 
     let y = 8;
@@ -223,10 +223,6 @@ export const WithCustomizer = (Base) => class extends Base {
     // Face markings: single-select with None (#147 FU).
     y = this._secOptions(c, 'Face markings', opt(FACE_MARKING_LABELS), curFace, (k) => this._setFace(k), y) + 14;
     y = this._secLegs(c, y) + 14;
-    // Sock/stocking colour only matters once a leg has a sock/stocking (#141 FU).
-    if (hasLegMark) {
-      y = this._secSwatches(c, 'Sock color', this._sockEntries(), eff.sockColor || 'white', (k) => this._setSockColor(k), y) + 14;
-    }
     // Primitive markings (decoupled from the coat, follow-up): dark legs ("points")
     // and the dun dorsal stripe, each defaulting to the coat's natural look.
     y = this._secToggle(c, 'Dark legs', composed.points !== undefined, () => this._toggleDarkLegs(), y) + 8;
@@ -326,11 +322,6 @@ export const WithCustomizer = (Base) => class extends Base {
     return y + Math.ceil(entries.length / cols) * (cellH + gap);
   }
 
-  // Sock/stocking colour swatch entries (white / black / tan), #141 FU.
-  _sockEntries() {
-    return Object.entries(SOCK_COLOR_LABELS).map(([k, label]) => [k, label, SOCK_COLORS[k]]);
-  }
-
   // A standalone labelled toggle pill (on = green/gold). Used for the optional
   // pinto two-tone mane (#144 FU).
   _secToggle(c, label, on, onTap, y0) {
@@ -416,7 +407,7 @@ export const WithCustomizer = (Base) => class extends Base {
     let y = this._heading(c, 'Leg markings — tap to add a sock, again for a stocking', y0);
     const coat = composeCoat(this.allHorses[this._editKey].coat, this.allHorses[this._editKey].markings);
     const legs = coat.markings.legs || {};
-    const sockTone = SOCK_COLORS[coat.markings.sockColor] || SOCK_COLORS.white;
+    const sockTone = SOCK_WHITE; // socks/stockings are always white (#153)
     const order = ['hindFar', 'hindNear', 'foreFar', 'foreNear'];
     const bw = 48, bh = 56, gap = 12;
     const totalW = order.length * bw + (order.length - 1) * gap;
@@ -673,15 +664,6 @@ export const WithCustomizer = (Base) => class extends Base {
   _setManeColor(key) {
     const horse = this.allHorses[this._editKey];
     horse.markings = { ...effectiveMarkings(horse.coat, horse.markings), maneColor: key };
-    this._applyEdit();
-  }
-
-  // Sock/stocking colour: 'white' (default) clears, else 'black'/'tan' (#141 FU).
-  _setSockColor(key) {
-    const horse = this.allHorses[this._editKey];
-    const next = { ...effectiveMarkings(horse.coat, horse.markings) };
-    if (key === 'white') delete next.sockColor; else next.sockColor = key;
-    horse.markings = next;
     this._applyEdit();
   }
 
