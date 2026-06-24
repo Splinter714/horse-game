@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { saveAllHorses, saveAllChickens, loadUiSettings } from '../data/save.js';
+import { saveAllHorses, saveAllChickens, loadUiSettings, loadDevSettings } from '../data/save.js';
 import { CONTENT_DEFS } from '../data/items.js';
 import { composeCoat } from '../data/species/horse/coats.js';
 import { buildHorseTextures } from '../art/horseArt.js';
@@ -108,20 +108,33 @@ export default class PaddockScene
       },
     });
 
-    // DEV-only fast iteration: `?edit` jumps straight into the appearance editor on
-    // load (optionally `?edit=horse4` to pick a horse). Plain dev loads play normally.
-    // Stripped from production builds (import.meta.env.DEV). Temporary testing scaffolding.
+    // Auto-open the appearance editor straight away (skipping the info card) so
+    // tweaks are one refresh away. The persisted "Start screen" dev-tool pick
+    // (pause menu) is the source of truth — leave it on "Farm" and nothing opens.
+    // It works in production builds too, so the owner can test on the deployed game.
+    // In DEV, an explicit `?edit=horse4` URL param overrides the pick for one-off
+    // local iteration; `?play`/`?canvas` (smoke/sprite tooling) force it off.
+    const dev = loadDevSettings();
+    let editKey = (dev.startEditor && this.registry.get('allHorses')?.[dev.startEditor])
+      ? dev.startEditor : null;
+
     if (import.meta.env.DEV) {
       const params = new URLSearchParams(window.location.search);
-      const wantEdit = params.has('edit');
-      if (wantEdit) {
+      if (params.has('edit')) {
         const ep = params.get('edit');
-        const key = (ep && this.registry.get('allHorses')?.[ep]) ? ep : 'horse';
-        this.time.delayedCall(300, () => {
-          this.openPortrait(key);
-          this.time.delayedCall(150, () => this.scene.get('InfoPanelScene')?._enterEdit());
-        });
+        editKey = (ep && this.registry.get('allHorses')?.[ep]) ? ep : 'horse';
+      } else if (params.has('play') || params.has('canvas')) {
+        editKey = null;
       }
+    }
+
+    if (editKey) {
+      // Boot straight into the editor without flashing the pasture: blank the
+      // world camera until the editor overlay (which fully covers the screen) is
+      // mounted, then restore it so closing the editor returns to normal play.
+      this.cameras.main.setVisible(false);
+      this.events.once('resume', () => this.cameras.main.setVisible(true));
+      this.time.delayedCall(0, () => this.openPortrait(editKey, { edit: true }));
     }
   }
 
@@ -502,7 +515,7 @@ export default class PaddockScene
 
   // ─── Info panel ──────────────────────────────────────────────────────────
 
-  openPortrait(key) {
+  openPortrait(key, opts) {
     const allHorses = this.registry.get('allHorses');
     this.registry.set('viewingAnimal', {
       animal:      allHorses[key],
@@ -513,7 +526,7 @@ export default class PaddockScene
     // it was neglected (issue #26).
     const h = this.horses.find(x => x.key === key);
     if (h) this.greetHorse(h);
-    this._openInfoPanel();
+    this._openInfoPanel(opts);
   }
 
   openChickenInfo(key) {
@@ -539,12 +552,17 @@ export default class PaddockScene
     this._openInfoPanel();
   }
 
-  _openInfoPanel() {
+  _openInfoPanel(opts) {
     if (this.scene.isActive('InfoPanelScene')) {
-      this.scene.get('InfoPanelScene').refresh();
+      const s = this.scene.get('InfoPanelScene');
+      s.refresh();
+      if (opts?.edit && s._canEdit?.()) s._enterEdit();
       return;
     }
-    this.scene.launch('InfoPanelScene');
+    // Always pass an explicit `edit` flag: Phaser caches a scene's launch data, so
+    // omitting it would reuse a previous `{ edit: true }` (e.g. after the dev
+    // editor-boot) and wrongly reopen in edit mode (#dev-tools).
+    this.scene.launch('InfoPanelScene', { edit: !!opts?.edit });
     this.scene.bringToTop('InfoPanelScene');
   }
 

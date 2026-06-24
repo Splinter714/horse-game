@@ -251,6 +251,39 @@ export function saveUiSettings(settings) {
   } catch {}
 }
 
+// ── Dev settings (pause-menu dev tools) ──────────────────────────────────────
+// Persisted "start state" knobs so the owner can test things without replaying
+// from scratch: which time-of-day the day/night clock boots into, and whether
+// the appearance editor auto-opens on a chosen horse. TEMP testing scaffolding —
+// applied on the next reload. Remove with the rest of the dev tools before a real
+// release.
+const DEV_KEY = 'horse-game-dev-v1';
+
+const DEFAULT_DEV = { startPhase: null, startEditor: null, startLocation: null };
+
+export function loadDevSettings() {
+  try {
+    const raw = localStorage.getItem(DEV_KEY);
+    if (!raw) return { ...DEFAULT_DEV };
+    const data = JSON.parse(raw) ?? {};
+    return {
+      startPhase:    typeof data.startPhase    === 'string' ? data.startPhase    : DEFAULT_DEV.startPhase,
+      startEditor:   typeof data.startEditor   === 'string' ? data.startEditor   : DEFAULT_DEV.startEditor,
+      startLocation: typeof data.startLocation === 'string' ? data.startLocation : DEFAULT_DEV.startLocation,
+    };
+  } catch {
+    return { ...DEFAULT_DEV };
+  }
+}
+
+// Merge-on-write so callers can flip one knob without clobbering the other.
+export function saveDevSettings(patch) {
+  try {
+    const next = { ...loadDevSettings(), ...patch };
+    localStorage.setItem(DEV_KEY, JSON.stringify(next));
+  } catch {}
+}
+
 // TEMP dev tool: wipe the saved herd so the next load re-seeds the defaults.
 // Caller should reload the page afterward. Remove with the dev-tools UI later.
 export function resetAllHorses() {

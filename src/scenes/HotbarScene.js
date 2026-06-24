@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
 import { ALL_ITEMS, ITEM_MAP, CARRIER_DEFS, CONTENT_DEFS } from '../data/items.js';
-import { loadGameState, saveGameState, loadUiSettings, saveUiSettings, resetAllHorses } from '../data/save.js';
+import { loadGameState, saveGameState, loadUiSettings, saveUiSettings, resetAllHorses, loadDevSettings, saveDevSettings } from '../data/save.js';
 import { toggleMute, isMuted, setVolume, getAudioSettings } from '../audio/sounds.js';
 import { EVENTS } from '../data/events.js';
-import { growHitArea, applyDpr, logicalW, logicalH } from './uiUtils.js';
+import { growHitArea, applyDpr, dprOf, logicalW, logicalH } from './uiUtils.js';
 
 // Gameplay scenes frozen while the pause menu is open
 const PAUSABLE_SCENES = ['PaddockScene', 'DayNightScene', 'InfoPanelScene'];
@@ -847,6 +847,25 @@ export default class HotbarScene extends Phaser.Scene {
     return lbl;
   }
 
+  // A toggle row that cycles through a list of values on each click (dev tools).
+  // `opts` is the ordered value list; `get` returns the current value, `set`
+  // persists the new one. `labelFor(v)` maps a value to its display text (default:
+  // the value itself, or "Off" for null). A stored value not in `opts` normalizes
+  // to the first option, so an unset setting reads as its default. Reuses
+  // _addToggleRow for the visuals + controller focus.
+  _addCycleRow(rowX, rowY, rowW, rowH, title, opts, get, set, labelFor) {
+    const show = labelFor ?? ((v) => v ?? 'Off');
+    const text = (v) => `${title}: ${show(v)}`;
+    const cur  = () => (opts.includes(get()) ? get() : opts[0]);
+    let lbl;
+    lbl = this._addToggleRow(rowX, rowY, rowW, rowH, text(cur()), () => {
+      const next = opts[(opts.indexOf(cur()) + 1) % opts.length];
+      set(next);
+      lbl.setText(text(next));
+    });
+    return lbl;
+  }
+
   _openPause() {
     this._closeFlyout();
     for (const o of this._pauseNodes) o.destroy();
@@ -878,7 +897,7 @@ export default class HotbarScene extends Phaser.Scene {
       ['Ambient', 'ambient'],
       ['Effects', 'effects'],
     ];
-    const devH   = 24 + rowH * 2;  // TEMP dev-tools section: heading + 2 buttons
+    const devH   = 38 + rowH * 5;  // TEMP dev-tools: heading + hint + 5 rows
     const panelH = 56 + rowH * 2 + sliders.length * sliderH + 8 + devH;
     const px = Math.round((sw - panelW) / 2);
     const py = Math.round((sh - panelH) / 2);
@@ -937,8 +956,31 @@ export default class HotbarScene extends Phaser.Scene {
       fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: '#7a80a0',
     }).setOrigin(0, 0).setDepth(104);
     this._pauseNodes.push(devLbl);
-    let dy = sy + 24;
+    // The two "Start …" rows below are persisted boot-state knobs; they take
+    // effect on the next page reload, not live.
+    const devHint = this.add.text(rowX + 80, sy + 5, '(start state — applies on reload)', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '10px', color: '#5a6080',
+    }).setOrigin(0, 0).setDepth(104);
+    this._pauseNodes.push(devHint);
+
+    let dy = sy + 22;
     this._addToggleRow(rowX, dy, rowW, rowH, '⏭ Advance Time of Day', () => this._advanceTime());
+    dy += rowH;
+    this._addCycleRow(rowX, dy, rowW, rowH, '🕑 Start phase',
+      ['Morning', 'Afternoon', 'Evening', 'Night'],
+      () => loadDevSettings().startPhase,
+      (v) => saveDevSettings({ startPhase: v }));
+    dy += rowH;
+    this._addCycleRow(rowX, dy, rowW, rowH, '🖥 Start screen',
+      [null, 'horse'],
+      () => loadDevSettings().startEditor,
+      (v) => saveDevSettings({ startEditor: v }),
+      (v) => (v ? 'Horse editor' : 'Farm'));
+    dy += rowH;
+    this._addCycleRow(rowX, dy, rowW, rowH, '📍 Start at',
+      ['Barn', 'Pasture', 'Gate', 'Farm stand', 'Coop'],
+      () => loadDevSettings().startLocation,
+      (v) => saveDevSettings({ startLocation: v }));
     dy += rowH;
     this._addToggleRow(rowX, dy, rowW, rowH, '♻ Reset Herd to Default', () => this._resetHerd());
 
@@ -1001,7 +1043,12 @@ export default class HotbarScene extends Phaser.Scene {
     const zone = this.add.zone(trackX - 8, y - 4, trackW + 16, 40)
       .setOrigin(0, 0).setInteractive({ useHandCursor: true }).setDepth(105);
     const setFromX = (px) => {
-      v = Math.max(0, Math.min(1, (px - trackX) / trackW));
+      // Phaser reports pointer x in physical/buffer px; this scene's camera is
+      // zoomed by DPR (top-left origin) so the track geometry is in LOGICAL px.
+      // Convert before mapping, else on HiDPI the value is off by the DPR factor
+      // and the slider won't track (the volumes-stuck-at-max regression).
+      const lx = px / dprOf(this);
+      v = Math.max(0, Math.min(1, (lx - trackX) / trackW));
       draw();
       setVolume(bus, v);
     };

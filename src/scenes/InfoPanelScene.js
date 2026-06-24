@@ -28,12 +28,18 @@ export default class InfoPanelScene extends WithCustomizer(Phaser.Scene) {
     this._mode     = 'info';
   }
 
-  create() {
+  create(data) {
     applyDpr(this, { topLeft: true }); // HiDPI: zoom this UI scene's camera (top-left anchored)
     this.closing = false;
     this._mode = 'info';
-    this.build();
-    this._wireDismiss();
+    // `{ edit: true }` launch data jumps straight into the appearance editor,
+    // skipping the info-card render (used by the "Start editor on" dev tool).
+    if (data?.edit && this._canEdit()) {
+      this._enterEdit();
+    } else {
+      this.build();
+      this._wireDismiss();
+    }
   }
 
   // Drive the appearance editor's controller focus (mixin) while in edit mode.
