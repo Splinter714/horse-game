@@ -39,6 +39,12 @@ export default class InfoPanelScene extends WithCustomizer(Phaser.Scene) {
     if (this._mode === 'edit') this._pollEditPad();
   }
 
+  // Whether the currently-viewed animal supports the appearance editor (horses).
+  _canEdit() {
+    const animal = this.registry.get('viewingAnimal')?.animal;
+    return !!(animal && getSpecies(animal.species)?.capabilities?.customizable);
+  }
+
   refresh() {
     this.closing = false;
     this.children.removeAll(true);

@@ -104,6 +104,19 @@ export default class PaddockScene
         if (moving) playHoofbeat(true);
       },
     });
+
+    // DEV-only fast iteration: `?edit` (optionally `?edit=horse4`) jumps straight
+    // into the appearance editor for a horse on load. Temporary testing scaffolding.
+    if (import.meta.env.DEV) {
+      const editParam = new URLSearchParams(window.location.search).get('edit');
+      if (editParam !== null) {
+        const key = this.registry.get('allHorses')?.[editParam] ? editParam : 'horse';
+        this.time.delayedCall(300, () => {
+          this.openPortrait(key);
+          this.time.delayedCall(150, () => this.scene.get('InfoPanelScene')?._enterEdit());
+        });
+      }
+    }
   }
 
   // ─── Horses ──���─────────────────────────────────────────────���─────────────
@@ -362,7 +375,13 @@ export default class PaddockScene
   openProxInfo() {
     if (this._paused || this._sleeping || this.riding) return;
     if (this.scene.get('HotbarScene')?.invOpen) return;
-    if (this.scene.isActive('InfoPanelScene')) return;
+    // If the info panel is already open on a customizable animal, a second info
+    // press (C / gamepad Y) opens the appearance editor (#147 controller access).
+    if (this.scene.isActive('InfoPanelScene')) {
+      const info = this.scene.get('InfoPanelScene');
+      if (info?._mode === 'info' && info._canEdit?.()) info._enterEdit();
+      return;
+    }
     const t = this._proxAnimal;
     if (!t || t.foal || !t.open) return;
     t.open();
