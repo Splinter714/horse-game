@@ -39,6 +39,12 @@ export const WithCustomizer = (Base) => class extends Base {
     this.paddock = this.scene.get('PaddockScene');
     this.scrollY = 0;
     this._dragMoved = false;
+    // Controller / keyboard focus state (#147 controller support). The focus ring
+    // only appears once a pad/arrow is used, so touch/mouse UX is unchanged.
+    this._focusables = [];
+    this._focusIdx = 0;
+    this._focusActive = false;
+    this._padPrev = {};
 
     // Pause the world so it freezes (no decay/autosave) and its update-loop closers
     // can't yank the editor away mid-edit. The full-screen overlay below hides the
@@ -56,10 +62,16 @@ export const WithCustomizer = (Base) => class extends Base {
     this._custContent();
     this._installScrollInput();
 
-    this.input.keyboard.on('keydown-ESC', this._custEscHandler = () => this.custExit());
+    this.input.keyboard.on('keydown-ESC', () => this.custExit());
+    this.input.keyboard.on('keydown-LEFT', () => this._moveFocus(-1, 0));
+    this.input.keyboard.on('keydown-RIGHT', () => this._moveFocus(1, 0));
+    this.input.keyboard.on('keydown-UP', () => this._moveFocus(0, -1));
+    this.input.keyboard.on('keydown-DOWN', () => this._moveFocus(0, 1));
+    this.input.keyboard.on('keydown-ENTER', () => this._activateFocus());
   }
 
   custExit() {
+    this._focusRing = null; this._focusActive = false; this._focusables = [];
     if (this._custPaused) { for (const k of this._custPaused) if (this.scene.isPaused(k)) this.scene.resume(k); this._custPaused = null; }
     if (this._custHidden) { for (const k of this._custHidden) this.scene.setVisible(true, k); this._custHidden = null; }
     this._maskG?.destroy(); this._maskG = null; this._mask = null;
@@ -135,6 +147,9 @@ export const WithCustomizer = (Base) => class extends Base {
     }).setOrigin(1, 0).setInteractive({ useHandCursor: true }).setDepth(6);
     growHitArea(done);
     done.on('pointerup', () => { if (!this._dragMoved) this.custExit(); });
+    // Done is a fixed (non-scrolling) focusable for controller nav.
+    this._doneFocus = { id: 'done', x: done.x - done.width, y: done.y, w: done.width, h: done.height, activate: () => this.custExit(), fixed: true };
+    this._focusRing = this.add.graphics().setDepth(7);
 
     // Header (name + breed) then the scroll viewport beneath it.
     this._nameY = this.py + 12;
@@ -160,6 +175,7 @@ export const WithCustomizer = (Base) => class extends Base {
     }).setOrigin(0, 0).setInteractive({ useHandCursor: true }));
     growHitArea(name); // comfortable tap target (#146)
     name.on('pointerup', () => { if (!this._dragMoved) this._custRename(); });
+    this._nameFocus = { id: 'name', x: name.x, y: name.y, w: name.width, h: name.height, activate: () => this._custRename(), fixed: true };
 
     add(this.add.text(this.px + 16, this._breedY, horse.breed || COATS[colorKeyOf(horse.coat)]?.label || '', {
       fontFamily: 'system-ui, sans-serif', fontSize: '13px', color: '#9aa0c0',
@@ -171,6 +187,7 @@ export const WithCustomizer = (Base) => class extends Base {
     this.contentC?.destroy();
     const c = this.add.container(this.px, this.viewTop).setDepth(3);
     this.contentC = c;
+    this._focusables = []; // rebuilt as sections register their zones (via _tap)
 
     const horse = this.allHorses[this._editKey];
     const eff = effectiveMarkings(horse.coat, horse.markings);
@@ -200,10 +217,16 @@ export const WithCustomizer = (Base) => class extends Base {
     y = this._secBreeds(c, y) + 10;
     this.contentH = y;
 
+    // Fixed (non-scrolling) controls join the focus list last.
+    if (this._nameFocus) this._focusables.push(this._nameFocus);
+    if (this._doneFocus) this._focusables.push(this._doneFocus);
+    this._focusIdx = Phaser.Math.Clamp(this._focusIdx, 0, this._focusables.length - 1);
+
     c.setMask(this._mask);
     this.scrollMax = Math.max(0, this.contentH - this.viewH);
     this._setScroll(this.scrollY);
     this._buildScrollbar();
+    if (this._focusActive) this._refreshFocusRing();
   }
 
   _heading(c, text, y) {
@@ -215,8 +238,10 @@ export const WithCustomizer = (Base) => class extends Base {
 
   // Item zones fire on pointer-UP, ignored if the gesture was a scroll-drag or
   // released outside the viewport (zones can scroll under the pinned header).
+  // Each zone is also registered as a (scrolling) focusable for controller nav.
   _tap(zone, fn) {
     zone.on('pointerup', (p) => { if (!this._dragMoved && this._inView(p)) fn(); });
+    this._focusables.push({ id: 'f' + this._focusables.length, x: zone.x, y: zone.y, w: zone.width, h: zone.height, activate: fn, fixed: false });
   }
 
   _secCoat(c, y0) {
@@ -456,6 +481,8 @@ export const WithCustomizer = (Base) => class extends Base {
   _installScrollInput() {
     this.input.on('wheel', (_p, _go, _dx, dy) => this._setScroll(this.scrollY + dy * 0.5));
     this.input.on('pointerdown', (p) => {
+      // Touch/mouse use hides the controller focus ring (it returns on next pad/arrow).
+      if (this._focusActive) { this._focusActive = false; this._focusRing?.clear(); }
       if (!this._inView(p)) return;
       this._drag = true; this._dragMoved = false;
       this._dragStartY = p.y; this._dragStartScroll = this.scrollY;
@@ -477,6 +504,81 @@ export const WithCustomizer = (Base) => class extends Base {
     this.scrollY = Phaser.Math.Clamp(v, 0, this.scrollMax || 0);
     if (this.contentC) this.contentC.y = this.viewTop - this.scrollY;
     this._updateScrollbar();
+    if (this._focusActive) this._refreshFocusRing();
+  }
+
+  // ── Controller / keyboard focus navigation (#147 controller support) ──────────
+  _screenRect(f) {
+    return f.fixed ? f : { x: this.px + f.x, y: this.viewTop - this.scrollY + f.y, w: f.w, h: f.h };
+  }
+
+  // Move focus to the nearest focusable in direction (dx,dy). The first press just
+  // shows the ring (so the player sees where focus is before it jumps).
+  _moveFocus(dx, dy) {
+    if (this._mode !== 'edit' || !this._focusables.length) return;
+    if (!this._focusActive) { this._focusActive = true; this._focusIdx = 0; this._scrollToFocus(); this._refreshFocusRing(); return; }
+    const cur = this._focusables[this._focusIdx];
+    const a = this._screenRect(cur), ax = a.x + a.w / 2, ay = a.y + a.h / 2;
+    let best = -1, bestScore = Infinity;
+    this._focusables.forEach((f, i) => {
+      if (i === this._focusIdx) return;
+      const r = this._screenRect(f), bx = r.x + r.w / 2, by = r.y + r.h / 2;
+      const ddx = bx - ax, ddy = by - ay;
+      if (dx > 0 && ddx <= 4) return; if (dx < 0 && ddx >= -4) return;
+      if (dy > 0 && ddy <= 4) return; if (dy < 0 && ddy >= -4) return;
+      const along = dx !== 0 ? Math.abs(ddx) : Math.abs(ddy);
+      const cross = dx !== 0 ? Math.abs(ddy) : Math.abs(ddx);
+      const score = along + cross * 2;
+      if (score < bestScore) { bestScore = score; best = i; }
+    });
+    if (best >= 0) { this._focusIdx = best; this._scrollToFocus(); this._refreshFocusRing(); }
+  }
+
+  _activateFocus() {
+    if (this._mode !== 'edit') return;
+    if (!this._focusActive) { this._focusActive = true; this._focusIdx = 0; this._scrollToFocus(); this._refreshFocusRing(); return; }
+    this._focusables[this._focusIdx]?.activate?.();
+  }
+
+  // Scroll so the focused (scrolling) control sits inside the viewport.
+  _scrollToFocus() {
+    const f = this._focusables[this._focusIdx];
+    if (!f || f.fixed) return;
+    const topY = this.viewTop - this.scrollY + f.y;
+    const botY = topY + f.h;
+    if (topY < this.viewTop) this._setScroll(this.scrollY - (this.viewTop - topY) - 8);
+    else if (botY > this.viewBottom) this._setScroll(this.scrollY + (botY - this.viewBottom) + 8);
+  }
+
+  _refreshFocusRing() {
+    if (!this._focusRing) return;
+    this._focusRing.clear();
+    if (!this._focusActive) return;
+    const f = this._focusables[this._focusIdx];
+    if (!f) return;
+    const r = this._screenRect(f);
+    this._focusRing.lineStyle(3, 0xffffff, 0.95);
+    this._focusRing.strokeRoundedRect(r.x - 3, r.y - 3, r.w + 6, r.h + 6, 8);
+  }
+
+  // Poll the gamepad while editing: d-pad/stick moves focus, A activates, B exits.
+  _pollEditPad() {
+    const pad = this.input.gamepad && this.input.gamepad.getPad(0);
+    if (!pad) return;
+    const p = this._padPrev || {};
+    const ls = pad.leftStick || { x: 0, y: 0 };
+    const cur = {
+      left: pad.left || ls.x < -0.5, right: pad.right || ls.x > 0.5,
+      up: pad.up || ls.y < -0.5, down: pad.down || ls.y > 0.5,
+      A: pad.A, B: pad.B,
+    };
+    if (cur.left && !p.left) this._moveFocus(-1, 0);
+    if (cur.right && !p.right) this._moveFocus(1, 0);
+    if (cur.up && !p.up) this._moveFocus(0, -1);
+    if (cur.down && !p.down) this._moveFocus(0, 1);
+    if (cur.A && !p.A) this._activateFocus();
+    if (cur.B && !p.B) this.custExit();
+    this._padPrev = cur;
   }
 
   _buildScrollbar() {

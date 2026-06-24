@@ -34,6 +34,11 @@ export default class InfoPanelScene extends WithCustomizer(Phaser.Scene) {
     this._wireDismiss();
   }
 
+  // Drive the appearance editor's controller focus (mixin) while in edit mode.
+  update() {
+    if (this._mode === 'edit') this._pollEditPad();
+  }
+
   refresh() {
     this.closing = false;
     this.children.removeAll(true);
