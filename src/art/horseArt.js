@@ -14,6 +14,7 @@ export const FRAME_H = 54;
 const WHITE = 0xf4efe6;
 const SOCK = 0xf0ead0;
 const EAR_PINK = 0xe0a890;
+const LIGHT_HOOF = 0xd9c2a6; // unpigmented (light/tan-pink) hoof under a white marking (#151)
 // Coat-agnostic shading overlays (Stage 2 detail, #2). Drawn as low-alpha white/black
 // on top of the 3-tone coat so every coat colour gets soft rounded form for free. The
 // hi-res grid (ART_SCALE) lets these be thin (sub-design-pixel) so they read as a
@@ -131,8 +132,10 @@ function leg(g, x, lift, tone, hoof, legMark, sockTone = SOCK, feather, points, 
   // shadow down the back, so the leg reads as round rather than a flat bar.
   g.fillStyle(HILITE, 0.12); g.fillRect(x + 3, topY, 1, h);
   g.fillStyle(SHADE, 0.13);  g.fillRect(x, topY, 0.75, h);
-  // Hoof — small shine on top + a contact shadow at the ground.
-  g.fillStyle(hoof, 1);
+  // Hoof — small shine on top + a contact shadow at the ground. Its colour follows
+  // the leg's marking (#151): a white sock/stocking gives an unpigmented (light)
+  // hoof, otherwise the coat's hoof colour (dark legs keep dark hooves).
+  g.fillStyle(legMark ? LIGHT_HOOF : hoof, 1);
   g.fillRect(x, topY + h, 4, 3);
   g.fillStyle(HILITE, 0.18); g.fillRect(x + 0.5, topY + h + 0.25, 1.25, 0.75);
   g.fillStyle(SHADE, 0.16);  g.fillRect(x, topY + h + 2.25, 4, 0.75);
