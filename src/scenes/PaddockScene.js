@@ -105,12 +105,17 @@ export default class PaddockScene
       },
     });
 
-    // DEV-only fast iteration: `?edit` (optionally `?edit=horse4`) jumps straight
-    // into the appearance editor for a horse on load. Temporary testing scaffolding.
+    // DEV-only fast iteration: jump straight into the appearance editor on load so
+    // tweaks are one refresh away. Plain dev loads auto-open it; add `?play` to play
+    // normally, `?edit=horse4` to pick a horse. `?canvas` (headless smoke/sprite
+    // tooling) is skipped unless it also passes `?edit`. Stripped from production
+    // builds (import.meta.env.DEV). Temporary testing scaffolding.
     if (import.meta.env.DEV) {
-      const editParam = new URLSearchParams(window.location.search).get('edit');
-      if (editParam !== null) {
-        const key = this.registry.get('allHorses')?.[editParam] ? editParam : 'horse';
+      const params = new URLSearchParams(window.location.search);
+      const wantEdit = params.has('edit') || (!params.has('canvas') && !params.has('play'));
+      if (wantEdit) {
+        const ep = params.get('edit');
+        const key = (ep && this.registry.get('allHorses')?.[ep]) ? ep : 'horse';
         this.time.delayedCall(300, () => {
           this.openPortrait(key);
           this.time.delayedCall(150, () => this.scene.get('InfoPanelScene')?._enterEdit());
