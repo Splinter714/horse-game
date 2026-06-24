@@ -118,7 +118,14 @@ export default class DayNightScene extends Phaser.Scene {
 
   update(_time, delta) {
     this.elapsed = (this.elapsed + delta) % DAY_MS;
+    this._applyClock();
+  }
 
+  // Recompute the lighting overlay + clock label from the current `elapsed` time
+  // and emit any phase change. Split out of update() so the dev-tools "Advance
+  // Time" button can refresh the clock on demand WITHOUT unpausing — a paused
+  // Phaser scene still renders, so a redraw here is visible while paused.
+  _applyClock() {
     // Find which phase we're in based on variable durations
     let phaseIdx = 0, phaseStart = 0;
     for (let i = 0; i < PHASES.length; i++) {

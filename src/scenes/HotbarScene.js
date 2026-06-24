@@ -942,11 +942,14 @@ export default class HotbarScene extends Phaser.Scene {
     this._addToggleRow(rowX, dy, rowW, rowH, '♻ Reset Herd to Default', () => this._resetHerd());
   }
 
-  // TEMP dev tool: jump the day/night clock forward one phase, then close the
-  // menu so the new lighting is visible (the world is frozen while paused).
+  // TEMP dev tool: jump the day/night clock forward one phase WITHOUT unpausing.
+  // The menu stays open so you can keep clicking to skip multiple phases; the
+  // lighting + clock label refresh in place (a paused scene still renders).
   _advanceTime() {
-    this.scene.get('DayNightScene')?._advancePhase();
-    this._closePause();
+    const dn = this.scene.get('DayNightScene');
+    if (!dn) return;
+    dn._advancePhase();
+    dn._applyClock();
   }
 
   // TEMP dev tool: wipe every horse's saved data back to the default herd.
