@@ -74,7 +74,13 @@ export default class ManagementPanelScene extends Phaser.Scene {
     this._selCell = Math.min(56, Math.floor((this.panelW - 24 - (n - 1) * gap) / n));
     this._selY = this.py + 44;
     this._previewTop = this._selY + this._selCell + 10;
-    this._nameY = this._previewTop + 84;
+    // Grass "pasture" viewport behind the preview so the horse (and its markings)
+    // read against the same green as the game world, not the dark panel.
+    this._pvW = Math.min(180, this.panelW - 80);
+    this._pvH = 92;
+    this._pvX = Math.round(this.px + this.panelW / 2 - this._pvW / 2);
+    this._pvY = this._previewTop;
+    this._nameY = this._previewTop + this._pvH + 10;
     this._breedY = this._nameY + 24;
     this.viewTop = this._breedY + 26;
     this.viewBottom = this.py + this.panelH - 12;
@@ -83,6 +89,10 @@ export default class ManagementPanelScene extends Phaser.Scene {
     const mg = this.make.graphics();
     mg.fillStyle(0xffffff); mg.fillRect(this.px, this.viewTop, this.panelW, this.viewH);
     this._mask = mg.createGeometryMask();
+
+    const pmg = this.make.graphics();
+    pmg.fillStyle(0xffffff); pmg.fillRoundedRect(this._pvX, this._pvY, this._pvW, this._pvH, 10);
+    this._previewMask = pmg.createGeometryMask();
   }
 
   // ── Horse selector: a row of side-view sprite chips (pinned) ──────────────
@@ -98,7 +108,7 @@ export default class ManagementPanelScene extends Phaser.Scene {
       const x = x0 + i * (cell + gap);
       const active = k === this.sel;
       const g = this.add.graphics().setDepth(5);
-      g.fillStyle(active ? 0x2a3360 : 0x1a1e30, 1); g.fillRoundedRect(x, y, cell, cell, 7);
+      g.fillStyle(0x82c24e, 1); g.fillRoundedRect(x, y, cell, cell, 7); // grass, so dark horses read
       g.lineStyle(active ? 3 : 1, active ? 0xffe066 : 0x3a4060, 1); g.strokeRoundedRect(x, y, cell, cell, 7);
       const img = this.add.image(x + cell / 2, y + cell / 2, `${k}_idle_0`)
         .setDisplaySize(cell - 10, (cell - 10) * 54 / 64).setDepth(5);
@@ -115,8 +125,14 @@ export default class ManagementPanelScene extends Phaser.Scene {
     const add = (n) => { this._headerNodes.push(n.setDepth(5)); return n; };
     const horse = this.allHorses[this.sel];
     const cx = this.px + this.panelW / 2;
+    const pvCy = this._pvY + this._pvH / 2;
 
-    add(this.add.image(cx, this._previewTop + 40, `${this.sel}_idle_0`).setDisplaySize(96, 81).setOrigin(0.5, 0.5));
+    // Grass pasture backdrop (tiled world grass, rounded), then the live preview.
+    const grass = add(this.add.tileSprite(cx, pvCy, this._pvW, this._pvH, 'grass'));
+    grass.setMask(this._previewMask);
+    const frame = add(this.add.graphics());
+    frame.lineStyle(2, 0x3a4060, 1); frame.strokeRoundedRect(this._pvX, this._pvY, this._pvW, this._pvH, 10);
+    add(this.add.image(cx, pvCy, `${this.sel}_idle_0`).setDisplaySize(96, 81).setOrigin(0.5, 0.5));
 
     const nameText = add(this.add.text(cx, this._nameY, horse.name, {
       fontFamily: 'system-ui, sans-serif', fontSize: '18px', color: '#eef0fa', fontStyle: 'bold',
