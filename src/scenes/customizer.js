@@ -259,9 +259,11 @@ export const WithCustomizer = (Base) => class extends Base {
     this._focusables.push({ id: 'f' + this._focusables.length, x: zone.x, y: zone.y, w: zone.width, h: zone.height, activate: fn, fixed: false });
   }
 
+  // Swatches are ordered light → dark and unlabelled; only the selected colour's
+  // name is shown, as one caption under the palette (#154).
   _secCoat(c, y0) {
     let y = this._heading(c, 'Coat color', y0);
-    const keys = Object.keys(COATS);
+    const keys = Object.keys(COATS).sort((a, b) => luminance(COATS[b].body.mid) - luminance(COATS[a].body.mid));
     const cols = 4, gap = 8;
     const cellW = Math.floor((this.panelW - 32 - (cols - 1) * gap) / cols);
     const cellH = TAP;
@@ -277,26 +279,24 @@ export const WithCustomizer = (Base) => class extends Base {
       g.fillStyle(co.mane.mid, 1); g.fillRoundedRect(x, cyy, cellW, 9, 6); // mane stripe
       if (co.points !== undefined) { g.fillStyle(co.points, 1); g.fillRect(x + 4, cyy + cellH - 8, cellW - 8, 6); }
       g.lineStyle(active ? 3 : 1, active ? 0xffe066 : 0x00000055, 1); g.strokeRoundedRect(x, cyy, cellW, cellH, 6);
-      const lbl = this.add.text(x + cellW / 2, cyy + cellH / 2, co.label, {
-        fontFamily: 'system-ui, sans-serif', fontSize: '9.5px', color: '#10131f',
-        backgroundColor: '#ffffffcc', padding: { x: 3, y: 1 }, align: 'center',
-      }).setOrigin(0.5, 0.5);
       const zone = this.add.zone(x, cyy, cellW, cellH).setOrigin(0, 0).setInteractive({ useHandCursor: true });
       this._tap(zone, () => this._pickColor(ck));
-      c.add([g, lbl, zone]);
+      c.add([g, zone]);
     });
-    return y + Math.ceil(keys.length / cols) * (cellH + gap);
+    y += Math.ceil(keys.length / cols) * (cellH + gap);
+    return this._secSelectedName(c, COATS[activeColor].label, y);
   }
 
-  // A grid of colour swatches. `entries` = [[key, label, tone], …]; `currentKey`
-  // highlights the active one; `onPick(key)` fires on tap. Reused by the colour
-  // palettes (mane/feather) and the sock-colour picker.
+  // A grid of unlabelled colour swatches, ordered light → dark; `currentKey`
+  // highlights the active one and its name shows as a caption below (#154).
+  // `entries` = [[key, label, tone], …]; `onPick(key)` fires on tap.
   _secSwatches(c, title, entries, currentKey, onPick, y0) {
     let y = this._heading(c, title, y0);
+    const sorted = [...entries].sort((a, b) => luminance(b[2]) - luminance(a[2]));
     const cols = 4, gap = 8;
     const cellW = Math.floor((this.panelW - 32 - (cols - 1) * gap) / cols);
     const cellH = TAP;
-    entries.forEach(([key, label, tone], i) => {
+    sorted.forEach(([key, , tone], i) => {
       const col = i % cols, row = Math.floor(i / cols);
       const x = 16 + col * (cellW + gap);
       const cyy = y + row * (cellH + gap);
@@ -304,15 +304,23 @@ export const WithCustomizer = (Base) => class extends Base {
       const g = this.add.graphics();
       g.fillStyle(tone, 1); g.fillRoundedRect(x, cyy, cellW, cellH, 6);
       g.lineStyle(active ? 3 : 1, active ? 0xffe066 : 0x00000055, 1); g.strokeRoundedRect(x, cyy, cellW, cellH, 6);
-      const lbl = this.add.text(x + cellW / 2, cyy + cellH / 2, label, {
-        fontFamily: 'system-ui, sans-serif', fontSize: '9.5px',
-        color: luminance(tone) > 140 ? '#10131f' : '#eef0fa', align: 'center',
-      }).setOrigin(0.5, 0.5);
       const zone = this.add.zone(x, cyy, cellW, cellH).setOrigin(0, 0).setInteractive({ useHandCursor: true });
       this._tap(zone, () => onPick(key));
-      c.add([g, lbl, zone]);
+      c.add([g, zone]);
     });
-    return y + Math.ceil(entries.length / cols) * (cellH + gap);
+    y += Math.ceil(sorted.length / cols) * (cellH + gap);
+    const sel = sorted.find(e => e[0] === currentKey);
+    return this._secSelectedName(c, sel ? sel[1] : '', y);
+  }
+
+  // One caption under a swatch palette naming the selected colour (#154).
+  _secSelectedName(c, name, y) {
+    if (name) {
+      c.add(this.add.text(16, y + 2, name, {
+        fontFamily: 'system-ui, sans-serif', fontSize: '13px', color: '#ffe066', fontStyle: 'bold',
+      }).setOrigin(0, 0));
+    }
+    return y + 22;
   }
 
   // A standalone labelled toggle pill (on = green/gold). Used for the optional
