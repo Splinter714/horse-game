@@ -6,11 +6,22 @@ import { CONTENT_DEFS } from '../../data/items.js';
 import { EVENTS } from '../../data/events.js';
 import { playGather } from '../../audio/sounds.js';
 import { WORLD_W, WORLD_H, CARE_DIST, PLAYER_SPEED, HOLD_MS, HOLD_DRAG_PX, PLAYER_BOUNDS, PASTURE_BOUNDS, S, STAND_DEFS, TROUGH_CAP } from './constants.js';
+import { loadDevSettings } from '../../data/save.js';
 import { dprOf, logicalH, worldUiOffset } from '../uiUtils.js';
 
 // In-place reach for using a tool on a horse (brush/saddle/lead). Use never
 // walks you anywhere — the horse has to already be within this range.
 const USE_REACH = 110;
+
+// Named boot-spawn points for the "Start at" dev tool (pause menu). Each is a
+// walkable spot next to that landmark; an unset/unknown pick falls back to Barn.
+const START_SPAWNS = {
+  Barn:         { x: 300,  y: 420 },  // default: in front of the barn (NW)
+  Pasture:      { x: 960,  y: 1180 }, // middle of the paddock, among the horses
+  Gate:         { x: 960,  y: 850 },  // just NORTH of the pasture gate (farm-yard side)
+  'Farm stand': { x: 1600, y: 840 },  // at the farm-stand counter (E edge)
+  Coop:         { x: 900,  y: 470 },  // by the chicken coop + nests
+};
 
 export const WithPlayer = (Base) => class extends Base {
   // ─── Player ──────────────────────────────────────────────────────────────
@@ -36,8 +47,11 @@ export const WithPlayer = (Base) => class extends Base {
 
     // Start in front of the barn (NW corner) so there's a walk-up approach down
     // to the pasture gate at (960, 910) rather than spawning right on top of it.
-    const startX = 300;
-    const startY = 420;
+    // The "Start at" dev tool (pause menu) can override the boot spawn to another
+    // landmark for quicker testing; an unset pick uses the barn default.
+    const spawn = START_SPAWNS[loadDevSettings().startLocation] || START_SPAWNS.Barn;
+    const startX = spawn.x;
+    const startY = spawn.y;
 
     const shadow = this.add.image(startX, startY, 'shadow')
       .setScale(S).setDepth(startY - 1);

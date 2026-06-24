@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { EVENTS } from '../data/events.js';
+import { loadDevSettings } from '../data/save.js';
 import { applyDpr, logicalW, logicalH } from './uiUtils.js';
 
 // Total cycle ~10.5 min. Long daylight so there's plenty of time for chores:
@@ -29,6 +30,19 @@ export default class DayNightScene extends Phaser.Scene {
 
     this.elapsed     = 0;
     this.currentPhase = -1; // triggers initial phase-change event
+
+    // Dev tool (pause menu): boot the clock into a chosen phase so the owner can
+    // test a specific time of day without waiting out the cycle. Sets elapsed to
+    // the start of that phase; currentPhase stays -1 so the first update still
+    // fires the phase-change event.
+    const startPhase = loadDevSettings().startPhase;
+    if (startPhase) {
+      let off = 0;
+      for (const p of PHASES) {
+        if (p.name === startPhase) { this.elapsed = off; break; }
+        off += p.dur;
+      }
+    }
     this._sleeping   = false;
 
     this.overlay = this.add.graphics().setDepth(500);
