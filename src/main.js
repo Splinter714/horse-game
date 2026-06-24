@@ -43,24 +43,36 @@ const config = {
 const game = new Phaser.Game(config);
 game.registry.set('dpr', getDpr()); // available to scenes from their first create()
 
-// Keep the canvas DISPLAYED at logical size (the buffer stays physical px). Phaser
-// would otherwise size the canvas style to the physical buffer (2× too big).
-const fixCanvasStyle = () => {
-  const c = game.canvas;
-  if (c) { c.style.width = window.innerWidth + 'px'; c.style.height = window.innerHeight + 'px'; }
-};
-fixCanvasStyle();                            // canvas exists synchronously after construction
-game.events.once('ready', fixCanvasStyle);   // belt-and-suspenders
+const gameEl = document.getElementById('game');
+let lastW = 0, lastH = 0;
 
-window.addEventListener('resize', () => {
+// Size the renderer to the device's PHYSICAL pixels while DISPLAYING at logical (CSS)
+// size. Scale.NONE doesn't auto-track the container the way Scale.RESIZE does, and
+// window.innerWidth/Height is unreliable on iOS while the Safari toolbar / orientation
+// settle — so we measure the #game container (inset:0 → fills the viewport) and re-run
+// this on every viewport change (incl. a ResizeObserver, which fires on the initial
+// layout). Fixes "doesn't fill the screen until I resize", and the bogus-size guard
+// stops a transient 0×0 from freezing the canvas.
+function applySize() {
   const dpr = getDpr();
+  const w = Math.round(gameEl?.clientWidth || window.innerWidth);
+  const h = Math.round(gameEl?.clientHeight || window.innerHeight);
+  if (w <= 0 || h <= 0) return;                                   // ignore bogus transient sizes
+  if (w === lastW && h === lastH && game.registry.get('dpr') === dpr) return; // unchanged → skip
+  lastW = w; lastH = h;
   game.registry.set('dpr', dpr);
-  game.scale.resize(window.innerWidth * dpr, window.innerHeight * dpr); // emits Scale RESIZE → UI relayouts
-  fixCanvasStyle();
-  // Re-apply camera zoom in case the device pixel ratio changed (e.g. window dragged
-  // to a monitor with a different DPR). Constant on a single device like the iPad.
+  game.scale.resize(w * dpr, h * dpr);                            // emits Scale RESIZE → UI relayouts
+  const c = game.canvas;
+  if (c) { c.style.width = w + 'px'; c.style.height = h + 'px'; } // displayed size stays logical
   game.scene.scenes.forEach((s) => s.cameras?.main?.setZoom(dpr));
-});
+}
+
+applySize();                       // initial size (the canvas exists synchronously)
+game.events.once('ready', applySize);
+window.addEventListener('resize', applySize);
+window.addEventListener('orientationchange', () => setTimeout(applySize, 50));
+window.visualViewport?.addEventListener('resize', applySize);
+if (window.ResizeObserver && gameEl) new ResizeObserver(applySize).observe(gameEl);
 
 // Exposed for debugging/automated checks during development.
 if (import.meta.env.DEV) {
