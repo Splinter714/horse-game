@@ -195,21 +195,17 @@ export function maneRampFor(colorKey) {
 // colour's defaults), so applying a breed or toggling produces exactly what the
 // player chose. With no override, the colour's own default markings are used.
 export function composeCoat(colorKey, markingsOverride) {
-  const { colorEntry } = resolveColor(colorKey);
+  const { colorKey: ck, colorEntry } = resolveColor(colorKey);
   const finalMarks = cloneMarks(markingsOverride == null ? colorEntry.markings : markingsOverride);
   const out = { ...colorEntry, markings: finalMarks };
 
-  // Mane colour is independent of the coat (#140): 'natural'/undefined keeps the
-  // colour's own mane ramp; any coat key recolours the mane to that hue.
+  // Mane colour is independent and never bundled with the coat (#140 + follow-up):
+  // a coat carries no "natural" mane, so by default the mane just matches the coat
+  // colour, and any coat key recolours it. (The coat's lower-leg `points` — e.g. a
+  // bay's black legs — stay part of the coat; leg colour is no longer separately
+  // editable, but socks/stockings have their own colour, see sockToneFor.)
   const mc = finalMarks.maneColor;
-  if (mc && mc !== 'natural' && COATS[mc]) out.mane = maneRampFor(mc);
-
-  // Leg ("points") colour is independent too (#141): 'natural'/undefined keeps the
-  // coat's built-in points (black on bays/duns); 'none' removes them; any coat key
-  // recolours the lower leg to that hue's shadow tone.
-  const lc = finalMarks.legColor;
-  if (lc === 'none') out.points = undefined;
-  else if (lc && lc !== 'natural' && COATS[lc]) out.points = COATS[lc].body.lo;
+  out.mane = maneRampFor(mc && COATS[mc] ? mc : ck);
 
   return out;
 }
@@ -231,4 +227,12 @@ export function featherToneFor(coat) {
   if (fc === 'black') return FEATHER_SWATCH.black;
   if (fc && fc !== 'natural' && COATS[fc]) return COATS[fc].body.mid;
   return coat.mane.mid;
+}
+
+// Sock/stocking colours offered in the editor (#141 follow-up): white, black, and
+// one natural tan. The art reads markings.sockColor through sockToneFor().
+export const SOCK_COLORS = { white: 0xf0ead0, black: 0x1a1614, tan: 0xb08d57 };
+export const SOCK_COLOR_LABELS = { white: 'White', black: 'Black', tan: 'Tan' };
+export function sockToneFor(markings) {
+  return SOCK_COLORS[markings && markings.sockColor] || SOCK_COLORS.white;
 }

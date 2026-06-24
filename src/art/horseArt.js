@@ -6,7 +6,7 @@
 // own `leg` is kept local because it adds socks and feathering.
 
 import { gen, makeLeg } from './_frames.js';
-import { featherToneFor } from '../data/species/horse/coats.js';
+import { featherToneFor, sockToneFor } from '../data/species/horse/coats.js';
 import { dappleCircles, roanFlecks, pintoSpec, appaloosaSpec } from '../data/species/horse/patterns.js';
 
 export const FRAME_W = 64;
@@ -15,7 +15,6 @@ export const FRAME_H = 54;
 const WHITE = 0xf4efe6;
 const SOCK = 0xf0ead0;
 const EAR_PINK = 0xe0a890;
-const FEATHER_BLACK = 0x1a1614; // black sock/stocking tone (#141)
 
 // Face markings (real-world: star / stripe / snip / blaze), white on the face of a
 // right-facing horse (#2). A blaze is the broad connected band; otherwise star,
@@ -142,7 +141,7 @@ function drawHorse(g, coat, bob, legLift) {
   const feather = featherToneFor(coat);
   const lm = mk.legs || {};
   const pts = coat.points;
-  const sockTone = mk.sockColor === 'black' ? FEATHER_BLACK : SOCK;
+  const sockTone = sockToneFor(mk);
   leg(g, 7,  legLift[0], b.lo,  coat.hoof, lm.hindFar,  sockTone, feather, pts); // hind far
   leg(g, 38, legLift[2], b.lo,  coat.hoof, lm.foreFar,  sockTone, feather, pts); // fore far
   leg(g, 13, legLift[1], b.mid, coat.hoof, lm.hindNear, sockTone, feather, pts); // hind near
@@ -204,9 +203,9 @@ function drawHorse(g, coat, bob, legLift) {
   g.fillStyle(m.lo, 1); g.fillRect(41, 9 + bob, 3, 8);
   g.fillStyle(m.mid, 1); g.fillRect(40, 16 + bob, 3, 9);
   g.fillStyle(m.lo, 1); g.fillRect(40, 24 + bob, 2, 6);
-  // Pinto: the white pattern carries into the lower mane + tail tip, giving a
-  // two-tone mane (#144). Overpaint the lower segments (same rects = clean edge).
-  if (mk.pinto) {
+  // Pinto: optionally carry the white pattern into the lower mane + tail tip for a
+  // two-tone mane (#144, opt-in via mk.pintoMane). Overpaint the lower segments.
+  if (mk.pinto && mk.pintoMane) {
     g.fillStyle(WHITE, 1);
     g.fillRect(40, 16 + bob, 3, 9); g.fillRect(40, 24 + bob, 2, 6); // lower mane
     g.fillRect(3, 31 + bob, 2, 7);  g.fillRect(4, 37 + bob, 2, 5);  // tail tip
@@ -225,7 +224,7 @@ function drawHorseSleep(g, coat, bob) {
   // Legs tucked/bent (very short — sleeping position)
   const lm = mk.legs || {};
   const pts = coat.points;
-  const sockTone = mk.sockColor === 'black' ? FEATHER_BLACK : SOCK;
+  const sockTone = sockToneFor(mk);
   leg(g, 7,  10, b.lo,  coat.hoof, lm.hindFar,  sockTone, undefined, pts, dy); // hind far (folded)
   leg(g, 38, 10, b.lo,  coat.hoof, lm.foreFar,  sockTone, undefined, pts, dy); // fore far (folded)
   leg(g, 13, 10, b.mid, coat.hoof, lm.hindNear, sockTone, undefined, pts, dy); // hind near (folded)
@@ -282,7 +281,7 @@ function drawHorseSleep(g, coat, bob) {
   g.fillStyle(m.mid, 1); g.fillRect(42, 18 + bob + dy, 2, 4);
   g.fillStyle(m.lo, 1);  g.fillRect(41, 22 + bob + dy, 2, 4);
   g.fillStyle(m.mid, 1); g.fillRect(40, 26 + bob + dy, 2, 3);
-  if (mk.pinto) { // two-tone pinto mane + tail tip (#144)
+  if (mk.pinto && mk.pintoMane) { // optional two-tone pinto mane + tail tip (#144)
     g.fillStyle(WHITE, 1);
     g.fillRect(40, 26 + bob + dy, 2, 3); // lower mane
     g.fillRect(3, 27 + bob + dy, 2, 3);  // tail tip
@@ -299,7 +298,7 @@ function drawHorseEat(g, coat, bob) {
   // Legs all planted
   const lm = mk.legs || {};
   const pts = coat.points;
-  const sockTone = mk.sockColor === 'black' ? FEATHER_BLACK : SOCK;
+  const sockTone = sockToneFor(mk);
   leg(g, 7,  0, b.lo,  coat.hoof, lm.hindFar,  sockTone, feather, pts);
   leg(g, 38, 0, b.lo,  coat.hoof, lm.foreFar,  sockTone, feather, pts);
   leg(g, 13, 0, b.mid, coat.hoof, lm.hindNear, sockTone, feather, pts);
@@ -359,7 +358,7 @@ function drawHorseEat(g, coat, bob) {
   g.fillStyle(m.lo, 1);  g.fillRect(40, 24 + bob, 3, 8);
   g.fillStyle(m.mid, 1); g.fillRect(42, 30 + bob, 3, 8);
   g.fillStyle(m.lo, 1);  g.fillRect(43, 36 + bob, 2, 4);
-  if (mk.pinto) { // two-tone pinto mane + tail tip (#144)
+  if (mk.pinto && mk.pintoMane) { // optional two-tone pinto mane + tail tip (#144)
     g.fillStyle(WHITE, 1);
     g.fillRect(42, 30 + bob, 3, 8); g.fillRect(43, 36 + bob, 2, 4); // lower mane
     g.fillRect(3, 31 + bob, 2, 7);  g.fillRect(4, 37 + bob, 2, 5);  // tail tip

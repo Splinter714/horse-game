@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { COATS, composeCoat, effectiveMarkings, maneRampFor, getCoat, featherToneFor, FEATHER_SWATCH } from './coats.js';
+import {
+  COATS, composeCoat, effectiveMarkings, maneRampFor, getCoat,
+  featherToneFor, sockToneFor, SOCK_COLORS, FEATHER_SWATCH,
+} from './coats.js';
 
 // composeCoat is the linchpin of the customizer (#2/#17/#140…): it turns a pure
 // colour key + an authoritative `markings` override into the drawable coat the art
@@ -7,11 +10,11 @@ import { COATS, composeCoat, effectiveMarkings, maneRampFor, getCoat, featherTon
 // back-compat that lets old saves render unchanged).
 
 describe('composeCoat — base behaviour', () => {
-  it('with no override uses the colour\'s own ramps + default markings', () => {
+  it('with no override uses the colour\'s body ramp + default markings', () => {
     const coat = composeCoat('bay', null);
     expect(coat.body).toEqual(COATS.bay.body);
-    expect(coat.mane).toEqual(COATS.bay.mane);
     expect(coat.markings).toEqual(COATS.bay.markings);
+    expect(coat.points).toBe(COATS.bay.points); // coat keeps its built-in leg points
   });
 
   it('a markings override is authoritative (replaces, does not merge with defaults)', () => {
@@ -26,10 +29,15 @@ describe('composeCoat — base behaviour', () => {
   });
 });
 
-describe('mane colour decoupling (#140)', () => {
+describe('mane colour decoupling (#140 + follow-up: no coat-bundled mane)', () => {
   it('maneRampFor returns the colour\'s body ramp', () => {
     expect(maneRampFor('black')).toEqual(COATS.black.body);
     expect(maneRampFor('palomino')).toEqual(COATS.palomino.body);
+  });
+
+  it('by default the mane matches the coat colour (its body ramp)', () => {
+    expect(composeCoat('chestnut', {}).mane).toEqual(COATS.chestnut.body);
+    expect(composeCoat('bay', null).mane).toEqual(COATS.bay.body);
   });
 
   it('maneColor recolours the mane to that hue, leaving the body alone', () => {
@@ -38,13 +46,8 @@ describe('mane colour decoupling (#140)', () => {
     expect(coat.body).toEqual(COATS.chestnut.body);  // body unchanged
   });
 
-  it("maneColor 'natural' (or absent) keeps the coat's own mane", () => {
-    expect(composeCoat('chestnut', { maneColor: 'natural' }).mane).toEqual(COATS.chestnut.mane);
-    expect(composeCoat('chestnut', {}).mane).toEqual(COATS.chestnut.mane);
-  });
-
-  it('an unknown maneColor key falls back to the natural mane', () => {
-    expect(composeCoat('bay', { maneColor: 'nope' }).mane).toEqual(COATS.bay.mane);
+  it('an unknown maneColor key falls back to the coat colour', () => {
+    expect(composeCoat('bay', { maneColor: 'nope' }).mane).toEqual(COATS.bay.body);
   });
 
   it('effectiveMarkings surfaces the maneColor choice for the picker', () => {
@@ -52,22 +55,15 @@ describe('mane colour decoupling (#140)', () => {
   });
 });
 
-describe('leg colour decoupling + black socks (#141)', () => {
-  it("legColor 'natural'/absent keeps the coat's built-in points", () => {
-    expect(composeCoat('bay', {}).points).toBe(COATS.bay.points);          // bay = black points
-    expect(composeCoat('chestnut', {}).points).toBeUndefined();            // chestnut = none
+describe('sock/stocking colour (#141 follow-up)', () => {
+  it('defaults to white, and resolves white/black/tan', () => {
+    expect(sockToneFor({})).toBe(SOCK_COLORS.white);
+    expect(sockToneFor({ sockColor: 'black' })).toBe(SOCK_COLORS.black);
+    expect(sockToneFor({ sockColor: 'tan' })).toBe(SOCK_COLORS.tan);
   });
 
-  it("legColor 'none' removes the points even on a coat that has them", () => {
-    expect(composeCoat('bay', { legColor: 'none' }).points).toBeUndefined();
-  });
-
-  it('legColor of a coat key recolours the lower leg to that hue', () => {
-    expect(composeCoat('chestnut', { legColor: 'black' }).points).toBe(COATS.black.body.lo);
-  });
-
-  it('sockColor is carried on the markings for the art to read', () => {
-    expect(effectiveMarkings('grey', { sockColor: 'black' }).sockColor).toBe('black');
+  it("the coat's built-in leg points are unaffected (no separate leg colour)", () => {
+    expect(composeCoat('bay', { sockColor: 'tan' }).points).toBe(COATS.bay.points);
   });
 });
 
@@ -77,8 +73,8 @@ describe('feathering colour — full palette, matching the mane (#143)', () => {
   });
 
   it("'natural'/absent tracks the (possibly overridden) mane", () => {
-    expect(featherToneFor(composeCoat('black', { feather: true }))).toBe(COATS.black.mane.mid);
-    // mane override flows through to natural feathering too
+    // Mane now defaults to the coat's body, so natural feathering matches that.
+    expect(featherToneFor(composeCoat('black', { feather: true }))).toBe(COATS.black.body.mid);
     expect(featherToneFor(composeCoat('black', { feather: true, maneColor: 'grey' }))).toBe(COATS.grey.body.mid);
   });
 
