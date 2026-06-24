@@ -168,8 +168,13 @@ export const WithCustomizer = (Base) => class extends Base {
     const c = this.add.container(this.px, this.viewTop).setDepth(3);
     this.contentC = c;
 
+    const horse = this.allHorses[this._editKey];
+    const eff = effectiveMarkings(horse.coat, horse.markings);
+    const naturalMane = COATS[colorKeyOf(horse.coat)].mane.mid;
+
     let y = 8;
     y = this._secCoat(c, y) + 14;
+    y = this._secColorPalette(c, 'Mane color', eff.maneColor, naturalMane, (k) => this._setManeColor(k), y) + 14;
     y = this._secChips(c, 'Patterns', PATTERN_LABELS, y) + 14;
     y = this._secChips(c, 'Face markings', FACE_MARKING_LABELS, y) + 14;
     y = this._secLegs(c, y) + 14;
@@ -223,6 +228,37 @@ export const WithCustomizer = (Base) => class extends Base {
       c.add([g, lbl, zone]);
     });
     return y + Math.ceil(keys.length / cols) * (cellH + gap);
+  }
+
+  // A reusable colour-palette picker: a "Natural" cell (shown in `naturalTone`)
+  // followed by every coat colour as a swatch. `currentKey` highlights the active
+  // choice ('natural' or a coat key); `onPick(key)` receives 'natural' or a coat key.
+  // Used for mane (#140) and feathering (#143) so they offer identical options.
+  _secColorPalette(c, title, currentKey, naturalTone, onPick, y0) {
+    let y = this._heading(c, title, y0);
+    const entries = [['natural', 'Natural', naturalTone],
+      ...Object.keys(COATS).map(k => [k, COATS[k].label, COATS[k].body.mid])];
+    const cols = 4, gap = 8;
+    const cellW = Math.floor((this.panelW - 32 - (cols - 1) * gap) / cols);
+    const cellH = 34;
+    const cur = currentKey || 'natural';
+    entries.forEach(([key, label, tone], i) => {
+      const col = i % cols, row = Math.floor(i / cols);
+      const x = 16 + col * (cellW + gap);
+      const cyy = y + row * (cellH + gap);
+      const active = key === cur;
+      const g = this.add.graphics();
+      g.fillStyle(tone, 1); g.fillRoundedRect(x, cyy, cellW, cellH, 6);
+      g.lineStyle(active ? 3 : 1, active ? 0xffe066 : 0x00000055, 1); g.strokeRoundedRect(x, cyy, cellW, cellH, 6);
+      const lbl = this.add.text(x + cellW / 2, cyy + cellH / 2, label, {
+        fontFamily: 'system-ui, sans-serif', fontSize: '9.5px',
+        color: luminance(tone) > 140 ? '#10131f' : '#eef0fa', align: 'center',
+      }).setOrigin(0.5, 0.5);
+      const zone = this.add.zone(x, cyy, cellW, cellH).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+      this._tap(zone, () => onPick(key));
+      c.add([g, lbl, zone]);
+    });
+    return y + Math.ceil(entries.length / cols) * (cellH + gap);
   }
 
   // A heading + a wrapping row of toggle chips for a {key: label} map.
@@ -409,6 +445,16 @@ export const WithCustomizer = (Base) => class extends Base {
     const horse = this.allHorses[this._editKey];
     const eff = effectiveMarkings(horse.coat, horse.markings);
     horse.markings = { ...eff, [m]: !eff[m] }; // authoritative override
+    this._applyEdit();
+  }
+
+  // Mane colour: 'natural' clears the override (mane tracks the coat); a coat key
+  // recolours the mane to that hue (#140). composeCoat resolves it for the art.
+  _setManeColor(key) {
+    const horse = this.allHorses[this._editKey];
+    const next = { ...effectiveMarkings(horse.coat, horse.markings) };
+    if (key === 'natural') delete next.maneColor; else next.maneColor = key;
+    horse.markings = next;
     this._applyEdit();
   }
 

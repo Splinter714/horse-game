@@ -182,6 +182,13 @@ export function getCoat(key) {
   return composeCoat(key, null);
 }
 
+// A colour's representative 3-tone ramp when used as *hair* (mane/tail, feathering).
+// We reuse the colour's body ramp — that's the recognizable hue a player picks from
+// the palette (#140/#143). Unknown keys fall back to palomino.
+export function maneRampFor(colorKey) {
+  return (COATS[colorKey] || COATS.palomino).body;
+}
+
 // Compose a horse's drawable coat from its colour key plus optional per-animal
 // marking overrides (the customization panel, #2/#17). A markings override is
 // AUTHORITATIVE — it fully defines the markings (it doesn't merge with the
@@ -190,7 +197,14 @@ export function getCoat(key) {
 export function composeCoat(colorKey, markingsOverride) {
   const { colorEntry } = resolveColor(colorKey);
   const finalMarks = cloneMarks(markingsOverride == null ? colorEntry.markings : markingsOverride);
-  return { ...colorEntry, markings: finalMarks };
+  const out = { ...colorEntry, markings: finalMarks };
+
+  // Mane colour is independent of the coat (#140): 'natural'/undefined keeps the
+  // colour's own mane ramp; any coat key recolours the mane to that hue.
+  const mc = finalMarks.maneColor;
+  if (mc && mc !== 'natural' && COATS[mc]) out.mane = maneRampFor(mc);
+
+  return out;
 }
 
 // The full effective markings for a horse (used by the panel to show what's on).
