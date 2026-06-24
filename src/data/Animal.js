@@ -39,6 +39,9 @@ export class Animal {
     // breeding later (#113/#15). Falls back to the species default for older
     // saves that predate the attribute.
     this.sex = data.sex ?? def.sex ?? 'female';
+    // Body build / silhouette ('riding' | 'draft', horse only) — selects the art's
+    // parametric shape. Undefined → the art's default (riding). Older saves omit it.
+    this.build = data.build ?? def.build;
     this.lastSeen = data.lastSeen ?? Date.now();
 
     // ── Always-present traits with defaults (e.g. horse temperament/saddled,
@@ -154,6 +157,7 @@ export class Animal {
       lastSeen: this.lastSeen,
     };
     if (this.markings) out.markings = this.markings;
+    if (this.build) out.build = this.build;
     for (const key of Object.keys(this._spec.traits ?? {})) out[key] = this[key];
     for (const key of this._spec.optionalAttrs ?? []) {
       if (this[key] !== undefined) out[key] = this[key];

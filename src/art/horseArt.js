@@ -23,29 +23,120 @@ const DARK_MARK = 0x1a140f;  // near-black for the optional "dark markings" set 
 const HILITE = 0xffffff;
 const SHADE  = 0x000000;
 
+// ── Silhouette engine (Stage 3 shape pass) ──────────────────────────────────
+// The body / neck / head are no longer stacked rectangles: each is filled as a
+// run of 1-wide vertical "scanline" columns whose top and bottom edges follow a
+// control-point polyline. That gives the horse an anatomical OUTLINE — arched
+// crested neck, deep sloping shoulder, tucked-up belly, rounded haunch, shaped
+// head — while every edge still snaps to a whole device-pixel (crisp, not
+// blurry) because the art grid is super-sampled (ART_SCALE). Re-shaping the horse
+// is now "move a control point", not "rewrite a wall of fillRects".
+const snap = (v) => Math.round(v * 2) / 2; // 0.5 design-grid = 2 device px @ R=4
+
+// Linear-interpolate a polyline [[x,y]…] (sorted by x); clamps past the ends.
+function yAt(pts, x) {
+  if (x <= pts[0][0]) return pts[0][1];
+  const n = pts.length;
+  for (let i = 1; i < n; i++) {
+    if (x <= pts[i][0]) {
+      const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
+      return y0 + (y1 - y0) * ((x - x0) / (x1 - x0));
+    }
+  }
+  return pts[n - 1][1];
+}
+
+// Blend two packed-RGB colours (t: 0→a, 1→b). Lets the coat's 3-tone ramp be expanded
+// into a smooth gradient — many shades instead of three flat bands.
+function lerpColor(a, b, t) {
+  const ar = (a >> 16) & 255, ag = (a >> 8) & 255, ab = a & 255;
+  const br = (b >> 16) & 255, bg = (b >> 8) & 255, bb = b & 255;
+  return ((Math.round(ar + (br - ar) * t) << 16) | (Math.round(ag + (bg - ag) * t) << 8) | Math.round(ab + (bb - ab) * t));
+}
+// Vertical form-tone for a body cross-section: lit (hi) at the top, shading down
+// through mid to lo at the underside. t = 0 (top) … 1 (bottom).
+function toneAt(body, t) {
+  return t < 0.42 ? lerpColor(body.hi, body.mid, t / 0.42) : lerpColor(body.mid, body.lo, (t - 0.42) / 0.58);
+}
+// Fill a closed profile (between a top and bottom polyline) as 1-wide columns with a
+// smooth top-lit gradient (toneAt) plus a bright topline rim-light — a rounded,
+// many-shade body instead of three flat bands. `yo` shifts the shape (bob / poses).
+function fillProfile(g, body, topPts, botPts, x0, x1, yo) {
+  const STEP = 0.5;
+  for (let x = x0; x < x1; x++) {
+    const yt = snap(yAt(topPts, x + 0.5) + yo);
+    const yb = snap(yAt(botPts, x + 0.5) + yo);
+    const h = yb - yt;
+    if (h <= 0) continue;
+    for (let y = yt; y < yb; y += STEP) {
+      g.fillStyle(toneAt(body, (y - yt) / h), 1);
+      g.fillRect(x, y, 1, Math.min(STEP, yb - y));
+    }
+    g.fillStyle(lerpColor(body.hi, 0xffffff, 0.22), 1); g.fillRect(x, yt, 1, 0.5); // topline rim
+  }
+}
+
+// ── Build table ─────────────────────────────────────────────────────────────
+// A horse "build" is a fully parametric silhouette: profile polylines (barrel /
+// neck / head, design grid, faces right → front = high x), leg geometry + the
+// four leg x-positions, and a few head/tail anchors. Re-proportioning the whole
+// horse — or adding a new build — is data, not new draw code. A young (foal)
+// variant is derived from a build by foalizeBuild() rather than hand-drawn.
+export const BUILDS = {
+  // Balanced all-purpose riding horse.
+  riding: {
+    barrelTop: [[6,24],[8,19],[11,16.5],[14,16],[20,16.5],[30,17.5],[37,16.5],[40,15.5],[44,16.5],[48,19]],
+    barrelBot: [[6,29],[8,32.5],[11,34.5],[15,34],[18,33],[23,31.5],[31,32.5],[39,34],[44,34],[47,33],[48,31]],
+    neckTop:   [[40,15.5],[43,10],[46,6],[48,4.5],[50,4]],
+    neckBot:   [[40,31],[43,26],[46,21],[48,19.5],[50,15]],
+    headTop:   [[49,5],[53,4.5],[57,5],[60,6],[62,7]],
+    headBot:   [[49,13.5],[51,14],[55,13.5],[59,13],[62,12.5]],
+    legX: [8, 14, 36, 42],                 // [hindFar, hindNear, foreFar, foreNear]
+    leg:  { top: 33, ground: 50, upperW: 5, cannonW: 3 },
+    tailRoot: [6, 20],
+    ears:   { near: [47, 0.5, 2.5, 5], inner: [47.75, 1.5, 1, 2.5], far: [45.5, 1, 1.5, 4] },
+    eye: [53, 7], nostril: [59.5, 10], muzzle: [57, 9, 5, 3.5],
+  },
+  // Heavy draft: deep barrel, thick crested neck, short stout legs, blunt head.
+  draft: {
+    barrelTop: [[4,25],[7,18.5],[11,15.5],[15,15],[24,15.5],[33,16.5],[40,15.5],[44,14.5],[47,15],[49,18.5]],
+    barrelBot: [[4,32],[6,35],[10,37],[15,37.5],[24,37],[33,36.5],[41,37],[46,36.5],[48,35],[49,32]],
+    neckTop:   [[39,15],[41,9],[44,5.5],[47,4],[49,3.5]],
+    neckBot:   [[39,31],[42,27],[45,21],[48,16.5],[49,15]],
+    headTop:   [[48,4],[51,3.5],[55,4.5],[58,7],[61,9.5]],
+    headBot:   [[48,15.5],[51,16],[54,15.5],[57,15],[60,14.5],[61,13.5]],
+    legX: [8, 13, 41, 46],
+    leg:  { top: 35, ground: 51, upperW: 7, cannonW: 5 },
+    tailRoot: [5, 21],
+    ears:   { near: [46, 0.5, 3, 5], inner: [46.75, 1.5, 1, 2.5], far: [44, 1, 2, 4] },
+    eye: [51, 6], nostril: [59, 11], muzzle: [57, 10.5, 4, 3],
+  },
+};
+const getBuild = (id) => BUILDS[id] || BUILDS.riding;
+
 // Face markings (real-world: star / stripe / snip / blaze), white on the face of a
 // right-facing horse (#2). A blaze is the broad connected band; otherwise star,
 // stripe, and snip are drawn independently per flag.
 function faceMarkings(g, mk, bob) {
   if (mk.cobwebbing) { // fine dark radial lines / mask on the forehead (#152)
     g.fillStyle(DARK_MARK, 0.5);
-    g.fillRect(50, 4 + bob, 1, 5); g.fillRect(49, 6 + bob, 1, 2);
-    g.fillRect(52, 6 + bob, 1, 2); g.fillRect(51, 3 + bob, 1, 1);
+    g.fillRect(51, 5 + bob, 1, 5); g.fillRect(50, 7 + bob, 1, 2);
+    g.fillRect(53, 6 + bob, 1, 2);
   }
   g.fillStyle(WHITE, 1);
   if (mk.blaze) {
-    g.fillRect(51, 4 + bob, 2, 2);   // forehead
-    g.fillRect(52, 6 + bob, 2, 2);
-    g.fillRect(54, 8 + bob, 2, 2);
-    g.fillRect(56, 9 + bob, 3, 2);   // down onto the muzzle
+    g.fillRect(51, 4.5 + bob, 2.5, 2);   // forehead
+    g.fillRect(53, 6.5 + bob, 2.5, 2);
+    g.fillRect(55, 8 + bob, 3, 2);
+    g.fillRect(58, 9.5 + bob, 3.5, 2);   // down onto the muzzle
     return;
   }
-  if (mk.star) g.fillRect(50, 3 + bob, 3, 3);            // forehead spot (bigger)
+  if (mk.star) g.fillRect(51, 4.5 + bob, 3, 3);          // forehead spot
   if (mk.stripe) {                                        // thin line down the nose
-    g.fillRect(53, 6 + bob, 1, 1); g.fillRect(54, 7 + bob, 1, 1);
-    g.fillRect(55, 8 + bob, 1, 1); g.fillRect(56, 9 + bob, 1, 1);
+    g.fillRect(54, 7 + bob, 1, 1); g.fillRect(55, 8 + bob, 1, 1);
+    g.fillRect(56, 9 + bob, 1, 1); g.fillRect(57, 10 + bob, 1, 1);
   }
-  if (mk.snip) g.fillRect(58, 10 + bob, 2, 2);           // muzzle spot (bigger)
+  if (mk.snip) g.fillRect(59, 10 + bob, 2, 2);           // muzzle spot
 }
 
 // The eating head sits low-right in a different pose, so face markings need their
@@ -100,10 +191,11 @@ function bodyPatterns(g, coat, yo) {
 }
 
 // Dun-gene dorsal stripe: a thin dark line down the spine (drawn after the body).
-function drawDorsal(g, coat, yo) {
+function drawDorsal(g, coat, yo, B = BUILDS.riding) {
   if (!coat.dorsal) return;
   g.fillStyle(coat.points ?? coat.mane.lo, 1);
-  g.fillRect(8, 18 + yo, 39, 1);
+  const t = B.barrelTop, x0 = t[0][0] + 3, x1 = t[t.length - 1][0] - 4;
+  for (let x = x0; x < x1; x++) g.fillRect(x, snap(yAt(t, x + 0.5) + yo) + 1.5, 1, 1);
 }
 
 // Optional "dark markings" set (#152) — toggleable detail layers, each matching a
@@ -195,106 +287,225 @@ function leg(g, x, lift, tone, hoof, legMark, sockTone = SOCK, feather, points, 
   }
 }
 
-function drawHorse(g, coat, bob, legLift) {
-  const b = coat.body;
-  const m = coat.mane;
-  const mk = coat.markings || {};
+// Vertical value modulation along a leg: subtle highlights on the forearm/gaskin
+// muscle, the knee/hock knob and the fetlock, with soft shadows tucked above the knee
+// and below the joints — so the anatomy reads through SHADING, keeping the silhouette
+// bumps gentle. Returns +light / −dark amount for a height fraction f.
+function legShadeV(f) {
+  const bump = (c, hw, a) => Math.max(0, a * (1 - Math.abs(f - c) / hw));
+  return bump(0.15, 0.13, 0.055)   // forearm / gaskin muscle (light)
+       - bump(0.34, 0.06, 0.05)    // above the knee (shadow)
+       + bump(0.42, 0.05, 0.06)    // knee / hock knob (light)
+       - bump(0.54, 0.07, 0.045)   // under the joint (shadow)
+       + bump(0.83, 0.04, 0.05)    // fetlock (light)
+       - bump(0.92, 0.06, 0.04);   // pastern (shadow)
+}
 
-  // --- legs first (behind body), far legs in shadow tone ---
+// One continuously-tapered limb with real anatomy, drawn row-by-row. The vertical
+// width profile gives it a muscular forearm/gaskin that flares into the body, a
+// narrowing above the knee/hock, a joint KNOB, a thin straight cannon, a fetlock
+// bump, a pinched pastern, then the hoof — so it reads top-to-bottom like a leg, not
+// a cone. Hind legs carry a heavier gaskin + bigger hock and a slight hock angle.
+// Depth-aware: near legs are lit and blend up into the body; far legs sink into the
+// underbelly shadow. Markings (points / sock / stocking) layer by height fraction.
+function legV2(g, x, lift, body, near, hind, hoof, legMark, sockTone = SOCK, feather = false, points, yo = 0, geo = { top: 33, ground: 50, upperW: 5, cannonW: 3 }) {
+  const upperW = geo.upperW, cannonW = geo.cannonW;
+  const topY = geo.top + yo;
+  const ground = geo.ground + yo - lift;
+  if (ground <= topY + 4) return;
+  const H = ground - topY;
+  const cxC = x + upperW / 2;                 // limb centre line
+  const kneeF = 0.46;                          // points (dark lower leg) begin below the knee
+  const base = near ? lerpColor(body.mid, body.hi, 0.28) : body.lo;
+  const topTone = near ? body.mid : body.lo;
+  const pTone = points !== undefined ? (near ? points : lerpColor(points, 0x000000, 0.18)) : null;
+  const sTone = legMark ? (near ? sockTone : lerpColor(sockTone, body.lo, 0.28)) : null;
+  const sockF = legMark === 'stocking' ? 0.5 : 0.78;
+  // anatomical width by height fraction (control points): forearm/gaskin → above-knee
+  // pinch → knee/hock knob → cannon → fetlock → pastern → hoof.
+  const prof = hind
+    ? [[0, upperW + 1.7], [0.09, upperW + 0.3], [0.26, cannonW + 0.7], [0.40, cannonW + 1.2], [0.48, cannonW], [0.78, cannonW], [0.83, cannonW + 0.6], [0.89, cannonW - 0.1], [1, cannonW + 0.5]]
+    : [[0, upperW + 1.2], [0.10, upperW - 0.2], [0.30, cannonW + 0.5], [0.40, cannonW + 0.9], [0.47, cannonW], [0.78, cannonW], [0.83, cannonW + 0.6], [0.89, cannonW - 0.1], [1, cannonW + 0.5]];
+  const widthAt = (f) => yAt(prof, f);
+  // hind leg leans: gaskin forward at the top, tucking back through the hock, vertical below
+  const centerAt = (f) => cxC + (!hind ? 0 : f < 0.4 ? 0.7 - 0.9 * (f / 0.4) : f < 0.52 ? -0.2 + (f - 0.4) / 0.12 * 0.2 : 0);
+  for (let y = topY; y < ground; y += 0.5) {
+    const f = (y - topY) / H;
+    const w = widthAt(f), lx = centerAt(f) - w / 2;
+    let core;
+    if (sTone && f >= sockF) core = sTone;
+    else if (pTone && f >= kneeF) core = pTone;
+    else core = lerpColor(topTone, base, Math.min(1, f / 0.16)); // blend body tone → base at the top
+    const v = legShadeV(f);                                       // vertical anatomy shading
+    core = v >= 0 ? lerpColor(core, 0xfff2d8, v) : lerpColor(core, 0x000000, -v);
+    g.fillStyle(core, 1); g.fillRect(lx, y, w, 0.5);
+    g.fillStyle(lerpColor(core, 0x000000, near ? 0.13 : 0.09), 1); g.fillRect(lx, y, w * 0.26, 0.5); // back shadow
+    if (near) { g.fillStyle(lerpColor(core, 0xfff2d8, 0.08), 1); g.fillRect(lx + w * 0.72, y, w * 0.2, 0.5); } // front light
+  }
+  // knee/hock: a faint shadow tucked at the back of the joint (the rest of the joint
+  // shaping is carried by legShadeV)
+  const jf = 0.40, jw = widthAt(jf), jc = centerAt(jf), jy = topY + H * jf;
+  g.fillStyle(lerpColor(base, 0x000000, 0.1), 1); g.fillRect(jc - jw / 2, jy - 0.5, jw * 0.2, 1.4);
+  // hoof — light if a white marking sits above it (unpigmented hoof, #151)
+  const hToneBase = legMark ? LIGHT_HOOF : hoof;
+  const hTone = near ? hToneBase : lerpColor(hToneBase, 0x000000, 0.2);
+  const hoofW = cannonW + 1.4, hx = centerAt(1) - hoofW / 2;
+  g.fillStyle(hTone, 1); g.fillRect(hx, ground, hoofW, 2.5);
+  g.fillStyle(lerpColor(hTone, 0x000000, near ? 0.1 : 0.16), 1); g.fillRect(hx, ground, hoofW * 0.28, 2.5);
+  if (near) { g.fillStyle(lerpColor(hTone, 0xffffff, 0.18), 1); g.fillRect(hx + 0.6, ground + 0.3, 1.25, 0.7); }
+  g.fillStyle(SHADE, 0.16); g.fillRect(hx, ground + 2, hoofW, 0.6);
+  // feathering — fluffy tuft cascading over the fetlock/hoof
+  if (feather) {
+    const fetY = topY + H * 0.82, fc = centerAt(0.82);
+    const ft = legMark ? sTone : (pTone !== null ? pTone : base);
+    g.fillStyle(ft, 1);
+    const fw = cannonW + 4;
+    g.fillRect(fc - fw / 2, fetY, fw, 2);
+    g.fillRect(fc - fw / 2 - 0.5, fetY + 1.5, fw + 1, 2);
+    g.fillRect(fc - 2, fetY + 3, 1.5, 3);
+    g.fillRect(fc, fetY + 3, 1.5, 2);
+    g.fillRect(fc + 1, fetY + 3, 1.5, 3.5);
+  }
+}
+
+// Flowing tail off the dock (x0,y0 = where it attaches), falling down-left.
+function drawTailFrom(g, m, x0, y0, bob, white = false) {
+  const lo = white ? WHITE : m.lo, mid = white ? WHITE : m.mid;
+  g.fillStyle(mid, 1); g.fillRect(x0, y0 + bob, 3, 4);          // dock (narrow, attached)
+  g.fillStyle(lo, 1);  g.fillRect(x0 - 2, y0 + 3 + bob, 4, 7);  // upper flow
+  g.fillStyle(mid, 1); g.fillRect(x0 - 3, y0 + 8 + bob, 4, 8);
+  g.fillStyle(lo, 1);  g.fillRect(x0 - 4, y0 + 14 + bob, 4, 8); // fullest bulge
+  g.fillStyle(mid, 1); g.fillRect(x0 - 3, y0 + 19 + bob, 4, 7);
+  g.fillStyle(lo, 1);  g.fillRect(x0 - 3, y0 + 25 + bob, 3, 5); // tapering tip
+  g.fillStyle(mid, 1); g.fillRect(x0 - 2, y0 + 29 + bob, 2, 4);
+  if (!white) { g.fillStyle(HILITE, 0.10); g.fillRect(x0 - 1.5, y0 + 4 + bob, 0.8, 22); }
+}
+
+// Form shading that follows the barrel: a sheen just under the topline and a soft
+// core shadow just above the belly, so every coat reads as a rounded 3-D barrel.
+function shadeBarrel(g, B, bob) {
+  const t = B.barrelTop, bt = B.barrelBot;
+  const x0 = Math.max(t[0][0], bt[0][0]) + 2;
+  const x1 = Math.min(t[t.length - 1][0], bt[bt.length - 1][0]) - 1;
+  for (let x = x0; x < x1; x++) {
+    const yt = snap(yAt(t, x + 0.5) + bob), yb = snap(yAt(bt, x + 0.5) + bob);
+    g.fillStyle(HILITE, 0.10); g.fillRect(x, yt + 1.5, 1, 1);     // topline sheen
+    g.fillStyle(SHADE, 0.10);  g.fillRect(x, yb - 2.75, 1, 1.25); // belly core shadow
+  }
+}
+
+// Soft anatomical definition over the barrel: a haunch-muscle highlight, a stifle /
+// flank crease, the sloping shoulder shadow, and a brisket highlight — so the body
+// reads as muscled rather than a smooth sausage. Positioned by barrel landmarks so it
+// follows any build; coat-agnostic alpha overlays.
+function musculature(g, B, bob) {
+  const t = B.barrelTop;
+  const bx0 = t[0][0], bx1 = t[t.length - 1][0];
+  const topY = (x) => snap(yAt(t, x + 0.5) + bob);
+  g.fillStyle(HILITE, 0.09);                                   // haunch dome
+  for (let x = bx0 + 3; x < bx0 + 9; x++) g.fillRect(x, topY(x) + 2, 1, 4);
+  g.fillStyle(SHADE, 0.10);                                    // stifle / flank crease
+  for (let i = 0; i < 7; i++) g.fillRect(bx0 + 9 + i * 0.25, topY(bx0 + 9) + 4 + i, 0.8, 3);
+  for (let i = 0; i < 8; i++) g.fillRect(bx1 - 8 + i * 0.5, topY(bx1 - 8 + i * 0.5) + 3 + i * 0.8, 0.8, 5); // shoulder slope
+  g.fillStyle(HILITE, 0.07);                                   // shoulder / brisket
+  for (let x = bx1 - 5; x < bx1 - 1; x++) g.fillRect(x, topY(x) + 3, 1, 6);
+}
+
+// Mane draped along the neck crest (parametric → follows any build's neck), plus a
+// forelock at the poll. Locks are longest at the withers, fading toward the poll.
+function drawManeAlong(g, coat, bob, B) {
+  const m = coat.mane, mk = coat.markings || {};
+  const crest = B.neckTop, xW = crest[0][0], xP = crest[crest.length - 1][0];
+  const pintoMane = mk.pinto && mk.pintoMane;
+  const L = 5; // mane hair length (kept trim so it doesn't swallow the neck)
+  // Hanging mass: a band off the crest broken into ~3px locks with slightly varied
+  // tips, so the lower edge reads as distinct hanks of hair draped down the near side
+  // of the neck rather than a noisy fringe. Lit roots sit along the crest.
+  for (let x = xW; x <= xP; x += 0.5) {
+    const cy = yAt(crest, x + 0.25);
+    const f = (x - xW) / (xP - xW);                   // 0 at withers … 1 at poll
+    const lock = Math.floor((x - xW) / 3);
+    const tip = L + (lock % 2 ? 1.5 : 0) - f * 2;      // alternate lock length, shorter toward poll
+    const white = pintoMane && f < 0.5;
+    g.fillStyle(white ? WHITE : m.lo, 1);  g.fillRect(x - 0.25, cy - 1 + bob, 1, tip);
+    g.fillStyle(white ? WHITE : m.mid, 1); g.fillRect(x - 0.25, cy - 1 + bob, 1, 2.5);
+  }
+  // sheen strands picking out a few locks
+  g.fillStyle(m.hi, 0.45);
+  for (let x = xW + 1.5; x < xP - 1; x += 3) g.fillRect(x, yAt(crest, x + 0.5) + 0.5 + bob, 0.6, 4);
+  // forelock falling over the brow between the ears
+  g.fillStyle(m.mid, 1); g.fillRect(xP - 1, yAt(crest, xP) - 3 + bob, 3, 4);
+  g.fillStyle(m.lo, 1);  g.fillRect(xP + 0.5, yAt(crest, xP) - 1 + bob, 1.5, 3);
+}
+
+function drawHorse(g, coat, bob, legLift, B = BUILDS.riding) {
+  const b = coat.body;
+  const mk = coat.markings || {};
   const feather = !!mk.feather; // feathering is on/off; colour derives per-leg (#155)
   const lm = mk.legs || {};
   const pts = coat.points;
   const sockTone = SOCK; // socks/stockings are always white (#153)
-  leg(g, 7,  legLift[0], b.lo,  coat.hoof, lm.hindFar,  sockTone, feather, pts); // hind far
-  leg(g, 38, legLift[2], b.lo,  coat.hoof, lm.foreFar,  sockTone, feather, pts); // fore far
-  leg(g, 13, legLift[1], b.mid, coat.hoof, lm.hindNear, sockTone, feather, pts); // hind near
-  leg(g, 44, legLift[3], b.mid, coat.hoof, lm.foreNear, sockTone, feather, pts); // fore near
-  legDark(g, 7, legLift[0], mk, lm.hindFar);  legDark(g, 38, legLift[2], mk, lm.foreFar);  // dark leg marks (#152)
-  legDark(g, 13, legLift[1], mk, lm.hindNear); legDark(g, 44, legLift[3], mk, lm.foreNear);
+  const geo = B.leg, lx = B.legX;
 
-  // --- tail ---
-  g.fillStyle(m.mid, 1); g.fillRect(6, 22 + bob, 2, 4);
-  g.fillStyle(m.lo, 1); g.fillRect(4, 25 + bob, 2, 7);
-  g.fillStyle(m.mid, 1); g.fillRect(3, 31 + bob, 2, 7);
-  g.fillStyle(m.lo, 1); g.fillRect(4, 37 + bob, 2, 5);
+  // --- far legs + tail (behind the body) ---
+  legV2(g, lx[0], legLift[0], b, false, true,  coat.hoof, lm.hindFar, sockTone, feather, pts, bob, geo); // hind far
+  legV2(g, lx[2], legLift[2], b, false, false, coat.hoof, lm.foreFar, sockTone, feather, pts, bob, geo); // fore far
+  legDark(g, lx[0], legLift[0], mk, lm.hindFar, bob); legDark(g, lx[2], legLift[2], mk, lm.foreFar, bob);
+  drawTailFrom(g, coat.mane, B.tailRoot[0], B.tailRoot[1], bob, !!(mk.pinto && mk.pintoMane));
 
-  // --- rump + body (3-tone bands) ---
-  // Rump left edge is rounded by trimming top and bottom corners.
-  g.fillStyle(b.mid, 1);
-  g.fillRect(8, 20 + bob, 8, 16);   // main rump bulk
-  g.fillRect(7, 22 + bob, 1, 12);   // left strip, corners bare = rounded silhouette
-  g.fillStyle(b.hi, 1);
-  g.fillRect(8, 18 + bob, 8, 4);    // top highlight
-  g.fillRect(7, 20 + bob, 1, 2);    // left highlight patch
-  // Body — chest (right edge) rounded by trimming top and bottom corners.
-  g.fillStyle(b.mid, 1);
-  g.fillRect(12, 20 + bob, 35, 16);   // main body
-  g.fillRect(47, 22 + bob, 1, 11);    // right strip, corners bare = rounded chest
-  g.fillStyle(b.hi, 1);
-  g.fillRect(12, 18 + bob, 35, 5);    // top highlight
-  g.fillRect(47, 21 + bob, 1, 2);     // right highlight patch
-  g.fillStyle(b.lo, 1);
-  g.fillRect(12, 33 + bob, 35, 4);    // belly shadow
-  g.fillRect(47, 33 + bob, 1, 2);     // right shadow patch
+  // --- body barrel + chest (scanline profile) ---
+  const bx0 = Math.max(B.barrelTop[0][0], B.barrelBot[0][0]);
+  const bx1 = Math.min(B.barrelTop[B.barrelTop.length - 1][0], B.barrelBot[B.barrelBot.length - 1][0]);
+  fillProfile(g, b, B.barrelTop, B.barrelBot, bx0, bx1, bob);
+  shadeBarrel(g, B, bob);
+  musculature(g, B, bob);
 
-  // Rounded-barrel shading (Stage 2): a bright sheen along the topline fading to a
-  // soft shadow under the belly, plus a curved highlight on the haunch, so the body
-  // reads as a 3-D barrel instead of a flat slab. Coat-agnostic alpha overlays.
-  g.fillStyle(HILITE, 0.10);
-  g.fillRect(13, 18.5 + bob, 33, 1.25);  // back topline sheen
-  g.fillRect(9, 18.5 + bob, 6, 1.25);    // rump topline sheen
-  g.fillRect(9.5, 22 + bob, 4, 5);       // rounded haunch highlight
-  g.fillStyle(SHADE, 0.07);
-  g.fillRect(12, 31 + bob, 35, 1.5);     // lower-barrel soft shade
-  g.fillStyle(SHADE, 0.11);
-  g.fillRect(12, 34.5 + bob, 34, 1.5);   // belly core shadow
-
-  // dorsal stripe (dun gene) + whole-body patterns (pinto / appaloosa / dapples / roan)
-  drawDorsal(g, coat, bob);
+  // dorsal stripe + whole-body patterns + dark markings
+  drawDorsal(g, coat, bob, B);
   bodyPatterns(g, coat, bob);
   darkMarkings(g, coat, bob);
 
-  // --- neck ---
-  g.fillStyle(b.mid, 1); g.fillRect(42, 14 + bob, 8, 12);
-  g.fillStyle(b.mid, 1); g.fillRect(45, 8 + bob, 8, 8);
-  g.fillStyle(b.hi, 1); g.fillRect(46, 8 + bob, 3, 18);
+  // --- neck (arched crest) ---
+  fillProfile(g, b, B.neckTop, B.neckBot, B.neckTop[0][0], B.neckTop[B.neckTop.length - 1][0] + 1, bob);
 
   // --- head ---
-  g.fillStyle(b.mid, 1); g.fillRect(47, 4 + bob, 14, 9);   // skull
-  g.fillStyle(b.hi, 1);  g.fillRect(47, 4 + bob, 14, 2);   // top highlight
-  g.fillStyle(b.lo, 1);  g.fillRect(55, 8 + bob, 7, 4);    // muzzle (flush with skull)
-  g.fillStyle(b.mid, 1); g.fillRect(48, 0 + bob, 3, 6);    // ear (taller, more upright)
-  g.fillStyle(EAR_PINK, 1); g.fillRect(49, 1 + bob, 1, 4); // ear inner
-  // nostril
-  g.fillStyle(coat.hoof, 0.6); g.fillRect(60, 10 + bob, 1, 1);
+  fillProfile(g, b, B.headTop, B.headBot, B.headTop[0][0], B.headTop[B.headTop.length - 1][0] + 1, bob);
+  // muzzle — soft velvety darkening over the lower front of the nose, following the
+  // head contour and blended in (no hard box), strongest toward the tip
+  const hxEnd = B.headTop[B.headTop.length - 1][0];
+  for (let x = hxEnd - 5; x < hxEnd; x++) {
+    const yt = snap(yAt(B.headTop, x + 0.5) + bob), yb = snap(yAt(B.headBot, x + 0.5) + bob);
+    const k = (x - (hxEnd - 5)) / 5;
+    g.fillStyle(lerpColor(b.lo, 0x000000, 0.06 + 0.16 * k), 1);
+    g.fillRect(x, yb - (yb - yt) * 0.5, 1, (yb - yt) * 0.5);
+  }
+  // ears
+  const e = B.ears;
+  g.fillStyle(b.mid, 1);    g.fillRect(e.near[0], e.near[1] + bob, e.near[2], e.near[3]);   // near ear
+  g.fillStyle(EAR_PINK, 1); g.fillRect(e.inner[0], e.inner[1] + bob, e.inner[2], e.inner[3]);
+  g.fillStyle(b.lo, 1);     g.fillRect(e.far[0], e.far[1] + bob, e.far[2], e.far[3]);       // far ear (shadow)
+  // nostril — a soft dark comma on the side of the muzzle with a lip shadow beneath
+  const [nx, ny] = B.nostril;
+  g.fillStyle(lerpColor(b.lo, 0x000000, 0.5), 1);  g.fillRect(nx, ny + bob, 1.5, 1.5);
+  g.fillStyle(lerpColor(b.lo, 0x000000, 0.22), 1); g.fillRect(nx - 0.25, ny + 1.5 + bob, 2, 0.5);
 
-  // face markings (star / stripe / snip / blaze), drawn before the eye so the eye
-  // stays on top
+  // face markings (drawn before the eye so the eye stays on top)
   faceMarkings(g, mk, bob);
 
-  // eye — upper-lid shadow + a small catch-light glint
-  g.fillStyle(coat.eye, 1);  g.fillRect(50, 7 + bob, 2, 2);
-  g.fillStyle(SHADE, 0.30);  g.fillRect(50, 7 + bob, 2, 0.5);
-  g.fillStyle(HILITE, 0.85); g.fillRect(50.25, 7.5 + bob, 0.5, 0.5);
+  // eye — set into a soft socket, with an almond eyeball, upper-lid shadow + catch-light
+  const [ex, ey] = B.eye;
+  g.fillStyle(lerpColor(b.mid, 0x000000, 0.16), 1);   g.fillRect(ex - 0.5, ey - 0.75 + bob, 3, 2.75); // socket
+  g.fillStyle(coat.eye, 1);  g.fillRect(ex, ey + bob, 2, 1.75);                                        // eyeball
+  g.fillStyle(SHADE, 0.45);  g.fillRect(ex, ey + bob, 2, 0.5);                                         // upper lid
+  g.fillStyle(lerpColor(coat.eye, 0xffffff, 0.9), 1); g.fillRect(ex + 1.05, ey + 0.4 + bob, 0.6, 0.55); // catch-light
 
-  // --- mane (over neck) ---
-  g.fillStyle(m.mid, 1); g.fillRect(43, 3 + bob, 3, 6);
-  g.fillStyle(m.lo, 1); g.fillRect(41, 9 + bob, 3, 8);
-  g.fillStyle(m.mid, 1); g.fillRect(40, 16 + bob, 3, 9);
-  g.fillStyle(m.lo, 1); g.fillRect(40, 24 + bob, 2, 6);
-  // A soft highlight ribbon down the front of the mane gives it a bit of sheen
-  // without busying up the blocky locks.
-  g.fillStyle(HILITE, 0.10);
-  g.fillRect(43.25, 3.5 + bob, 0.6, 5);
-  g.fillRect(41.25, 9.5 + bob, 0.6, 7);
-  g.fillRect(40.25, 16.5 + bob, 0.6, 7);
-  // Pinto: optionally carry the white pattern into the lower mane + tail tip for a
-  // two-tone mane (#144, opt-in via mk.pintoMane). Overpaint the lower segments.
-  if (mk.pinto && mk.pintoMane) {
-    g.fillStyle(WHITE, 1);
-    g.fillRect(40, 16 + bob, 3, 9); g.fillRect(40, 24 + bob, 2, 6); // lower mane
-    g.fillRect(3, 31 + bob, 2, 7);  g.fillRect(4, 37 + bob, 2, 5);  // tail tip
-  }
+  // mane over the crest
+  drawManeAlong(g, coat, bob, B);
+
+  // --- near legs (in front of the body) ---
+  legV2(g, lx[1], legLift[1], b, true, true,  coat.hoof, lm.hindNear, sockTone, feather, pts, bob, geo); // hind near
+  legV2(g, lx[3], legLift[3], b, true, false, coat.hoof, lm.foreNear, sockTone, feather, pts, bob, geo); // fore near
+  legDark(g, lx[1], legLift[1], mk, lm.hindNear, bob); legDark(g, lx[3], legLift[3], mk, lm.foreNear, bob);
 }
 
 // Horse sleeping: laid out on side, head and neck relaxed.
@@ -608,7 +819,8 @@ export function buildFoalTextures(scene, baseKey, coat) {
 }
 
 // Builds idle_0, idle_1, walk_0..3, eat_0..1, sleep_0..1 textures under `${baseKey}_...`.
-export function buildHorseTextures(scene, baseKey, coat) {
+export function buildHorseTextures(scene, baseKey, coat, buildId = 'riding') {
+  const B = getBuild(buildId);
   const frames = [
     { name: 'idle_0', bob: 0, legs: IDLE_LEGS },
     { name: 'idle_1', bob: 1, legs: IDLE_LEGS },
@@ -630,7 +842,7 @@ export function buildHorseTextures(scene, baseKey, coat) {
       const g = scaledGraphics(g0);
       if (f.eat) drawHorseEat(g, coat, f.bob);
       else if (f.sleep) drawHorseSleep(g, coat, f.bob);
-      else drawHorse(g, coat, f.bob, f.legs);
+      else drawHorse(g, coat, f.bob, f.legs, B);
     });
   }
 }

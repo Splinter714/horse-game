@@ -229,6 +229,8 @@ export const WithCustomizer = (Base) => class extends Base {
     let y = 8;
     y = this._secOptions(c, 'Gender', [['female', 'Female'], ['male', 'Male']],
       horse.sex || 'female', (k) => this._setGender(k), y) + 14;
+    y = this._secOptions(c, 'Body type', [['riding', 'Riding'], ['draft', 'Draft']],
+      horse.build || 'riding', (k) => this._setBuild(k), y) + 14;
     y = this._secCoat(c, y) + 14;
     y = this._secSwatches(c, 'Mane color', maneEntries, maneCur, (k) => this._setManeColor(k), y) + 14;
     // Patterns: single-select with None (#147 FU), then the active one's variant.
@@ -748,6 +750,13 @@ export const WithCustomizer = (Base) => class extends Base {
   // persists via the model's toJSON.
   _setGender(sex) {
     this.allHorses[this._editKey].sex = sex;
+    this._applyEdit();
+  }
+
+  // Body build / silhouette (riding vs draft) — selects the art's parametric shape,
+  // rebuilt live by reskinHorse() via the horse's persisted `build`.
+  _setBuild(build) {
+    this.allHorses[this._editKey].build = build;
     this._applyEdit();
   }
 

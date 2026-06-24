@@ -46,9 +46,17 @@ export default class BootScene extends Phaser.Scene {
     buildPlayerTextures(this);
     for (const key of Object.keys(allHorses)) {
       const coat = composeCoat(allHorses[key].coat, allHorses[key].markings);
-      buildHorseTextures(this, key, coat);
+      buildHorseTextures(this, key, coat, allHorses[key].build);
       // Deprecated front-facing horse portrait — kept around for future use:
       // buildPortraitTexture(this, `portrait_${key}`, coat);
+    }
+
+    // Dev-only build previews so `npm run sprites horseRiding horseDraft` can render
+    // each silhouette while iterating on shape (bay shows mane/points/legs clearly).
+    if (import.meta.env.DEV) {
+      buildHorseTextures(this, 'horseRiding', getCoat('bay'), 'riding');
+      buildHorseTextures(this, 'horseDraft', composeCoat('bay', { feather: true, legs: { foreNear: 'stocking', foreFar: 'stocking', hindNear: 'stocking', hindFar: 'stocking' } }), 'draft');
+      buildHorseTextures(this, 'horseDun', getCoat('dun'), 'riding'); // guards dun→eat/sleep dorsal path
     }
 
     // Foal textures (foal1 = dapple grey, foal2 = chestnut pinto, foal3 = bay)

@@ -108,14 +108,12 @@ export default class PaddockScene
       },
     });
 
-    // DEV-only fast iteration: jump straight into the appearance editor on load so
-    // tweaks are one refresh away. Plain dev loads auto-open it; add `?play` to play
-    // normally, `?edit=horse4` to pick a horse. `?canvas` (headless smoke/sprite
-    // tooling) is skipped unless it also passes `?edit`. Stripped from production
-    // builds (import.meta.env.DEV). Temporary testing scaffolding.
+    // DEV-only fast iteration: `?edit` jumps straight into the appearance editor on
+    // load (optionally `?edit=horse4` to pick a horse). Plain dev loads play normally.
+    // Stripped from production builds (import.meta.env.DEV). Temporary testing scaffolding.
     if (import.meta.env.DEV) {
       const params = new URLSearchParams(window.location.search);
-      const wantEdit = params.has('edit') || (!params.has('canvas') && !params.has('play'));
+      const wantEdit = params.has('edit');
       if (wantEdit) {
         const ep = params.get('edit');
         const key = (ep && this.registry.get('allHorses')?.[ep]) ? ep : 'horse';
@@ -673,7 +671,7 @@ export default class PaddockScene
     const data = this.registry.get('allHorses')?.[key];
     if (!data) return;
     const coat = composeCoat(data.coat, data.markings);
-    buildHorseTextures(this, key, coat); // the side-view frames the world + panel use
+    buildHorseTextures(this, key, coat, data.build); // the side-view frames the world + panel use
   }
 
   update(time, delta) {
