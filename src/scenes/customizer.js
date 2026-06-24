@@ -32,9 +32,25 @@ const LEG_CYCLE = [undefined, 'sock', 'stocking']; // bare → sock → stocking
 const SOCK_WHITE = 0xf0ead0; // socks/stockings are always white (#153)
 const TAP = 44; // comfortable touch-target minimum (#100/#146)
 
-// Perceived brightness of a 0xRRGGBB colour (for picking dark vs light chip text).
-const luminance = (hex) =>
-  0.299 * ((hex >> 16) & 255) + 0.587 * ((hex >> 8) & 255) + 0.114 * (hex & 255);
+// HSL of a 0xRRGGBB colour, for ordering swatches by colour family (#154).
+function hsl(hex) {
+  const r = ((hex >> 16) & 255) / 255, g = ((hex >> 8) & 255) / 255, b = (hex & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  let h = 0, s = 0;
+  if (d > 1e-4) {
+    s = d / (1 - Math.abs(2 * l - 1));
+    if (mx === r) h = ((g - b) / d) % 6; else if (mx === g) h = (b - r) / d + 2; else h = (r - g) / d + 4;
+    h = h * 60; if (h < 0) h += 360;
+  }
+  return { h, s, l };
+}
+// Swatch sort key: chromatic colours grouped by hue then light→dark; near-grey and
+// black colours grouped together at the end. So the palette reads "organized by
+// colour", not just by brightness (#154).
+const colorRank = (hex) => {
+  const { h, s, l } = hsl(hex);
+  return s < 0.12 ? 400 + (1 - l) : h + (1 - l);
+};
 
 export const WithCustomizer = (Base) => class extends Base {
   // ── Lifecycle ───────────────────────────────────────────────────────────────
@@ -267,11 +283,12 @@ export const WithCustomizer = (Base) => class extends Base {
     this._focusables.push({ id: 'f' + this._focusables.length, x: zone.x, y: zone.y, w: zone.width, h: zone.height, activate: fn, fixed: false });
   }
 
-  // Swatches are ordered light → dark and unlabelled; only the selected colour's
-  // name is shown, as one caption under the palette (#154).
+  // Swatches are ordered by colour (hue family) and unlabelled; only the selected
+  // colour's name shows, as one caption under the palette (#154). A coat swatch is
+  // just the base body pigment — mane/dorsal/dark-legs are separate now.
   _secCoat(c, y0) {
     let y = this._heading(c, 'Coat color', y0);
-    const keys = Object.keys(COATS).sort((a, b) => luminance(COATS[b].body.mid) - luminance(COATS[a].body.mid));
+    const keys = Object.keys(COATS).sort((a, b) => colorRank(COATS[a].body.mid) - colorRank(COATS[b].body.mid));
     const cols = 4, gap = 8;
     const cellW = Math.floor((this.panelW - 32 - (cols - 1) * gap) / cols);
     const cellH = TAP;
@@ -280,12 +297,9 @@ export const WithCustomizer = (Base) => class extends Base {
       const col = i % cols, row = Math.floor(i / cols);
       const x = 16 + col * (cellW + gap);
       const cyy = y + row * (cellH + gap);
-      const co = COATS[ck];
       const active = ck === activeColor;
       const g = this.add.graphics();
-      g.fillStyle(co.body.mid, 1); g.fillRoundedRect(x, cyy, cellW, cellH, 6);
-      g.fillStyle(co.mane.mid, 1); g.fillRoundedRect(x, cyy, cellW, 9, 6); // mane stripe
-      if (co.points !== undefined) { g.fillStyle(co.points, 1); g.fillRect(x + 4, cyy + cellH - 8, cellW - 8, 6); }
+      g.fillStyle(COATS[ck].body.mid, 1); g.fillRoundedRect(x, cyy, cellW, cellH, 6);
       g.lineStyle(active ? 3 : 1, active ? 0xffe066 : 0x00000055, 1); g.strokeRoundedRect(x, cyy, cellW, cellH, 6);
       const zone = this.add.zone(x, cyy, cellW, cellH).setOrigin(0, 0).setInteractive({ useHandCursor: true });
       this._tap(zone, () => this._pickColor(ck));
@@ -295,12 +309,12 @@ export const WithCustomizer = (Base) => class extends Base {
     return this._secSelectedName(c, COATS[activeColor].label, y);
   }
 
-  // A grid of unlabelled colour swatches, ordered light → dark; `currentKey`
+  // A grid of unlabelled colour swatches, ordered by colour family; `currentKey`
   // highlights the active one and its name shows as a caption below (#154).
   // `entries` = [[key, label, tone], …]; `onPick(key)` fires on tap.
   _secSwatches(c, title, entries, currentKey, onPick, y0) {
     let y = this._heading(c, title, y0);
-    const sorted = [...entries].sort((a, b) => luminance(b[2]) - luminance(a[2]));
+    const sorted = [...entries].sort((a, b) => colorRank(a[2]) - colorRank(b[2]));
     const cols = 4, gap = 8;
     const cellW = Math.floor((this.panelW - 32 - (cols - 1) * gap) / cols);
     const cellH = TAP;
