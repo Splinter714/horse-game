@@ -387,6 +387,22 @@ export default class PaddockScene
     this.petAnimal(t.key, t.sprite);
   }
 
+  // A neglected horse the player has approached gives a throttled grumpy squeal +
+  // anger mark, so its mood reads without it fleeing (#150). Non-horses/foals and
+  // content horses are silent here. Tending it clears `neglected` and stops this.
+  _maybeGrumpAtPlayer(prox) {
+    if (!prox) return;
+    const model = this.registry.get('allHorses')?.[prox.key];
+    if (!model?.neglected) return;
+    const h = this.horses.find(x => x.key === prox.key);
+    if (!h) return;
+    const now = this.time.now;
+    if (h._lastGrump && now - h._lastGrump < 6000) return;
+    h._lastGrump = now;
+    playSqueal();
+    this.showIcon('iconGrumpy', h.sprite);
+  }
+
   // Open the info panel for the animal currently in reach (the separate Info
   // input: C key / gamepad Y / double-tap). Foals have no panel. No-op while a
   // menu/panel is open or there's no animal in range.
@@ -455,6 +471,10 @@ export default class PaddockScene
     // Info target: the nearest animal that has a panel — plain proximity (#97),
     // independent of need. (Foals have no panel.)
     this._proxAnimal = cands.filter(c => c.open).sort((a, b) => a.d - b.d)[0] ?? null;
+
+    // A grumpy (neglected) horse the player is near voices its mood on approach,
+    // throttled — instead of running off to a corner (#150). It stays pettable.
+    this._maybeGrumpAtPlayer(this._proxAnimal);
 
     // Pet target: among animals a pet would help (#98), the one that needs love
     // most (un-loved first, then biggest happiness deficit), tie-broken by

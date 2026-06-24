@@ -534,16 +534,8 @@ export const WithCreatures = (Base) => class extends Base {
   _needTarget(h) {
     const horse = this.registry.get('allHorses')?.[h.key];
     if (!horse) return null;
-    const pb = PASTURE_BOUNDS;
-
-    // Neglected → sulk off alone in a corner, away from the herd.
-    if (horse.neglected) {
-      const leftSide = h.key.charCodeAt(h.key.length - 1) % 2 === 0;
-      return {
-        tx: leftSide ? pb.minX + 50 : pb.maxX - 50,
-        ty: pb.maxY - Phaser.Math.Between(30, 70),
-      };
-    }
+    // (A grumpy/neglected horse no longer sulks off to a corner away from the player
+    // — it wanders normally and just voices its grumpiness on approach/interact, #150.)
 
     // Hunger no longer biases the wander target: a hungry horse actively goes to
     // beg the player / gather at the gate via horseTickForHorse → _horseBeg, which
