@@ -7,6 +7,8 @@ import {
 import { INTERACT_DIST } from './paddock/constants.js';
 import { WithWorld } from './paddock/world.js';
 import { WithCreatures } from './paddock/creatures.js';
+import { WithFlock } from './paddock/flock.js';
+import { WithHerd } from './paddock/herd.js';
 import { WithFarmStand } from './paddock/farmStand.js';
 import { WithDayNight } from './paddock/dayNight.js';
 import { WithHorseAI } from './paddock/horseAI.js';
@@ -27,9 +29,9 @@ import { WithInput } from './paddock/input.js';
 import { applyDpr } from './uiUtils.js';
 
 export default class PaddockScene
-  extends WithWorld(WithCreatures(WithFarmStand(WithDayNight(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
+  extends WithWorld(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithDayNight(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
     WithEffects(WithPersistence(WithRendering(WithWorldObjects(WithCareActions(WithInteraction(WithInput(
-    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene))))))))))))))))))) {
+    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene))))))))))))))))))))) {
   constructor() {
     super('PaddockScene');
   }
@@ -207,7 +209,7 @@ export default class PaddockScene
     // the popup's own keydown) — don't also re-trigger a pet/open here, which
     // would make it flicker shut-then-open. Mirrors handleTap bailing early.
     if (this.scene.isActive('InfoPanelScene')) {
-      Phaser.Input.Keyboard.JustDown(this.eKey); // consume so it doesn't queue
+      this._interactJustDown(); // consume E/Space so it doesn't queue
       this.padAJustDown = false;
       return;
     }
@@ -221,7 +223,7 @@ export default class PaddockScene
 
     const { player } = this;
     const item    = this.getActiveItem();
-    const eJust   = Phaser.Input.Keyboard.JustDown(this.eKey);
+    const eJust   = this._interactJustDown();
     const aJust   = this.padAJustDown;
     this.padAJustDown = false;
     if (eJust) this._useKeyboard(); // interact via E → keyboard prompt glyphs

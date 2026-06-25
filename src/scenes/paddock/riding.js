@@ -136,8 +136,8 @@ export const WithRiding = (Base) => class extends Base {
     this.player.shadow.x = h.sprite.x;
     this.player.shadow.y = h.sprite.y;
 
-    // E or A → dismount
-    if (Phaser.Input.Keyboard.JustDown(this.eKey) || this.padAJustDown) {
+    // E / Space or A → dismount
+    if (this._interactJustDown() || this.padAJustDown) {
       this.padAJustDown = false;
       this.dismount();
     }

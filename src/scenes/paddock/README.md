@@ -17,7 +17,9 @@ core orchestrator.
 |---|---|---|
 | Orchestration | `PaddockScene.js` (core) | `constructor`/`create`/`update`, `buildHorses`, `checkProximity`, `movePlayer`, sleep/wake |
 | World build | `paddock/world.js` (`WithWorld`) | terrain/props, obstacles, collision helpers |
-| Creatures | `paddock/creatures.js` (`WithCreatures`) | spawning, generic animal + chicken movement, foals, rolling |
+| Creatures | `paddock/creatures.js` (`WithCreatures`) | species-neutral spawn + shared wander/movement primitives, foals, horse spawn |
+| Flock | `paddock/flock.js` (`WithFlock`) | chicken flock driver, follow/gather/peck, egg laying + collection |
+| Herd | `paddock/herd.js` (`WithHerd`) | horse need-driven wander, herd separation/pairing, rolling, greeting |
 | Farm stand | `paddock/farmStand.js` (`WithFarmStand`) | stand build + NPC customers |
 | Day/night | `paddock/dayNight.js` (`WithDayNight`) | phase response, rest/wake, roosting, birds |
 | Horse AI | `paddock/horseAI.js` (`WithHorseAI`) | horse eat/drink seeking + gate-aware pathing |
