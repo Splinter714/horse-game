@@ -57,9 +57,25 @@ try {
       'buildPlayer', 'movePlayer', 'handleTap', '_findPath', 'gatherFrom',
       'mountHorse', 'dismount', 'toggleSaddle', 'toggleLead',
       'horseTick', 'horseGoEat', 'horseGoDrink', 'spawnHorse', 'spawnAnimal',
+      'buildAnimals', '_worldSpecies', '_applySpawnCapabilities', // generic spawn (#167 B4)
       'separateHorses', '_horseBeg', '_begWait',
       'runBehaviors', '_horseContext', '_chickenContext', '_nearestReachableHay',
       'onPhaseChange', 'doAction', 'depthSort', 'tickDecay',
+      // Extracted concern mixins (issue #167): effects / persistence / rendering.
+      'showHeart', 'showIcon', '_saveHorses', '_saveAnimal', 'tickAutosave', 'updateSaddles', 'updateFoals',
+      // worldObjects: food drops / trough / gate.
+      'placeFood', '_freeFoodSpot', 'fillTrough', '_setTroughLevel', 'toggleGate',
+      // careActions: tool-on-horse, generic direct animal care, panel action dispatch.
+      'useItemOnHorse', '_applyConsumeCare', '_produceFromAnimal', '_afterAnimalCare',
+      // interaction: pet/info cluster + info-panel openers.
+      'petAnimal', '_petPreferenceProximity', '_maybeGreetOnApproach', 'openProxInfo',
+      'openPortrait', 'openChickenInfo', 'openCreatureInfo', '_openInfoPanel',
+      // input: gamepad poll, pause overlay, input-mode + prompt toggles.
+      '_pollRawPad', '_togglePause', '_syncInputMode', '_onPromptsChanged',
+      // player split (#167 A2): movement, prompts, interactables, use-dispatch.
+      '_stepNav', 'tapMoveTo', '_renderPrompts', 'checkToolProximity',
+      'buildInteractables', '_proximityInteractable', 'useActiveTool', '_nearestToolHorse',
+      '_animalUseAction', '_nearestCareAnimal',
     ];
     const missingMethods = expectMethods.filter((m) => typeof paddock[m] !== 'function');
 
@@ -98,7 +114,30 @@ try {
       water:  paddock._gatherTarget('water', 1),
     };
 
+    // Generic direct-care path (#167 B3): a ready cow harvests once through the
+    // species-data-driven produce dispatch (no per-cow methods) — it fills an empty
+    // bucket with milk, flips producedToday, and a second attempt the same day no-ops.
+    let cowMilk = 'no cow';
+    try {
+      const cow = paddock.animals.find((a) => a.model?.species === 'cow');
+      if (cow) {
+        const hot = g.scene.getScene('HotbarScene');
+        hot.activeSlot = hot.hotbar.indexOf('bucketGroup');
+        hot.activeCarrier.bucket = 'bucket1';
+        hot.carriers.bucket1 = { content: null, count: 0 }; // empty bucket → can milk
+        cow.model.readyToProduce = true; cow.model.producedToday = false;
+        paddock._produceFromAnimal(cow);
+        const first = cow.model.producedToday === true
+          && hot.carriers.bucket1.content === 'milk' && hot.carriers.bucket1.count >= 1;
+        const before = hot.carriers.bucket1.count;
+        paddock._produceFromAnimal(cow); // same day → no-op (already produced)
+        cowMilk = (first && hot.carriers.bucket1.count === before) ? 'milked-once'
+          : `first=${first},count=${hot.carriers.bucket1.count}`;
+      }
+    } catch (e) { cowMilk = 'threw: ' + String(e); }
+
     return {
+      cowMilk,
       renderer: g.config.renderType, // 1=Canvas, 2=WebGL
       movementOk, movementError,
       behaviorDecision,
@@ -195,6 +234,7 @@ try {
   }
   if (gt.seed !== 5) fail(`gather target for seed = ${gt.seed}, expected 5 (one per chicken, #136)`);
   if (gt.water !== 1) fail(`gather target for water = ${gt.water}, expected 1 (capacity — water ignores demand)`);
+  if (result.cowMilk !== 'milked-once') fail(`cow generic produce path failed (got ${result.cowMilk}) — #167 B3 unified care`);
   if (!result.horsePanel.active) fail('InfoPanelScene did not open for a horse');
   if (result.horsePanel.parts < 15) fail(`horse panel looks too sparse (parts=${result.horsePanel.parts}) — identity/stat bars missing?`);
   if (!result.chickenPanel.active) fail('InfoPanelScene did not open for a chicken');

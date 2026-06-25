@@ -39,8 +39,10 @@ export const COW = {
   // Daily produce (#cow): the cow gives one bucket of milk per day. Normally gated
   // on having met the required care the DAY BEFORE (the daily-care cycle below), but
   // `readyAtStart` lets a fresh cow be milked on day one so the mechanic is easy to
-  // try. The generic Animal model reads this to drive readyToProduce / producedToday.
-  produces: { content: 'milk', readyAtStart: true },
+  // try. The generic Animal model reads this to drive readyToProduce / producedToday;
+  // the generic care dispatch (careActions/useDispatch) reads verb/sound/icon to label
+  // the Use prompt, play the harvest sound, and float the icon — all data, no cow code.
+  produces: { content: 'milk', readyAtStart: true, verb: 'Milk', sound: 'milk', icon: 'iconBucketMilk' },
 
   // Track these care flags each day; missing any (yesterday) makes her wake up
   // neglected AND leaves her not ready to milk that day.
@@ -66,6 +68,16 @@ export const COW = {
   movement: {
     wanderMin: 6000,
     wanderMax: 13000,
+  },
+
+  // World spawn (#167 B4) — read by creatures.js buildAnimals. The model comes from
+  // the allCows roster; `roam: 'pasture'` keeps her in the paddock with the horses;
+  // `grazes` (capabilities) wires the shared food/water goal tick at spawn.
+  spawn: {
+    inWorld: true,
+    shadowScale: 0.85, walkFps: 3, tweenRate: 6, eatFps: 6, bodyR: 18,
+    roam: 'pasture',
+    placements: [{ x: 1150, y: 1300 }],
   },
 
   // Info-panel presentation: animated portrait (she has idle frames), stat bars

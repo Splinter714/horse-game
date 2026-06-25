@@ -37,7 +37,9 @@ net that lets us ship without the owner manually playing.
 - `DayNightScene` — day/night cycle, lighting tint, sleep. (Dev-only: tap the time
   label to skip a phase — gated behind `import.meta.env.DEV`.)
 - `HotbarScene` — hotbar, carriers, pause menu (mute, control-prompt toggle, volume
-  sliders), money label.
+  sliders), money label. Also a **thin orchestrator** composed from concern mixins
+  under `src/scenes/hotbar/` (slots, carriers, inventory, action buttons, pause menu) —
+  same functional-mixin pattern as PaddockScene. See `src/scenes/hotbar/README.md`.
 - `InfoPanelScene` — the single data-driven info popup for **any** animal (horses,
   chickens, the cat). Renders stat bars from `species.needs` and identity/trait/portrait
   from the species' `panel` block. Purely informational — care is done in-world, so it
@@ -107,10 +109,24 @@ the `horseAI`/`creatures` mixins — behaviors only wire condition → primitive
   model pick it up via data.
 - **A new AI behavior:** add a module to the species' `behaviors.js` and its id to the
   `behaviors` list in `index.js`. Add a pure-decision case to `behaviors.test.js`.
-- **A new animal species:** create `src/data/species/<name>/` (an `index.js` definition
-  with needs/actions/capabilities/behaviors, a `model.js` class or reuse `Animal`, a
-  `behaviors.js`), register it in `species/index.js`, add an art builder in `src/art/`,
-  build its textures in `BootScene`, and give it a roster + persistence in `save.js`.
+- **A new animal species:** mostly **data** now (#167 Phase B/B4) — the cross-cutting
+  seams are registry-driven, so you do **not** edit `save.js`, `BootScene.js`,
+  `creatures.js`, or the care dispatch (the C2 seam guards in `src/seams.test.js`
+  enforce this). To add one:
+  - Create `src/data/species/<name>/`: an `index.js` def (needs/actions/capabilities/
+    behaviors, plus a `spawn` block for placement+visuals and an optional `produces`
+    block for milk-style harvest), a `model.js` class (or reuse `Animal`), a
+    `behaviors.js`.
+  - Register it in `species/index.js`; add a persistence entry to `data/rosters.js`;
+    add its texture builder to `art/index.js` (+ an art file under `src/art/`).
+  - Direct care is data: declare `actions` (feed/water/pet) and optional `produces`.
+    Spawn behaviour is capability-driven: `grazes` wires the food/water goal tick,
+    `pecks`/`roosts` the flock hooks. The generic dispatch picks it all up — no
+    bespoke `feedX`/`spawnX` methods. (Spawn placement: `spawn.placements`, one per
+    roster individual.)
+  This is what lets two new animals be added in **parallel git worktrees** without
+  colliding: each lives in its own `species/<name>/` folder + one-line registry
+  entries, not shared orchestrator files.
 
 ## PaddockScene structure — functional mixins (`src/scenes/paddock/`)
 
@@ -118,36 +134,39 @@ PaddockScene was a ~3,100-line monolith; it's split into concern files composed 
 the **functional mixin pattern**:
 
 ```js
-class PaddockScene extends WithWorld(WithCreatures(WithFarmStand(
-  WithDayNight(WithHorseAI(WithRiding(WithPlayer(Phaser.Scene))))))) { … }
+class PaddockScene extends WithWorld(WithCreatures(WithFarmStand(WithDayNight(
+  WithHorseAI(WithBehaviors(WithRiding(WithPlayer(WithEffects(WithPersistence(
+  WithRendering(WithWorldObjects(WithCareActions(WithInteraction(WithInput(
+  WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(
+  Phaser.Scene))))))))))))))))))) { … }
 ```
 
 Each mixin is `export const WithX = (Base) => class extends Base { …methods… }`, so
 `this` is the scene and behavior is identical to the old class — it's purely a file
 split for navigability. Method names are unique across all files (no overrides).
 
-- `constants.js` — shared tuning/layout constants (world size, bounds, gate, scale,
-  cleanliness thresholds, farm-stand product defs). Both the scene and mixins import these.
-- `world.js` — world building + obstacle/collision helpers.
-- `creatures.js` — generic animal + chicken behavior, foals, horse spawning + wander/
-  need-driven movement/rolling.
-- `farmStand.js` — farm stand + NPC customers.
-- `dayNight.js` — phase response, dawn roll-over, rest/wake, roosting, birds.
-- `horseAI.js` — horse eat/drink seeking + gate-aware pathing.
-- `riding.js` — riding, saddle, leading.
-- `player.js` — player build, input, pathfinding/navigation, world interactables.
-- `PaddockScene.js` (core) — constructor/create/update, `buildHorses`, food/item
-  placement, info-panel openers, `doAction`, depth-sort, decay/autosave ticks.
+**`src/scenes/paddock/README.md` is the authoritative concern→file map** (where does
+X go?). After issue #167 the core dropped ~1,236 → ~270 lines and `player.js` ~1,030 →
+~235; the concerns now live in `effects/persistence/rendering/worldObjects/careActions/
+interaction/input` plus the player split (`playerMovement/prompts/interactables/
+useDispatch`), alongside the original `world/creatures/farmStand/dayNight/horseAI/
+behaviors/riding/player`. `constants.js` holds shared tuning. `PaddockScene.js` (core)
+keeps only `constructor`/`create`/`update`, `buildHorses`, `checkProximity`, sleep/wake.
 
 To extract another concern, follow the same pattern: move whole methods into a
-`WithX` mixin, import any constants/audio it uses, add it to the class chain, and
-confirm `npm run build` + `npm run smoke` stay green and no method name is duplicated.
+`WithX` mixin, import any constants/audio it uses, add it to the class chain, update
+the README, and confirm `npm run build` + `npm test` + `npm run smoke` stay green.
+**Don't hardcode a species** in a shared file (save/boot/care) — that belongs in the
+species' `data/species/<name>/` def; the seam guards in `modularity.test.js` enforce it.
 
 ## Verification
 
 Two layers, both must pass:
 1. **`npm test`** (Vitest, `node` env) — pure logic in `src/data`: decay, save/migration/
-   offline-decay, items, chicken persistence. localStorage is stubbed in-test.
+   offline-decay, items, chicken persistence. localStorage is stubbed in-test. Also the
+   **modularity guards** (`src/scenes/modularity.test.js`, issue #167): no two mixins in a
+   composition group define the same method name, and no scene file exceeds the line budget.
+   These are static source checks (Phaser doesn't load in `node`).
 2. **`npm run smoke`** (`scripts/smoke.mjs`, Playwright headless Chromium) — boots the
    real game, asserts: no JS/console errors, scenes active, 7 horses + 5 chickens
    loaded, all PaddockScene mixin methods resolve on the prototype, and a single feed

@@ -9,11 +9,16 @@ import { playNicker, playSqueal, playPeck, playGather } from '../../audio/sounds
 import { BOUNDS, PASTURE_BOUNDS, S, HERD, GATE_X, GATE_GAP_X0, GATE_GAP_X1 } from './constants.js';
 import { ART_SCALE } from '../../art/_frames.js';
 import { SPECIES } from '../../data/species/index.js';
+import { ROSTER_SPECIES } from '../../data/save.js';
 import { Animal } from '../../data/Animal.js';
 
 // Generic movement feel for any creature whose species declares no `movement`
 // block (e.g. the cat). Species defs override these per-animal.
 const GENERIC_MOVEMENT = { wanderMin: 4000, wanderMax: 10000 };
+
+// species id → the Phaser registry key holding its persisted roster (#167 B4), so
+// the generic spawn can find a species' individuals without hardcoding the key.
+const ROSTER_KEY_BY_ID = Object.fromEntries(ROSTER_SPECIES.map((r) => [r.id, r.registryKey]));
 
 // How often the flock re-decides (notice dropped seed, a seed-carrying or nearby
 // player, the grain bin). Kept short so chickens react promptly to seeds (#127) —
@@ -51,57 +56,65 @@ export const WithCreatures = (Base) => class extends Base {
   }
   // ─── Other animals ───────────────────────────────────────────────────────
 
+  // Spawn every in-world animal from its species `spawn` data (#167 B4) — no per-
+  // species hardcoding. Each world species (those declaring `spawn.inWorld`) is
+  // walked: its individuals come from the persisted roster (or a fresh in-memory
+  // model for keyless species like the cat), placed at the declared positions, with
+  // visual/roam params from data and behaviour hooks wired from capabilities. Adding
+  // an animal is a `spawn` block in its species folder, not an edit here.
   buildAnimals() {
-    // Other animals still disabled for now — keep code, just uncomment to re-enable
-    // this.spawnAnimal( 900,  820, 'sheep', 0.65, 6, 14);
-    // this.spawnAnimal(1300,  700, 'pig',   0.50, 7, 13);
-    // this.spawnAnimal( 700,  570, 'dog',   0.44, 8, 10);
-    // The cat carries an in-memory Animal model (identity-only) so it gets a
-    // working info panel (#84). Not persisted yet — it's rebuilt each load.
-    const catModel = new Animal(SPECIES.cat);
-    this.spawnAnimal(700, 600, 'cat', 0.34, 5, 16, undefined, undefined, undefined, undefined, catModel); // slow, low-slung prowl
+    // Disabled barnyard animals (sheep/pig/dog) have no `spawn.inWorld` yet, so they
+    // aren't spawned — enable by adding a `spawn` block to their species def.
+    for (const spec of this._worldSpecies()) {
+      const sp = spec.spawn;
+      // Models: a fresh in-memory model for keyless species (cat — not persisted),
+      // else the species' persisted roster from the registry.
+      const models = sp.memoryModel
+        ? { [spec.id]: new Animal(spec) }
+        : (this.registry.get(ROSTER_KEY_BY_ID[spec.id]) ?? {});
 
-    // The cow — a slow, placid wanderer inside the pasture with the horses (#cow).
-    // Full stats + daily milk, persisted via the allCows roster. Cared for by direct
-    // interaction (feed/water/pet) rather than the herd's grazing AI, so no behaviors.
-    const cowModel = this.registry.get('allCows')?.cow;
-    const cow = this.spawnAnimal(1150, 1300, 'cow', 0.85, 3, 6, undefined, undefined, undefined, undefined, cowModel);
-    cow.homeBounds = PASTURE_BOUNDS; // roam the pasture like the horses, not the whole world
-    cow.bodyR = 18;
-    // The cow has no dedicated grazing frames yet, so alias her "eat" pose to the
-    // standing idle — cows graze head-up enough that this reads fine and avoids a
-    // missing-animation warning when the shared eat/drink primitives play eat_cow.
-    if (!this.anims.exists('eat_cow')) {
-      this.anims.create({
-        key: 'eat_cow',
-        frames: [{ key: 'cow_idle_0' }, { key: 'cow_idle_1' }],
-        frameRate: 2, repeat: -1,
+      Object.keys(models).forEach((key, i) => {
+        const place = sp.placements[i] ?? sp.placements[sp.placements.length - 1] ?? { x: 0, y: 0 };
+        const a = this.spawnAnimal(
+          place.x, place.y, key, sp.shadowScale, sp.walkFps, sp.tweenRate,
+          place.home?.x, place.home?.y, place.wanderRadius, sp.eatFps, models[key]);
+        if (sp.roam === 'pasture') a.homeBounds = PASTURE_BOUNDS; // roam the pasture, not the world
+        if (sp.bodyR != null) a.bodyR = sp.bodyR;
+        this._applySpawnCapabilities(a, spec);
       });
     }
-    // Goal-tick so a wandering cow heads for food/water before falling back to a
-    // plain stroll — the same hook the horses use (creatureWander → a.tick).
-    cow.needTarget = null;
-    cow.tick = (c) => this.horseTickForHorse(c);
 
-    // Chicken flock — 5 birds, each with identity, name, and appearance
-    const allChickens = this.registry.get('allChickens');
-    const cx = 560, cy = 760;
-    const offsets = [[-40,-20],[30,-30],[0,30],[-60,20],[50,10]];
-    offsets.forEach(([ox, oy], i) => {
-      const chickenModel = allChickens[`chicken${i}`];
-      // Wider roam radius (180→220) so they range a bit more around the coop (#130).
-      const a = this.spawnAnimal(cx + ox, cy + oy, `chicken${i}`, 0.25, 8, 10, cx, cy, 220, 6, chickenModel);
-      a.onSettle = (c) => this._maybeChickenPeck(c); // occasional peck between wanders (#130)
-      // Hold the flock hidden until the first phase change decides how they enter:
-      // out of the coop in the morning, or already milling in the yard otherwise.
-      // (Avoids a one-frame flash in the yard before they emerge from the coop.)
+    // Flock AI tick (chickens). A no-op when no flock is present, so it's safe to
+    // register unconditionally.
+    this.time.addEvent({ delay: CHICKEN_TICK_MS, loop: true, callback: this.chickenTick, callbackScope: this });
+  }
+
+  // Species that spawn into the world (declare `spawn.inWorld`). Horses spawn via
+  // buildHorses; the disabled barnyard animals have no spawn block yet.
+  _worldSpecies() {
+    return Object.values(SPECIES).filter((s) => s.spawn?.inWorld);
+  }
+
+  // Wire the per-spawn behaviour hooks a species' capabilities ask for: grazers get
+  // the shared food/water goal tick; peckers get the idle ground-peck; roosters
+  // start hidden and emerge from the coop on the first morning phase (dayNight.js).
+  _applySpawnCapabilities(a, spec) {
+    const cap = spec.capabilities ?? {};
+    if (cap.grazes) {
+      // Goal-tick so a wandering grazer heads for food/water before a plain stroll —
+      // the same hook the horses use (creatureWander → a.tick).
+      a.needTarget = null;
+      a.tick = (c) => this.horseTickForHorse(c);
+    }
+    if (cap.pecks) a.onSettle = (c) => this._maybeChickenPeck(c); // occasional peck (#130)
+    if (cap.roosts) {
+      // Hold hidden until the first phase change decides how they enter: out of the
+      // coop in the morning, or already milling in the yard otherwise (no yard flash).
       a.state = 'roosting';
       a.sprite.setVisible(false);
       a.shadow.setVisible(false);
       if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
-    });
-
-    this.time.addEvent({ delay: CHICKEN_TICK_MS, loop: true, callback: this.chickenTick, callbackScope: this });
+    }
   }
 
 
@@ -121,10 +134,17 @@ export const WithCreatures = (Base) => class extends Base {
         frameRate: walkFps, repeat: -1,
       });
       if (eatFps) {
+        // Alias the "eat" pose to the standing idle for a species with no dedicated
+        // eat frames (e.g. the cow grazes head-up enough that this reads fine) — so
+        // the shared eat/drink primitives can play eat_<key> without a missing-anim
+        // warning, no per-species workaround needed (#167 B4).
+        const hasEat = this.textures.exists(`${key}_eat_0`);
         this.anims.create({
           key: `eat_${key}`,
-          frames: [{ key: `${key}_eat_0` }, { key: `${key}_eat_1` }],
-          frameRate: eatFps, repeat: -1,
+          frames: hasEat
+            ? [{ key: `${key}_eat_0` }, { key: `${key}_eat_1` }]
+            : [{ key: `${key}_idle_0` }, { key: `${key}_idle_1` }],
+          frameRate: hasEat ? eatFps : 2, repeat: -1,
         });
       }
     }
