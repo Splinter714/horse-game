@@ -64,6 +64,8 @@ try {
       'showHeart', 'showIcon', '_saveHorses', '_saveAnimal', 'tickAutosave', 'updateSaddles', 'updateFoals',
       // worldObjects: food drops / trough / gate.
       'placeFood', '_freeFoodSpot', 'fillTrough', '_setTroughLevel', 'toggleGate',
+      // careActions: tool-on-horse, cow care, panel action dispatch.
+      'useItemOnHorse', 'feedCow', 'waterCow', 'milkCow', '_afterCowCare',
     ];
     const missingMethods = expectMethods.filter((m) => typeof paddock[m] !== 'function');
 
