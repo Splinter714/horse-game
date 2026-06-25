@@ -195,6 +195,22 @@ function leg(g, x, lift, tone, hoof, legMark, sockTone = SOCK, feather, points, 
   }
 }
 
+// Tail as a flowing hank: a narrow dock at the rump, swelling to a fuller belly
+// mid-length, then tapering to a tip — with a soft sheen ribbon down the front.
+// Ported from the shelved art revamp (the one tail tweak that read as nicer) and
+// re-sized to this horse's proportions. Anchored at the dock (x0, y0); `white`
+// draws it in the pinto colour for a two-tone tail (#144).
+function drawTailFrom(g, m, x0, y0, bob, white = false) {
+  const lo = white ? WHITE : m.lo, mid = white ? WHITE : m.mid;
+  g.fillStyle(mid, 1); g.fillRect(x0,     y0 + bob,      2, 3);  // dock (attached)
+  g.fillStyle(lo, 1);  g.fillRect(x0 - 1, y0 + 2 + bob,  3, 5);  // upper flow
+  g.fillStyle(mid, 1); g.fillRect(x0 - 2, y0 + 6 + bob,  3, 6);
+  g.fillStyle(lo, 1);  g.fillRect(x0 - 3, y0 + 11 + bob, 3, 6);  // fullest bulge
+  g.fillStyle(mid, 1); g.fillRect(x0 - 2, y0 + 16 + bob, 2, 5);
+  g.fillStyle(lo, 1);  g.fillRect(x0 - 2, y0 + 20 + bob, 2, 3);  // tapering tip
+  if (!white) { g.fillStyle(HILITE, 0.10); g.fillRect(x0 - 0.5, y0 + 3 + bob, 0.7, 15); }
+}
+
 function drawHorse(g, coat, bob, legLift) {
   const b = coat.body;
   const m = coat.mane;
@@ -212,11 +228,8 @@ function drawHorse(g, coat, bob, legLift) {
   legDark(g, 7, legLift[0], mk, lm.hindFar);  legDark(g, 38, legLift[2], mk, lm.foreFar);  // dark leg marks (#152)
   legDark(g, 13, legLift[1], mk, lm.hindNear); legDark(g, 44, legLift[3], mk, lm.foreNear);
 
-  // --- tail ---
-  g.fillStyle(m.mid, 1); g.fillRect(6, 22 + bob, 2, 4);
-  g.fillStyle(m.lo, 1); g.fillRect(4, 25 + bob, 2, 7);
-  g.fillStyle(m.mid, 1); g.fillRect(3, 31 + bob, 2, 7);
-  g.fillStyle(m.lo, 1); g.fillRect(4, 37 + bob, 2, 5);
+  // --- tail (flowing hank, anchored at the rump dock) ---
+  drawTailFrom(g, m, 6, 22, bob);
 
   // --- rump + body (3-tone bands) ---
   // Rump left edge is rounded by trimming top and bottom corners.
@@ -293,7 +306,8 @@ function drawHorse(g, coat, bob, legLift) {
   if (mk.pinto && mk.pintoMane) {
     g.fillStyle(WHITE, 1);
     g.fillRect(40, 16 + bob, 3, 9); g.fillRect(40, 24 + bob, 2, 6); // lower mane
-    g.fillRect(3, 31 + bob, 2, 7);  g.fillRect(4, 37 + bob, 2, 5);  // tail tip
+    // lower tail (bulge + tip) painted white to match drawTailFrom's geometry
+    g.fillRect(3, 33 + bob, 3, 6); g.fillRect(4, 38 + bob, 2, 5);   // tail tip
   }
 }
 
