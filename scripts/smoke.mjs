@@ -9,10 +9,13 @@
 // SMOKE_URL. Exits non-zero (and prints why) on any failure.
 
 import { chromium } from 'playwright';
+import { resolveDevServerUrl } from './dev-server-url.mjs';
 
 // `?canvas` forces Phaser's Canvas renderer (headless Chromium lacks WebGL
 // framebuffers). The logic we assert on here is renderer-agnostic.
-const URL = process.env.SMOKE_URL || 'http://localhost:5173/horse-game/?canvas';
+// The dev server's port isn't fixed (Vite increments when 5173 is busy), so
+// auto-detect it; override with SMOKE_URL.
+const URL = await resolveDevServerUrl();
 
 const fail = (msg) => { console.error('SMOKE FAIL:', msg); process.exitCode = 1; };
 

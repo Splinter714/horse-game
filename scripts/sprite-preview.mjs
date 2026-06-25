@@ -13,6 +13,7 @@
 // (the underscore guard means `horse` won't pick up `horse2`'s frames).
 
 import { chromium } from 'playwright';
+import { resolveDevServerUrl } from './dev-server-url.mjs';
 
 const keys = process.argv.slice(2).filter(a => a !== '--');
 if (!keys.length) {
@@ -22,7 +23,7 @@ if (!keys.length) {
 
 const SCALE = Number(process.env.SPRITE_SCALE || 8);
 const OUT   = process.env.SPRITE_OUT || '/tmp/sprite-preview.png';
-const URL   = process.env.SMOKE_URL || 'http://localhost:5173/horse-game/?canvas';
+const URL   = await resolveDevServerUrl();
 
 const browser = await chromium.launch();
 const page = await browser.newPage();
