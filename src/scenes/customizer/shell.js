@@ -78,6 +78,10 @@ export const WithCustomizerShell = (Base) => class extends Base {
         this.allHorses = this.registry.get('allHorses');
       }
       if (!this._editKey || !this.allHorses?.[this._editKey]) return false;
+      // Resolve the subject's appearance into fully-explicit, independent fields up
+      // front (species-specific; horse defines it) so the editor's controls each own
+      // their own value and the coat swatch only changes the body pigment.
+      this._custMaterializeSubject?.();
     } else {
       if (!CUSTOMIZE[this._custSpecies]?.parts) return false;
       // In-world, the edited animal's model carries the persisted look (swatch keys);

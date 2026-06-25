@@ -236,3 +236,22 @@ export function composeCoat(colorKey, markingsOverride) {
 export function effectiveMarkings(colorKey, markingsOverride) {
   return composeCoat(colorKey, markingsOverride).markings;
 }
+
+// Resolve a horse's appearance into a FULLY-EXPLICIT, self-contained markings object
+// — every independent layer spelled out as its own key, so it no longer relies on the
+// coat for any default. This is what decouples coat COLOUR from everything else (#2:
+// coat colour is layer 1, "pure colour only"): once a horse's look is explicit, the
+// coat table is consulted only for pigment, and swapping the colour leaves face
+// markings, patterns, mane, dark legs and the dorsal stripe exactly where they were.
+// (The coat's own default markings/points/dorsal/mane only ever seed the FIRST
+// resolution, e.g. a never-customized palomino starts with its star.)
+export function explicitLook(colorKey, markingsOverride) {
+  const composed = composeCoat(colorKey, markingsOverride);
+  const look = cloneMarks(composed.markings);
+  look.darkLegs = composed.points !== undefined; // points is the only dark-leg signal
+  look.dorsal = !!composed.dorsal;
+  look.maneColor = MANE_COLORS[composed.markings.maneColor]
+    ? composed.markings.maneColor
+    : (DEFAULT_MANE[colorKeyOf(colorKey)] || 'black');
+  return look;
+}

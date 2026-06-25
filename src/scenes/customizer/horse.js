@@ -1,7 +1,7 @@
 import {
   COATS, BREEDS, FACE_MARKING_LABELS, PATTERN_LABELS, FEATHER_LABEL,
   MANE_COLORS, MANE_COLOR_LABELS, DEFAULT_MANE,
-  composeCoat, effectiveMarkings, colorKeyOf,
+  composeCoat, effectiveMarkings, colorKeyOf, explicitLook,
 } from '../../data/species/horse/coats.js';
 import { PATTERN_VARIANT_COUNT } from '../../data/species/horse/patterns.js';
 import { buildHorseTextures, buildFoalTextures } from '../../art/horseArt.js';
@@ -215,7 +215,21 @@ export const WithHorseSections = (Base) => class extends Base {
     return y + Math.ceil(keys.length / cols) * (cellH + gap);
   }
 
+  // Make the edited subject's appearance fully explicit the moment the editor opens, so
+  // every layer (face markings, patterns, mane, dark legs, dorsal) is its own
+  // independent field and the coat swatch only ever changes the body pigment. Called by
+  // the shell's custEnterFor (generic `_custMaterializeSubject?.()` hook). Without this a
+  // horse with no saved markings would still inherit the coat's bundled defaults, and
+  // switching coats would drag those along — the coupling this whole change removes.
+  _custMaterializeSubject() {
+    const horse = this.allHorses?.[this._editKey];
+    if (horse) horse.markings = explicitLook(horse.coat, horse.markings);
+  }
+
   // ── Edits ─────────────────────────────────────────────────────────────────
+  // Coat colour is layer 1 — the base body pigment only. The subject's look is already
+  // explicit (see _custMaterializeSubject), so swapping the colour key touches nothing
+  // else: face markings, patterns, mane, dark legs and dorsal all stay exactly as set.
   _pickColor(colorKey) {
     const horse = this.allHorses[this._editKey];
     horse.coat = colorKey;
@@ -295,11 +309,14 @@ export const WithHorseSections = (Base) => class extends Base {
     this._applyEdit();
   }
 
+  // A breed preset deliberately sets the whole package at once (colour + pattern +
+  // markings). Materialise the result so it's fully explicit — otherwise a coat pick
+  // afterwards would re-inherit the breed colour's bundled defaults.
   _applyBreed(breedKey) {
     const horse = this.allHorses[this._editKey];
     const breed = BREEDS[breedKey];
     horse.coat = breed.color;
-    horse.markings = JSON.parse(JSON.stringify(breed.markings)); // authoritative copy
+    horse.markings = explicitLook(breed.color, JSON.parse(JSON.stringify(breed.markings)));
     horse.breed = breed.label;
     this._applyEdit();
   }
