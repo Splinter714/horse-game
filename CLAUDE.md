@@ -186,6 +186,20 @@ renderer-agnostic.
 - The owner can't verify code — lean on `npm test` + `npm run smoke` (extend them when
   you add behavior).
 
+## Working an issue across parallel worktrees
+
+The owner runs multiple git worktrees with agents in parallel. To avoid two
+worktrees grabbing the same GitHub issue, **claim it when work actually starts**
+(first commit on an issue branch — *not* when it's merely queued):
+
+1. Add the **`in-progress`** label to the issue.
+2. Comment the branch/worktree name + a timestamp (so a stale claim is visible).
+3. The label is redundant once a PR exists (`Closes #N`) — drop it on merge/close.
+
+Claims are reconciled against git: an `in-progress` issue with no matching branch
+or open PR is an abandoned claim and gets swept clear during triage. Claiming at
+*real start* (not at queue time) is what keeps unlaunched issues from getting stuck.
+
 ## Roadmap (planned, not yet done)
 
 - **Unify info panels — DONE.** `PortraitScene` + `ChickenInfoScene` are now the single
