@@ -4,9 +4,7 @@ import { EVENTS } from '../data/events.js';
 import {
   playHoofbeat, startWind, stopWind, startMusic, stopMusic,
 } from '../audio/sounds.js';
-import {
-  INTERACT_DIST, PLAYER_SPEED, PLAYER_BOUNDS,
-} from './paddock/constants.js';
+import { INTERACT_DIST } from './paddock/constants.js';
 import { WithWorld } from './paddock/world.js';
 import { WithCreatures } from './paddock/creatures.js';
 import { WithFarmStand } from './paddock/farmStand.js';
@@ -15,6 +13,10 @@ import { WithHorseAI } from './paddock/horseAI.js';
 import { WithBehaviors } from './paddock/behaviors.js';
 import { WithRiding } from './paddock/riding.js';
 import { WithPlayer } from './paddock/player.js';
+import { WithPlayerMovement } from './paddock/playerMovement.js';
+import { WithPrompts } from './paddock/prompts.js';
+import { WithInteractables } from './paddock/interactables.js';
+import { WithUseDispatch } from './paddock/useDispatch.js';
 import { WithEffects } from './paddock/effects.js';
 import { WithPersistence } from './paddock/persistence.js';
 import { WithRendering } from './paddock/rendering.js';
@@ -26,7 +28,8 @@ import { applyDpr } from './uiUtils.js';
 
 export default class PaddockScene
   extends WithWorld(WithCreatures(WithFarmStand(WithDayNight(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
-    WithEffects(WithPersistence(WithRendering(WithWorldObjects(WithCareActions(WithInteraction(WithInput(Phaser.Scene))))))))))))))) {
+    WithEffects(WithPersistence(WithRendering(WithWorldObjects(WithCareActions(WithInteraction(WithInput(
+    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene))))))))))))))))))) {
   constructor() {
     super('PaddockScene');
   }
@@ -190,99 +193,6 @@ export default class PaddockScene
 
   _onSleepDone() {
     this._sleeping = false;
-  }
-
-  movePlayer(delta) {
-    if (this.riding) return;
-
-    // Stop all movement while radial menu is open
-    if (this.scene.get('HotbarScene')?.invOpen) {
-      this._cancelTapMove();
-      this._stopWalkAnim();
-      return;
-    }
-
-    const { cursors, wasd, player } = this;
-    const pad = this.gamePad;
-
-    let vx = 0, vy = 0;
-
-    if (cursors.left.isDown  || wasd.left.isDown)  vx -= 1;
-    if (cursors.right.isDown || wasd.right.isDown)  vx += 1;
-    if (cursors.up.isDown    || wasd.up.isDown)     vy -= 1;
-    if (cursors.down.isDown  || wasd.down.isDown)   vy += 1;
-
-    const rp = this._rawPad;
-    if (rp) {
-      // Left stick steers; the D-pad is reserved for the hotbar now (#121).
-      if (Math.abs(rp.leftStickX) > 0.15) vx += rp.leftStickX;
-      if (Math.abs(rp.leftStickY) > 0.15) vy += rp.leftStickY;
-    }
-
-    const kbActive  = cursors.left.isDown || cursors.right.isDown ||
-                      cursors.up.isDown   || cursors.down.isDown  ||
-                      wasd.left.isDown    || wasd.right.isDown    ||
-                      wasd.up.isDown      || wasd.down.isDown;
-    const padActive = rp && (
-      Math.abs(rp.leftStickX) > 0.15 || Math.abs(rp.leftStickY) > 0.15
-    );
-    if (kbActive)  { this.usingPad = false; this.usingTouch = false; }
-    if (padActive) { this.usingPad = true;  this.usingTouch = false; }
-
-    // Manual input cancels any tap-to-move trip in progress, and dismisses the
-    // info popup — moving is one of the "almost anything else" that closes it.
-    if (kbActive || padActive) {
-      this._cancelTapMove();
-      if (this.scene.isActive('InfoPanelScene')) this.scene.get('InfoPanelScene').close();
-    }
-
-    if (this.navPath) {
-      this._stepNav(delta);
-      player.shadow.x = player.sprite.x;
-      player.shadow.y = player.sprite.y;
-      return;
-    }
-
-    vx = Phaser.Math.Clamp(vx, -1, 1);
-    vy = Phaser.Math.Clamp(vy, -1, 1);
-    const moving = vx !== 0 || vy !== 0;
-
-    if (moving) {
-      if (vx !== 0 && vy !== 0) { vx *= 0.707; vy *= 0.707; }
-      const step = PLAYER_SPEED * (delta / 1000);
-      const nx = Phaser.Math.Clamp(player.sprite.x + vx * step, PLAYER_BOUNDS.minX, PLAYER_BOUNDS.maxX);
-      const ny = Phaser.Math.Clamp(player.sprite.y + vy * step, PLAYER_BOUNDS.minY, PLAYER_BOUNDS.maxY);
-      // Slide: try each axis independently so player can slide along walls
-      if (!this._collides(nx, player.sprite.y)) player.sprite.x = nx;
-      if (!this._collides(player.sprite.x, ny)) player.sprite.y = ny;
-
-      let newFacing;
-      if (Math.abs(vx) >= Math.abs(vy)) {
-        newFacing = vx < 0 ? 'left' : 'right';
-      } else {
-        newFacing = vy < 0 ? 'up' : 'down';
-      }
-
-      if (!player.moving || newFacing !== player.facing) {
-        player.facing = newFacing;
-        const animKey = newFacing === 'up'  ? 'player_walk_up' :
-                        newFacing === 'down' ? 'player_walk_down' : 'player_walk_side';
-        player.sprite.setFlipX(newFacing === 'left');
-        player.sprite.play(animKey, true);
-      }
-      player.moving = true;
-
-    } else if (player.moving) {
-      const idleKey = player.facing === 'up'  ? 'player_up_0' :
-                      player.facing === 'down' ? 'player_down_0' : 'player_side_0';
-      player.sprite.setFlipX(player.facing === 'left');
-      player.sprite.stop();
-      player.sprite.setTexture(idleKey);
-      player.moving = false;
-    }
-
-    player.shadow.x = player.sprite.x;
-    player.shadow.y = player.sprite.y;
   }
 
   checkProximity() {

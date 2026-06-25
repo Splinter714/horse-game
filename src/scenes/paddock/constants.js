@@ -20,6 +20,9 @@ export const GREET_DIST = 260;
 // Minimum gap between petting nickers, so rapidly petting one horse doesn't
 // machine-gun the sound (each pet still lands its happiness + heart).
 export const PET_SOUND_MS = 500;
+// In-place reach for using a tool on an animal (brush/saddle/lead, cow care). Use
+// never walks you anywhere — the animal has to already be within this range.
+export const USE_REACH = 110;
 export const PLAYER_SPEED  = 210;
 export const RIDE_SPEED    = 340;
 

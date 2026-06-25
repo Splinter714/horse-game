@@ -71,6 +71,9 @@ try {
       'openPortrait', 'openChickenInfo', 'openCreatureInfo', '_openInfoPanel',
       // input: gamepad poll, pause overlay, input-mode + prompt toggles.
       '_pollRawPad', '_togglePause', '_syncInputMode', '_onPromptsChanged',
+      // player split (#167 A2): movement, prompts, interactables, use-dispatch.
+      '_stepNav', 'tapMoveTo', '_renderPrompts', 'checkToolProximity',
+      'buildInteractables', '_proximityInteractable', 'useActiveTool', '_nearestToolHorse',
     ];
     const missingMethods = expectMethods.filter((m) => typeof paddock[m] !== 'function');
 

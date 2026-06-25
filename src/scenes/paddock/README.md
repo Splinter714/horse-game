@@ -23,7 +23,11 @@ core orchestrator.
 | Horse AI | `paddock/horseAI.js` (`WithHorseAI`) | horse eat/drink seeking + gate-aware pathing |
 | Behavior registry | `paddock/behaviors.js` (`WithBehaviors`) | data-driven AI dispatch (`runBehaviors`) |
 | Riding | `paddock/riding.js` (`WithRiding`) | riding, saddle, leading |
-| Player | `paddock/player.js` (`WithPlayer`) | player build, input, pathfinding, interactables |
+| Player core | `paddock/player.js` (`WithPlayer`) | `buildPlayer` (sprite/camera/input bindings), `handleTap`, `_isDoubleTap` |
+| Player movement | `paddock/playerMovement.js` (`WithPlayerMovement`) | `movePlayer`, hold-to-move, tap-to-move + A* (`_findPath`), `_stepNav` |
+| Control prompts | `paddock/prompts.js` (`WithPrompts`) | hint panel, touch action-button labels, `checkToolProximity` |
+| Interactables | `paddock/interactables.js` (`WithInteractables`) | gate/barn/trough/sources/nests/stand descriptors |
+| Use dispatch | `paddock/useDispatch.js` (`WithUseDispatch`) | `useActiveTool`, cow-use resolution, `gatherFrom`, `getActiveItem` |
 | Floating FX | `paddock/effects.js` (`WithEffects`) | `showHeart`, `showIcon`, `showDustPuff`, `hop` |
 | Persistence/ticks | `paddock/persistence.js` (`WithPersistence`) | `_saveHorses`, `_saveAnimal`, `tickDecay`, `tickAutosave` |
 | Rendering housekeeping | `paddock/rendering.js` (`WithRendering`) | `depthSort`, `updateSaddles`, `updateFoals`, `reskinHorse` |
