@@ -13,6 +13,13 @@ export const INTERACT_DIST = 100;
 // keeps targeting the nearest still-uncared-for one until they're all done,
 // without making you stand right on top of each.
 export const CARE_DIST = 200;
+// Range at which a horse voices its mood as you walk up (squeal if neglected,
+// nicker if content) — a touch wider than CARE_DIST so the greeting reads before
+// you're right on top of it.
+export const GREET_DIST = 260;
+// Minimum gap between petting nickers, so rapidly petting one horse doesn't
+// machine-gun the sound (each pet still lands its happiness + heart).
+export const PET_SOUND_MS = 500;
 export const PLAYER_SPEED  = 210;
 export const RIDE_SPEED    = 340;
 

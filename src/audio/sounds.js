@@ -595,7 +595,7 @@ export function playSqueal() {
   const osc = c.createOscillator();
   osc.type = 'sawtooth';
   osc.frequency.setValueAtTime(520, now);
-  osc.frequency.exponentialRampToValueAtTime(360, now + 0.22);
+  osc.frequency.exponentialRampToValueAtTime(240, now + 0.42); // longer, sadder downward slide
 
   const band = c.createBiquadFilter();
   band.type = 'bandpass';
@@ -605,13 +605,13 @@ export function playSqueal() {
   const env = c.createGain();
   env.gain.setValueAtTime(0.001, now);
   env.gain.linearRampToValueAtTime(0.22, now + 0.02);
-  env.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+  env.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
 
   osc.connect(band);
   band.connect(env);
   env.connect(master(1));
   osc.start(now);
-  osc.stop(now + 0.3);
+  osc.stop(now + 0.52);
 }
 
 // ─── Wind (ambient, looping via scheduled chunks) ────────────────────────────

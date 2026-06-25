@@ -84,16 +84,6 @@ export function buildIconTextures(scene) {
     g.fillStyle(0xd4a84a, 1); g.fillRect(14, 3, 2, 9); g.fillRect(14, 3, 5, 2);
   });
 
-  // --- grumpy mark (transient, shown when a neglected horse is interacted with) ---
-  gen(scene, 'iconGrumpy', 20, 20, (g) => {
-    g.fillStyle(0xd63b3b, 1);
-    // two short angry slashes (a "💢"-style anger mark)
-    g.fillRect(4, 4, 7, 2); g.fillRect(4, 4, 2, 7);
-    g.fillRect(13, 11, 2, 5); g.fillRect(11, 14, 6, 2);
-    g.fillStyle(0xf07a7a, 1);
-    g.fillRect(5, 6, 2, 2);
-  });
-
   gen(scene, 'iconSeed', 20, 20, (g) => { // scattered seeds
     g.fillStyle(0xc8a030, 1);
     g.fillRect(5, 13, 3, 3); g.fillRect(11, 11, 3, 3); g.fillRect(8, 15, 2, 2);
