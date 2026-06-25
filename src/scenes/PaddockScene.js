@@ -1,8 +1,6 @@
 import Phaser from 'phaser';
-import { saveAllHorses, saveAllChickens, saveAllCows, loadUiSettings, loadDevSettings } from '../data/save.js';
+import { loadUiSettings, loadDevSettings } from '../data/save.js';
 import { CONTENT_DEFS } from '../data/items.js';
-import { composeCoat } from '../data/species/horse/coats.js';
-import { buildHorseTextures } from '../art/horseArt.js';
 import { EVENTS } from '../data/events.js';
 import {
   playHoofbeat, playEat, playDrink, playBrush, playChime,
@@ -13,7 +11,7 @@ import {
   WORLD_W, WORLD_H, INTERACT_DIST, CARE_DIST, GREET_DIST, PET_SOUND_MS, PLAYER_SPEED, RIDE_SPEED,
   HOLD_MS, HOLD_DRAG_PX, BOUNDS, PLAYER_BOUNDS, PASTURE_BOUNDS,
   GATE_X, GATE_GAP_X0, GATE_GAP_X1, S,
-  DUST_CLEAN_AT, DUST_MAX_ALPHA, STINK_AT, STAND_DEFS, STAND_TYPES,
+  STAND_DEFS, STAND_TYPES,
   TROUGH_CAP, TROUGH_PER_BUCKET,
 } from './paddock/constants.js';
 import { WithWorld } from './paddock/world.js';
@@ -24,13 +22,17 @@ import { WithHorseAI } from './paddock/horseAI.js';
 import { WithBehaviors } from './paddock/behaviors.js';
 import { WithRiding } from './paddock/riding.js';
 import { WithPlayer } from './paddock/player.js';
+import { WithEffects } from './paddock/effects.js';
+import { WithPersistence } from './paddock/persistence.js';
+import { WithRendering } from './paddock/rendering.js';
 import { applyDpr, logicalW, logicalH, worldUiOffset } from './uiUtils.js';
 
 // Maps a species action's `sound` name (see data/species) to the synth function.
 const SOUND_FNS = { eat: playEat, drink: playDrink, brush: playBrush, chime: playChime };
 
 export default class PaddockScene
-  extends WithWorld(WithCreatures(WithFarmStand(WithDayNight(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(Phaser.Scene)))))))) {
+  extends WithWorld(WithCreatures(WithFarmStand(WithDayNight(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
+    WithEffects(WithPersistence(WithRendering(Phaser.Scene))))))))))) {
   constructor() {
     super('PaddockScene');
   }
@@ -431,14 +433,6 @@ export default class PaddockScene
     return true;
   }
 
-  // Persist whichever roster a freshly-changed model belongs to. The cat is
-  // in-memory only (no roster yet), so it isn't saved.
-  _saveAnimal(model) {
-    if (model.species === 'horse')        this._saveHorses();
-    else if (model.species === 'chicken') saveAllChickens(this.registry.get('allChickens'));
-    else if (model.species === 'cow')     saveAllCows(this.registry.get('allCows'));
-  }
-
   // Pet the current proximity target (foals just get a heart — they have no
   // care model). Used by the interact button.
   _petTarget(t) {
@@ -661,96 +655,7 @@ export default class PaddockScene
     }
   }
 
-  showHeart(sprite) {
-    const heart = this.add.image(sprite.x, sprite.y - 100, 'heart')
-      .setScale(S).setDepth(10000);
-    this.tweens.add({
-      targets: heart, y: heart.y - 56, alpha: 0, scale: S * 1.4,
-      duration: 900, ease: 'Sine.easeOut',
-      onComplete: () => heart.destroy(),
-    });
-  }
-
-  showIcon(key, sprite) {
-    const icon = this.add.image(sprite.x, sprite.y - 112, key)
-      .setScale(S).setDepth(10000);
-    this.tweens.add({
-      targets: icon, y: icon.y - 44, alpha: 0,
-      duration: 1000, ease: 'Sine.easeOut',
-      onComplete: () => icon.destroy(),
-    });
-  }
-
-  // Brushing feedback (#95): little puffs of dust/dirt coming off the coat,
-  // instead of a brush icon — reads as actually grooming the dirt out. Dirtier
-  // coats (lower grooming) kick up more, bigger puffs. `dirtiness` is 0..1.
-  showDustPuff(sprite, dirtiness = 0.6) {
-    const d = Phaser.Math.Clamp(dirtiness, 0, 1);
-    const n = 4 + Math.round(d * 6); // 4..10 puffs
-    const baseY = sprite.y - 44;     // around the horse's body/back
-    for (let i = 0; i < n; i++) {
-      // Dusty tan-to-brown, slightly varied per puff.
-      const tint = Phaser.Display.Color.GetColor(
-        150 + Math.floor(Math.random() * 45),
-        120 + Math.floor(Math.random() * 35),
-        80  + Math.floor(Math.random() * 35));
-      const r = 2.5 + Math.random() * (3 + d * 3);
-      const puff = this.add.circle(
-        sprite.x + (Math.random() - 0.5) * 80,
-        baseY    + (Math.random() - 0.5) * 46,
-        r, tint, 0.5).setDepth(10000);
-      this.tweens.add({
-        targets: puff,
-        x: puff.x + (Math.random() - 0.5) * 56,
-        y: puff.y - 18 - Math.random() * 40, // drift up as it disperses
-        alpha: 0,
-        scale: 1.7 + Math.random(),
-        duration: 600 + Math.random() * 400,
-        ease: 'Sine.easeOut',
-        onComplete: () => puff.destroy(),
-      });
-    }
-  }
-
-  hop(sprite) {
-    this.tweens.add({
-      targets: sprite, y: sprite.y - 12, duration: 120,
-      yoyo: true, ease: 'Quad.easeOut',
-    });
-  }
-
   // ─── Update ──────────────────────────────────────────────────────────────
-
-  // Keep each equipped saddle glued to its horse as it wanders. The ridden
-  // horse's saddle is synced inside updateRiding, so skip it here.
-  updateSaddles() {
-    const ridden = this.riding?.h;
-    for (const h of this.horses) {
-      if (!h.saddleImg || h === ridden) continue;
-      h.saddleImg.x = h.sprite.x;
-      h.saddleImg.y = h.sprite.y;
-      h.saddleImg.setFlipX(h.sprite.flipX);
-      // Depth must track the sprite's *current* y (what depthSort uses), not the
-      // stale h.sprite.depth from last frame — otherwise moving south drops the
-      // saddle behind the horse for a frame.
-      h.saddleImg.setDepth(h.sprite.y + 1);
-    }
-  }
-
-  _saveHorses() {
-    saveAllHorses(this.registry.get('allHorses'));
-  }
-
-  // Re-skin a horse live from its current coat + marking data (#2/#17). gen()
-  // redraws the frame + portrait textures in place, so the existing sprite and its
-  // running animations show the new coat with no rebuild. Used by the appearance
-  // editor embedded in the info panel (customizer.js / InfoPanelScene, #147).
-  reskinHorse(key) {
-    const data = this.registry.get('allHorses')?.[key];
-    if (!data) return;
-    const coat = composeCoat(data.coat, data.markings);
-    buildHorseTextures(this, key, coat); // the side-view frames the world + panel use
-  }
 
   update(time, delta) {
     this._pollRawPad();
@@ -911,31 +816,6 @@ export default class PaddockScene
       btnBack:  this._rawPad.btnBack,
       btnStart: this._rawPad.btnStart,
     };
-  }
-
-  updateFoals(delta) {
-    for (const foal of this.foals) {
-      const parent = foal.parentH.sprite;
-      const dx = parent.x - foal.sprite.x;
-      const dy = parent.y - foal.sprite.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      if (dist > 80) {
-        const speed = PLAYER_SPEED * 1.05 * (delta / 1000);
-        const ratio = Math.min(1, speed / dist);
-        foal.sprite.x += dx * ratio;
-        foal.sprite.y += dy * ratio;
-        foal.sprite.setFlipX(dx < 0);
-        foal.sprite.play(`walk_${foal.key}`, true);
-      } else {
-        foal.sprite.play(`idle_${foal.key}`, true);
-      }
-
-      foal.shadow.x = foal.sprite.x;
-      foal.shadow.y = foal.sprite.y;
-      foal.shadow.setDepth(foal.sprite.y - 1);
-      foal.sprite.setDepth(foal.sprite.y);
-    }
   }
 
   movePlayer(delta) {
@@ -1142,95 +1022,5 @@ export default class PaddockScene
     });
   }
 
-  depthSort() {
-    const p = this.player;
-    p.shadow.setDepth(p.sprite.y - 1);
-    p.sprite.setDepth(p.sprite.y);
-
-    const allHorses = this.registry.get('allHorses');
-    for (const h of this.horses) {
-      h.shadow.x = h.sprite.x;
-      h.shadow.y = h.sprite.y;
-      h.shadow.setDepth(h.sprite.y - 1);
-      h.sprite.setDepth(h.sprite.y);
-
-      // Keep the dust overlay glued to the sprite and fade it as a whole with
-      // how dirty the horse is (grooming < DUST_CLEAN_AT). Brushing raises
-      // grooming → the splotches fade out together and vanish when fully clean.
-      if (h.dustOverlay) {
-        const groom = allHorses[h.key]?.stats.grooming ?? 100;
-        const dirt  = Phaser.Math.Clamp((DUST_CLEAN_AT - groom) / DUST_CLEAN_AT, 0, 1);
-        // The dust/stink overlays are the STANDING horse shape, so they'd float
-        // awkwardly over the on-its-side sleep/roll pose. Hide them whenever that
-        // lying-down frame is showing — i.e. while rolling and while asleep at
-        // night (#102). They reappear (darker, if the roll dirtied it) on standing.
-        const lying = h.sprite.anims?.currentAnim?.key === `sleep_${h.key}`;
-        // The body art bobs 1 design-pixel (= S world px) on the odd idle/walk
-        // frames; mirror that here so the dust splotches and stink lines bounce
-        // *with* the horse instead of floating over the breathing body.
-        const frameKey = h.sprite.frame?.texture?.key || '';
-        const bob = /(_1|_3)$/.test(frameKey) ? S : 0;
-        h.dustOverlay.x = h.sprite.x;
-        h.dustOverlay.y = h.sprite.y + bob;
-        h.dustOverlay.setFlipX(h.sprite.flipX);
-        h.dustOverlay.angle = h.sprite.angle; // follow the body (e.g. while rolling)
-        h.dustOverlay.setDepth(h.sprite.y);
-        h.dustOverlay.setAlpha(dirt * DUST_MAX_ALPHA);
-        h.dustOverlay.setVisible(dirt > 0 && !lying);
-
-        // Stink lines only on a really filthy horse, gently wavering above its back.
-        if (h.stinkOverlay) {
-          const stink = Phaser.Math.Clamp((STINK_AT - groom) / STINK_AT, 0, 1);
-          const waver = Math.sin(this.time.now / 220 + h._stinkPhase);
-          h.stinkOverlay.x = h.sprite.x;
-          h.stinkOverlay.y = h.sprite.y - 66 + waver * 3 + bob;
-          h.stinkOverlay.setDepth(h.sprite.y + 1);
-          h.stinkOverlay.setAlpha(stink * (0.75 + 0.25 * waver));
-          h.stinkOverlay.setVisible(stink > 0 && !lying);
-        }
-      }
-    }
-
-    for (const a of this.animals) {
-      a.shadow.x = a.sprite.x;
-      a.shadow.y = a.sprite.y;
-      a.shadow.setDepth(a.sprite.y - 1);
-      a.sprite.setDepth(a.sprite.y);
-    }
-
-    for (const npc of this.npcs) {
-      npc.shadow.x = npc.sprite.x;
-      npc.shadow.y = npc.sprite.y;
-      npc.shadow.setDepth(npc.sprite.y - 1);
-      npc.sprite.setDepth(npc.sprite.y);
-    }
-  }
-
-  tickDecay(delta) {
-    this.decayAccum += delta;
-    if (this.decayAccum >= 1000) {
-      const secs = this.decayAccum / 1000;
-      // Decay every horse in the pasture (not just the player's) so the whole
-      // herd gets hungry/thirsty over time and the feeding loop stays live.
-      // Only the player's horse is persisted (see tickAutosave); companions
-      // decay in-memory for the session.
-      const allHorses = this.registry.get('allHorses');
-      for (const h of this.horses) allHorses[h.key]?.applyDecay(secs, false);
-      // Chickens/cat have no survival needs, but applyDecay eases their happiness
-      // back toward its resting baseline so a pet's cheer fades over time (#104/#105).
-      for (const a of this.animals) a.model?.applyDecay(secs, false);
-      this.decayAccum = 0;
-      this.game.events.emit(EVENTS.STATS_CHANGED);
-    }
-  }
-
-  tickAutosave(delta) {
-    this.saveAccum += delta;
-    if (this.saveAccum >= 15000) {
-      this.saveAccum = 0;
-      this._saveHorses();
-      saveAllCows(this.registry.get('allCows')); // keep her stats/lastSeen fresh (#cow)
-    }
-  }
 }
 

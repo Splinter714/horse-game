@@ -60,6 +60,8 @@ try {
       'separateHorses', '_horseBeg', '_begWait',
       'runBehaviors', '_horseContext', '_chickenContext', '_nearestReachableHay',
       'onPhaseChange', 'doAction', 'depthSort', 'tickDecay',
+      // Extracted concern mixins (issue #167): effects / persistence / rendering.
+      'showHeart', 'showIcon', '_saveHorses', '_saveAnimal', 'tickAutosave', 'updateSaddles', 'updateFoals',
     ];
     const missingMethods = expectMethods.filter((m) => typeof paddock[m] !== 'function');
 
