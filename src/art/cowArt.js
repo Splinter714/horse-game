@@ -4,7 +4,7 @@
 
 import { makeLeg, idleWalkLegs, buildFrames } from './_frames.js';
 
-export const COW_W = 52, COW_H = 40;
+export const COW_W = 56, COW_H = 40;
 
 const cowLeg = makeLeg({ topY: 27, w: 5, h: 11, hoofColor: 0x2a2020, hoofY: 38 });
 
@@ -30,46 +30,52 @@ function drawCow(g, bob, [lhf, lhn, lff, lfn]) {
   g.fillStyle(0xe08080, 1);
   g.fillRect(16, 33+bob, 2, 2); g.fillRect(21, 33+bob, 2, 2); g.fillRect(26, 33+bob, 2, 2);
 
-  // Body
-  g.fillStyle(0xf0ece4, 1); g.fillRect(5, 14+bob, 38, 16);
-  g.fillStyle(0xffffff, 1); g.fillRect(5, 14+bob, 38, 3);
+  // Body — taller/deeper barrel
+  g.fillStyle(0xf0ece4, 1); g.fillRect(5, 12+bob, 38, 18);
+  g.fillStyle(0xffffff, 1); g.fillRect(5, 12+bob, 38, 3);
   g.fillStyle(0xe0dcd4, 1); g.fillRect(5, 27+bob, 38, 3);
-  g.fillStyle(0xf0ece4, 1); g.fillRect(4, 16+bob, 1, 10); // rump curve
+  g.fillStyle(0xf0ece4, 1); g.fillRect(4, 14+bob, 1, 12); // rump curve
 
   // Black patches
   g.fillStyle(0x1a1818, 1);
-  g.fillRect(6,  14+bob, 12, 10);
-  g.fillRect(31, 15+bob, 9,  9);
-  g.fillRect(20, 20+bob, 6,  7);
+  g.fillRect(6,  13+bob, 12, 12);
+  g.fillRect(31, 14+bob, 9,  11);
+  g.fillRect(20, 19+bob, 6,  8);
 
-  // Neck — beefy, blends the shoulder smoothly up into the head with a soft dewlap
-  g.fillStyle(0xf0ece4, 1); g.fillRect(38, 13+bob, 9, 16);
-  g.fillStyle(0xffffff, 1); g.fillRect(38, 13+bob, 9, 2);   // crest highlight
-  g.fillStyle(0xe0dcd4, 1); g.fillRect(38, 27+bob, 9, 2);   // throat/dewlap shade
+  // Neck — a tapering wedge that rises from the shoulder up to the head, clearly
+  // thinner than the barrel so it reads as a neck rather than more body.
+  g.fillStyle(0xf0ece4, 1);
+  g.fillRect(39, 13+bob, 5, 14);   // shoulder end (deep)
+  g.fillRect(43, 12+bob, 4, 13);   // mid
+  g.fillRect(46, 11+bob, 4, 12);   // head end (shallower)
+  g.fillStyle(0xffffff, 1);        // crest highlight stepping up to the poll
+  g.fillRect(39, 13+bob, 5, 2); g.fillRect(43, 12+bob, 4, 2); g.fillRect(46, 11+bob, 4, 2);
+  g.fillStyle(0xe0dcd4, 1);        // throat/dewlap shade tucking up to the jaw
+  g.fillRect(39, 25+bob, 5, 2); g.fillRect(43, 23+bob, 4, 2); g.fillRect(46, 21+bob, 4, 2);
 
-  // Head — long, lowered, forward-facing face (no longer perched above the body)
-  g.fillStyle(0xf0ece4, 1); g.fillRect(43, 11+bob, 9, 14);
-  g.fillStyle(0xffffff, 1); g.fillRect(43, 11+bob, 9, 2);   // poll highlight
+  // Head — long, lowered, forward-facing face set out at the end of the neck
+  g.fillStyle(0xf0ece4, 1); g.fillRect(47, 10+bob, 9, 14);
+  g.fillStyle(0xffffff, 1); g.fillRect(47, 10+bob, 9, 2);   // poll highlight
 
   // Black Holstein face patch across the poll/brow
-  g.fillStyle(0x1a1818, 1); g.fillRect(43, 11+bob, 8, 4);
+  g.fillStyle(0x1a1818, 1); g.fillRect(47, 10+bob, 8, 4);
 
   // Muzzle — soft tan/pink snout
-  g.fillStyle(0xf4c4a8, 1); g.fillRect(46, 18+bob, 6, 7);
-  g.fillStyle(0xe0a888, 1); g.fillRect(46, 18+bob, 6, 1);   // muzzle top edge
-  g.fillStyle(0xc88870, 1); g.fillRect(48, 21+bob, 1, 2); g.fillRect(50, 21+bob, 1, 2); // nostrils
+  g.fillStyle(0xf4c4a8, 1); g.fillRect(50, 17+bob, 6, 7);
+  g.fillStyle(0xe0a888, 1); g.fillRect(50, 17+bob, 6, 1);   // muzzle top edge
+  g.fillStyle(0xc88870, 1); g.fillRect(52, 20+bob, 1, 2); g.fillRect(54, 20+bob, 1, 2); // nostrils
 
   // Horns — small pair rising from the dark poll
-  g.fillStyle(0xe8d8a0, 1); g.fillRect(44, 8+bob, 2, 3); g.fillRect(48, 8+bob, 2, 3);
-  g.fillStyle(0xd8c488, 1); g.fillRect(44, 8+bob, 2, 1); g.fillRect(48, 8+bob, 2, 1);
+  g.fillStyle(0xe8d8a0, 1); g.fillRect(48, 7+bob, 2, 3); g.fillRect(52, 7+bob, 2, 3);
+  g.fillStyle(0xd8c488, 1); g.fillRect(48, 7+bob, 2, 1); g.fillRect(52, 7+bob, 2, 1);
 
   // Ear — set back at the side of the head
-  g.fillStyle(0xf0ece4, 1); g.fillRect(41, 12+bob, 3, 3);
-  g.fillStyle(0xf4b0a0, 1); g.fillRect(41, 13+bob, 2, 2);
+  g.fillStyle(0xf0ece4, 1); g.fillRect(45, 11+bob, 3, 3);
+  g.fillStyle(0xf4b0a0, 1); g.fillRect(45, 12+bob, 2, 2);
 
   // Eye — on the white cheek just below the patch
-  g.fillStyle(0x1a0e00, 1); g.fillRect(46, 16+bob, 2, 2);
-  g.fillStyle(0xffffff, 0.85); g.fillRect(46, 16+bob, 1, 1);
+  g.fillStyle(0x1a0e00, 1); g.fillRect(50, 15+bob, 2, 2);
+  g.fillStyle(0xffffff, 0.85); g.fillRect(50, 15+bob, 1, 1);
 }
 
 export function buildCowTextures(scene, key) {
