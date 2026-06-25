@@ -27,6 +27,28 @@ export const WithCreatures = (Base) => class extends Base {
   _movementFor(speciesId) {
     return { ...GENERIC_MOVEMENT, ...(SPECIES[speciesId]?.movement ?? {}) };
   }
+
+  // ─── Generic model / grazer helpers (species-neutral, #cow) ────────────────
+
+  // The care model for any in-world creature, whether it's a horse (kept in the
+  // allHorses registry, keyed by sprite key) or an animal carrying its own model
+  // (chickens, the cat, the cow). Lets the shared eat/drink/graze primitives read
+  // and update stats without knowing the species.
+  _modelFor(a) {
+    return this.registry.get('allHorses')?.[a.key] ?? a.model ?? null;
+  }
+
+  // Every creature that uses the herbivore feeding/drinking AI: the horses plus any
+  // animal whose species declares the `grazes` capability (the cow). Used for the
+  // shared "one per pile / spread at the trough" occupancy checks so cows and horses
+  // don't stack on the same spot.
+  _grazers() {
+    const out = [...this.horses];
+    for (const a of this.animals) {
+      if (SPECIES[a.model?.species]?.capabilities?.grazes) out.push(a);
+    }
+    return out;
+  }
   // ─── Other animals ───────────────────────────────────────────────────────
 
   buildAnimals() {
@@ -46,6 +68,20 @@ export const WithCreatures = (Base) => class extends Base {
     const cow = this.spawnAnimal(1150, 1300, 'cow', 0.85, 3, 6, undefined, undefined, undefined, undefined, cowModel);
     cow.homeBounds = PASTURE_BOUNDS; // roam the pasture like the horses, not the whole world
     cow.bodyR = 18;
+    // The cow has no dedicated grazing frames yet, so alias her "eat" pose to the
+    // standing idle — cows graze head-up enough that this reads fine and avoids a
+    // missing-animation warning when the shared eat/drink primitives play eat_cow.
+    if (!this.anims.exists('eat_cow')) {
+      this.anims.create({
+        key: 'eat_cow',
+        frames: [{ key: 'cow_idle_0' }, { key: 'cow_idle_1' }],
+        frameRate: 2, repeat: -1,
+      });
+    }
+    // Goal-tick so a wandering cow heads for food/water before falling back to a
+    // plain stroll — the same hook the horses use (creatureWander → a.tick).
+    cow.needTarget = null;
+    cow.tick = (c) => this.horseTickForHorse(c);
 
     // Chicken flock — 5 birds, each with identity, name, and appearance
     const allChickens = this.registry.get('allChickens');

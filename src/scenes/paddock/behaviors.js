@@ -36,8 +36,11 @@ export const WithBehaviors = (Base) => class extends Base {
 
   // ─── Context snapshots (pure data the behavior `test`s read) ───────────────
 
+  // Shared by every grazer (horse + cow): the dispatcher routes any non-chicken
+  // agent here. Reads the agent's model generically via _modelFor, so it works for
+  // a horse (allHorses registry) or a cow (its attached model) alike.
   _horseContext(h) {
-    const horse = this.registry.get('allHorses')?.[h.key];
+    const horse = this._modelFor(h);
     if (!horse) {
       return { hunger: 100, thirst: 100, nearestHayDist: Infinity, troughDist: Infinity, streamDist: Infinity, hasPlayer: false };
     }

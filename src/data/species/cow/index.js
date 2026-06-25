@@ -36,10 +36,11 @@ export const COW = {
     pet:   { stat: 'happiness', amount: 6,  care: 'loved',   label: 'Love',  sound: 'chime', icon: 'iconHeart' },
   },
 
-  // Daily produce (#cow): the cow gives one bucket of milk per day, gated on having
-  // met the required care the day before — exactly the daily-care cycle below. The
-  // generic Animal model reads this to drive readyToProduce / producedToday.
-  produces: { content: 'milk' },
+  // Daily produce (#cow): the cow gives one bucket of milk per day. Normally gated
+  // on having met the required care the DAY BEFORE (the daily-care cycle below), but
+  // `readyAtStart` lets a fresh cow be milked on day one so the mechanic is easy to
+  // try. The generic Animal model reads this to drive readyToProduce / producedToday.
+  produces: { content: 'milk', readyAtStart: true },
 
   // Track these care flags each day; missing any (yesterday) makes her wake up
   // neglected AND leaves her not ready to milk that day.
@@ -55,7 +56,10 @@ export const COW = {
 
   traits: {},
   optionalAttrs: [],
-  capabilities: { saddleable: false, rideable: false, leadable: false, laysEggs: false, milkable: true },
+  // `grazes` opts her into the shared herbivore feeding/drinking AI (creatures.js /
+  // horseAI.js): she eats dropped hay/apple/carrot, drinks at the trough/stream, and
+  // nibbles grass — the same primitives the horses use, now species-generic.
+  capabilities: { saddleable: false, rideable: false, leadable: false, laysEggs: false, milkable: true, grazes: true },
 
   // Paddock "feel" knobs read by the scene movement primitives (creatures.js).
   // Cows are slow, placid wanderers that rest a good while between strolls.
@@ -68,6 +72,9 @@ export const COW = {
   // from `needs` + the love bar. No trait line, no fixed attrs.
   panel: { portrait: 'animated', fixedAttrs: false },
 
-  // No AI behavior list — the cow just wanders the pasture (the implicit fallback).
-  behaviors: [],
+  // AI priority list, highest first — the cow reuses the horse behavior modules
+  // (registered as BEHAVIORS.cow in ../index.js) via the generic dispatcher. She
+  // seeks dropped food, drinks at the trough/stream, and grazes the grass, but she
+  // does NOT beg the player (no `begPlayer`) — she's placid, not pushy.
+  behaviors: ['seekFood', 'seekWater', 'seekStream', 'graze'],
 };

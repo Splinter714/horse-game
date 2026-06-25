@@ -996,6 +996,7 @@ export const WithPlayer = (Base) => class extends Base {
     return {
       horse:   Object.keys(this.registry.get('allHorses')   ?? {}).length,
       chicken: Object.keys(this.registry.get('allChickens') ?? {}).length,
+      cow:     Object.keys(this.registry.get('allCows')     ?? {}).length,
     };
   }
 

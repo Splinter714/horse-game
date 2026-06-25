@@ -74,7 +74,9 @@ export class Animal {
     //    from whether yesterday's required care was met; `producedToday` flips once
     //    she's been milked. Both persist so the once-a-day gate survives a reload. ─
     if (species.produces) {
-      this.readyToProduce = data.readyToProduce ?? false;
+      // `readyAtStart` lets a fresh animal be harvestable on day one (the cow is
+      // milkable immediately) without first living a well-cared-for day.
+      this.readyToProduce = data.readyToProduce ?? !!species.produces.readyAtStart;
       this.producedToday  = data.producedToday ?? false;
     }
   }

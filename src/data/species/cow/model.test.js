@@ -26,12 +26,12 @@ describe('Cow', () => {
     expect(cow.stats.hunger).toBeLessThan(h0);
   });
 
-  it('is not milkable until cared for the day before', () => {
+  it('is milkable on day one (readyAtStart), and stays milkable after a good day', () => {
     const cow = new Cow();
-    // Fresh cow: no prior day → not ready.
-    expect(cow.readyToProduce).toBe(false);
+    // Fresh cow can be milked immediately so the mechanic is easy to try.
+    expect(cow.readyToProduce).toBe(true);
 
-    // Care for her today, then roll into a new day → ready to milk.
+    // Care for her today, then roll into a new day → still ready to milk.
     careForToday(cow);
     cow.rollNewDay();
     expect(cow.readyToProduce).toBe(true);

@@ -1219,6 +1219,7 @@ export default class PaddockScene
     if (this.saveAccum >= 15000) {
       this.saveAccum = 0;
       this._saveHorses();
+      saveAllCows(this.registry.get('allCows')); // keep her stats/lastSeen fresh (#cow)
     }
   }
 }

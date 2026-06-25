@@ -22,9 +22,9 @@ export const CARRIER_DEFS = {
 // horses + pigs → horses + pigs). Multiple foods overlapping the same animals is fine
 // and intended — the owner wants "N apples for N horses", overlap with carrots and all.
 export const CONTENT_DEFS = {
-  hay:    { label: 'Hay',     icon: 'iconBasketHay',    action: 'feed',  ground: 'hayPile',    feeds: ['horse'] },
-  apple:  { label: 'Apples',  icon: 'iconBasketApple',  action: 'feed',  ground: 'applePile',  feeds: ['horse'] },
-  carrot: { label: 'Carrots', icon: 'iconBasketCarrot', action: 'feed',  ground: 'carrotPile', feeds: ['horse'] },
+  hay:    { label: 'Hay',     icon: 'iconBasketHay',    action: 'feed',  ground: 'hayPile',    feeds: ['horse', 'cow'] },
+  apple:  { label: 'Apples',  icon: 'iconBasketApple',  action: 'feed',  ground: 'applePile',  feeds: ['horse', 'cow'] },
+  carrot: { label: 'Carrots', icon: 'iconBasketCarrot', action: 'feed',  ground: 'carrotPile', feeds: ['horse', 'cow'] },
   seed:   { label: 'Seed',    icon: 'iconBasketSeed',   action: 'feed',  ground: 'seedPile',   feeds: ['chicken'] },
   egg:    { label: 'Eggs',    icon: 'iconBasketEgg',    action: 'egg' },
   water:  { label: 'Water',   icon: 'iconBucketWater',  action: 'water' },

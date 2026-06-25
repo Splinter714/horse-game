@@ -84,7 +84,9 @@ export function saveAllChickens(allChickens) {
 // Cows persist like horses (full stats + daily-care + milk readiness). One cow for
 // now, keyed `cow`. Nameless to start (the model still carries `name`, so she can
 // be named later). Offline decay is applied on load, forgiving like the herd.
-const COWS_KEY = 'horse-care-cows-v1';
+// v2: the cow became milkable-at-start (readyAtStart) and a grazer; re-seed so an
+// early v1 cow (saved readyToProduce:false) starts fresh with the new defaults.
+const COWS_KEY = 'horse-care-cows-v2';
 
 function defaultCowRoster() {
   return {

@@ -187,10 +187,11 @@ try {
   if (Math.abs(result.scaleRatio - 4) > 0.01) fail(`chicken/horse display-scale ratio ${result.scaleRatio} ≠ ART_SCALE (4) — chickens/cat wrongly sized?`);
   if (!result.movementOk) fail('creature movement/pathfinding threw: ' + result.movementError);
   if (result.behaviorDecision !== 'seekFood') fail(`hungry horse with hay nearby did not select seekFood (got ${result.behaviorDecision})`);
-  // #136: gather one food per animal that eats it (7 horses, 5 chickens), water → capacity.
+  // #136: gather one food per animal that eats it, water → capacity. Hay/apple/carrot
+  // are eaten by the 7 horses AND the cow (#cow), so a full gather targets 8.
   const gt = result.gatherTargets;
   for (const food of ['hay', 'apple', 'carrot']) {
-    if (gt[food] !== 7) fail(`gather target for ${food} = ${gt[food]}, expected 7 (one per horse, #136)`);
+    if (gt[food] !== 8) fail(`gather target for ${food} = ${gt[food]}, expected 8 (7 horses + 1 cow, #136/#cow)`);
   }
   if (gt.seed !== 5) fail(`gather target for seed = ${gt.seed}, expected 5 (one per chicken, #136)`);
   if (gt.water !== 1) fail(`gather target for water = ${gt.water}, expected 1 (capacity — water ignores demand)`);

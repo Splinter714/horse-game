@@ -28,6 +28,10 @@ export function getSpecies(id) {
 export const BEHAVIORS = {
   horse: indexById(horseBehaviors),
   chicken: indexById(chickenBehaviors),
+  // The cow is a herbivore grazer like the horse, so she reuses the horse behavior
+  // modules; her own `behaviors` list (cow/index.js) picks the subset she runs
+  // (food/water/graze, no begging). The run() primitives are species-generic.
+  cow: indexById(horseBehaviors),
 };
 
 function indexById(mod) {
