@@ -2,9 +2,14 @@ import Phaser from 'phaser';
 import { buildWorldTextures } from '../art/worldArt.js';
 import { buildChickenTextures, CHICKEN_COATS } from '../art/chickenArt.js';
 import { buildCatTextures } from '../art/catArt.js';
-// Other barnyard animals (cow/sheep/pig/dog) are disabled — their art lives in
-// src/art/{cow,sheep,pig,dog}Art.js, ready to build here when re-enabled.
+// Other barnyard animals (cow/sheep/pig/dog) are disabled in the world — their art
+// lives in src/art/{cow,sheep,pig,dog}Art.js, ready to build here when re-enabled.
+// The dev Art-preview screen (below) builds them so we can art-direct them early.
 import { buildHorseTextures, buildFoalTextures } from '../art/horseArt.js';
+import { buildCowTextures } from '../art/cowArt.js';
+import { buildSheepTextures } from '../art/sheepArt.js';
+import { buildPigTextures } from '../art/pigArt.js';
+import { buildDogTextures } from '../art/dogArt.js';
 import { buildChickenPortraitTexture } from '../art/portraitArt.js';
 // `buildPortraitTexture` builds the front-facing HORSE portrait, which is deprecated
 // (the info panel + Stable both use the animated side view because the front portrait
@@ -13,7 +18,7 @@ import { buildChickenPortraitTexture } from '../art/portraitArt.js';
 // import { buildPortraitTexture } from '../art/portraitArt.js';
 import { buildPlayerTextures } from '../art/playerArt.js';
 import { getCoat, composeCoat } from '../data/species/horse/coats.js';
-import { loadAllHorses, loadAllChickens, loadAudioSettings, saveAudioSettings } from '../data/save.js';
+import { loadAllHorses, loadAllChickens, loadAudioSettings, saveAudioSettings, loadDevSettings } from '../data/save.js';
 import { applyAudioSettings } from '../audio/sounds.js';
 
 export default class BootScene extends Phaser.Scene {
@@ -60,6 +65,18 @@ export default class BootScene extends Phaser.Scene {
     chickens.forEach((c, i) => {
       buildChickenPortraitTexture(this, `portrait_chicken${i}`, CHICKEN_COATS[c.coat]);
     });
+
+    // Dev tool: boot straight into the standalone art-preview gallery instead of
+    // the world (pause-menu "Start screen → Art preview"). Build the otherwise-
+    // disabled barnyard animals so the gallery can show every creature.
+    if (loadDevSettings().startEditor === 'preview') {
+      buildCowTextures(this, 'cow');
+      buildSheepTextures(this, 'sheep');
+      buildPigTextures(this, 'pig');
+      buildDogTextures(this, 'dog');
+      this.scene.start('ArtPreviewScene');
+      return;
+    }
 
     this.scene.start('PaddockScene');
     this.scene.launch('DayNightScene');

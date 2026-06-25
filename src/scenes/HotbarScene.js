@@ -972,10 +972,10 @@ export default class HotbarScene extends Phaser.Scene {
       (v) => saveDevSettings({ startPhase: v }));
     dy += rowH;
     this._addCycleRow(rowX, dy, rowW, rowH, '🖥 Start screen',
-      [null, 'horse'],
+      [null, 'horse', 'preview'],
       () => loadDevSettings().startEditor,
       (v) => saveDevSettings({ startEditor: v }),
-      (v) => (v ? 'Horse editor' : 'Farm'));
+      (v) => (v === 'preview' ? 'Art preview' : v ? 'Horse editor' : 'Farm'));
     dy += rowH;
     this._addCycleRow(rowX, dy, rowW, rowH, '📍 Start at',
       ['Barn', 'Pasture', 'Gate', 'Farm stand', 'Coop'],

@@ -4,6 +4,7 @@ import PaddockScene from './scenes/PaddockScene.js';
 import InfoPanelScene from './scenes/InfoPanelScene.js';
 import HotbarScene from './scenes/HotbarScene.js';
 import DayNightScene from './scenes/DayNightScene.js';
+import ArtPreviewScene from './scenes/ArtPreviewScene.js';
 
 // Dev-only escape hatch: `?canvas` forces the Canvas renderer. Headless browsers
 // (used by the smoke test, scripts/smoke.mjs) often lack WebGL framebuffers, and
@@ -37,7 +38,7 @@ const config = {
   input: {
     gamepad: true
   },
-  scene: [BootScene, PaddockScene, DayNightScene, InfoPanelScene, HotbarScene]
+  scene: [BootScene, PaddockScene, DayNightScene, InfoPanelScene, HotbarScene, ArtPreviewScene]
 };
 
 const game = new Phaser.Game(config);
