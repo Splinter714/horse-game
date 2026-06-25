@@ -1,27 +1,15 @@
 import Phaser from 'phaser';
 import { buildWorldTextures } from '../art/worldArt.js';
-import { buildChickenTextures, CHICKEN_COATS } from '../art/chickenArt.js';
-import { buildCatTextures } from '../art/catArt.js';
-// The cow is a live animal in the world now (built below). The remaining barnyard
-// animals (sheep/pig/dog) are still disabled — their art lives in src/art/{sheep,
-// pig,dog}Art.js, ready to build when re-enabled. The dev Art-preview screen (below)
-// builds them so we can art-direct them early.
-import { buildHorseTextures, buildFoalTextures } from '../art/horseArt.js';
-import { buildCowTextures } from '../art/cowArt.js';
-import { buildSheepTextures } from '../art/sheepArt.js';
-import { buildPigTextures } from '../art/pigArt.js';
-import { buildDogTextures } from '../art/dogArt.js';
-import { buildChickenPortraitTexture } from '../art/portraitArt.js';
-// `buildPortraitTexture` builds the front-facing HORSE portrait, which is deprecated
-// (the info panel + Stable both use the animated side view because the front portrait
-// looked bad). It's kept in portraitArt.js for potential future use, so it's left
-// defined but not imported while unused:
-// import { buildPortraitTexture } from '../art/portraitArt.js';
 import { buildPlayerTextures } from '../art/playerArt.js';
-import { getCoat, composeCoat } from '../data/species/horse/coats.js';
-import { loadAllHorses, loadAllChickens, loadAllCows, loadAudioSettings, saveAudioSettings, loadDevSettings } from '../data/save.js';
+import { SPECIES_TEXTURES, PREVIEW_TEXTURES } from '../art/index.js';
+import { ROSTER_SPECIES, loadAudioSettings, saveAudioSettings, loadDevSettings } from '../data/save.js';
 import { applyAudioSettings } from '../audio/sounds.js';
 
+// Boot: restore settings, load every persisted roster into the registry, build all
+// procedural textures, then start the world. Both the roster load and the texture
+// build are registry-driven (see data/rosters.js + art/index.js), so adding an
+// animal is data — not an edit here (issue #167 B1/B2). The C2 import-boundary seam
+// guard checks this file names no concrete species loader or art builder.
 export default class BootScene extends Phaser.Scene {
   constructor() {
     super('BootScene');
@@ -32,53 +20,26 @@ export default class BootScene extends Phaser.Scene {
     // any later change made through the mixer UI.
     applyAudioSettings(loadAudioSettings(), saveAudioSettings);
 
-    // The whole herd, loaded from save with offline decay applied. Every horse is
-    // equal — no special "player horse". Keyed by texture/registry key.
-    const allHorses = loadAllHorses();
-
-    this.registry.set('allHorses', allHorses);
+    // Load every persisted roster into the registry (allHorses / allChickens /
+    // allCows…), with forgiving offline decay applied on load. Driven by the roster
+    // registry, so a newly-added persisted species is seeded here with no edit.
     this.registry.set('viewingAnimal', null);
-
-    // Chickens — identity + appearance, loaded (and persisted) like horses.
-    const allChickens = loadAllChickens();
-    const chickens = Object.values(allChickens);
-
-    this.registry.set('allChickens', allChickens);
-
-    // Cows — full stats + daily-care + milk readiness, loaded/persisted like horses.
-    const allCows = loadAllCows();
-    this.registry.set('allCows', allCows);
-
-    // Build textures for each horse's coat — driven by the horse's own data.
-    buildWorldTextures(this);
-    CHICKEN_COATS.forEach((coat, i) => buildChickenTextures(this, `chicken${i}`, coat));
-    buildCatTextures(this, 'cat');
-    buildCowTextures(this, 'cow');
-    buildPlayerTextures(this);
-    for (const key of Object.keys(allHorses)) {
-      const coat = composeCoat(allHorses[key].coat, allHorses[key].markings);
-      buildHorseTextures(this, key, coat);
-      // Deprecated front-facing horse portrait — kept around for future use:
-      // buildPortraitTexture(this, `portrait_${key}`, coat);
+    for (const { registryKey, load } of ROSTER_SPECIES) {
+      this.registry.set(registryKey, load());
     }
 
-    // Foal textures (foal1 = dapple grey, foal2 = chestnut pinto, foal3 = bay)
-    buildFoalTextures(this, 'foal1', composeCoat('grey', { dapples: true }));
-    buildFoalTextures(this, 'foal2', composeCoat('chestnut', { pinto: true }));
-    buildFoalTextures(this, 'foal3', getCoat('bay'));
-
-    // Chicken portrait textures — one per coat
-    chickens.forEach((c, i) => {
-      buildChickenPortraitTexture(this, `portrait_chicken${i}`, CHICKEN_COATS[c.coat]);
-    });
+    // Build textures: world + player first (not species rosters), then each
+    // species' textures — the horse/chicken builders read their loaded roster from
+    // the registry set just above, so this must come after it.
+    buildWorldTextures(this);
+    buildPlayerTextures(this);
+    for (const build of Object.values(SPECIES_TEXTURES)) build(this);
 
     // Dev tool: boot straight into the standalone art-preview gallery instead of
     // the world (pause-menu "Start screen → Art preview"). Build the otherwise-
     // disabled barnyard animals so the gallery can show every creature.
     if (loadDevSettings().startEditor === 'preview') {
-      buildSheepTextures(this, 'sheep');
-      buildPigTextures(this, 'pig');
-      buildDogTextures(this, 'dog');
+      for (const build of Object.values(PREVIEW_TEXTURES)) build(this);
       this.scene.start('ArtPreviewScene');
       return;
     }

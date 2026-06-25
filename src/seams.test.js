@@ -22,6 +22,17 @@ describe('C2 import-boundary: shared loaders name no concrete species', () => {
     const bad = importedPaths(read('data/save.js')).filter((p) => /model(\.js)?$/.test(p));
     expect(bad, 'save.js should import ./rosters.js, not species/*/model.js').toEqual([]);
   });
+
+  it('BootScene builds textures via the art registry, not per-species builders', () => {
+    const bad = importedPaths(read('scenes/BootScene.js'))
+      .filter((p) => /art\/(horse|chicken|cat|cow|sheep|pig|dog|portrait)Art/.test(p));
+    expect(bad, 'BootScene should import art/index.js, not per-species *Art.js').toEqual([]);
+  });
+
+  it('BootScene loads rosters via ROSTER_SPECIES, not per-species loaders', () => {
+    const bad = (read('scenes/BootScene.js').match(/\bloadAll(Horses|Chickens|Cows)\b/g)) ?? [];
+    expect(bad, 'BootScene should iterate ROSTER_SPECIES, not call loadAllHorses/etc.').toEqual([]);
+  });
 });
 
 describe('C2 fixture-species: a data-only species round-trips through makeRoster', () => {
