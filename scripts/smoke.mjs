@@ -57,6 +57,7 @@ try {
       'buildPlayer', 'movePlayer', 'handleTap', '_findPath', 'gatherFrom',
       'mountHorse', 'dismount', 'toggleSaddle', 'toggleLead',
       'horseTick', 'horseGoEat', 'horseGoDrink', 'spawnHorse', 'spawnAnimal',
+      'buildAnimals', '_worldSpecies', '_applySpawnCapabilities', // generic spawn (#167 B4)
       'separateHorses', '_horseBeg', '_begWait',
       'runBehaviors', '_horseContext', '_chickenContext', '_nearestReachableHay',
       'onPhaseChange', 'doAction', 'depthSort', 'tickDecay',

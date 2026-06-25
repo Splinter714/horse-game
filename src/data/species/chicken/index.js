@@ -29,7 +29,10 @@ export const CHICKEN = {
   ],
   traits: { personality: 'friendly' },
   optionalAttrs: [],
-  capabilities: { saddleable: false, rideable: false, leadable: false, laysEggs: true },
+  // `pecks` adds the occasional idle ground-peck; `roosts` makes the flock spawn
+  // hidden and emerge from the coop in the morning (both wired at spawn in
+  // creatures.js from these capability flags, #167 B4).
+  capabilities: { saddleable: false, rideable: false, leadable: false, laysEggs: true, pecks: true, roosts: true },
 
   // Paddock "feel" knobs read by the scene movement primitives (creatures.js).
   // ms delay range between wanders — shortened so the flock potters around more
@@ -37,6 +40,22 @@ export const CHICKEN = {
   movement: {
     wanderMin: 2500,
     wanderMax: 6500,
+  },
+
+  // World spawn (#167 B4) — read by creatures.js buildAnimals. Models come from the
+  // allChickens roster (one per placement, by index); the coop is home with a wide
+  // roam radius (#130). `pecks`/`roosts` capabilities wire the idle peck + coop entry.
+  spawn: {
+    inWorld: true,
+    shadowScale: 0.25, walkFps: 8, tweenRate: 10, eatFps: 6, bodyR: 11,
+    roam: 'world',
+    placements: [
+      { x: 520, y: 740, home: { x: 560, y: 760 }, wanderRadius: 220 },
+      { x: 590, y: 730, home: { x: 560, y: 760 }, wanderRadius: 220 },
+      { x: 560, y: 790, home: { x: 560, y: 760 }, wanderRadius: 220 },
+      { x: 500, y: 780, home: { x: 560, y: 760 }, wanderRadius: 220 },
+      { x: 610, y: 770, home: { x: 560, y: 760 }, wanderRadius: 220 },
+    ],
   },
 
   // Info-panel presentation: static portrait, an italic personality line, no stat

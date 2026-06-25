@@ -70,6 +70,16 @@ export const COW = {
     wanderMax: 13000,
   },
 
+  // World spawn (#167 B4) — read by creatures.js buildAnimals. The model comes from
+  // the allCows roster; `roam: 'pasture'` keeps her in the paddock with the horses;
+  // `grazes` (capabilities) wires the shared food/water goal tick at spawn.
+  spawn: {
+    inWorld: true,
+    shadowScale: 0.85, walkFps: 3, tweenRate: 6, eatFps: 6, bodyR: 18,
+    roam: 'pasture',
+    placements: [{ x: 1150, y: 1300 }],
+  },
+
   // Info-panel presentation: animated portrait (she has idle frames), stat bars
   // from `needs` + the love bar. No trait line, no fixed attrs.
   panel: { portrait: 'animated', fixedAttrs: false },

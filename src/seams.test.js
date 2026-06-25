@@ -61,6 +61,20 @@ describe('C2 literal-tripwire: shared care/dispatch files name no species', () =
   }
 });
 
+describe('C2 spawn seam: creatures spawn from species data, not hardcoded (#167 B4)', () => {
+  // buildAnimals iterates each world species' `spawn` block, so every spawnAnimal
+  // call passes a data-driven position (place.x/…), never a literal. A reappearing
+  // `spawnAnimal(700, 600, 'cat', …)` would mean a per-species spawn crept back in
+  // (a worktree-conflict point when adding two animals). Comments are stripped — the
+  // disabled sheep/pig/dog examples are commented-out literal spawns and are fine.
+  const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  it('creatures.js has no hardcoded spawnAnimal position', () => {
+    const code = stripComments(read('scenes/paddock/creatures.js'));
+    const hardcoded = code.match(/spawnAnimal\(\s*-?\d/);
+    expect(hardcoded, `hardcoded spawnAnimal position: ${hardcoded?.[0]}`).toBeNull();
+  });
+});
+
 describe('C2 fixture-species: a data-only species round-trips through makeRoster', () => {
   // The permanent "add a goat" acid test. A synthetic species — a minimal
   // Animal-shaped model plus a roster of defaults — persists through the generic

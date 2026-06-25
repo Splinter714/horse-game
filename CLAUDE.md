@@ -109,10 +109,24 @@ the `horseAI`/`creatures` mixins — behaviors only wire condition → primitive
   model pick it up via data.
 - **A new AI behavior:** add a module to the species' `behaviors.js` and its id to the
   `behaviors` list in `index.js`. Add a pure-decision case to `behaviors.test.js`.
-- **A new animal species:** create `src/data/species/<name>/` (an `index.js` definition
-  with needs/actions/capabilities/behaviors, a `model.js` class or reuse `Animal`, a
-  `behaviors.js`), register it in `species/index.js`, add an art builder in `src/art/`,
-  build its textures in `BootScene`, and give it a roster + persistence in `save.js`.
+- **A new animal species:** mostly **data** now (#167 Phase B/B4) — the cross-cutting
+  seams are registry-driven, so you do **not** edit `save.js`, `BootScene.js`,
+  `creatures.js`, or the care dispatch (the C2 seam guards in `src/seams.test.js`
+  enforce this). To add one:
+  - Create `src/data/species/<name>/`: an `index.js` def (needs/actions/capabilities/
+    behaviors, plus a `spawn` block for placement+visuals and an optional `produces`
+    block for milk-style harvest), a `model.js` class (or reuse `Animal`), a
+    `behaviors.js`.
+  - Register it in `species/index.js`; add a persistence entry to `data/rosters.js`;
+    add its texture builder to `art/index.js` (+ an art file under `src/art/`).
+  - Direct care is data: declare `actions` (feed/water/pet) and optional `produces`.
+    Spawn behaviour is capability-driven: `grazes` wires the food/water goal tick,
+    `pecks`/`roosts` the flock hooks. The generic dispatch picks it all up — no
+    bespoke `feedX`/`spawnX` methods. (Spawn placement: `spawn.placements`, one per
+    roster individual.)
+  This is what lets two new animals be added in **parallel git worktrees** without
+  colliding: each lives in its own `species/<name>/` folder + one-line registry
+  entries, not shared orchestrator files.
 
 ## PaddockScene structure — functional mixins (`src/scenes/paddock/`)
 
