@@ -24,11 +24,11 @@ function drawCow(g, bob, [lhf, lhn, lff, lfn]) {
   g.fillStyle(0xb09080, 1); g.fillRect(3, 18+bob, 2, 8);
   g.fillStyle(0x3a3030, 1); g.fillRect(2, 25+bob, 3, 5);
 
-  // Udder
-  g.fillStyle(0xf4b4b4, 1); g.fillRect(14, 28+bob, 16, 5);
-  g.fillStyle(0xe89898, 1); g.fillRect(14, 31+bob, 16, 2);
+  // Udder — a touch narrower and shifted back toward the rump
+  g.fillStyle(0xf4b4b4, 1); g.fillRect(11, 28+bob, 13, 5);
+  g.fillStyle(0xe89898, 1); g.fillRect(11, 31+bob, 13, 2);
   g.fillStyle(0xe08080, 1);
-  g.fillRect(16, 33+bob, 2, 2); g.fillRect(21, 33+bob, 2, 2); g.fillRect(26, 33+bob, 2, 2);
+  g.fillRect(13, 33+bob, 2, 2); g.fillRect(17, 33+bob, 2, 2); g.fillRect(21, 33+bob, 2, 2);
 
   // Body — taller/deeper barrel
   g.fillStyle(0xf0ece4, 1); g.fillRect(5, 12+bob, 38, 18);
@@ -54,28 +54,28 @@ function drawCow(g, bob, [lhf, lhn, lff, lfn]) {
   g.fillRect(39, 25+bob, 5, 2); g.fillRect(43, 23+bob, 4, 2); g.fillRect(46, 21+bob, 4, 2);
 
   // Head — long, lowered, forward-facing face set out at the end of the neck
-  g.fillStyle(0xf0ece4, 1); g.fillRect(47, 10+bob, 9, 14);
-  g.fillStyle(0xffffff, 1); g.fillRect(47, 10+bob, 9, 2);   // poll highlight
+  g.fillStyle(0xf0ece4, 1); g.fillRect(47, 9+bob, 9, 14);
+  g.fillStyle(0xffffff, 1); g.fillRect(47, 9+bob, 9, 2);    // poll highlight
 
   // Black Holstein face patch across the poll/brow
-  g.fillStyle(0x1a1818, 1); g.fillRect(47, 10+bob, 8, 4);
+  g.fillStyle(0x1a1818, 1); g.fillRect(47, 9+bob, 8, 4);
 
   // Muzzle — soft tan/pink snout
-  g.fillStyle(0xf4c4a8, 1); g.fillRect(50, 17+bob, 6, 7);
-  g.fillStyle(0xe0a888, 1); g.fillRect(50, 17+bob, 6, 1);   // muzzle top edge
-  g.fillStyle(0xc88870, 1); g.fillRect(52, 20+bob, 1, 2); g.fillRect(54, 20+bob, 1, 2); // nostrils
+  g.fillStyle(0xf4c4a8, 1); g.fillRect(50, 16+bob, 6, 7);
+  g.fillStyle(0xe0a888, 1); g.fillRect(50, 16+bob, 6, 1);   // muzzle top edge
+  g.fillStyle(0xc88870, 1); g.fillRect(52, 19+bob, 1, 2); g.fillRect(54, 19+bob, 1, 2); // nostrils
 
   // Horns — small pair rising from the dark poll
-  g.fillStyle(0xe8d8a0, 1); g.fillRect(48, 7+bob, 2, 3); g.fillRect(52, 7+bob, 2, 3);
-  g.fillStyle(0xd8c488, 1); g.fillRect(48, 7+bob, 2, 1); g.fillRect(52, 7+bob, 2, 1);
+  g.fillStyle(0xe8d8a0, 1); g.fillRect(48, 6+bob, 2, 3); g.fillRect(52, 6+bob, 2, 3);
+  g.fillStyle(0xd8c488, 1); g.fillRect(48, 6+bob, 2, 1); g.fillRect(52, 6+bob, 2, 1);
 
   // Ear — set back at the side of the head
-  g.fillStyle(0xf0ece4, 1); g.fillRect(45, 11+bob, 3, 3);
-  g.fillStyle(0xf4b0a0, 1); g.fillRect(45, 12+bob, 2, 2);
+  g.fillStyle(0xf0ece4, 1); g.fillRect(45, 10+bob, 3, 3);
+  g.fillStyle(0xf4b0a0, 1); g.fillRect(45, 11+bob, 2, 2);
 
   // Eye — on the white cheek just below the patch
-  g.fillStyle(0x1a0e00, 1); g.fillRect(50, 15+bob, 2, 2);
-  g.fillStyle(0xffffff, 0.85); g.fillRect(50, 15+bob, 1, 1);
+  g.fillStyle(0x1a0e00, 1); g.fillRect(50, 14+bob, 2, 2);
+  g.fillStyle(0xffffff, 0.85); g.fillRect(50, 14+bob, 1, 1);
 }
 
 export function buildCowTextures(scene, key) {
