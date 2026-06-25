@@ -75,7 +75,9 @@ export const COW = {
   // `grazes` (capabilities) wires the shared food/water goal tick at spawn.
   spawn: {
     inWorld: true,
-    shadowScale: 0.85, walkFps: 3, tweenRate: 6, eatFps: 6, bodyR: 18,
+    // tweenRate is ms-per-pixel of travel, so a HIGHER value = slower. The horse
+    // pace is 10; the cow is a placid, heavy plodder, so she walks slower (14).
+    shadowScale: 0.85, walkFps: 3, tweenRate: 14, eatFps: 6, bodyR: 18,
     // A dairy cow is a bulky beast — render her bigger than the base scale so she
     // reads larger (and taller) than the horses. `scale` is a per-species size
     // multiplier on top of S, applied to her sprite + shadow in creatures.js.
