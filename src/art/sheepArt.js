@@ -19,7 +19,8 @@ const SKIN_LIT  = 0x7d7d7d;
 const SKIN_DK   = 0x5a5a5a;
 const SKIN_DKR  = 0x4c4c4c;
 
-const sheepLeg = makeLeg({ topY: 22, w: 3, h: 6, hoofColor: SKIN_DKR, hoofY: 28, hoofW: 5, hoofDX: -1 });
+// Longer, slightly thicker legs; hoof is the same width as the shin (not wider).
+const sheepLeg = makeLeg({ topY: 20, w: 4, h: 8, hoofColor: SKIN_DKR, hoofY: 28, hoofW: 4, hoofDX: 0 });
 
 function drawSheep(g, bob, [lhf, lhn, lff, lfn]) {
   sheepLeg(g, 6,  lhf, SKIN, bob);    sheepLeg(g, 26, lff, SKIN, bob);
@@ -31,10 +32,10 @@ function drawSheep(g, bob, [lhf, lhn, lff, lfn]) {
   // --- Wool body: built row-by-row from a rounded silhouette so the sides and
   // bottom curve smoothly instead of stepping. Each row is [y, xLeft, xRight]. ---
   const rows = [
-    [11,  8, 31], [12,  5, 33], [13,  4, 34], [14,  3, 35],
-    [15,  3, 35], [16,  3, 35], [17,  3, 35], [18,  3, 35],
-    [19,  3, 34], [20,  4, 34], [21,  5, 33], [22,  7, 33],
-    [23,  9, 32], [24, 11, 30],
+    [ 9,  8, 31], [10,  5, 33], [11,  4, 34], [12,  3, 35],
+    [13,  3, 35], [14,  3, 35], [15,  3, 35], [16,  3, 35],
+    [17,  3, 34], [18,  4, 34], [19,  5, 33], [20,  7, 33],
+    [21,  9, 32], [22, 11, 30],
   ];
   const rowAt = (y) => rows.find((r) => r[0] === y);
   g.fillStyle(WOOL_LIT, 1);
@@ -47,26 +48,25 @@ function drawSheep(g, bob, [lhf, lhn, lff, lfn]) {
     g.fillRect(x + 0.7, y + bob, w - 1.4, 0.6);   // shaved cap
   };
   const top = [
-    [6, 10, 4, 3], [8, 8.5, 6, 4], [13, 7.5, 6, 4], [19, 7, 6, 4],
-    [25, 7.5, 6, 4], [30, 9, 5, 3],
+    [6, 8, 4, 3], [8, 6.5, 6, 4], [13, 5.5, 6, 4], [19, 5, 6, 4],
+    [25, 5.5, 6, 4], [30, 7, 5, 3],
   ];
   for (const [x, y, w, h] of top) nub(x, y, w, h);
-  const top2 = [[10, 9.5, 4, 2], [16, 9, 4, 2], [22, 9, 4, 2], [27, 9.5, 4, 2]];
+  const top2 = [[10, 7.5, 4, 2], [16, 7, 4, 2], [22, 7, 4, 2], [27, 7.5, 4, 2]];
   for (const [x, y, w, h] of top2) g.fillRect(x, y + bob, w, h);
 
-  // Soft form shading: a faint highlight along the top and a shadow that deepens
-  // toward the belly. Bands follow the silhouette (clamped via the row), and a
-  // dithered transition row blends each step so there's no hard horizontal seam.
+  // Soft form shading: just an underside shadow that deepens toward the belly (no
+  // top highlight — it read as a stray horizontal line). Bands follow the silhouette
+  // and use alpha transition rows so each step blends without a hard seam.
   const band = (color, y, inset, alpha = 1) => {
     const r = rowAt(y); if (!r) return;
     g.fillStyle(color, alpha);
     g.fillRect(r[1] + inset, y + bob, (r[2] - r[1]) - inset * 2, 1);
   };
-  band(WOOL_HI, 12, 2.5);              // crown highlight (single soft row)
-  band(WOOL_MID, 21, 1.5, 0.6);        // dithered transition into the belly
-  band(WOOL_MID, 22, 1.5);             // belly
-  band(WOOL_SHAD, 23, 1.5, 0.7);       // transition
-  band(WOOL_SHAD, 24, 1.5);            // underside shadow
+  band(WOOL_MID, 19, 1.5, 0.55);       // transition into the belly
+  band(WOOL_MID, 20, 1.5);             // belly
+  band(WOOL_SHAD, 21, 1.5, 0.7);       // transition
+  band(WOOL_SHAD, 22, 1.5);            // underside shadow
 
   // --- Grey face: a square block with the corners notched for a soft look ---
   g.fillStyle(SKIN, 1);
