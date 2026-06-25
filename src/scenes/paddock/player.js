@@ -74,6 +74,10 @@ export const WithPlayer = (Base) => class extends Base {
       right: Phaser.Input.Keyboard.KeyCodes.D,
     });
     this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+    // Space is a second interact key — many players reach for it as the default
+    // action button, so it aliases E everywhere (#168). Captured so it can't also
+    // scroll the page. Read both together via _interactJustDown().
+    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     // F = use the currently-armed hotbar tool (interact stays on tap/click/E).
     this.fKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
     this.fKey.on('down', () => { this._useKeyboard(); this.useActiveTool(); });
@@ -133,6 +137,15 @@ export const WithPlayer = (Base) => class extends Base {
     // Lead rope drawn each frame when leading a horse
     this.leadRope = this.add.graphics().setDepth(9998);
 
+  }
+
+  // True once per press of either interact key (E or Space, #168). Evaluates
+  // both every frame (no short-circuit) so each key's just-down flag is consumed
+  // and a simultaneous press can't queue a spurious fire on the next frame.
+  _interactJustDown() {
+    const e  = Phaser.Input.Keyboard.JustDown(this.eKey);
+    const sp = Phaser.Input.Keyboard.JustDown(this.spaceKey);
+    return e || sp;
   }
 
   // True when this tap is a quick second tap on the same animal — used so a

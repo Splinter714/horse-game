@@ -207,7 +207,7 @@ export default class PaddockScene
     // the popup's own keydown) — don't also re-trigger a pet/open here, which
     // would make it flicker shut-then-open. Mirrors handleTap bailing early.
     if (this.scene.isActive('InfoPanelScene')) {
-      Phaser.Input.Keyboard.JustDown(this.eKey); // consume so it doesn't queue
+      this._interactJustDown(); // consume E/Space so it doesn't queue
       this.padAJustDown = false;
       return;
     }
@@ -221,7 +221,7 @@ export default class PaddockScene
 
     const { player } = this;
     const item    = this.getActiveItem();
-    const eJust   = Phaser.Input.Keyboard.JustDown(this.eKey);
+    const eJust   = this._interactJustDown();
     const aJust   = this.padAJustDown;
     this.padAJustDown = false;
     if (eJust) this._useKeyboard(); // interact via E → keyboard prompt glyphs
