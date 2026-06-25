@@ -7,7 +7,7 @@ import { EVENTS } from '../data/events.js';
 import {
   playHoofbeat, playEat, playDrink, playBrush, playChime,
   playSplash, playBirdChirp, startWind, stopWind, startMusic, stopMusic,
-  setMusicMode, playNicker, playSqueal,
+  setMusicMode, playNicker, playSqueal, playMilk,
 } from '../audio/sounds.js';
 import {
   WORLD_W, WORLD_H, INTERACT_DIST, CARE_DIST, PLAYER_SPEED, RIDE_SPEED,
@@ -369,7 +369,7 @@ export default class PaddockScene
     if (added <= 0) return;
     model.producedToday = true;
     this._saveAnimal(model);
-    playSplash();
+    playMilk(); // squirty milk-into-the-pail sound (#cow)
     this.showIcon('iconBucketMilk', cow.sprite);
   }
 
