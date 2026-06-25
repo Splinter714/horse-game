@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { applyDpr, logicalW, logicalH, dprOf } from './uiUtils.js';
 import { saveDevSettings } from '../data/save.js';
 import { CUSTOMIZE } from '../data/customize.js';
+import { DEMO_FOALS } from '../data/demoFoals.js';
 
 // ── Art preview (dev tool) ───────────────────────────────────────────────────
 // A standalone gallery for art-directing the creatures. Boots straight into a
@@ -152,15 +153,17 @@ export default class ArtPreviewScene extends Phaser.Scene {
   // Texture key → species id. Horses/foals map to 'horse'; chickens to 'chicken';
   // everything else is its own id (cat/cow/sheep/pig/dog).
   _speciesIdFor(key) {
-    if (key.startsWith('horse') || key.startsWith('foal')) return 'horse';
+    if (key.startsWith('foal')) return 'foal';   // young horse — its own (smaller) art
+    if (key.startsWith('horse')) return 'horse';
     if (key.startsWith('chicken')) return 'chicken';
     return key;
   }
 
-  // A creature is editable if its species declares customizable parts, or it's a horse
-  // that has a live model in the roster (the demo foals don't, so they're skipped).
+  // A creature is editable if its species declares customizable parts, a horse with a
+  // live model in the roster, or a demo foal (the customizer seeds its model on open).
   _isEditable(speciesId, key) {
     if (speciesId === 'horse') return !!this.registry.get('allHorses')?.[key];
+    if (speciesId === 'foal') return key in DEMO_FOALS;
     return !!CUSTOMIZE[speciesId]?.parts;
   }
 

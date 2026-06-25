@@ -12,6 +12,8 @@
 // Ramps are HAND-AUTHORED (not algorithmically derived) to match the established
 // pixel-art look — derived/high-res ramps read "weird" per the art history.
 
+import { CHICKEN_COATS } from '../art/chickenArt.js';
+
 // A swatch: { key, label, ramp }. `ramp` is the per-part tone object the art expects;
 // its shape is part-specific (wool = hi/lit/mid/shad; skin = lit/mid/dk/dkr).
 const sw = (key, label, ramp) => ({ key, label, ramp });
@@ -80,6 +82,13 @@ const CAT_EYES = [
   sw('copper', 'Copper', { color: 0xc06a28 }),
 ];
 
+// ── Chicken: whole-coat STYLE picker (the 5 existing feather coats) ───────────
+// Unlike the recolour parts above, the chicken just selects one of its pre-authored
+// CHICKEN_COATS; the swatch shows that coat's body feather colour. The chosen coat is
+// threaded straight into buildChickenTextures (which already takes a coat).
+const CHICKEN_LABELS = ['White', 'Rhode Island Red', 'Black', 'Buff', 'Grey'];
+const CHICKEN_STYLES = CHICKEN_COATS.map((coat, i) => sw(String(i), CHICKEN_LABELS[i] || `Style ${i + 1}`, coat));
+
 export const CUSTOMIZE = {
   sheep: {
     parts: [
@@ -110,14 +119,22 @@ export const CUSTOMIZE = {
       { id: 'eyes', label: 'Eyes', palette: CAT_EYES },
     ],
   },
+  chicken: {
+    parts: [
+      { id: 'style', label: 'Style', palette: CHICKEN_STYLES },
+    ],
+  },
 
-  // Horse uses its own rich, bespoke section set rather than a flat part list.
+  // Horse + foal share the rich, bespoke section set (the foal is just a young horse,
+  // same coat system) rather than a flat part list. See scenes/customizer/horse.js.
   horse: { sections: 'horse' },
+  foal: { sections: 'horse' },
 };
 
 // The swatch button colour for a swatch (the most representative tone). Covers every
-// ramp shape used: body ramps (mid/lit/hi), single-colour parts (color), spots (mid).
-export const swatchTone = (ramp) => ramp.mid ?? ramp.lit ?? ramp.hi ?? ramp.color ?? 0x888888;
+// ramp shape used: body ramps (mid/lit/hi), single-colour parts (color), spots (mid),
+// and a whole chicken coat (its `body` feather colour).
+export const swatchTone = (ramp) => ramp.mid ?? ramp.lit ?? ramp.hi ?? ramp.color ?? ramp.body ?? 0x888888;
 
 // Build the default `look` for a species (first swatch of every part), so opening
 // the customizer starts from the art's native colours.

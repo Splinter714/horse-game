@@ -3,6 +3,8 @@ import { S } from '../paddock/constants.js';
 import { growHitArea, logicalW, logicalH } from '../uiUtils.js';
 import { CUSTOMIZE, swatchTone, defaultLook } from '../../data/customize.js';
 import { reskinAnimal } from '../../art/index.js';
+import { ART_SCALE } from '../../art/_frames.js';
+import { DEMO_FOALS } from '../../data/demoFoals.js';
 
 // Generic, species-agnostic customizer SHELL (#165). Hosts a sticky, scrollable
 // "edit mode" with a pinned live preview on one side and recolour controls on the
@@ -60,12 +62,21 @@ export const WithCustomizerShell = (Base) => class extends Base {
     if (opts.onExit) this._onCustExit = opts.onExit;
     this._mode = 'edit';
 
-    // Resolve the thing being edited. Horses carry a live model (registry roster) so
-    // their rich editor reads/writes it; simple "parts" animals have no model, just an
+    // Resolve the thing being edited. Horse-like subjects (horse + foal) carry a live
+    // model the rich editor reads/writes; simple "parts" animals have no model, just an
     // in-memory `look` of per-part palette ramps that recolours the art live.
-    if (this._custSpecies === 'horse') {
-      this.allHorses = this.registry.get('allHorses');
+    if (this._isHorseLike()) {
       this.paddock = this.scene.get('PaddockScene'); // null in the art-preview host
+      // The foal is a young horse (same coat editor). Its demo models aren't persisted,
+      // so seed an in-memory roster from DEMO_FOALS on first use; `this.allHorses` then
+      // works exactly like the herd map for every horse-section read/write below.
+      if (this._custSpecies === 'foal') {
+        let foals = this.registry.get('demoFoals');
+        if (!foals) { foals = JSON.parse(JSON.stringify(DEMO_FOALS)); this.registry.set('demoFoals', foals); }
+        this.allHorses = foals;
+      } else {
+        this.allHorses = this.registry.get('allHorses');
+      }
       if (!this._editKey || !this.allHorses?.[this._editKey]) return false;
     } else {
       if (!CUSTOMIZE[this._custSpecies]?.parts) return false;
@@ -136,9 +147,11 @@ export const WithCustomizerShell = (Base) => class extends Base {
     const dh = Math.max(120, Math.min(r.h * 0.7, (r.w * 0.7) / aspect));
     const dw = dh * aspect;
 
-    // Grass: the horse preview matches the world's grass zoom exactly (preserves the
-    // long-tuned in-world editor look); other species use a sane backdrop scale.
-    const tileScale = this._custSpecies === 'horse' ? dh / (54 * S) : 2;
+    // Grass: horse-like previews match the world's grass zoom (preserves the long-tuned
+    // in-world editor look). The horse/foal art is ART_SCALE super-sampled, so its native
+    // LOGICAL height is src.height / ART_SCALE; the world draws it at scale S. Other
+    // species use a sane backdrop scale. (For the horse this equals the old dh/(54*S).)
+    const tileScale = this._isHorseLike() ? dh / ((src.height / ART_SCALE) * S) : 2;
     this.add.tileSprite(cx, cy, r.w, r.h, 'grass').setOrigin(0.5, 0.5).setDepth(0).setTileScale(tileScale);
     const shadow = this.add.graphics().setDepth(0);
     shadow.fillStyle(0x123a14, 0.28);
@@ -229,10 +242,16 @@ export const WithCustomizerShell = (Base) => class extends Base {
     }
   }
 
-  // Header text for the current subject. Horse provides its own (name + breed +
-  // rename) via WithHorseSections; everything else shows a plain species label.
+  // Horse + foal share the rich horse editor (sections: 'horse'); both read/write a
+  // model via this.allHorses. Everything else is the data-driven parts path.
+  _isHorseLike() {
+    return this._custSpecies === 'horse' || this._custSpecies === 'foal';
+  }
+
+  // Header text for the current subject. Horse-like subjects provide their own (name +
+  // breed + rename) via WithHorseSections; everything else shows a plain species label.
   _headerInfo() {
-    if (this._custSpecies === 'horse') return this._horseHeaderInfo();
+    if (this._isHorseLike()) return this._horseHeaderInfo();
     const label = this._custSpecies.charAt(0).toUpperCase() + this._custSpecies.slice(1);
     return { title: label, subtitle: 'Tap a colour to recolour', onRename: null };
   }
