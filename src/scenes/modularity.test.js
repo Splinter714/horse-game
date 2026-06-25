@@ -87,8 +87,8 @@ describe('size budget: scene files stay small (no new mega-files)', () => {
   // Known oversized files not yet split — visible debt that should shrink, never
   // grow. Each entry is self-cleaning (see below): drop it once the file is split.
   const ALLOW = {
-    'paddock/creatures.js': 'generic creature spawn/movement — split candidate (#167 follow-up)',
-    'customizer.js': 'appearance customizer — split scheduled (#167 Phase A4)',
+    'paddock/creatures.js': 'generic creature spawn/movement — split tracked in #169',
+    'customizer.js': 'appearance editor — self-contained, low-collision; split tracked in #169',
   };
 
   for (const rel of walkJs()) {
