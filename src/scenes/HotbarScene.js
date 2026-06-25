@@ -152,10 +152,12 @@ export default class HotbarScene extends Phaser.Scene {
     }
     this._stripBg?.destroy();
     this._pauseBtn?.destroy();
+    this._previewBtn?.destroy();
     this._moneyLbl?.destroy();
     for (const b of this._actionBtns ?? []) { b.g.destroy(); b.lbl.destroy(); b.zone.destroy(); }
     this._slots      = [];
     this._pauseBtn   = null;
+    this._previewBtn = null;
     this._moneyLbl   = null;
     this._stripBg    = null;
     this._actionBtns = null;
@@ -190,6 +192,22 @@ export default class HotbarScene extends Phaser.Scene {
     }).setOrigin(0, 0).setDepth(2).setInteractive({ useHandCursor: true });
     growHitArea(this._pauseBtn); // comfortable tap target (#100)
     this._pauseBtn.on('pointerdown', () => this._togglePause());
+
+    // Dev-only shortcut to the Art Preview gallery (boots into ArtPreviewScene on
+    // reload). Same as flipping the pause-menu "Start screen → Art preview" knob,
+    // but one click. Hidden in production builds.
+    if (import.meta.env.DEV) {
+      this._previewBtn = this.add.text(14, 48, '🎨', {
+        fontFamily: 'system-ui, sans-serif',
+        fontSize: `${Math.max(16, Math.floor(22 * fit))}px`,
+        color: '#dfe4f5', backgroundColor: '#111622cc', padding: { x: 6, y: 3 },
+      }).setOrigin(0, 0).setDepth(2).setInteractive({ useHandCursor: true });
+      growHitArea(this._previewBtn);
+      this._previewBtn.on('pointerdown', () => {
+        saveDevSettings({ startEditor: 'preview' });
+        window.location.reload();
+      });
+    }
 
     // (The old 🐴 "Stable" button is gone: appearance editing now lives on each
     // horse's info panel — walk up and open it, then "Edit appearance" (#147).)
