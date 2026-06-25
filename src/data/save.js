@@ -204,7 +204,12 @@ export function saveAllHorses(allHorses) {
 
 const AUDIO_KEY = 'horse-game-audio-v1';
 
-const DEFAULT_AUDIO = { muted: false, volumes: { master: 1, music: 1, ambient: 1, effects: 1 } };
+// On the dev server, default music off (it's distracting while iterating); the
+// production build still defaults music on. Only the *default* changes — a saved
+// setting always wins, so toggling music in dev sticks.
+const DEFAULT_MUSIC = import.meta.env?.MODE === 'development' ? 0 : 1;
+
+const DEFAULT_AUDIO = { muted: false, volumes: { master: 1, music: DEFAULT_MUSIC, ambient: 1, effects: 1 } };
 
 export function loadAudioSettings() {
   try {
