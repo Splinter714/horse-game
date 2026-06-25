@@ -66,6 +66,9 @@ try {
       'placeFood', '_freeFoodSpot', 'fillTrough', '_setTroughLevel', 'toggleGate',
       // careActions: tool-on-horse, cow care, panel action dispatch.
       'useItemOnHorse', 'feedCow', 'waterCow', 'milkCow', '_afterCowCare',
+      // interaction: pet/info cluster + info-panel openers.
+      'petAnimal', '_petPreferenceProximity', '_maybeGreetOnApproach', 'openProxInfo',
+      'openPortrait', 'openChickenInfo', 'openCreatureInfo', '_openInfoPanel',
     ];
     const missingMethods = expectMethods.filter((m) => typeof paddock[m] !== 'function');
 
