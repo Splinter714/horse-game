@@ -129,9 +129,12 @@ export default class InfoPanelScene extends WithCustomizer(Phaser.Scene) {
     }
 
     // ── Name / breed / age ─────────────────────────────────────────────
-    this.panel.add(this.add.text(CARD_W / 2, 138, animal.name, {
+    // A nameless animal (e.g. the cow for now) shows a faded placeholder so the
+    // title slot doesn't read as a bug — she can still be named later.
+    const named = !!animal.name;
+    this.panel.add(this.add.text(CARD_W / 2, 138, named ? animal.name : 'Unnamed', {
       fontFamily: 'system-ui, sans-serif', fontSize: '22px',
-      color: '#2c2c2a', fontStyle: 'bold',
+      color: named ? '#2c2c2a' : '#9a968c', fontStyle: named ? 'bold' : 'italic',
     }).setOrigin(0.5, 0));
 
     const ageStr = `${animal.age} ${animal.age === 1 ? 'yr' : 'yrs'}`;

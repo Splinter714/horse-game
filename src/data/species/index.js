@@ -6,6 +6,7 @@
 import { HORSE } from './horse/index.js';
 import { CHICKEN } from './chicken/index.js';
 import { CAT } from './cat/index.js';
+import { COW } from './cow/index.js';
 import * as horseBehaviors from './horse/behaviors.js';
 import * as chickenBehaviors from './chicken/behaviors.js';
 
@@ -13,6 +14,7 @@ export const SPECIES = {
   horse: HORSE,
   chicken: CHICKEN,
   cat: CAT,
+  cow: COW,
 };
 
 export function getSpecies(id) {

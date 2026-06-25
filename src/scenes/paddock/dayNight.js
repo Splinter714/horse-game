@@ -76,6 +76,10 @@ export const WithDayNight = (Base) => class extends Base {
       allHorses[h.key]?.rollNewDay();
       this._dirtyHorse(h.key, OVERNIGHT_DIRTY);
     }
+    // The cow rolls over too: yesterday's care decides whether she's grumpy AND
+    // whether she's ready to be milked today (#cow).
+    const allCows = this.registry.get('allCows');
+    if (allCows) for (const c of Object.values(allCows)) c.rollNewDay();
   }
 
   restAllAnimals() {

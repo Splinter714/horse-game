@@ -2,9 +2,10 @@ import Phaser from 'phaser';
 import { buildWorldTextures } from '../art/worldArt.js';
 import { buildChickenTextures, CHICKEN_COATS } from '../art/chickenArt.js';
 import { buildCatTextures } from '../art/catArt.js';
-// Other barnyard animals (cow/sheep/pig/dog) are disabled in the world — their art
-// lives in src/art/{cow,sheep,pig,dog}Art.js, ready to build here when re-enabled.
-// The dev Art-preview screen (below) builds them so we can art-direct them early.
+// The cow is a live animal in the world now (built below). The remaining barnyard
+// animals (sheep/pig/dog) are still disabled — their art lives in src/art/{sheep,
+// pig,dog}Art.js, ready to build when re-enabled. The dev Art-preview screen (below)
+// builds them so we can art-direct them early.
 import { buildHorseTextures, buildFoalTextures } from '../art/horseArt.js';
 import { buildCowTextures } from '../art/cowArt.js';
 import { buildSheepTextures } from '../art/sheepArt.js';
@@ -18,7 +19,7 @@ import { buildChickenPortraitTexture } from '../art/portraitArt.js';
 // import { buildPortraitTexture } from '../art/portraitArt.js';
 import { buildPlayerTextures } from '../art/playerArt.js';
 import { getCoat, composeCoat } from '../data/species/horse/coats.js';
-import { loadAllHorses, loadAllChickens, loadAudioSettings, saveAudioSettings, loadDevSettings } from '../data/save.js';
+import { loadAllHorses, loadAllChickens, loadAllCows, loadAudioSettings, saveAudioSettings, loadDevSettings } from '../data/save.js';
 import { applyAudioSettings } from '../audio/sounds.js';
 
 export default class BootScene extends Phaser.Scene {
@@ -44,10 +45,15 @@ export default class BootScene extends Phaser.Scene {
 
     this.registry.set('allChickens', allChickens);
 
+    // Cows — full stats + daily-care + milk readiness, loaded/persisted like horses.
+    const allCows = loadAllCows();
+    this.registry.set('allCows', allCows);
+
     // Build textures for each horse's coat — driven by the horse's own data.
     buildWorldTextures(this);
     CHICKEN_COATS.forEach((coat, i) => buildChickenTextures(this, `chicken${i}`, coat));
     buildCatTextures(this, 'cat');
+    buildCowTextures(this, 'cow');
     buildPlayerTextures(this);
     for (const key of Object.keys(allHorses)) {
       const coat = composeCoat(allHorses[key].coat, allHorses[key].markings);
@@ -70,7 +76,6 @@ export default class BootScene extends Phaser.Scene {
     // the world (pause-menu "Start screen → Art preview"). Build the otherwise-
     // disabled barnyard animals so the gallery can show every creature.
     if (loadDevSettings().startEditor === 'preview') {
-      buildCowTextures(this, 'cow');
       buildSheepTextures(this, 'sheep');
       buildPigTextures(this, 'pig');
       buildDogTextures(this, 'dog');

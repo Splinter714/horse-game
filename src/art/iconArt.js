@@ -227,6 +227,37 @@ export function buildIconTextures(scene) {
     g.fillStyle(0x7a8396, 1); g.fillEllipse(10, 18.4, 8.6, 2.2);
   });
 
+  // Milk bucket — the tilted pail filled with creamy milk instead of water (#cow).
+  gen(scene, 'iconBucketMilk', 20, 20, (g) => {
+    g.fillStyle(0x6f7889, 1);
+    g.fillRect(3, 4, 1, 3); g.fillRect(16, 4, 1, 3);
+    g.fillRect(4, 2, 12, 1); g.fillRect(3, 3, 2, 1); g.fillRect(15, 3, 2, 1);
+    g.fillStyle(0x9aa3b6, 1);
+    g.fillTriangle(3, 8, 17, 8, 15, 17); g.fillTriangle(3, 8, 15, 17, 5, 17);
+    g.fillEllipse(10, 17, 11, 4.4); // rounded bottom bulge
+    g.fillStyle(0xb8c0d0, 1); g.fillEllipse(10, 8, 14, 5); // rim
+    // Creamy milk filling the mouth oval, with a soft highlight near-left
+    g.fillStyle(0xf4efe2, 1); g.fillEllipse(10, 8, 10.5, 3.4);
+    g.fillStyle(0xfffdf6, 1); g.fillEllipse(8.4, 7.4, 4.6, 1.6);
+    g.fillStyle(0xb8c0d0, 1); g.fillRect(5, 10, 1, 6);
+    g.fillStyle(0x7a8396, 1); g.fillEllipse(10, 18.4, 8.6, 2.2);
+  });
+
+  // Milk jug/bottle — the saleable product shown on the farm-stand counter and as
+  // the float icon when stocking milk (#cow).
+  gen(scene, 'iconMilk', 20, 20, (g) => {
+    // Bottle body
+    g.fillStyle(0xf4efe2, 1); g.fillRect(6, 7, 8, 11);
+    g.fillStyle(0xfffdf6, 1); g.fillRect(6, 7, 2, 11); // left highlight
+    g.fillStyle(0xe6dfce, 1); g.fillRect(12, 7, 2, 11); // right shade
+    // Shoulder + neck
+    g.fillStyle(0xf4efe2, 1); g.fillRect(8, 4, 4, 3);
+    // Blue cap + label band
+    g.fillStyle(0x5fa6d6, 1); g.fillRect(8, 2, 4, 2);
+    g.fillStyle(0x5fa6d6, 1); g.fillRect(6, 12, 8, 3);
+    g.fillStyle(0x9ae0f8, 1); g.fillRect(6, 12, 8, 1);
+  });
+
   // --- hand icon (20 × 20) ---
   gen(scene, 'iconHand', 20, 20, (g) => {
     g.fillStyle(0xf0c080, 1); // skin tone

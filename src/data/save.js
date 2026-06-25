@@ -3,6 +3,7 @@
 
 import { Horse, EBONY_BASE_STATS } from './species/horse/model.js';
 import { Chicken } from './species/chicken/model.js';
+import { Cow } from './species/cow/model.js';
 
 // Legacy single-horse save (the old "player horse"). Still read once, to migrate
 // an existing player's horse into the unified roster below.
@@ -73,6 +74,54 @@ export function saveAllChickens(allChickens) {
   for (const key of Object.keys(allChickens)) out[key] = allChickens[key].toJSON();
   try {
     localStorage.setItem(CHICKENS_KEY, JSON.stringify(out));
+  } catch (e) {
+    // Saving unavailable — ignore.
+  }
+}
+
+// ── Cows ─────────────────────────────────────────────────────────────────────
+
+// Cows persist like horses (full stats + daily-care + milk readiness). One cow for
+// now, keyed `cow`. Nameless to start (the model still carries `name`, so she can
+// be named later). Offline decay is applied on load, forgiving like the herd.
+const COWS_KEY = 'horse-care-cows-v1';
+
+function defaultCowRoster() {
+  return {
+    cow: { id: 'cow-1', name: '', breed: 'Holstein', coat: 0, age: 4, sex: 'female' },
+  };
+}
+
+export function loadAllCows() {
+  const roster = defaultCowRoster();
+  let saved = {};
+  try {
+    const raw = localStorage.getItem(COWS_KEY);
+    if (raw) saved = JSON.parse(raw) ?? {};
+  } catch (e) {
+    // localStorage blocked or corrupt — fall through to defaults.
+  }
+  const allCows = {};
+  for (const key of Object.keys(roster)) {
+    const cow = new Cow({ ...roster[key], ...saved[key] });
+    const elapsedSeconds = Math.max(0, (Date.now() - cow.lastSeen) / 1000);
+    if (elapsedSeconds > 1) cow.applyDecay(elapsedSeconds, true);
+    cow.lastSeen = Date.now();
+    allCows[key] = cow;
+  }
+  saveAllCows(allCows); // seed immediately
+  return allCows;
+}
+
+export function saveAllCows(allCows) {
+  const now = Date.now();
+  const out = {};
+  for (const key of Object.keys(allCows)) {
+    allCows[key].lastSeen = now;
+    out[key] = allCows[key].toJSON();
+  }
+  try {
+    localStorage.setItem(COWS_KEY, JSON.stringify(out));
   } catch (e) {
     // Saving unavailable — ignore.
   }

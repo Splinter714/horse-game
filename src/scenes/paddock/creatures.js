@@ -30,8 +30,7 @@ export const WithCreatures = (Base) => class extends Base {
   // ─── Other animals ───────────────────────────────────────────────────────
 
   buildAnimals() {
-    // Other animals disabled for now — keep code, just uncomment to re-enable
-    // this.spawnAnimal( 450,  680, 'cow',   0.80, 5, 16);
+    // Other animals still disabled for now — keep code, just uncomment to re-enable
     // this.spawnAnimal( 900,  820, 'sheep', 0.65, 6, 14);
     // this.spawnAnimal(1300,  700, 'pig',   0.50, 7, 13);
     // this.spawnAnimal( 700,  570, 'dog',   0.44, 8, 10);
@@ -39,6 +38,14 @@ export const WithCreatures = (Base) => class extends Base {
     // working info panel (#84). Not persisted yet — it's rebuilt each load.
     const catModel = new Animal(SPECIES.cat);
     this.spawnAnimal(700, 600, 'cat', 0.34, 5, 16, undefined, undefined, undefined, undefined, catModel); // slow, low-slung prowl
+
+    // The cow — a slow, placid wanderer inside the pasture with the horses (#cow).
+    // Full stats + daily milk, persisted via the allCows roster. Cared for by direct
+    // interaction (feed/water/pet) rather than the herd's grazing AI, so no behaviors.
+    const cowModel = this.registry.get('allCows')?.cow;
+    const cow = this.spawnAnimal(1150, 1300, 'cow', 0.85, 3, 6, undefined, undefined, undefined, undefined, cowModel);
+    cow.homeBounds = PASTURE_BOUNDS; // roam the pasture like the horses, not the whole world
+    cow.bodyR = 18;
 
     // Chicken flock — 5 birds, each with identity, name, and appearance
     const allChickens = this.registry.get('allChickens');

@@ -88,5 +88,6 @@ export const STAND_DEFS = {
   egg:    { price: 5, tex: 'egg',        scale: S,   emoji: '🥚', floatIcon: 'iconEgg' },
   apple:  { price: 4, tex: 'iconApple',  scale: 0.9, emoji: '🍎', floatIcon: 'iconApple' },
   carrot: { price: 3, tex: 'iconCarrot', scale: 0.9, emoji: '🥕', floatIcon: 'iconCarrot' },
+  milk:   { price: 8, tex: 'iconMilk',   scale: 0.9, emoji: '🥛', floatIcon: 'iconMilk' },
 };
 export const STAND_TYPES = Object.keys(STAND_DEFS);
