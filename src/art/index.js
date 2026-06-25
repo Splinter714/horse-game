@@ -18,6 +18,7 @@ import { buildPigTextures } from './pigArt.js';
 import { buildDogTextures } from './dogArt.js';
 import { composeCoat } from '../data/species/horse/coats.js';
 import { DEMO_FOALS } from '../data/demoFoals.js';
+import { lookFromKeys } from '../data/customize.js';
 
 // Live species present in the world. Built every boot.
 export const SPECIES_TEXTURES = {
@@ -37,19 +38,39 @@ export const SPECIES_TEXTURES = {
   },
 
   chicken(scene) {
-    CHICKEN_COATS.forEach((coat, i) => buildChickenTextures(scene, `chicken${i}`, coat));
-    // One portrait per loaded hen, keyed by its coat.
+    // Each hen's feather coat = its saved customizer STYLE (look.style index) if it's
+    // been customized, else its roster `coat` index. One frame set + portrait per hen,
+    // keyed by its registry key, so a persisted style survives reload.
     const allChickens = scene.registry.get('allChickens');
-    Object.values(allChickens).forEach((c, i) =>
-      buildChickenPortraitTexture(scene, `portrait_chicken${i}`, CHICKEN_COATS[c.coat]));
+    let i = 0;
+    for (const [key, c] of Object.entries(allChickens)) {
+      const coat = CHICKEN_COATS[chickenCoatIndex(c)];
+      buildChickenTextures(scene, key, coat);
+      buildChickenPortraitTexture(scene, `portrait_chicken${i++}`, coat);
+    }
   },
 
-  cow(scene) { buildCowTextures(scene, 'cow'); },
+  // The barnyard animals' base colours come from each individual's saved `look`
+  // (per-part swatch keys), falling back to the art's defaults when unset.
+  cow(scene) { buildRosterLooks(scene, 'allCows', 'cow', buildCowTextures); },
 
-  pig(scene) { buildPigTextures(scene, 'pig'); },
+  pig(scene) { buildRosterLooks(scene, 'allPigs', 'pig', buildPigTextures); },
 
-  cat(scene) { buildCatTextures(scene, 'cat'); },
+  cat(scene) { buildRosterLooks(scene, 'allCats', 'cat', buildCatTextures); },
 };
+
+// A hen's coat index: its customized style if set, else the roster `coat` default.
+function chickenCoatIndex(c) {
+  return c.look?.style != null ? Number(c.look.style) : (c.coat ?? 0);
+}
+
+// Build every individual in a roster from its saved `look` (swatch keys → ramps).
+function buildRosterLooks(scene, registryKey, speciesId, build) {
+  const all = scene.registry.get(registryKey) || {};
+  for (const [key, model] of Object.entries(all)) {
+    build(scene, key, model.look ? lookFromKeys(speciesId, model.look) : undefined);
+  }
+}
 
 // Disabled barnyard animals — their art exists but they aren't in the world yet.
 // Built only for the dev Art-preview gallery so we can art-direct them early.

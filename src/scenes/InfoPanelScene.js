@@ -2,9 +2,17 @@ import Phaser from 'phaser';
 import { getSpecies } from '../data/species/index.js';
 import { growHitArea, applyDpr, logicalW, logicalH } from './uiUtils.js';
 import { ART_SCALE } from '../art/_frames.js';
+import { CUSTOMIZE } from '../data/customize.js';
+import { ROSTER_SPECIES } from '../data/save.js';
 import { WithCustomizerShell } from './customizer/shell.js';
 import { WithCustomizerNav } from './customizer/nav.js';
 import { WithHorseSections } from './customizer/horse.js';
+
+// Persisted rosters by species id, so an in-panel edit saves the right roster
+// generically (no per-species wiring). Every in-world customizable animal now has a
+// roster (horse/chicken/cow/pig/cat), so edits persist across reloads. A future
+// roster-less species would simply be absent here and recolour live-only.
+const ROSTER_BY_ID = Object.fromEntries(ROSTER_SPECIES.map((r) => [r.id, r]));
 
 // Lightweight, ephemeral info popup for any animal. It's a small floating card
 // (not a modal panel) that auto-dismisses the moment you do almost anything else:
@@ -49,10 +57,12 @@ export default class InfoPanelScene extends WithCustomizerShell(WithCustomizerNa
     if (this._mode === 'edit') this._pollEditPad();
   }
 
-  // Whether the currently-viewed animal supports the appearance editor (horses).
+  // Whether the currently-viewed animal has an appearance editor — i.e. its species
+  // declares a customizer (CUSTOMIZE). Now every customizable in-world animal (horse,
+  // chicken, cat, cow, pig), not just the horse (#165).
   _canEdit() {
     const animal = this.registry.get('viewingAnimal')?.animal;
-    return !!(animal && getSpecies(animal.species)?.capabilities?.customizable);
+    return !!(animal && CUSTOMIZE[animal.species]);
   }
 
   refresh() {
@@ -206,10 +216,10 @@ export default class InfoPanelScene extends WithCustomizerShell(WithCustomizerNa
 
     // The panel is purely informational (#91): care actions (feed/water/brush/
     // pet) are all performed in-world with equipped items/tools, so there are no
-    // care buttons here. The one action is appearance editing, for species that
-    // support it (horses, #147) — it opens a sticky, scrollable editor in place.
+    // care buttons here. The one action is appearance editing, for any species with a
+    // customizer (#165) — it opens a sticky, scrollable editor in place.
     let bottomY = barY;
-    if (spec.capabilities?.customizable) {
+    if (CUSTOMIZE[animal.species]) {
       const btnY = barY + 4;
       const editBtn = this.add.text(CARD_W / 2, btnY, '✎  Edit appearance', {
         fontFamily: 'system-ui, sans-serif', fontSize: '14px', color: '#10131f',
@@ -281,13 +291,20 @@ export default class InfoPanelScene extends WithCustomizerShell(WithCustomizerNa
     this.moodText  = null;
     this.panel     = null;
     this._mode     = 'edit';
-    // In-world horse editing: persist the herd after each edit. onExit is left to the
-    // prototype _onCustExit below (rebuilds the info card). The shell handles the
+    // Open the editor for whatever animal the panel is showing. The model carries the
+    // current look (horse: coat/markings; others: per-part swatch keys), and edits
+    // persist to that species' roster — generically, by species id (a roster-less
+    // species would get a null persist and recolour live-only). onExit falls to the
+    // prototype _onCustExit below (rebuilds the info card); the shell handles the
     // pause/resume of the world + hotbar.
+    const viewing = this.registry.get('viewingAnimal');
+    const species = viewing?.animal?.species;
+    const roster = ROSTER_BY_ID[species];
     this.custEnterFor({
-      speciesId: 'horse',
-      key: this.registry.get('viewingAnimal')?.key,
-      persist: () => this.scene.get('PaddockScene')?._saveHorses(),
+      speciesId: species,
+      key: viewing?.key,
+      model: viewing?.animal,
+      persist: roster ? () => roster.save(this.registry.get(roster.registryKey)) : null,
     });
   }
 

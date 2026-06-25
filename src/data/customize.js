@@ -136,12 +136,33 @@ export const CUSTOMIZE = {
 // and a whole chicken coat (its `body` feather colour).
 export const swatchTone = (ramp) => ramp.mid ?? ramp.lit ?? ramp.hi ?? ramp.color ?? ramp.body ?? 0x888888;
 
-// Build the default `look` for a species (first swatch of every part), so opening
-// the customizer starts from the art's native colours.
-export function defaultLook(speciesId) {
+// The default swatch KEY per part (first swatch). Keys (not ramps) are what gets
+// persisted on the model, so the look survives reloads (the art is rebuilt from them
+// on boot). e.g. cow → { coat: 'white', spots: 'black' }, chicken → { style: '0' }.
+export function defaultKeys(speciesId) {
+  const def = CUSTOMIZE[speciesId];
+  if (!def?.parts) return undefined;
+  const keys = {};
+  for (const part of def.parts) keys[part.id] = part.palette[0].key;
+  return keys;
+}
+
+// Resolve a persisted swatch-key map to the ramp `look` the art builders consume.
+// Unknown/missing keys fall back to each part's first swatch, so a stale save never
+// throws — it just shows the default for that part.
+export function lookFromKeys(speciesId, keyMap) {
   const def = CUSTOMIZE[speciesId];
   if (!def?.parts) return undefined;
   const look = {};
-  for (const part of def.parts) look[part.id] = part.palette[0].ramp;
+  for (const part of def.parts) {
+    const swatch = part.palette.find((s) => s.key === keyMap?.[part.id]) || part.palette[0];
+    look[part.id] = swatch.ramp;
+  }
   return look;
+}
+
+// The default ramp `look` for a species (first swatch of every part), so opening the
+// customizer with no saved look starts from the art's native colours.
+export function defaultLook(speciesId) {
+  return lookFromKeys(speciesId, defaultKeys(speciesId));
 }
