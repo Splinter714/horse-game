@@ -16,7 +16,8 @@ import { buildCowTextures } from './cowArt.js';
 import { buildSheepTextures } from './sheepArt.js';
 import { buildPigTextures } from './pigArt.js';
 import { buildDogTextures } from './dogArt.js';
-import { getCoat, composeCoat } from '../data/species/horse/coats.js';
+import { composeCoat } from '../data/species/horse/coats.js';
+import { DEMO_FOALS } from '../data/demoFoals.js';
 
 // Live species present in the world. Built every boot.
 export const SPECIES_TEXTURES = {
@@ -27,11 +28,12 @@ export const SPECIES_TEXTURES = {
       const coat = composeCoat(allHorses[key].coat, allHorses[key].markings);
       buildHorseTextures(scene, key, coat);
     }
-    // Foal textures (foal1 = dapple grey, foal2 = chestnut pinto, foal3 = bay). The
-    // demo foals are fixed, not per-roster, so they're built here unconditionally.
-    buildFoalTextures(scene, 'foal1', composeCoat('grey', { dapples: true }));
-    buildFoalTextures(scene, 'foal2', composeCoat('chestnut', { pinto: true }));
-    buildFoalTextures(scene, 'foal3', getCoat('bay'));
+    // Demo foal textures, from the shared DEMO_FOALS spec (data/demoFoals.js) so the
+    // art-preview customizer can seed editable models from the same coats. Fixed, not
+    // per-roster, so built here unconditionally.
+    for (const [key, f] of Object.entries(DEMO_FOALS)) {
+      buildFoalTextures(scene, key, composeCoat(f.coat, f.markings));
+    }
   },
 
   chicken(scene) {
@@ -67,6 +69,9 @@ const RESKIN = {
   dog:   (scene, key, look) => buildDogTextures(scene, key, look),
   cow:   (scene, key, look) => buildCowTextures(scene, key, look),
   cat:   (scene, key, look) => buildCatTextures(scene, key, look),
+  // The chicken picks a whole coat (a STYLE), not per-part ramps: the customizer's
+  // single 'style' part stores the chosen CHICKEN_COATS entry under look.style.
+  chicken: (scene, key, look) => buildChickenTextures(scene, key, look.style ?? look),
 };
 
 export function reskinAnimal(scene, speciesId, key, look) {

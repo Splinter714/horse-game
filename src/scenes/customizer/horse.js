@@ -4,7 +4,7 @@ import {
   composeCoat, effectiveMarkings, colorKeyOf,
 } from '../../data/species/horse/coats.js';
 import { PATTERN_VARIANT_COUNT } from '../../data/species/horse/patterns.js';
-import { buildHorseTextures } from '../../art/horseArt.js';
+import { buildHorseTextures, buildFoalTextures } from '../../art/horseArt.js';
 import { colorRank } from './shell.js';
 
 // The horse's rich, bespoke customizer sections — the part of the old monolithic
@@ -321,13 +321,15 @@ export const WithHorseSections = (Base) => class extends Base {
   }
 
   // Apply current data to the live textures + (optionally) persist, then refresh the
-  // editor UI. Re-skinning is paddock-independent — buildHorseTextures redraws the
+  // editor UI. Re-skinning is paddock-independent — buildHorse/FoalTextures redraws the
   // global `${key}_*` textures in place, so any on-screen sprite using them updates.
-  // `_custPersist` (set by the in-world host) saves the herd; the art-preview host
-  // leaves it null (live-recolor only).
+  // The foal shares the whole horse editor but has its own (smaller) art, so it rebuilds
+  // with buildFoalTextures. `_custPersist` (set by the in-world host) saves the herd; the
+  // art-preview host leaves it null (live-recolor only).
   _applyEdit() {
     const data = this.allHorses[this._editKey];
-    buildHorseTextures(this, this._editKey, composeCoat(data.coat, data.markings));
+    const build = this._custSpecies === 'foal' ? buildFoalTextures : buildHorseTextures;
+    build(this, this._editKey, composeCoat(data.coat, data.markings));
     this._custPersist?.();
     this._custHeader();
     this._custContent();
