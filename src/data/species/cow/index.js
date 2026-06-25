@@ -76,6 +76,10 @@ export const COW = {
   spawn: {
     inWorld: true,
     shadowScale: 0.85, walkFps: 3, tweenRate: 6, eatFps: 6, bodyR: 18,
+    // A dairy cow is a bulky beast — render her bigger than the base scale so she
+    // reads larger (and taller) than the horses. `scale` is a per-species size
+    // multiplier on top of S, applied to her sprite + shadow in creatures.js.
+    scale: 1.35,
     roam: 'pasture',
     placements: [{ x: 1150, y: 1300 }],
   },

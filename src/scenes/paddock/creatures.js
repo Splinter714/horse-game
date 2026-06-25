@@ -80,6 +80,13 @@ export const WithCreatures = (Base) => class extends Base {
           place.home?.x, place.home?.y, place.wanderRadius, sp.eatFps, models[key]);
         if (sp.roam === 'pasture') a.homeBounds = PASTURE_BOUNDS; // roam the pasture, not the world
         if (sp.bodyR != null) a.bodyR = sp.bodyR;
+        // Optional per-species size multiplier on top of the base S scale, so a
+        // bulkier animal (the cow) can read bigger than a horse without redrawing
+        // its art. Scales both the sprite and its ground shadow to match.
+        if (sp.scale != null) {
+          a.sprite.setScale(S * sp.scale);
+          a.shadow.setScale(S * sp.shadowScale * sp.scale);
+        }
         this._applySpawnCapabilities(a, spec);
       });
     }
