@@ -27,7 +27,8 @@ const listMixins = (subdir) =>
 const GROUPS = {
   // The PaddockScene prototype chain: the core scene file + every paddock/ mixin.
   paddock: ['PaddockScene.js', ...listMixins('paddock/')],
-  // HotbarScene's chain is added in Phase A3 once it adopts the mixin pattern.
+  // The HotbarScene prototype chain: the core scene file + every hotbar/ mixin.
+  hotbar: ['HotbarScene.js', ...listMixins('hotbar/')],
 };
 
 // Class methods in this codebase sit at exactly 2-space indentation:
