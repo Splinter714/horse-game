@@ -28,25 +28,44 @@ function drawSheep(g, bob, [lhf, lhn, lff, lfn]) {
   // Tail stub
   g.fillStyle(WOOL_LIT, 1); g.fillRect(3, 16 + bob, 3, 4);
 
-  // --- Wool body: one solid squared mass, edges softly scalloped ---
-  g.fillStyle(WOOL_LIT, 1);
-  g.fillRect(6, 12 + bob, 28, 13);
-  g.fillRect(4, 14 + bob, 2, 9);     // left edge
-  g.fillRect(34, 13 + bob, 2, 9);    // right edge
-  // Continuous bumpy top — small overlapping nubs of the SAME flat colour, varied
-  // height, so the fleece reads soft without any separate-bubble look.
-  const top = [
-    [6, 10.5, 5, 2], [10, 9.5, 5, 3], [15, 9, 5, 3], [20, 9, 5, 3],
-    [25, 9.5, 5, 3], [29, 10.5, 5, 2],
+  // --- Wool body: built row-by-row from a rounded silhouette so the sides and
+  // bottom curve smoothly instead of stepping. Each row is [y, xLeft, xRight]. ---
+  const rows = [
+    [10,  8, 31], [11,  6, 33], [12,  4, 34], [13,  3, 35],
+    [14,  3, 35], [15,  3, 35], [16,  3, 35], [17,  3, 35],
+    [18,  3, 35], [19,  3, 35], [20,  3, 34], [21,  4, 34],
+    [22,  5, 33], [23,  6, 33], [24,  8, 32], [25, 10, 30],
   ];
-  for (const [x, y, w, h] of top) g.fillRect(x, y + bob, w, h);
-  // Shave the hard top corners a touch.
-  g.fillStyle(WOOL_MID, 1); g.fillRect(6, 12 + bob, 1, 1); g.fillRect(33, 12 + bob, 1, 1);
+  const rowAt = (y) => rows.find((r) => r[0] === y);
+  g.fillStyle(WOOL_LIT, 1);
+  for (const [y, x0, x1] of rows) g.fillRect(x0, y + bob, x1 - x0, 1);
 
-  // Subtle shading — flat bands, not a gradient: a lighter crown, a darker belly.
-  g.fillStyle(WOOL_HI, 1);  g.fillRect(8, 11 + bob, 20, 2);
-  g.fillStyle(WOOL_MID, 1); g.fillRect(6, 21 + bob, 28, 2);
-  g.fillStyle(WOOL_SHAD, 1); g.fillRect(6, 23 + bob, 28, 2);
+  // Fluffy top — small overlapping nubs of the SAME flat colour, varied height, with
+  // their top corners shaved so the crown reads soft (not a hard block, not bubbly).
+  const nub = (x, y, w, h) => {
+    g.fillRect(x, y + 0.6 + bob, w, h - 0.6);     // body
+    g.fillRect(x + 0.7, y + bob, w - 1.4, 0.6);   // shaved cap
+  };
+  const top = [
+    [6, 9, 4, 3], [8, 7.5, 6, 4], [13, 6.5, 6, 4], [19, 6, 6, 4],
+    [25, 6.5, 6, 4], [30, 8, 5, 3],
+  ];
+  for (const [x, y, w, h] of top) nub(x, y, w, h);
+  const top2 = [[10, 8.5, 4, 2], [16, 8, 4, 2], [22, 8, 4, 2], [27, 8.5, 4, 2]];
+  for (const [x, y, w, h] of top2) g.fillRect(x, y + bob, w, h);
+
+  // Subtle shading that follows the silhouette (clamped to each row so it never
+  // pokes past the rounded edge as a hard rectangle).
+  const band = (color, y0, y1, inset) => {
+    g.fillStyle(color, 1);
+    for (let y = y0; y <= y1; y++) {
+      const r = rowAt(y); if (!r) continue;
+      g.fillRect(r[1] + inset, y + bob, (r[2] - r[1]) - inset * 2, 1);
+    }
+  };
+  band(WOOL_HI, 11, 12, 2);    // lighter crown
+  band(WOOL_MID, 22, 23, 1);   // belly
+  band(WOOL_SHAD, 24, 25, 1);  // underside shadow
 
   // --- Grey face: a square block with the corners notched for a soft look ---
   g.fillStyle(SKIN, 1);
