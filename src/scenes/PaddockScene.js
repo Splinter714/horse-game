@@ -10,7 +10,7 @@ import {
   setMusicMode, playNicker, playSqueal, playMilk,
 } from '../audio/sounds.js';
 import {
-  WORLD_W, WORLD_H, INTERACT_DIST, CARE_DIST, PLAYER_SPEED, RIDE_SPEED,
+  WORLD_W, WORLD_H, INTERACT_DIST, CARE_DIST, GREET_DIST, PET_SOUND_MS, PLAYER_SPEED, RIDE_SPEED,
   HOLD_MS, HOLD_DRAG_PX, BOUNDS, PLAYER_BOUNDS, PASTURE_BOUNDS,
   GATE_X, GATE_GAP_X0, GATE_GAP_X1, S,
   DUST_CLEAN_AT, DUST_MAX_ALPHA, STINK_AT, STAND_DEFS, STAND_TYPES,
@@ -312,7 +312,7 @@ export default class PaddockScene
     this.game.events.emit(EVENTS.STATS_CHANGED);
 
     if (item.action === 'pet') {
-      playChime();
+      this._petNicker(h);    // affection sounds happy, not a ding — rate-limited (#149)
       this.showHeart(h.sprite);
     } else if (item.action === 'brush') {
       playBrush();
@@ -413,11 +413,6 @@ export default class PaddockScene
     const model = this._animalModel(key);
     if (!this._canPetAnimal(model)) return false; // nothing to add (#98 / loved)
 
-    // First pet/love of the day for a horse plays the friendly chortle too — the
-    // same greeting as opening its info (#149). Captured before applyAction sets
-    // `loved`; greetHorse's nicker cooldown avoids doubling up with a fresh info open.
-    const firstLoveToday = model?.species === 'horse' && !model.caredToday?.loved;
-
     // Every pet nudges happiness up (clamped, so it no-ops at full) and records
     // 'loved' for today. Works for any species with a `pet` action now — horses,
     // chickens, and the cat (#104). A model without one just gets the heart.
@@ -427,12 +422,11 @@ export default class PaddockScene
       this.game.events.emit(EVENTS.STATS_CHANGED);
     }
 
-    if (firstLoveToday) {
-      const h = this.horses.find(x => x.key === key);
-      if (h) this.greetHorse(h); // applyAction cleared `neglected`, so this nickers
-    }
-
-    playChime();
+    // Petting is pure affection, so it sounds happy: a friendly nicker for horses
+    // (rate-limited so rapid petting doesn't machine-gun it), the soft chime for
+    // the chickens/cat who don't nicker. The heart shows on every pet regardless.
+    if (model?.species === 'horse') this._petNicker(this.horses.find(x => x.key === key));
+    else playChime();
     this.showHeart(sprite);
     return true;
   }
@@ -452,20 +446,36 @@ export default class PaddockScene
     this.petAnimal(t.key, t.sprite);
   }
 
-  // A neglected horse the player has approached gives a throttled grumpy squeal +
-  // anger mark, so its mood reads without it fleeing (#150). Non-horses/foals and
-  // content horses are silent here. Tending it clears `neglected` and stops this.
-  _maybeGrumpAtPlayer(prox) {
-    if (!prox) return;
-    const model = this.registry.get('allHorses')?.[prox.key];
-    if (!model?.neglected) return;
-    const h = this.horses.find(x => x.key === prox.key);
-    if (!h) return;
+  // The nearest horse within greeting range voices its mood as the player walks
+  // up, throttled per-horse — a sad squeal if it's neglected, a friendly nicker
+  // if it's content (#150). It stays put either way (no fleeing). Scans its own
+  // (slightly wider) range so the greeting reads a beat before you're in petting
+  // reach. No mood icon — the sound carries it.
+  _maybeGreetOnApproach() {
+    const { player } = this;
+    let near = null, nearD = GREET_DIST;
+    for (const h of this.horses) {
+      const d = Phaser.Math.Distance.Between(
+        player.sprite.x, player.sprite.y, h.sprite.x, h.sprite.y);
+      if (d < nearD) { nearD = d; near = h; }
+    }
+    if (!near) return;
+    const model = this.registry.get('allHorses')?.[near.key];
+    if (!model) return;
     const now = this.time.now;
-    if (h._lastGrump && now - h._lastGrump < 6000) return;
-    h._lastGrump = now;
-    playSqueal();
-    this.showIcon('iconGrumpy', h.sprite);
+    if (near._lastApproachGreet && now - near._lastApproachGreet < 6000) return;
+    near._lastApproachGreet = now;
+    if (model.neglected) playSqueal();   // sad
+    else                  playNicker();  // happy
+  }
+
+  // A petting nicker, rate-limited per-horse so rapid petting doesn't machine-gun
+  // the sound. The pet's happiness gain + heart still land on every press.
+  _petNicker(h) {
+    const now = this.time.now;
+    if (h?._lastPetNicker && now - h._lastPetNicker < PET_SOUND_MS) return;
+    if (h) h._lastPetNicker = now;
+    playNicker();
   }
 
   // Open the info panel for the animal currently in reach (the separate Info
@@ -536,10 +546,6 @@ export default class PaddockScene
     // Info target: the nearest animal that has a panel — plain proximity (#97),
     // independent of need. (Foals have no panel.)
     this._proxAnimal = cands.filter(c => c.open).sort((a, b) => a.d - b.d)[0] ?? null;
-
-    // A grumpy (neglected) horse the player is near voices its mood on approach,
-    // throttled — instead of running off to a corner (#150). It stays pettable.
-    this._maybeGrumpAtPlayer(this._proxAnimal);
 
     // Pet target: among animals a pet would help (#98), the one that needs love
     // most (un-loved first, then biggest happiness deficit), tie-broken by
@@ -1104,6 +1110,10 @@ export default class PaddockScene
       if (useJust) this.mountHorse(mountH);
       return;
     }
+
+    // The nearest horse voices its mood as you walk up (squeal if neglected,
+    // nicker if content), on its own slightly-wider range and per-horse throttle.
+    this._maybeGreetOnApproach();
 
     // Pet/info across all nearby animals (un-saddled horses, chickens, foals),
     // preferring the ones that still need their daily love so you won't start

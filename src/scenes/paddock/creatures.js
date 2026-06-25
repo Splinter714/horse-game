@@ -753,14 +753,13 @@ export const WithCreatures = (Base) => class extends Base {
     }
   }
 
-  // Greeting when the player engages a horse: a grumpy squeal + anger mark if it
+  // Greeting when the player engages a horse: a sad squeal + a little shake if it
   // was neglected (clears the moment you tend it), or a soft nicker otherwise.
   greetHorse(h) {
     const horse = this.registry.get('allHorses')?.[h.key];
     if (!horse) return;
     if (horse.neglected) {
       playSqueal();
-      this.showIcon('iconGrumpy', h.sprite);
       this._shake(h.sprite);
       return;
     }
