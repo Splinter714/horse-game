@@ -210,6 +210,7 @@ export default class PaddockScene
     // would make it flicker shut-then-open. Mirrors handleTap bailing early.
     if (this.scene.isActive('InfoPanelScene')) {
       Phaser.Input.Keyboard.JustDown(this.eKey); // consume so it doesn't queue
+      Phaser.Input.Keyboard.JustDown(this.spaceKey); // space is a second interact key (#168)
       this.padAJustDown = false;
       return;
     }
@@ -223,10 +224,14 @@ export default class PaddockScene
 
     const { player } = this;
     const item    = this.getActiveItem();
-    const eJust   = Phaser.Input.Keyboard.JustDown(this.eKey);
+    // E and Space both interact (#168). Poll both every frame (no short-circuit) so
+    // each key's JustDown flag is consumed and can't queue a stale fire next frame.
+    const eDown     = Phaser.Input.Keyboard.JustDown(this.eKey);
+    const spaceDown = Phaser.Input.Keyboard.JustDown(this.spaceKey);
+    const eJust   = eDown || spaceDown;
     const aJust   = this.padAJustDown;
     this.padAJustDown = false;
-    if (eJust) this._useKeyboard(); // interact via E → keyboard prompt glyphs
+    if (eJust) this._useKeyboard(); // interact via E/Space → keyboard prompt glyphs
 
     // E (keyboard) and A (gamepad) both trigger the interact action. Tools are
     // no longer used here — they go through useActiveTool (Use button / F /

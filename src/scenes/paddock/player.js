@@ -77,6 +77,12 @@ export const WithPlayer = (Base) => class extends Base {
     // F = use the currently-armed hotbar tool (interact stays on tap/click/E).
     this.fKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
     this.fKey.on('down', () => { this._useKeyboard(); this.useActiveTool(); });
+    // Space = a second action key (#168): acts as both E (interact: pet/mount/
+    // gate/barn — polled via JustDown in checkProximity) and F (Use: feed/gather/
+    // fill/collect/sell). Players who reach for space as the default action key get
+    // the contextual action regardless of whether it's an interact or a Use.
+    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.spaceKey.on('down', () => { this._useKeyboard(); this.useActiveTool(); });
     // C = open the info panel for the animal in reach. Interact (E) always pets
     // now (#79), so info is its own key (gamepad Y / double-tap on touch).
     this.cKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);

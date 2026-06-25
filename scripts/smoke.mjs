@@ -19,7 +19,11 @@ const URL = await resolveDevServerUrl();
 
 const fail = (msg) => { console.error('SMOKE FAIL:', msg); process.exitCode = 1; };
 
-const browser = await chromium.launch();
+// Allow pointing at a pre-installed Chromium (e.g. a sandboxed CI image where the
+// bundled browser version differs) via PW_EXECUTABLE_PATH. Unset → Playwright's
+// own managed browser, so the default `npm run smoke` is unchanged.
+const browser = await chromium.launch(
+  process.env.PW_EXECUTABLE_PATH ? { executablePath: process.env.PW_EXECUTABLE_PATH } : undefined);
 const page = await browser.newPage();
 
 const pageErrors = [];
@@ -212,6 +216,36 @@ try {
   });
   await page.screenshot({ path: '/tmp/panel-editor.png' });
 
+  // Spacebar as a second action key (#168): it aliases E (interact) AND F (Use).
+  // First the Use half — the key's down handler must route through _useKeyboard()
+  // (which flips usingPad off) + useActiveTool, and the key must be registered as
+  // SPACE (keyCode 32). Then the interact half end-to-end: park the player at the
+  // gate and a REAL Space keypress must toggle it (same as pressing E would).
+  const spaceSetup = await page.evaluate(() => {
+    const g = window.__game;
+    const p = g.scene.getScene('PaddockScene');
+    if (g.scene.isActive('InfoPanelScene')) g.scene.stop('InfoPanelScene');
+    // Use-path wiring: pretend a pad was last used, fire the bound down handler,
+    // and confirm it switched back to keyboard mode (proves _useKeyboard ran).
+    p.usingPad = true;
+    p.spaceKey.emit('down');
+    const useWired = p.usingPad === false;
+    // Park the player on the gate so the proximity interact pass targets it.
+    p.player.sprite.x = p.props.gate.x;
+    p.player.sprite.y = p.props.gate.y;
+    return {
+      useWired,
+      keyCode: p.spaceKey?.keyCode,
+      gateBefore: p.props.gate.open,
+    };
+  });
+  await page.keyboard.down('Space');
+  await page.waitForTimeout(150); // let the game loop run a checkProximity frame
+  await page.keyboard.up('Space');
+  const gateAfter = await page.evaluate(() =>
+    window.__game.scene.getScene('PaddockScene').props.gate.open);
+  result.space = { ...spaceSetup, gateAfter };
+
   console.log(JSON.stringify(result, null, 2));
 
   if (pageErrors.length) fail('uncaught page errors:\n' + pageErrors.join('\n'));
@@ -244,6 +278,11 @@ try {
   if (result.editor.coat !== 'grey') fail(`coat edit did not apply (got ${result.editor.coat})`);
   if (!result.editor.resumed) fail('world/info not restored after closing the editor');
   if (!result.editor.noStable) fail('ManagementPanelScene still registered (should be removed)');
+
+  // #168: spacebar acts as a second interact/Use key.
+  if (result.space.keyCode !== 32) fail(`space key not registered as SPACE (keyCode ${result.space.keyCode}, expected 32)`);
+  if (!result.space.useWired) fail('space down-handler not wired to the Use path (usingPad not reset via _useKeyboard)');
+  if (result.space.gateAfter === result.space.gateBefore) fail('a real Space keypress at the gate did not toggle it (#168 interact alias not wired)');
 
   // ── HiDPI rendering: the game must render at the device's PHYSICAL pixels so
   // pixel-art/text are crisp on Retina screens (e.g. iPad, devicePixelRatio 2).
