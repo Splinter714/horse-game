@@ -62,6 +62,8 @@ try {
       'onPhaseChange', 'doAction', 'depthSort', 'tickDecay',
       // Extracted concern mixins (issue #167): effects / persistence / rendering.
       'showHeart', 'showIcon', '_saveHorses', '_saveAnimal', 'tickAutosave', 'updateSaddles', 'updateFoals',
+      // worldObjects: food drops / trough / gate.
+      'placeFood', '_freeFoodSpot', 'fillTrough', '_setTroughLevel', 'toggleGate',
     ];
     const missingMethods = expectMethods.filter((m) => typeof paddock[m] !== 'function');
 
