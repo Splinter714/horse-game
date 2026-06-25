@@ -28,7 +28,9 @@ function drawCow(g, bob, [lhf, lhn, lff, lfn]) {
   g.fillStyle(0xf4b4b4, 1); g.fillRect(11, 28+bob, 13, 5);
   g.fillStyle(0xe89898, 1); g.fillRect(11, 31+bob, 13, 2);
   g.fillStyle(0xe08080, 1);
-  g.fillRect(13, 33+bob, 2, 2); g.fillRect(17, 33+bob, 2, 2); g.fillRect(21, 33+bob, 2, 2);
+  // Teats centred on the visible belly span (the butt-side of the udder tucks behind
+  // the rear leg), so they read as centred rather than skewed toward the rump.
+  g.fillRect(16, 33+bob, 2, 2); g.fillRect(19, 33+bob, 2, 2); g.fillRect(22, 33+bob, 2, 2);
 
   // Body — taller/deeper barrel
   g.fillStyle(0xf0ece4, 1); g.fillRect(5, 12+bob, 38, 18);
