@@ -1,133 +1,97 @@
-// localStorage persistence. Saves every horse and applies gentle offline decay on
-// load so the herd "missed you" without being punished.
+// localStorage persistence. Saves every animal roster and applies gentle offline
+// decay on load so the herd "missed you" without being punished.
+//
+// The per-species roster config (storage keys, model classes, default herds) lives
+// in ./rosters.js so THIS file stays species-agnostic — adding a persisted animal is
+// a single entry there, not a new ~50-line loader. The C2 import-boundary seam guard
+// (src/seams.test.js) checks this file names no concrete model (issue #167).
+// `makeRoster` is the generic load/save factory all species share.
 
-import { Horse, EBONY_BASE_STATS } from './species/horse/model.js';
-import { Chicken } from './species/chicken/model.js';
-import { Cow } from './species/cow/model.js';
+import { ROSTERS } from './rosters.js';
 
-// Legacy single-horse save (the old "player horse"). Still read once, to migrate
-// an existing player's horse into the unified roster below.
-const LEGACY_KEY = 'horse-care-save-v1';
+// Build a { load, save } pair for one species' roster from its config. Collapses the
+// three formerly-duplicated loaders into one generic implementation:
+//   load()    — defaults merged UNDER saved data (so older saves inherit new fields),
+//               constructed as Model instances, forgiving offline decay applied for
+//               survival species, then seeded back immediately.
+//   save(all) — toJSON each, stamping lastSeen for survival species, then persisted.
+export function makeRoster({ storageKey, Model, defaultRoster, offlineDecay = false, legacy = null }) {
+  function readSaved() {
+    let saved = {};
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) saved = JSON.parse(raw) ?? {};
+    } catch (e) {
+      // localStorage blocked or corrupt — fall through to defaults.
+    }
+    // One-time migration from an older save into a specific slot (e.g. the legacy
+    // single-horse save → the `horse` slot), only when that slot isn't set yet.
+    if (legacy && !saved[legacy.slot]) {
+      try {
+        const old = localStorage.getItem(legacy.key);
+        if (old) saved[legacy.slot] = JSON.parse(old);
+      } catch (e) { /* ignore */ }
+    }
+    return saved;
+  }
 
-// Unified roster save: every horse persists, keyed by its texture/registry key.
-const HORSES_KEY = 'horse-care-save-v2';
+  function save(all) {
+    const now = Date.now();
+    const out = {};
+    for (const key of Object.keys(all)) {
+      // Survival species stamp lastSeen so offline decay is measured from "now" on
+      // the next load; identity-only species (chickens) have no lastSeen logic.
+      if (offlineDecay) all[key].lastSeen = now;
+      out[key] = all[key].toJSON();
+    }
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(out));
+    } catch (e) {
+      // Saving unavailable — ignore; the game still plays this session.
+    }
+  }
 
-// The canonical herd. Every horse is equal — same persistence, same decay. The
-// only per-horse differences are data (name, coat, age, spawn) plus Ebony's
-// optional fixed attributes. The `horse` slot keeps the old fresh-game default.
-function defaultHorseRoster() {
-  return {
-    horse:  { id: 'horse-1', name: 'Buttercup', breed: 'Palomino', coat: 'palomino', age: 3, temperament: 'calm', sex: 'female' },
-    horse2: { id: 'horse-2', name: 'Clover', breed: 'Bay', coat: 'bay', age: 5, temperament: 'needy', sex: 'female',
-      stats: { hunger: 90, thirst: 85, grooming: 80, happiness: 92 } },
-    horse3: { id: 'horse-3', name: 'Ash', breed: 'Dapple Grey', coat: 'grey', markings: { dapples: true }, age: 7, temperament: 'lazy', sex: 'male',
-      stats: { hunger: 78, thirst: 82, grooming: 95, happiness: 88 } },
-    horse4: { id: 'horse-4', name: 'Splash', breed: 'Paint', coat: 'chestnut', markings: { pinto: true }, age: 4, temperament: 'spirited', sex: 'male',
-      stats: { hunger: 85, thirst: 80, grooming: 70, happiness: 90 } },
-    horse5: { id: 'horse-5', name: 'Ember', breed: 'Chestnut', coat: 'chestnut', age: 6, temperament: 'spirited', sex: 'female',
-      stats: { hunger: 82, thirst: 88, grooming: 75, happiness: 86 } },
-    horse6: { id: 'horse-6', name: 'Pearl', breed: 'Cremello', coat: 'cremello', age: 2, temperament: 'shy', sex: 'female',
-      stats: { hunger: 88, thirst: 76, grooming: 90, happiness: 94 } },
-    horse7: { id: 'horse-friesian-ebony', name: 'Ebony', breed: 'Friesian', coat: 'black', markings: { feather: true }, age: 5, temperament: 'calm', sex: 'male',
-      stats: { hunger: 86, thirst: 82, grooming: 88, happiness: 91 },
-      health: EBONY_BASE_STATS.health, speed: EBONY_BASE_STATS.speed, stamina: EBONY_BASE_STATS.stamina },
-  };
+  function load() {
+    const roster = defaultRoster();
+    const saved = readSaved();
+    const all = {};
+    for (const key of Object.keys(roster)) {
+      // Merge roster defaults UNDER saved data so older saves inherit any newly
+      // added identity field (e.g. `sex`, #113) while saved values still win.
+      const model = new Model({ ...roster[key], ...saved[key] });
+      if (offlineDecay) {
+        const elapsedSeconds = Math.max(0, (Date.now() - model.lastSeen) / 1000);
+        if (elapsedSeconds > 1) model.applyDecay(elapsedSeconds, true);
+        model.lastSeen = Date.now();
+      }
+      all[key] = model;
+    }
+    save(all); // seed immediately
+    return all;
+  }
+
+  return { load, save };
 }
 
-// ── Chickens ─────────────────────────────────────────────────────────────────
+// One generic API per species, built from the registry. Adding an animal type adds
+// an entry to ./rosters.js and it gets load/save for free.
+const ROSTER_API = Object.fromEntries(
+  Object.entries(ROSTERS).map(([id, cfg]) => [id, makeRoster(cfg)]));
 
-// Chickens persist too (identity only for now). Keyed by registry key like horses.
-const CHICKENS_KEY = 'horse-care-chickens-v1';
+// Every persisted species as { id, registryKey, load } so BootScene can seed the
+// Phaser registry generically (no per-species wiring there either).
+export const ROSTER_SPECIES = Object.entries(ROSTERS).map(([id, cfg]) => ({
+  id, registryKey: cfg.registryKey, load: ROSTER_API[id].load,
+}));
 
-function defaultChickenRoster() {
-  return {
-    // All hens (they lay the eggs) — so sex is uniform here on purpose.
-    chicken0: { id: 'chicken-1', name: 'Daisy',  coat: 0, personality: 'friendly',    sex: 'female' },
-    chicken1: { id: 'chicken-2', name: 'Ruby',   coat: 1, personality: 'broody',      sex: 'female' },
-    chicken2: { id: 'chicken-3', name: 'Shadow', coat: 2, personality: 'adventurous', sex: 'female' },
-    chicken3: { id: 'chicken-4', name: 'Sunny',  coat: 3, personality: 'cheerful',    sex: 'female' },
-    chicken4: { id: 'chicken-5', name: 'Pearl',  coat: 4, personality: 'calm',        sex: 'female' },
-  };
-}
-
-export function loadAllChickens() {
-  const roster = defaultChickenRoster();
-  let saved = {};
-  try {
-    const raw = localStorage.getItem(CHICKENS_KEY);
-    if (raw) saved = JSON.parse(raw) ?? {};
-  } catch (e) {
-    // localStorage blocked or corrupt — fall through to defaults.
-  }
-  const allChickens = {};
-  for (const key of Object.keys(roster)) {
-    // Merge roster defaults under saved data so older saves inherit any newly
-    // added identity field (e.g. `sex`, #113) while saved values still win.
-    allChickens[key] = new Chicken({ ...roster[key], ...saved[key] });
-  }
-  saveAllChickens(allChickens); // seed immediately
-  return allChickens;
-}
-
-export function saveAllChickens(allChickens) {
-  const out = {};
-  for (const key of Object.keys(allChickens)) out[key] = allChickens[key].toJSON();
-  try {
-    localStorage.setItem(CHICKENS_KEY, JSON.stringify(out));
-  } catch (e) {
-    // Saving unavailable — ignore.
-  }
-}
-
-// ── Cows ─────────────────────────────────────────────────────────────────────
-
-// Cows persist like horses (full stats + daily-care + milk readiness). One cow for
-// now, keyed `cow`. Nameless to start (the model still carries `name`, so she can
-// be named later). Offline decay is applied on load, forgiving like the herd.
-// v2: the cow became milkable-at-start (readyAtStart) and a grazer; re-seed so an
-// early v1 cow (saved readyToProduce:false) starts fresh with the new defaults.
-const COWS_KEY = 'horse-care-cows-v2';
-
-function defaultCowRoster() {
-  return {
-    cow: { id: 'cow-1', name: '', breed: 'Holstein', coat: 0, age: 4, sex: 'female' },
-  };
-}
-
-export function loadAllCows() {
-  const roster = defaultCowRoster();
-  let saved = {};
-  try {
-    const raw = localStorage.getItem(COWS_KEY);
-    if (raw) saved = JSON.parse(raw) ?? {};
-  } catch (e) {
-    // localStorage blocked or corrupt — fall through to defaults.
-  }
-  const allCows = {};
-  for (const key of Object.keys(roster)) {
-    const cow = new Cow({ ...roster[key], ...saved[key] });
-    const elapsedSeconds = Math.max(0, (Date.now() - cow.lastSeen) / 1000);
-    if (elapsedSeconds > 1) cow.applyDecay(elapsedSeconds, true);
-    cow.lastSeen = Date.now();
-    allCows[key] = cow;
-  }
-  saveAllCows(allCows); // seed immediately
-  return allCows;
-}
-
-export function saveAllCows(allCows) {
-  const now = Date.now();
-  const out = {};
-  for (const key of Object.keys(allCows)) {
-    allCows[key].lastSeen = now;
-    out[key] = allCows[key].toJSON();
-  }
-  try {
-    localStorage.setItem(COWS_KEY, JSON.stringify(out));
-  } catch (e) {
-    // Saving unavailable — ignore.
-  }
-}
+// Back-compat named loaders/savers (call sites unchanged) — thin wrappers over the
+// generic factory above.
+export const loadAllHorses   = () => ROSTER_API.horse.load();
+export const saveAllHorses   = (all) => ROSTER_API.horse.save(all);
+export const loadAllChickens = () => ROSTER_API.chicken.load();
+export const saveAllChickens = (all) => ROSTER_API.chicken.save(all);
+export const loadAllCows     = () => ROSTER_API.cow.load();
+export const saveAllCows     = (all) => ROSTER_API.cow.save(all);
 
 // ── Game state (hotbar + inventory) ──────────────────────────────────────────
 
@@ -196,59 +160,6 @@ export function saveGameState({ hotbar, inventory, carriers, activeCarrier }) {
   try {
     localStorage.setItem(GAME_STATE_KEY, JSON.stringify({ hotbar, inventory, carriers, activeCarrier }));
   } catch {}
-}
-
-// Build the whole herd: saved data where present, defaults otherwise, with gentle
-// offline decay applied to each horse so a return after time away is forgiving.
-export function loadAllHorses() {
-  const roster = defaultHorseRoster();
-
-  let saved = {};
-  try {
-    const raw = localStorage.getItem(HORSES_KEY);
-    if (raw) saved = JSON.parse(raw) ?? {};
-  } catch (e) {
-    // localStorage blocked or corrupt — fall through to defaults.
-  }
-
-  // One-time migration: an existing player's horse (legacy single-horse save)
-  // carries into the `horse` slot so their progress isn't lost.
-  if (!saved.horse) {
-    try {
-      const legacy = localStorage.getItem(LEGACY_KEY);
-      if (legacy) saved.horse = JSON.parse(legacy);
-    } catch (e) { /* ignore */ }
-  }
-
-  const allHorses = {};
-  for (const key of Object.keys(roster)) {
-    // Merge roster defaults under saved data so older saves inherit any newly
-    // added identity field (e.g. `sex`, #113) while saved values still win.
-    const data = { ...roster[key], ...saved[key] };
-    const horse = new Horse(data);
-    const elapsedSeconds = Math.max(0, (Date.now() - horse.lastSeen) / 1000);
-    if (elapsedSeconds > 1) horse.applyDecay(elapsedSeconds, true);
-    horse.lastSeen = Date.now();
-    allHorses[key] = horse;
-  }
-
-  saveAllHorses(allHorses); // seed v2 immediately
-  return allHorses;
-}
-
-export function saveAllHorses(allHorses) {
-  const now = Date.now();
-  const out = {};
-  for (const key of Object.keys(allHorses)) {
-    const horse = allHorses[key];
-    horse.lastSeen = now;
-    out[key] = horse.toJSON();
-  }
-  try {
-    localStorage.setItem(HORSES_KEY, JSON.stringify(out));
-  } catch (e) {
-    // Saving unavailable — ignore; the game still plays this session.
-  }
 }
 
 // ── Audio settings (mute + per-bus volumes) ──────────────────────────────────
@@ -344,8 +255,8 @@ export function saveDevSettings(patch) {
 // Caller should reload the page afterward. Remove with the dev-tools UI later.
 export function resetAllHorses() {
   try {
-    localStorage.removeItem(HORSES_KEY);
-    localStorage.removeItem(LEGACY_KEY);
+    localStorage.removeItem(ROSTERS.horse.storageKey);
+    localStorage.removeItem(ROSTERS.horse.legacy.key);
   } catch (e) {
     // localStorage unavailable — nothing to clear.
   }
@@ -353,7 +264,7 @@ export function resetAllHorses() {
 
 export function hasSave() {
   try {
-    return !!(localStorage.getItem(HORSES_KEY) || localStorage.getItem(LEGACY_KEY));
+    return !!(localStorage.getItem(ROSTERS.horse.storageKey) || localStorage.getItem(ROSTERS.horse.legacy.key));
   } catch (e) {
     return false;
   }
