@@ -69,6 +69,8 @@ try {
       // interaction: pet/info cluster + info-panel openers.
       'petAnimal', '_petPreferenceProximity', '_maybeGreetOnApproach', 'openProxInfo',
       'openPortrait', 'openChickenInfo', 'openCreatureInfo', '_openInfoPanel',
+      // input: gamepad poll, pause overlay, input-mode + prompt toggles.
+      '_pollRawPad', '_togglePause', '_syncInputMode', '_onPromptsChanged',
     ];
     const missingMethods = expectMethods.filter((m) => typeof paddock[m] !== 'function');
 

@@ -15,7 +15,7 @@ core orchestrator.
 
 | Concern | File | Owns |
 |---|---|---|
-| Orchestration | `PaddockScene.js` (core) | `constructor`/`create`/`update`, `buildHorses`, `checkProximity`, sleep/wake |
+| Orchestration | `PaddockScene.js` (core) | `constructor`/`create`/`update`, `buildHorses`, `checkProximity`, `movePlayer`, sleep/wake |
 | World build | `paddock/world.js` (`WithWorld`) | terrain/props, obstacles, collision helpers |
 | Creatures | `paddock/creatures.js` (`WithCreatures`) | spawning, generic animal + chicken movement, foals, rolling |
 | Farm stand | `paddock/farmStand.js` (`WithFarmStand`) | stand build + NPC customers |
@@ -27,10 +27,16 @@ core orchestrator.
 | Floating FX | `paddock/effects.js` (`WithEffects`) | `showHeart`, `showIcon`, `showDustPuff`, `hop` |
 | Persistence/ticks | `paddock/persistence.js` (`WithPersistence`) | `_saveHorses`, `_saveAnimal`, `tickDecay`, `tickAutosave` |
 | Rendering housekeeping | `paddock/rendering.js` (`WithRendering`) | `depthSort`, `updateSaddles`, `updateFoals`, `reskinHorse` |
+| World objects | `paddock/worldObjects.js` (`WithWorldObjects`) | `placeFood`/`_freeFoodSpot`, trough (`fillTrough`/`_setTroughLevel`), `toggleGate` |
+| Care actions | `paddock/careActions.js` (`WithCareActions`) | `useItemOnHorse`, cow `feedCow`/`waterCow`/`milkCow`, `doAction`, `SOUND_FNS` |
+| Pet/info interaction | `paddock/interaction.js` (`WithInteraction`) | pet-preference cluster + info-panel openers (`openPortrait`…) |
+| Input plumbing | `paddock/input.js` (`WithInput`) | `_pollRawPad`, `_togglePause`, `_syncInputMode`, `_onPromptsChanged` |
 | Shared tuning | `paddock/constants.js` | layout/tuning constants (not a mixin) |
 
-> This table grows as the remaining concerns are extracted (care actions, pet/info
-> interaction, world objects, input — issue #167 Phase A). Keep it in sync.
+> Core dropped from ~1,236 → ~360 lines across issue #167 Phase A. Still in core
+> by design: the orchestration (`create`/`update`), `checkProximity`, and
+> `movePlayer` (movement is slated to move to the player mixin in Phase A2). Keep
+> this table in sync as concerns move.
 
 ## Cross-cutting seams (don't hardcode a species in shared files)
 
