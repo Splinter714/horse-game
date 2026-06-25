@@ -34,24 +34,34 @@ function drawCow(g, bob, [lhf, lhn, lff, lfn]) {
   g.fillRect(31, 15+bob, 9,  9);
   g.fillRect(20, 20+bob, 6,  7);
 
-  // Neck
-  g.fillStyle(0xf0ece4, 1); g.fillRect(39, 10+bob, 6, 8);
-  g.fillStyle(0x1a1818, 1); g.fillRect(40, 10+bob, 3, 4);
+  // Neck — beefy, blends the shoulder smoothly up into the head with a soft dewlap
+  g.fillStyle(0xf0ece4, 1); g.fillRect(38, 13+bob, 9, 16);
+  g.fillStyle(0xffffff, 1); g.fillRect(38, 13+bob, 9, 2);   // crest highlight
+  g.fillStyle(0xe0dcd4, 1); g.fillRect(38, 27+bob, 9, 2);   // throat/dewlap shade
 
-  // Head
-  g.fillStyle(0xf0ece4, 1); g.fillRect(39, 3+bob, 13, 10);
-  g.fillStyle(0xffffff, 1); g.fillRect(39, 3+bob, 13, 2);
-  // Muzzle
-  g.fillStyle(0xf0c0a0, 1); g.fillRect(46, 7+bob, 6, 6);
-  g.fillStyle(0xd0a080, 1); g.fillRect(47, 10+bob, 2, 1); g.fillRect(50, 10+bob, 2, 1);
-  // Horn
-  g.fillStyle(0xe0d080, 1); g.fillRect(40, 1+bob, 2, 4);
-  // Ear
-  g.fillStyle(0xf0ece4, 1); g.fillRect(38, 5+bob, 2, 3);
-  g.fillStyle(0xf4b0a0, 1); g.fillRect(38, 6+bob, 1, 2);
-  // Eye
-  g.fillStyle(0x1a0e00, 1); g.fillRect(43, 6+bob, 2, 2);
-  g.fillStyle(0xffffff, 0.8); g.fillRect(43, 6+bob, 1, 1);
+  // Head — long, lowered, forward-facing face (no longer perched above the body)
+  g.fillStyle(0xf0ece4, 1); g.fillRect(43, 11+bob, 9, 14);
+  g.fillStyle(0xffffff, 1); g.fillRect(43, 11+bob, 9, 2);   // poll highlight
+
+  // Black Holstein face patch across the poll/brow
+  g.fillStyle(0x1a1818, 1); g.fillRect(43, 11+bob, 8, 4);
+
+  // Muzzle — soft tan/pink snout
+  g.fillStyle(0xf4c4a8, 1); g.fillRect(46, 18+bob, 6, 7);
+  g.fillStyle(0xe0a888, 1); g.fillRect(46, 18+bob, 6, 1);   // muzzle top edge
+  g.fillStyle(0xc88870, 1); g.fillRect(48, 21+bob, 1, 2); g.fillRect(50, 21+bob, 1, 2); // nostrils
+
+  // Horns — small pair rising from the dark poll
+  g.fillStyle(0xe8d8a0, 1); g.fillRect(44, 8+bob, 2, 3); g.fillRect(48, 8+bob, 2, 3);
+  g.fillStyle(0xd8c488, 1); g.fillRect(44, 8+bob, 2, 1); g.fillRect(48, 8+bob, 2, 1);
+
+  // Ear — set back at the side of the head
+  g.fillStyle(0xf0ece4, 1); g.fillRect(41, 12+bob, 3, 3);
+  g.fillStyle(0xf4b0a0, 1); g.fillRect(41, 13+bob, 2, 2);
+
+  // Eye — on the white cheek just below the patch
+  g.fillStyle(0x1a0e00, 1); g.fillRect(46, 16+bob, 2, 2);
+  g.fillStyle(0xffffff, 0.85); g.fillRect(46, 16+bob, 1, 1);
 }
 
 export function buildCowTextures(scene, key) {
