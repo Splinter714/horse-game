@@ -22,24 +22,28 @@ function drawDog(g, bob, [lhf, lhn, lff, lfn]) {
   g.fillStyle(0xb07828, 1); g.fillRect(4, 17+bob, 20, 3);
   g.fillStyle(0xd4943c, 1); g.fillRect(3, 12+bob, 1, 6);
 
-  // Red collar
-  g.fillStyle(0xe03030, 1); g.fillRect(20, 12+bob, 5, 2);
-  g.fillStyle(0xc02020, 1); g.fillRect(22, 14+bob, 2, 1); // tag
+  // Neck — slopes up from the shoulder to the head
+  g.fillStyle(0xd4943c, 1); g.fillRect(20, 8+bob, 5, 6);
+  g.fillStyle(0xe8b054, 1); g.fillRect(20, 8+bob, 5, 2);
 
-  // Neck
-  g.fillStyle(0xd4943c, 1); g.fillRect(21, 8+bob, 5, 6);
+  // Red collar at the base of the neck
+  g.fillStyle(0xe03030, 1); g.fillRect(21, 12+bob, 5, 2);
+  g.fillStyle(0xc02020, 1); g.fillRect(23, 14+bob, 2, 1); // tag
 
-  // Head
-  g.fillStyle(0xd4943c, 1); g.fillRect(21, 2+bob, 7, 10);
-  g.fillStyle(0xe8b054, 1); g.fillRect(21, 2+bob, 7, 2);
-  // Muzzle (cream)
-  g.fillStyle(0xf0d898, 1); g.fillRect(25, 7+bob, 3, 5);
-  g.fillStyle(0x3a2010, 1); g.fillRect(26, 8+bob, 2, 1); // nose
-  // Floppy ear
-  g.fillStyle(0xb07828, 1); g.fillRect(21, 3+bob, 2, 7);
-  // Eye
-  g.fillStyle(0x2a1808, 1); g.fillRect(23, 5+bob, 2, 2);
-  g.fillStyle(0xffffff, 0.8); g.fillRect(23, 5+bob, 1, 1);
+  // Head — domed skull rising above the back, snout poking forward-and-down
+  g.fillStyle(0xd4943c, 1); g.fillRect(22, 4+bob, 6, 7);  // skull
+  g.fillStyle(0xe8b054, 1); g.fillRect(22, 4+bob, 6, 2);  // top highlight
+  g.fillStyle(0xc88a30, 1); g.fillRect(22, 10+bob, 4, 1); // jaw shade
+  // Snout (cream), lower and forward
+  g.fillStyle(0xf0d898, 1); g.fillRect(25, 8+bob, 3, 4);
+  g.fillStyle(0xe2c47e, 1); g.fillRect(25, 11+bob, 3, 1); // chin shade
+  g.fillStyle(0x2a1810, 1); g.fillRect(26, 8+bob, 2, 1);  // nose at the tip
+  // Floppy ear draping the back of the head
+  g.fillStyle(0xa86e22, 1); g.fillRect(20, 5+bob, 3, 7);
+  g.fillStyle(0x946018, 1); g.fillRect(20, 8+bob, 2, 4);
+  // Eye — small friendly dot
+  g.fillStyle(0x2a1808, 1); g.fillRect(24, 7+bob, 1, 2);
+  g.fillStyle(0xffffff, 0.7); g.fillRect(24, 7+bob, 1, 1);
 }
 
 export function buildDogTextures(scene, key) {
