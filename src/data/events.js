@@ -9,10 +9,6 @@
 // String values are intentionally unchanged from the originals so this is a
 // behavior-neutral rename.
 export const EVENTS = {
-  // An action performed on an animal: payload { type, horseKey }.
-  // type ∈ 'feed' | 'water' | 'brush' | 'pet'. (Legacy name 'horse-action'.)
-  ANIMAL_ACTION: 'horse-action',
-
   // Day/night phase changed: payload { isNight, phase }.
   PHASE_CHANGE: 'phase-change',
 

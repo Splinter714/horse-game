@@ -20,8 +20,8 @@ export const PIG = {
 
   // Per-second decay while playing. Pigs are famously hungry, so hunger ebbs a
   // touch faster than the cow's; thirst is gentle. Grooming is omitted (the brush
-  // only targets horses), like the cow — the pig is fed/watered/loved by direct
-  // care plus the grazing AI.
+  // only targets horses), like the cow — the pig is fed and watered by the grazing/
+  // drinking AI and loved via the Interact action, not by direct carrier use.
   needs: {
     hunger: { decay: 0.06, default: 80, label: 'Food',  color: 0x63a31d },
     thirst: { decay: 0.05, default: 75, label: 'Water', color: 0x378add },
@@ -30,8 +30,10 @@ export const PIG = {
   // lingers (mirrors the horse/cow, #105).
   happiness: { default: 85, driftRate: 0.006, label: 'Love', color: 0x1d9e75 },
 
-  // Care actions: feed (drop apples/carrots), water (water bucket), pet (love).
-  // The pig has no daily produce (unlike the cow's milk), so there's no `produces`.
+  // Care actions. Feed and water are applied by the grazing/drinking AI (she walks to
+  // dropped apples/carrots and to the trough/stream) — not by direct carrier use. Pet
+  // is the Interact action. The pig has no daily produce (unlike the cow's milk), so
+  // there's no `produces`.
   actions: {
     feed:  { stat: 'hunger',    amount: 35, care: 'fed',     label: 'Feed',  sound: 'eat',   icon: 'iconFeed'  },
     water: { stat: 'thirst',    amount: 40, care: 'watered', label: 'Water', sound: 'drink', icon: 'iconWater' },

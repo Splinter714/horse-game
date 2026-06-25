@@ -78,12 +78,10 @@ export default class PaddockScene
 
     this.isNight = false;
     this._sleeping = false;
-    this.game.events.on(EVENTS.ANIMAL_ACTION,    this.doAction,        this);
     this.game.events.on(EVENTS.PHASE_CHANGE,    this.onPhaseChange,   this);
     this.game.events.on(EVENTS.SLEEP_DONE,      this._onSleepDone,    this);
     this.game.events.on(EVENTS.PROMPTS_CHANGED, this._onPromptsChanged, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.game.events.off(EVENTS.ANIMAL_ACTION,    this.doAction,        this);
       this.game.events.off(EVENTS.PHASE_CHANGE,    this.onPhaseChange,   this);
       this.game.events.off(EVENTS.SLEEP_DONE,      this._onSleepDone,    this);
       this.game.events.off(EVENTS.PROMPTS_CHANGED, this._onPromptsChanged, this);

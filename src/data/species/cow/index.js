@@ -29,7 +29,9 @@ export const COW = {
   // happiness bump lingers (mirrors the horse, #105).
   happiness: { default: 85, driftRate: 0.006, label: 'Love', color: 0x1d9e75 },
 
-  // Care actions: feed (food basket), water (water bucket), and pet (love).
+  // Care actions. Feed and water are applied by the grazing/drinking AI (she walks to
+  // dropped food and to the trough/stream) — not by direct carrier use. Pet is the
+  // Interact action. The stat/amount/care-flag data is read by those paths the same way.
   actions: {
     feed:  { stat: 'hunger',    amount: 35, care: 'fed',     label: 'Feed',  sound: 'eat',   icon: 'iconFeed'  },
     water: { stat: 'thirst',    amount: 40, care: 'watered', label: 'Water', sound: 'drink', icon: 'iconWater' },

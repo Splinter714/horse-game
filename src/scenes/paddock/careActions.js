@@ -1,14 +1,14 @@
-// Care-action dispatch — applying a care action (feed/water/brush/pet, saddle/lead,
-// and the cow's feed/water/milk) to an animal and firing the right sound/icon
-// feedback. The two entry points are `useItemOnHorse` (tool used on a horse in the
-// world) and `doAction` (the model-side apply that InfoPanelScene's ANIMAL_ACTION
-// routes through, kept the single owner so an action is never double-counted).
-// Extracted from PaddockScene as its own concern (issue #167).
+// Care-action dispatch — applying a care action to an animal and firing the right
+// sound/icon feedback. The entry points are `useItemOnHorse` (the brush used on a
+// horse in the world) and `_produceFromAnimal` (harvesting an animal's daily produce,
+// e.g. the cow's milk). Extracted from PaddockScene as its own concern (issue #167).
 //
-// Direct animal care (feed/water/produce on an in-world animal) is GENERIC: it reads
-// the species' `actions` + `produces` data, so a new directly-cared-for animal is a
-// data entry, not new methods (#167 B3). The C2 literal-tripwire seam guard checks
-// this file names no per-species care method/branch.
+// Animals are no longer hand-fed or hand-watered: feeding/watering happen only via
+// the grazing/drinking AI (dropped food + trough/stream), so there's no direct
+// carrier-on-animal feed/water path here. Produce harvesting stays GENERIC — it reads
+// the species' `produces` data, so a new milkable animal is a data entry, not new
+// methods (#167 B3). The C2 literal-tripwire seam guard checks this file names no
+// per-species care method/branch.
 
 import { EVENTS } from '../../data/events.js';
 import { getSpecies } from '../../data/species/index.js';
@@ -21,6 +21,10 @@ const SOUND_FNS = { eat: playEat, drink: playDrink, brush: playBrush, chime: pla
 export const WithCareActions = (Base) => class extends Base {
   // ─── Item use ────────────────────────────────────────────────────────────
 
+  // The brush is the only tool used directly on a horse (saddle/lead toggle through
+  // their own handlers; food is dropped, not hand-fed). A dirty coat grooms out dust;
+  // a fully-clean coat can't get cleaner, so a stroke becomes a bonding gesture (#116)
+  // — it raises happiness like a pet, but keeps the brush sound and shows a heart.
   useItemOnHorse(item, h) {
     const allHorses = this.registry.get('allHorses');
     const horse = allHorses[h.key];
@@ -28,35 +32,16 @@ export const WithCareActions = (Base) => class extends Base {
 
     // How dirty the coat is *before* this brush stroke, for dust-puff intensity.
     const preDirt = (100 - (horse.stats.grooming ?? 100)) / 100;
-    // A fully-clean coat can't get cleaner, so brushing it becomes a bonding
-    // gesture instead — it raises happiness like a pet, but keeps the brush sound
-    // and shows a heart with no dust (#116). Brushing is therefore always allowed.
-    const brushClean = item.action === 'brush' && (horse.stats.grooming ?? 100) >= 99.5;
+    const brushClean = (horse.stats.grooming ?? 100) >= 99.5;
 
-    switch (item.action) {
-      case 'feed':  horse.feed();  break;
-      case 'water': horse.water(); break;
-      case 'brush': if (brushClean) horse.pet(); else horse.brush(); break;
-      case 'pet':   horse.pet();   break;
-      case 'saddle': this.toggleSaddle(h); return;
-      case 'lead':  this.toggleLead(h); return;
-    }
+    if (brushClean) horse.pet(); else horse.brush();
 
     this._saveHorses();
     this.game.events.emit(EVENTS.STATS_CHANGED);
 
-    if (item.action === 'pet') {
-      this._petNicker(h);    // affection sounds happy, not a ding — rate-limited (#149)
-      this.showHeart(h.sprite);
-    } else if (item.action === 'brush') {
-      playBrush();
-      if (brushClean) this.showHeart(h.sprite);   // clean coat → affection (#116)
-      else this.showDustPuff(h.sprite, preDirt);  // dirty coat → groom out dust
-    } else {
-      if (item.action === 'feed')  playEat(item.content); // crunchy apple/carrot vs munchy hay (#126)
-      if (item.action === 'water') playDrink();
-      this.showIcon(item.icon, h.sprite);
-    }
+    playBrush();
+    if (brushClean) this.showHeart(h.sprite);   // clean coat → affection (#116)
+    else this.showDustPuff(h.sprite, preDirt);  // dirty coat → groom out dust
 
     if (this.scene.isActive('InfoPanelScene')) {
       const viewing = this.registry.get('viewingAnimal');
@@ -66,26 +51,13 @@ export const WithCareActions = (Base) => class extends Base {
     }
   }
 
-  // ─── Direct animal care (generic, #cow / #167 B3) ─────────────────────────
-  // An in-world animal (this.animals) is fed/watered by using a food basket / water
-  // bucket on it directly (mirrors brushing a horse), and harvested (milked) with an
-  // empty bucket once a day when it's ready. Which carrier maps to which action is
-  // resolved in useDispatch (_animalUseAction) from the species' `actions`/`produces`
-  // data; these methods just apply the resolved action + its data-driven feedback,
-  // so the cow — or any future feedable/milkable animal — needs no bespoke code.
-
-  // Apply a consume-action (feed/water): spend from the active carrier, bump the
-  // stat via the model, then run the shared feedback tail. Feed spends one unit;
-  // water empties the bucket.
-  _applyConsumeCare(animal, action) {
-    const model = animal.model;
-    if (!model) return;
-    const item = this.getActiveItem();
-    const amount = action === 'water' ? (item?.count ?? 0) : 1;
-    if ((this.scene.get('HotbarScene')?.useActiveCarrier(amount) ?? 0) <= 0) return;
-    model.applyAction(action);
-    this._afterAnimalCare(animal, action);
-  }
+  // ─── Produce harvesting (generic, #cow / #167 B3) ─────────────────────────
+  // An in-world animal (this.animals) is harvested (milked) with an empty bucket once
+  // a day when it's ready. The carrier→action mapping is resolved in useDispatch
+  // (_animalUseAction) from the species' `produces` data; this method just applies the
+  // harvest + its data-driven feedback, so the cow — or any future milkable animal —
+  // needs no bespoke code. (Feeding/watering are no longer direct: animals graze
+  // dropped food and drink at the trough/stream via their AI.)
 
   // Harvest the animal's daily produce (e.g. milk) into the active empty carrier,
   // gated on it being ready and not already harvested today. Sound/icon come from
@@ -101,54 +73,5 @@ export const WithCareActions = (Base) => class extends Base {
     this._saveAnimal(model);
     SOUND_FNS[prod.sound]?.();        // squirty milk-into-the-pail sound (#cow)
     this.showIcon(prod.icon, animal.sprite);
-  }
-
-  // Shared tail of feed/water: persist, refresh stat bars (live panel + HUD), and
-  // play the action's declared sound + float its icon over the animal.
-  _afterAnimalCare(animal, action) {
-    this._saveAnimal(animal.model);
-    this.game.events.emit(EVENTS.STATS_CHANGED);
-    const def = animal.model.actionDef?.(action);
-    if (def?.sound) SOUND_FNS[def.sound]?.();
-    if (def?.icon)  this.showIcon(def.icon, animal.sprite);
-    if (this.scene.isActive('InfoPanelScene')) {
-      const viewing = this.registry.get('viewingAnimal');
-      if (viewing?.key === animal.key) this.scene.get('InfoPanelScene').refreshStats(animal.model);
-    }
-  }
-
-  // ─── Actions (from InfoPanelScene buttons) ───────────────────────────────
-
-  // The single owner of applying a care action to the model. UI panels emit
-  // ANIMAL_ACTION (intent only) and let this apply it, so an action is never
-  // double-counted. Sound/icon feedback is driven by the species action def.
-  doAction({ type, horseKey }) {
-    const allHorses = this.registry.get('allHorses');
-    const horseData = allHorses[horseKey];
-    if (!horseData) return;
-
-    // Dirtiness before the action is applied, for brush dust-puff intensity.
-    const preDirt = (100 - (horseData.stats.grooming ?? 100)) / 100;
-    // Brushing a fully-clean coat is a bonding gesture (#116): raise happiness
-    // like a pet (apply 'pet'), but keep the brush sound and a heart, no dust.
-    const brushClean = type === 'brush' && (horseData.stats.grooming ?? 100) >= 99.5;
-
-    if (!horseData.applyAction(brushClean ? 'pet' : type)) return; // unknown action
-
-    this._saveHorses();
-
-    const def = horseData.actionDef(type);
-    SOUND_FNS[def.sound]?.();   // brush sound for brush (clean or dirty)
-
-    const h = this.horses.find(h => h.key === horseKey);
-    if (h) {
-      if (type === 'pet' || brushClean) {
-        this.showHeart(h.sprite);
-      } else if (type === 'brush') {
-        this.showDustPuff(h.sprite, preDirt); // dust off the coat, not a brush icon
-      } else if (def.icon) {
-        this.showIcon(def.icon, h.sprite);
-      }
-    }
   }
 };

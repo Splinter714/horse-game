@@ -43,10 +43,11 @@ try {
     const chickens = g.registry.get('allChickens');
     const h = horses['horse'];
 
-    // Exercise the single-apply care path: drop hunger then feed once via the
-    // event UI panels use. Expect exactly +35 (double-apply would give +70).
+    // Exercise the single-apply care path: drop hunger then apply one feed via the
+    // model (the same call the grazing AI makes). Expect exactly +35 — proves the
+    // species action data resolves and isn't double-applied.
     h.stats.hunger = 10;
-    g.events.emit('horse-action', { type: 'feed', horseKey: 'horse' });
+    h.feed();
     const feedDelta = h.stats.hunger - 10;
 
     // Guard the PaddockScene mixin split: every concern's entry points must still
@@ -60,13 +61,13 @@ try {
       'buildAnimals', '_worldSpecies', '_applySpawnCapabilities', // generic spawn (#167 B4)
       'separateHorses', '_horseBeg', '_begWait',
       'runBehaviors', '_horseContext', '_chickenContext', '_nearestReachableHay',
-      'onPhaseChange', 'doAction', 'depthSort', 'tickDecay',
+      'onPhaseChange', 'depthSort', 'tickDecay',
       // Extracted concern mixins (issue #167): effects / persistence / rendering.
       'showHeart', 'showIcon', '_saveHorses', '_saveAnimal', 'tickAutosave', 'updateSaddles', 'updateFoals',
       // worldObjects: food drops / trough / gate.
       'placeFood', '_freeFoodSpot', 'fillTrough', '_setTroughLevel', 'toggleGate',
-      // careActions: tool-on-horse, generic direct animal care, panel action dispatch.
-      'useItemOnHorse', '_applyConsumeCare', '_produceFromAnimal', '_afterAnimalCare',
+      // careActions: brush-on-horse + generic produce harvesting (milk).
+      'useItemOnHorse', '_produceFromAnimal',
       // interaction: pet/info cluster + info-panel openers.
       'petAnimal', '_petPreferenceProximity', '_maybeGreetOnApproach', 'openProxInfo',
       'openPortrait', 'openChickenInfo', 'openCreatureInfo', '_openInfoPanel',
