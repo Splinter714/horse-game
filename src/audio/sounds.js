@@ -531,37 +531,41 @@ export function playMilk() {
   const c = getCtx();
   const now = c.currentTime;
   const STROKES = 5;
-  const gap = 0.19;
+  const gap = 0.26; // a touch more room so each long "ssst" lands before the next
 
   for (let i = 0; i < STROKES; i++) {
     const t = now + i * gap + (Math.random() - 0.5) * 0.02;
-    // Shared noise buffer per stroke.
-    const sDur = 0.18;
+    // Shared noise buffer per stroke — long enough to carry the sustained jet hiss.
+    const sDur = 0.26;
     const buf = c.createBuffer(1, Math.ceil(c.sampleRate * sDur), c.sampleRate);
     const d = buf.getChannelData(0);
     for (let j = 0; j < d.length; j++) d[j] = Math.random() * 2 - 1;
 
-    // ── 1. Pressurized jet: resonant bandpass sweeping down (ssst) ──
+    // ── 1. Pressurized jet: a sustained, airy "sssssst" — wide bandpass noise
+    //    sweeping down. Longer and louder so the stream is clearly audible before
+    //    it hits the milk (the lower Q makes it hiss/"shhh" rather than whistle). ──
     const jet = c.createBufferSource();
     jet.buffer = buf;
     const jf = c.createBiquadFilter();
     jf.type = 'bandpass';
-    jf.Q.value = 3.2;
-    const j0 = 2300 + Math.random() * 300;
+    jf.Q.value = 1.4; // wide → breathy hiss, not a tone
+    const j0 = 3200 + Math.random() * 400;
     jf.frequency.setValueAtTime(j0, t);
-    jf.frequency.exponentialRampToValueAtTime(1300, t + 0.085);
+    jf.frequency.exponentialRampToValueAtTime(1500, t + 0.16);
+    // A gentle high-shelf-ish second pass would help, but one wide band reads fine.
     const jEnv = c.createGain();
     jEnv.gain.setValueAtTime(0.001, t);
-    jEnv.gain.linearRampToValueAtTime(0.13, t + 0.012);
-    jEnv.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+    jEnv.gain.linearRampToValueAtTime(0.34, t + 0.025); // louder
+    jEnv.gain.setValueAtTime(0.34, t + 0.11);           // hold the hiss…
+    jEnv.gain.exponentialRampToValueAtTime(0.001, t + 0.2); // …then trail off
     jet.connect(jf); jf.connect(jEnv); jEnv.connect(master(1));
-    jet.start(t); jet.stop(t + 0.1);
+    jet.start(t); jet.stop(t + 0.2);
 
-    // ── 2. Wet "ploop" into the pail, pitch rising as it fills ──
-    // Fill ratio 0→1 across the strokes maps to a rising resonant frequency.
+    // ── 2. Wet "ploop" as the stream hits the milk, pitch rising as the pail fills.
+    //    Lands AFTER the jet has been heard for a moment, so squirt-then-splash reads. ──
     const fill = STROKES > 1 ? i / (STROKES - 1) : 0;
     const fHz = 300 + fill * 240 + (Math.random() - 0.5) * 20; // ~300 → ~540 Hz
-    const tp = t + 0.045; // the splash lands just after the jet starts
+    const tp = t + 0.1; // the splash lands a beat into the jet
 
     const plopN = c.createBufferSource();
     plopN.buffer = buf;
