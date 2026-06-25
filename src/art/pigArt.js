@@ -24,18 +24,31 @@ function drawPig(g, bob, [lhf, lhn, lff, lfn]) {
   g.fillStyle(0xf4a0a0, 1); g.fillRect(3, 10+bob, 1, 8); // rump curve
   g.fillStyle(0xf8c0c0, 1); g.fillRect(3, 10+bob, 1, 2);
 
-  // Head
-  g.fillStyle(0xf4a0a0, 1); g.fillRect(23, 6+bob, 9, 12);
-  g.fillStyle(0xf8c0c0, 1); g.fillRect(23, 6+bob, 9, 2);
-  // Round snout
-  g.fillStyle(0xe07878, 1); g.fillRect(28, 10+bob, 4, 5);
-  g.fillStyle(0xc05858, 1); g.fillRect(29, 12+bob, 1, 1); g.fillRect(31, 12+bob, 1, 1);
-  // Ear (triangular, flopped forward)
-  g.fillStyle(0xf4a0a0, 1); g.fillRect(23, 3+bob, 4, 5);
-  g.fillStyle(0xe07878, 1); g.fillRect(24, 4+bob, 2, 4);
+  // Head — rounded cheek that blends into the body and tapers to a snout disc
+  g.fillStyle(0xf4a0a0, 1);
+  g.fillRect(22, 8+bob, 8, 9);    // cheek/jowl mass (overlaps body so it blends)
+  g.fillRect(23, 7+bob, 6, 1);    // rounded crown step
+  g.fillRect(24, 6+bob, 4, 1);    // crown top
+  g.fillRect(29, 10+bob, 2, 5);   // muzzle bridge toward the snout
+  // Top highlight following the rounded crown
+  g.fillStyle(0xf8c0c0, 1);
+  g.fillRect(24, 6+bob, 4, 1);
+  g.fillRect(23, 7+bob, 6, 1);
+  g.fillRect(22, 8+bob, 8, 1);
+  // Jowl / underside shadow (rounds off the lower cheek)
+  g.fillStyle(0xe08080, 1); g.fillRect(23, 15+bob, 7, 2);
+  // Snout disc (protruding, faces right) with nostrils
+  g.fillStyle(0xea9a9a, 1); g.fillRect(30, 10+bob, 2, 6);
+  g.fillStyle(0xd88888, 1); g.fillRect(30, 10+bob, 2, 1);
+  g.fillStyle(0xc05858, 1); g.fillRect(31, 12+bob, 1, 1); g.fillRect(31, 14+bob, 1, 1);
+  // Floppy ear draping forward over the forehead
+  g.fillStyle(0xf09a9a, 1);
+  g.fillRect(25, 4+bob, 4, 4);
+  g.fillRect(26, 3+bob, 2, 1);
+  g.fillStyle(0xc86868, 1); g.fillRect(26, 5+bob, 2, 3); // inner ear shade
   // Eye
-  g.fillStyle(0x2a1010, 1); g.fillRect(25, 9+bob, 2, 2);
-  g.fillStyle(0xffffff, 0.8); g.fillRect(25, 9+bob, 1, 1);
+  g.fillStyle(0x2a1010, 1); g.fillRect(27, 9+bob, 2, 2);
+  g.fillStyle(0xffffff, 0.85); g.fillRect(27, 9+bob, 1, 1);
 }
 
 export function buildPigTextures(scene, key) {
