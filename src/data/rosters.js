@@ -16,6 +16,7 @@
 import { Horse, EBONY_BASE_STATS } from './species/horse/model.js';
 import { Chicken } from './species/chicken/model.js';
 import { Cow } from './species/cow/model.js';
+import { Pig } from './species/pig/model.js';
 
 // The canonical herd. Every horse is equal — same persistence, same decay. The
 // only per-horse differences are data (name, coat, age, spawn) plus Ebony's
@@ -60,6 +61,15 @@ function defaultCowRoster() {
   };
 }
 
+// One pig for now, keyed `pig`. Full stats + daily-care like the cow, but no milk —
+// she just lives in the pasture and eats the apples/carrots you drop. Offline decay
+// applies on load, forgiving like the herd.
+function defaultPigRoster() {
+  return {
+    pig: { id: 'pig-1', name: 'Penny', breed: 'Pink', coat: 0, age: 2, sex: 'female' },
+  };
+}
+
 export const ROSTERS = {
   horse: {
     storageKey: 'horse-care-save-v2',
@@ -86,6 +96,14 @@ export const ROSTERS = {
     registryKey: 'allCows',
     Model: Cow,
     defaultRoster: defaultCowRoster,
+    offlineDecay: true,
+    legacy: null,
+  },
+  pig: {
+    storageKey: 'horse-care-pigs-v1',
+    registryKey: 'allPigs',
+    Model: Pig,
+    defaultRoster: defaultPigRoster,
     offlineDecay: true,
     legacy: null,
   },

@@ -13,6 +13,7 @@
 
 import Phaser from 'phaser';
 import { getSpecies, BEHAVIORS } from '../../data/species/index.js';
+import { speciesEatsContent } from '../../data/items.js';
 import { BEG, CHICKEN_HUNGRY_FOLLOW_DIST } from './constants.js';
 
 export const WithBehaviors = (Base) => class extends Base {
@@ -115,9 +116,15 @@ export const WithBehaviors = (Base) => class extends Base {
   _nearestReachableHay(h) {
     if (!this.props.hayPiles?.length) return null;
     const gateOpen = this._gateOpen();
+    // Respect the grazer's diet: a pig walks past hay it won't eat but still goes
+    // for apples/carrots (#…). Piles carry their `content`; the horse/cow eat all
+    // three, so this is a no-op for them. (A content-less pile is treated as edible
+    // for safety, though placeFood always tags one now.)
+    const species = this._modelFor(h)?.species ?? 'horse';
     let closest = null, closestDist = Infinity;
     for (const pile of this.props.hayPiles) {
       if (!this._inPasture(pile.x, pile.y) && !gateOpen) continue;
+      if (pile.content && !speciesEatsContent(species, pile.content)) continue;
       const d = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, pile.x, pile.y);
       if (d < closestDist) { closestDist = d; closest = pile; }
     }

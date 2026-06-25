@@ -23,8 +23,11 @@ export const CARRIER_DEFS = {
 // and intended — the owner wants "N apples for N horses", overlap with carrots and all.
 export const CONTENT_DEFS = {
   hay:    { label: 'Hay',     icon: 'iconBasketHay',    action: 'feed',  ground: 'hayPile',    feeds: ['horse', 'cow'] },
-  apple:  { label: 'Apples',  icon: 'iconBasketApple',  action: 'feed',  ground: 'applePile',  feeds: ['horse', 'cow'] },
-  carrot: { label: 'Carrots', icon: 'iconBasketCarrot', action: 'feed',  ground: 'carrotPile', feeds: ['horse', 'cow'] },
+  // Apples and carrots feed the pig too; hay does NOT (pigs won't touch it). This
+  // `feeds` list is the single source of truth for the pig's pickier diet — the
+  // grazing AI reads it (speciesEatsContent) when choosing which pile to walk to.
+  apple:  { label: 'Apples',  icon: 'iconBasketApple',  action: 'feed',  ground: 'applePile',  feeds: ['horse', 'cow', 'pig'] },
+  carrot: { label: 'Carrots', icon: 'iconBasketCarrot', action: 'feed',  ground: 'carrotPile', feeds: ['horse', 'cow', 'pig'] },
   seed:   { label: 'Seed',    icon: 'iconBasketSeed',   action: 'feed',  ground: 'seedPile',   feeds: ['chicken'] },
   egg:    { label: 'Eggs',    icon: 'iconBasketEgg',    action: 'egg' },
   water:  { label: 'Water',   icon: 'iconBucketWater',  action: 'water' },
@@ -41,6 +44,14 @@ export function foodDemand(content, speciesCounts = {}) {
   const feeds = CONTENT_DEFS[content]?.feeds;
   if (!feeds) return 0;
   return feeds.reduce((n, sp) => n + (speciesCounts[sp] || 0), 0);
+}
+
+// Does a species' diet include this food content? Drives which dropped piles a
+// grazing animal will actually walk to (a pig eats apples and carrots but ignores
+// hay). Pure — just reads the food's `feeds` list. A content type with no `feeds`
+// (water, egg) is eaten by nobody.
+export function speciesEatsContent(speciesId, content) {
+  return !!CONTENT_DEFS[content]?.feeds?.includes(speciesId);
 }
 
 // Same-type carriers are grouped into a single hotbar slot with a fly-out picker

@@ -163,6 +163,7 @@ export const WithUseDispatch = (Base) => class extends Base {
       horse:   Object.keys(this.registry.get('allHorses')   ?? {}).length,
       chicken: Object.keys(this.registry.get('allChickens') ?? {}).length,
       cow:     Object.keys(this.registry.get('allCows')     ?? {}).length,
+      pig:     Object.keys(this.registry.get('allPigs')     ?? {}).length,
     };
   }
 

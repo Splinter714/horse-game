@@ -136,8 +136,30 @@ try {
       }
     } catch (e) { cowMilk = 'threw: ' + String(e); }
 
+    // Pig diet (this feature): the pig is a grazer, but its pickier diet must make
+    // the shared food-seek skip a hay pile while still targeting an apple pile. We
+    // probe _nearestReachableHay directly (the diet gate) so the result is exact.
+    let pigDiet = 'no pig';
+    try {
+      const pig = paddock.animals.find((a) => a.model?.species === 'pig');
+      if (pig) {
+        const x = pig.sprite.x, y = pig.sprite.y;
+        paddock.props.hayPiles = [{ x: x + 20, y, sprite: { destroy() {} }, content: 'hay' }];
+        const ignoresHay = paddock._nearestReachableHay(pig) === null;
+        const applePile = { x: x + 20, y, sprite: { destroy() {} }, content: 'apple' };
+        paddock.props.hayPiles.push(applePile);
+        const seeksApple = paddock._nearestReachableHay(pig) === applePile;
+        paddock.props.hayPiles = [];
+        pigDiet = (ignoresHay && seeksApple) ? 'apples-not-hay'
+          : `ignoresHay=${ignoresHay},seeksApple=${seeksApple}`;
+      }
+    } catch (e) { pigDiet = 'threw: ' + String(e); }
+
     return {
       cowMilk,
+      pigDiet,
+      pigCount: Object.keys(g.registry.get('allPigs') ?? {}).length,
+      pigsInScene: paddock.animals.filter((a) => a.model?.species === 'pig').length,
       renderer: g.config.renderType, // 1=Canvas, 2=WebGL
       movementOk, movementError,
       behaviorDecision,
@@ -226,15 +248,21 @@ try {
   if (Math.abs(result.scaleRatio - 4) > 0.01) fail(`chicken/horse display-scale ratio ${result.scaleRatio} ≠ ART_SCALE (4) — chickens/cat wrongly sized?`);
   if (!result.movementOk) fail('creature movement/pathfinding threw: ' + result.movementError);
   if (result.behaviorDecision !== 'seekFood') fail(`hungry horse with hay nearby did not select seekFood (got ${result.behaviorDecision})`);
-  // #136: gather one food per animal that eats it, water → capacity. Hay/apple/carrot
-  // are eaten by the 7 horses AND the cow (#cow), so a full gather targets 8.
+  // #136: gather one food per animal that eats it, water → capacity. Diets differ:
+  // hay feeds the 7 horses + the cow (8); apples/carrots also feed the pig, who
+  // refuses hay (9). The split is the proof the pig's pickier diet is wired up.
   const gt = result.gatherTargets;
-  for (const food of ['hay', 'apple', 'carrot']) {
-    if (gt[food] !== 8) fail(`gather target for ${food} = ${gt[food]}, expected 8 (7 horses + 1 cow, #136/#cow)`);
+  if (gt.hay !== 8) fail(`gather target for hay = ${gt.hay}, expected 8 (7 horses + 1 cow; the pig won't eat hay)`);
+  for (const food of ['apple', 'carrot']) {
+    if (gt[food] !== 9) fail(`gather target for ${food} = ${gt[food]}, expected 9 (7 horses + 1 cow + 1 pig, #136)`);
   }
   if (gt.seed !== 5) fail(`gather target for seed = ${gt.seed}, expected 5 (one per chicken, #136)`);
   if (gt.water !== 1) fail(`gather target for water = ${gt.water}, expected 1 (capacity — water ignores demand)`);
   if (result.cowMilk !== 'milked-once') fail(`cow generic produce path failed (got ${result.cowMilk}) — #167 B3 unified care`);
+  // The pig: it spawned into the world and eats apples but not hay.
+  if (result.pigCount !== 1) fail(`expected 1 pig in roster, got ${result.pigCount}`);
+  if (result.pigsInScene !== 1) fail(`expected 1 pig sprite in scene, got ${result.pigsInScene}`);
+  if (result.pigDiet !== 'apples-not-hay') fail(`pig diet wrong (got ${result.pigDiet}) — should ignore hay, seek apples`);
   if (!result.horsePanel.active) fail('InfoPanelScene did not open for a horse');
   if (result.horsePanel.parts < 15) fail(`horse panel looks too sparse (parts=${result.horsePanel.parts}) — identity/stat bars missing?`);
   if (!result.chickenPanel.active) fail('InfoPanelScene did not open for a chicken');

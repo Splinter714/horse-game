@@ -56,7 +56,9 @@ export const WithWorldObjects = (Base) => class extends Base {
     if ((this.scene.get('HotbarScene')?.useActiveCarrier(1) ?? 0) <= 0) return;
 
     const pileSprite = this.add.image(spot.x, spot.y, groundTex).setScale(S).setDepth(spot.y);
-    const pile = { x: spot.x, y: spot.y, sprite: pileSprite, feedsLeft: 3 };
+    // `content` rides along so a grazer can respect its diet (a pig walks past hay
+    // but eats apples/carrots — see _nearestReachableHay + speciesEatsContent).
+    const pile = { x: spot.x, y: spot.y, sprite: pileSprite, feedsLeft: 3, content };
     // Seed feeds chickens (seedPiles); everything else feeds horses (hayPiles).
     if (CONTENT_DEFS[content]?.feeds?.includes('chicken')) this.props.seedPiles.push(pile);
     else                                                   this.props.hayPiles.push(pile);

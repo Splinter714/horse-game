@@ -3,6 +3,7 @@
 
 import Phaser from 'phaser';
 import { EVENTS } from '../../data/events.js';
+import { getSpecies } from '../../data/species/index.js';
 import { playBirdChirp, setMusicMode } from '../../audio/sounds.js';
 
 // Grooming only ever drops from actions now (#123). A horse gets a touch dirtier
@@ -76,10 +77,14 @@ export const WithDayNight = (Base) => class extends Base {
       allHorses[h.key]?.rollNewDay();
       this._dirtyHorse(h.key, OVERNIGHT_DIRTY);
     }
-    // The cow rolls over too: yesterday's care decides whether she's grumpy AND
-    // whether she's ready to be milked today (#cow).
-    const allCows = this.registry.get('allCows');
-    if (allCows) for (const c of Object.values(allCows)) c.rollNewDay();
+    // Any spawned animal whose species has a daily-care cycle rolls over too:
+    // yesterday's care decides whether it wakes grumpy AND (for the cow) whether
+    // she's ready to be milked today (#cow). Generic over species data so a new
+    // daily-care animal (the pig, …) needs no edit here — its model is the same
+    // instance the registry persists, so rolling it here is what the save records.
+    for (const a of this.animals) {
+      if (a.model && getSpecies(a.model.species).dailyCare) a.model.rollNewDay();
+    }
   }
 
   restAllAnimals() {

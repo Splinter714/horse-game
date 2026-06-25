@@ -44,6 +44,8 @@ export const SPECIES_TEXTURES = {
 
   cow(scene) { buildCowTextures(scene, 'cow'); },
 
+  pig(scene) { buildPigTextures(scene, 'pig'); },
+
   cat(scene) { buildCatTextures(scene, 'cat'); },
 };
 
@@ -51,6 +53,5 @@ export const SPECIES_TEXTURES = {
 // Built only for the dev Art-preview gallery so we can art-direct them early.
 export const PREVIEW_TEXTURES = {
   sheep(scene) { buildSheepTextures(scene, 'sheep'); },
-  pig(scene)   { buildPigTextures(scene, 'pig'); },
   dog(scene)   { buildDogTextures(scene, 'dog'); },
 };
