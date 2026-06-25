@@ -31,10 +31,10 @@ function drawSheep(g, bob, [lhf, lhn, lff, lfn]) {
   // --- Wool body: built row-by-row from a rounded silhouette so the sides and
   // bottom curve smoothly instead of stepping. Each row is [y, xLeft, xRight]. ---
   const rows = [
-    [10,  8, 31], [11,  6, 33], [12,  4, 34], [13,  3, 35],
-    [14,  3, 35], [15,  3, 35], [16,  3, 35], [17,  3, 35],
-    [18,  3, 35], [19,  3, 35], [20,  3, 34], [21,  4, 34],
-    [22,  5, 33], [23,  6, 33], [24,  8, 32], [25, 10, 30],
+    [11,  8, 31], [12,  5, 33], [13,  4, 34], [14,  3, 35],
+    [15,  3, 35], [16,  3, 35], [17,  3, 35], [18,  3, 35],
+    [19,  3, 34], [20,  4, 34], [21,  5, 33], [22,  7, 33],
+    [23,  9, 32], [24, 11, 30],
   ];
   const rowAt = (y) => rows.find((r) => r[0] === y);
   g.fillStyle(WOOL_LIT, 1);
@@ -47,25 +47,26 @@ function drawSheep(g, bob, [lhf, lhn, lff, lfn]) {
     g.fillRect(x + 0.7, y + bob, w - 1.4, 0.6);   // shaved cap
   };
   const top = [
-    [6, 9, 4, 3], [8, 7.5, 6, 4], [13, 6.5, 6, 4], [19, 6, 6, 4],
-    [25, 6.5, 6, 4], [30, 8, 5, 3],
+    [6, 10, 4, 3], [8, 8.5, 6, 4], [13, 7.5, 6, 4], [19, 7, 6, 4],
+    [25, 7.5, 6, 4], [30, 9, 5, 3],
   ];
   for (const [x, y, w, h] of top) nub(x, y, w, h);
-  const top2 = [[10, 8.5, 4, 2], [16, 8, 4, 2], [22, 8, 4, 2], [27, 8.5, 4, 2]];
+  const top2 = [[10, 9.5, 4, 2], [16, 9, 4, 2], [22, 9, 4, 2], [27, 9.5, 4, 2]];
   for (const [x, y, w, h] of top2) g.fillRect(x, y + bob, w, h);
 
-  // Subtle shading that follows the silhouette (clamped to each row so it never
-  // pokes past the rounded edge as a hard rectangle).
-  const band = (color, y0, y1, inset) => {
-    g.fillStyle(color, 1);
-    for (let y = y0; y <= y1; y++) {
-      const r = rowAt(y); if (!r) continue;
-      g.fillRect(r[1] + inset, y + bob, (r[2] - r[1]) - inset * 2, 1);
-    }
+  // Soft form shading: a faint highlight along the top and a shadow that deepens
+  // toward the belly. Bands follow the silhouette (clamped via the row), and a
+  // dithered transition row blends each step so there's no hard horizontal seam.
+  const band = (color, y, inset, alpha = 1) => {
+    const r = rowAt(y); if (!r) return;
+    g.fillStyle(color, alpha);
+    g.fillRect(r[1] + inset, y + bob, (r[2] - r[1]) - inset * 2, 1);
   };
-  band(WOOL_HI, 11, 12, 2);    // lighter crown
-  band(WOOL_MID, 22, 23, 1);   // belly
-  band(WOOL_SHAD, 24, 25, 1);  // underside shadow
+  band(WOOL_HI, 12, 2.5);              // crown highlight (single soft row)
+  band(WOOL_MID, 21, 1.5, 0.6);        // dithered transition into the belly
+  band(WOOL_MID, 22, 1.5);             // belly
+  band(WOOL_SHAD, 23, 1.5, 0.7);       // transition
+  band(WOOL_SHAD, 24, 1.5);            // underside shadow
 
   // --- Grey face: a square block with the corners notched for a soft look ---
   g.fillStyle(SKIN, 1);
