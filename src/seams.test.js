@@ -35,6 +35,32 @@ describe('C2 import-boundary: shared loaders name no concrete species', () => {
   });
 });
 
+describe('C2 literal-tripwire: shared care/dispatch files name no species', () => {
+  // After B3, direct animal care goes through generic dispatch. These shared files
+  // must not hardcode a NON-default species: no per-species care method
+  // (feedCow/milkChicken/…) and no `species === 'x'` branch. The horse is the base
+  // species and keeps some bespoke helpers (useItemOnHorse, _saveHorses), so "Horse"
+  // is intentionally excluded. Comments are stripped — only code is checked.
+  const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  const PER_SPECIES_METHOD = /\b(feed|water|milk|brush|pet|groom)(Cow|Chicken|Cat|Sheep|Pig|Dog|Goat)\b/;
+  const SPECIES_BRANCH = /\bspecies\s*===\s*['"]/;
+  const FILES = [
+    'scenes/paddock/careActions.js',
+    'scenes/paddock/useDispatch.js',
+    'scenes/paddock/persistence.js',
+  ];
+
+  for (const rel of FILES) {
+    it(`${rel} has no per-species care method or species-equality branch`, () => {
+      const code = stripComments(read(rel));
+      const method = code.match(PER_SPECIES_METHOD);
+      const branch = code.match(SPECIES_BRANCH);
+      expect(method, `per-species care method in ${rel}: ${method?.[0]}`).toBeNull();
+      expect(branch, `species-equality branch in ${rel}: ${branch?.[0]}`).toBeNull();
+    });
+  }
+});
+
 describe('C2 fixture-species: a data-only species round-trips through makeRoster', () => {
   // The permanent "add a goat" acid test. A synthetic species — a minimal
   // Animal-shaped model plus a roster of defaults — persists through the generic

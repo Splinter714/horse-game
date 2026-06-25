@@ -127,13 +127,13 @@ export const WithPrompts = (Base) => class extends Base {
 
     const { player } = this;
 
-    // Cow care (#cow): mirror useActiveTool's dispatch so the Use prompt names what
-    // it would do (Feed / Water / Milk) whenever the cow is in reach with the right
-    // carrier.
-    const cowAct = this._cowUseAction(item);
-    if (cowAct) {
-      useLabel = cowAct.label;
-      this._pushPrompt('use', cowAct.label);
+    // Direct animal care (#cow): mirror useActiveTool's dispatch so the Use prompt
+    // names what it would do (Feed / Water / Milk) whenever a feedable/milkable animal
+    // is in reach with the right carrier. Generic over species (#167 B3).
+    const careAct = this._animalUseAction(item);
+    if (careAct) {
+      useLabel = careAct.label;
+      this._pushPrompt('use', careAct.label);
       return finish();
     }
 

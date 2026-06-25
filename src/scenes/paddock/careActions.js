@@ -5,16 +5,18 @@
 // routes through, kept the single owner so an action is never double-counted).
 // Extracted from PaddockScene as its own concern (issue #167).
 //
-// NOTE: the cow's feedCow/waterCow/milkCow are per-species methods that duplicate
-// the generic path (model.applyAction + carrier + feedback). That's a cross-cutting
-// seam slated to fold into the generic dispatch in Phase B3; kept verbatim here so
-// this step stays a pure structural move.
+// Direct animal care (feed/water/produce on an in-world animal) is GENERIC: it reads
+// the species' `actions` + `produces` data, so a new directly-cared-for animal is a
+// data entry, not new methods (#167 B3). The C2 literal-tripwire seam guard checks
+// this file names no per-species care method/branch.
 
 import { EVENTS } from '../../data/events.js';
+import { getSpecies } from '../../data/species/index.js';
 import { playEat, playDrink, playBrush, playChime, playMilk } from '../../audio/sounds.js';
 
-// Maps a species action's `sound` name (see data/species) to the synth function.
-const SOUND_FNS = { eat: playEat, drink: playDrink, brush: playBrush, chime: playChime };
+// Maps a species action's (or produce's) `sound` name (see data/species) to the
+// synth function — the data-driven feedback table.
+const SOUND_FNS = { eat: playEat, drink: playDrink, brush: playBrush, chime: playChime, milk: playMilk };
 
 export const WithCareActions = (Base) => class extends Base {
   // ─── Item use ────────────────────────────────────────────────────────────
@@ -64,56 +66,54 @@ export const WithCareActions = (Base) => class extends Base {
     }
   }
 
-  // ─── Cow care (direct interaction, #cow) ──────────────────────────────────
-  // The cow is fed/watered by using a food basket / water bucket on her directly
-  // (mirrors brushing a horse), and milked with an empty bucket once a day if she
-  // was well cared for the day before. Dispatched from player.js (useActiveTool).
+  // ─── Direct animal care (generic, #cow / #167 B3) ─────────────────────────
+  // An in-world animal (this.animals) is fed/watered by using a food basket / water
+  // bucket on it directly (mirrors brushing a horse), and harvested (milked) with an
+  // empty bucket once a day when it's ready. Which carrier maps to which action is
+  // resolved in useDispatch (_animalUseAction) from the species' `actions`/`produces`
+  // data; these methods just apply the resolved action + its data-driven feedback,
+  // so the cow — or any future feedable/milkable animal — needs no bespoke code.
 
-  // Feed the cow one unit from the active food basket.
-  feedCow(cow) {
-    const model = cow.model;
-    if (!model) return;
-    if ((this.scene.get('HotbarScene')?.useActiveCarrier(1) ?? 0) <= 0) return;
-    model.applyAction('feed');
-    playEat();
-    this._afterCowCare(cow, 'iconFeed');
-  }
-
-  // Water the cow, emptying the active water bucket.
-  waterCow(cow) {
-    const model = cow.model;
+  // Apply a consume-action (feed/water): spend from the active carrier, bump the
+  // stat via the model, then run the shared feedback tail. Feed spends one unit;
+  // water empties the bucket.
+  _applyConsumeCare(animal, action) {
+    const model = animal.model;
     if (!model) return;
     const item = this.getActiveItem();
-    if (item?.content !== 'water' || item.count <= 0) return;
-    this.scene.get('HotbarScene')?.useActiveCarrier(item.count);
-    model.applyAction('water');
-    playDrink();
-    this._afterCowCare(cow, 'iconWater');
+    const amount = action === 'water' ? (item?.count ?? 0) : 1;
+    if ((this.scene.get('HotbarScene')?.useActiveCarrier(amount) ?? 0) <= 0) return;
+    model.applyAction(action);
+    this._afterAnimalCare(animal, action);
   }
 
-  // Milk the cow into the active (empty) bucket. Gated on her being ready (well
-  // cared for yesterday) and not already milked today — the bucket fills with milk.
-  milkCow(cow) {
-    const model = cow.model;
-    if (!model?.readyToProduce || model.producedToday) return;
-    // Fill the bucket first; only mark her milked if the milk actually went in.
-    const added = this.scene.get('HotbarScene')?.fillActiveCarrier('milk', 1) ?? 0;
+  // Harvest the animal's daily produce (e.g. milk) into the active empty carrier,
+  // gated on it being ready and not already harvested today. Sound/icon come from
+  // the species `produces` def — no per-species code.
+  _produceFromAnimal(animal) {
+    const model = animal.model;
+    const prod = model && getSpecies(model.species).produces;
+    if (!prod || !model.readyToProduce || model.producedToday) return;
+    // Fill the carrier first; only mark it harvested if the produce actually went in.
+    const added = this.scene.get('HotbarScene')?.fillActiveCarrier(prod.content, 1) ?? 0;
     if (added <= 0) return;
     model.producedToday = true;
     this._saveAnimal(model);
-    playMilk(); // squirty milk-into-the-pail sound (#cow)
-    this.showIcon('iconBucketMilk', cow.sprite);
+    SOUND_FNS[prod.sound]?.();        // squirty milk-into-the-pail sound (#cow)
+    this.showIcon(prod.icon, animal.sprite);
   }
 
   // Shared tail of feed/water: persist, refresh stat bars (live panel + HUD), and
-  // float the care icon over the cow.
-  _afterCowCare(cow, icon) {
-    this._saveAnimal(cow.model);
+  // play the action's declared sound + float its icon over the animal.
+  _afterAnimalCare(animal, action) {
+    this._saveAnimal(animal.model);
     this.game.events.emit(EVENTS.STATS_CHANGED);
-    this.showIcon(icon, cow.sprite);
+    const def = animal.model.actionDef?.(action);
+    if (def?.sound) SOUND_FNS[def.sound]?.();
+    if (def?.icon)  this.showIcon(def.icon, animal.sprite);
     if (this.scene.isActive('InfoPanelScene')) {
       const viewing = this.registry.get('viewingAnimal');
-      if (viewing?.key === cow.key) this.scene.get('InfoPanelScene').refreshStats(cow.model);
+      if (viewing?.key === animal.key) this.scene.get('InfoPanelScene').refreshStats(animal.model);
     }
   }
 

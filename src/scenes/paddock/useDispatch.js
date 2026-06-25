@@ -8,6 +8,7 @@
 
 import Phaser from 'phaser';
 import { CONTENT_DEFS, foodDemand } from '../../data/items.js';
+import { getSpecies } from '../../data/species/index.js';
 import { CARE_DIST, USE_REACH } from './constants.js';
 import { playGather } from '../../audio/sounds.js';
 
@@ -32,12 +33,16 @@ export const WithUseDispatch = (Base) => class extends Base {
     return inst && instD <= inst.reachDist ? inst : null;
   }
 
-  // The cow in this.animals nearest the player and within Use reach, or null. Used
-  // for direct cow care (#cow). Skips the cow while she's tucked away (invisible).
-  _nearestCowInReach() {
+  // The nearest in-world animal eligible for DIRECT care (this.animals) within Use
+  // reach, or null — any species that declares a feed/water action or `produces`
+  // (today: the cow). Skips animals tucked away (invisible). Driven by species data,
+  // so a new directly-cared-for animal needs no edit here (#167 B3).
+  _nearestCareAnimal() {
     let best = null, bestD = Infinity;
     for (const a of this.animals) {
-      if (a.model?.species !== 'cow' || !a.sprite.visible) continue;
+      if (!a.model || !a.sprite.visible) continue;
+      const spec = getSpecies(a.model.species);
+      if (!spec.actions?.feed && !spec.actions?.water && !spec.produces) continue;
       const d = Phaser.Math.Distance.Between(
         this.player.sprite.x, this.player.sprite.y, a.sprite.x, a.sprite.y);
       if (d <= USE_REACH && d < bestD) { bestD = d; best = a; }
@@ -45,27 +50,30 @@ export const WithUseDispatch = (Base) => class extends Base {
     return best;
   }
 
-  // Resolve what Use does with `item` on a nearby cow, or null. Carrier-driven:
-  //   food basket → Feed,  water bucket → Water,  empty bucket → Milk (when ready).
-  // Returns { label, run } so useActiveTool dispatches it and checkToolProximity
-  // labels the prompt with the same wording.
-  _cowUseAction(item) {
+  // Resolve what Use does with `item` on a nearby directly-cared-for animal, or null.
+  // Carrier- and species-data-driven: food basket → Feed (if the species has a feed
+  // action), water bucket → Water, empty bucket → harvest `produces` (milk) when
+  // ready. Returns { label, run } so useActiveTool dispatches it and the prompt pass
+  // labels it identically. Adding a feedable/milkable animal is pure data.
+  _animalUseAction(item) {
     if (!item || item.type !== 'carrier') return null;
-    const cow = this._nearestCowInReach();
-    if (!cow) return null;
-    const model = cow.model;
+    const animal = this._nearestCareAnimal();
+    if (!animal) return null;
+    const model = animal.model;
+    const spec = getSpecies(model.species);
     const who = model?.name ? ` ${model.name}` : '';
 
-    if (item.carrier === 'basket' && item.action === 'feed' && item.count > 0) {
-      return { label: `Feed${who}`, run: () => this.feedCow(cow) };
+    if (item.carrier === 'basket' && item.action === 'feed' && item.count > 0 && spec.actions?.feed) {
+      return { label: `Feed${who}`, run: () => this._applyConsumeCare(animal, 'feed') };
     }
     if (item.carrier === 'bucket') {
-      if (item.content === 'water' && item.count > 0) {
-        return { label: `Water${who}`, run: () => this.waterCow(cow) };
+      if (item.content === 'water' && item.count > 0 && spec.actions?.water) {
+        return { label: `Water${who}`, run: () => this._applyConsumeCare(animal, 'water') };
       }
-      // Empty bucket → milk her, but only when she's actually ready to give it.
-      if (!item.content && model?.readyToProduce && !model.producedToday) {
-        return { label: `Milk${who}`, run: () => this.milkCow(cow) };
+      // Empty bucket → harvest, but only when the animal is actually ready to give it.
+      if (!item.content && spec.produces && model?.readyToProduce && !model.producedToday) {
+        const verb = spec.produces.verb ?? 'Use';
+        return { label: `${verb}${who}`, run: () => this._produceFromAnimal(animal) };
       }
     }
     return null;
@@ -83,10 +91,11 @@ export const WithUseDispatch = (Base) => class extends Base {
 
     // Use never moves the player — it only acts on something already in reach.
 
-    // Cow care (#cow): a food basket / water bucket / empty (milking) bucket used on
-    // the cow in reach. Checked before the herd tools so it always wins near her.
-    const cowAct = this._cowUseAction(item);
-    if (cowAct) { cowAct.run(); return; }
+    // Direct animal care (#cow): a food basket / water bucket / empty (harvest)
+    // bucket used on a feedable/milkable animal in reach. Checked before the herd
+    // tools so it always wins near her. Generic over species (#167 B3).
+    const careAct = this._animalUseAction(item);
+    if (careAct) { careAct.run(); return; }
 
     // Animal-targeted tools: act on the nearest valid horse if it's in reach.
     if (item.action === 'brush' || item.action === 'saddle' || item.action === 'lead') {

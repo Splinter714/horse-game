@@ -78,10 +78,11 @@ export function makeRoster({ storageKey, Model, defaultRoster, offlineDecay = fa
 const ROSTER_API = Object.fromEntries(
   Object.entries(ROSTERS).map(([id, cfg]) => [id, makeRoster(cfg)]));
 
-// Every persisted species as { id, registryKey, load } so BootScene can seed the
-// Phaser registry generically (no per-species wiring there either).
+// Every persisted species as { id, registryKey, load, save } so BootScene can seed
+// the Phaser registry generically and the persistence mixin can save any roster by
+// species id — no per-species wiring in either (#167 B1/B3).
 export const ROSTER_SPECIES = Object.entries(ROSTERS).map(([id, cfg]) => ({
-  id, registryKey: cfg.registryKey, load: ROSTER_API[id].load,
+  id, registryKey: cfg.registryKey, load: ROSTER_API[id].load, save: ROSTER_API[id].save,
 }));
 
 // Back-compat named loaders/savers (call sites unchanged) — thin wrappers over the

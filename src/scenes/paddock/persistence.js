@@ -2,25 +2,31 @@
 // hunger/thirst decay and autosave timers that run off the update loop. Extracted
 // from PaddockScene as its own concern (issue #167).
 //
-// NOTE: `_saveAnimal` still switches on `model.species` to pick the right roster
-// saver. That per-species branch is a cross-cutting seam slated for generalization
-// in Phase B1 (registry-driven rosters); kept verbatim here so this step stays a
-// pure structural move.
+// Roster saving is registry-driven (#167 B3): both _saveAnimal and tickAutosave look
+// the saver up by species id, so neither hardcodes a species. The C2 literal-tripwire
+// seam guard checks this file names no per-species branch.
 
-import { saveAllHorses, saveAllChickens, saveAllCows } from '../../data/save.js';
+import { ROSTER_SPECIES } from '../../data/save.js';
 import { EVENTS } from '../../data/events.js';
 
+// Look up a roster's { registryKey, save } by species id.
+const ROSTER_BY_ID = Object.fromEntries(ROSTER_SPECIES.map((r) => [r.id, r]));
+
 export const WithPersistence = (Base) => class extends Base {
-  _saveHorses() {
-    saveAllHorses(this.registry.get('allHorses'));
+  // Persist one roster (the registry map under its registryKey) by species id.
+  _saveRoster(id) {
+    const r = ROSTER_BY_ID[id];
+    if (r) r.save(this.registry.get(r.registryKey));
   }
 
-  // Persist whichever roster a freshly-changed model belongs to. The cat is
-  // in-memory only (no roster yet), so it isn't saved.
+  _saveHorses() {
+    this._saveRoster('horse');
+  }
+
+  // Persist whichever roster a freshly-changed model belongs to. A model whose
+  // species has no roster (the in-memory cat) is simply skipped.
   _saveAnimal(model) {
-    if (model.species === 'horse')        this._saveHorses();
-    else if (model.species === 'chicken') saveAllChickens(this.registry.get('allChickens'));
-    else if (model.species === 'cow')     saveAllCows(this.registry.get('allCows'));
+    this._saveRoster(model.species);
   }
 
   tickDecay(delta) {
@@ -45,8 +51,9 @@ export const WithPersistence = (Base) => class extends Base {
     this.saveAccum += delta;
     if (this.saveAccum >= 15000) {
       this.saveAccum = 0;
-      this._saveHorses();
-      saveAllCows(this.registry.get('allCows')); // keep her stats/lastSeen fresh (#cow)
+      // Persist every roster so each species' stats/lastSeen stay fresh — registry-
+      // driven, so a new persisted animal is autosaved with no edit here (#167 B3).
+      for (const r of ROSTER_SPECIES) r.save(this.registry.get(r.registryKey));
     }
   }
 };
