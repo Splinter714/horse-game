@@ -7,6 +7,7 @@
 
 import { gen, makeLeg, scaledGraphics, ART_SCALE } from './_frames.js';
 import { dappleCircles, roanFlecks, pintoSpec, appaloosaSpec } from '../data/species/horse/patterns.js';
+import { MUSCLE } from './horseMuscle.js';
 
 export const FRAME_W = 64;
 export const FRAME_H = 54;
@@ -85,17 +86,17 @@ function fillProfile(g, body, topPts, botPts, x0, x1, yo) {
 export const BUILDS = {
   // Balanced all-purpose riding horse.
   riding: {
-    barrelTop: [[6,24],[8,19],[11,16.5],[14,16],[20,16.5],[30,17.5],[37,16.5],[40,15.5],[44,16.5],[48,19]],
-    barrelBot: [[6,29],[8,32.5],[11,34.5],[15,34],[18,33],[23,31.5],[31,32.5],[39,34],[44,34],[47,33],[48,31]],
-    neckTop:   [[40,15.5],[43,10],[46,6],[48,4.5],[50,4]],
-    neckBot:   [[40,31],[43,26],[46,21],[48,19.5],[50,15]],
-    headTop:   [[49,5],[53,4.5],[57,5],[60,6],[62,7]],
-    headBot:   [[49,13.5],[51,14],[55,13.5],[59,13],[62,12.5]],
+    barrelTop: [[6,21],[10,18],[16,17],[23,16.5],[31,16.5],[37,16],[40,15.5],[44,16.5],[48,19]],
+    barrelBot: [[6,31],[10,33],[15,34],[22,33.5],[30,33],[38,34],[44,34],[47,33],[48,31]],
+    neckTop:   [[39,15.5],[43,12],[47,10],[50,10]],
+    neckBot:   [[39,30],[43,26],[47,22],[50,19.5]],
+    headTop:   [[50,10],[53,10],[57,11],[60,12.5],[63,14]],
+    headBot:   [[50,18.5],[52,19],[56,19],[60,18.5],[63,17.5]],
     legX: [8, 14, 36, 42],                 // [hindFar, hindNear, foreFar, foreNear]
-    leg:  { top: 33, ground: 50, upperW: 5, cannonW: 3 },
-    tailRoot: [6, 20],
-    ears:   { near: [47, 0.5, 2.5, 5], inner: [47.75, 1.5, 1, 2.5], far: [45.5, 1, 1.5, 4] },
-    eye: [53, 7], nostril: [59.5, 10], muzzle: [57, 9, 5, 3.5],
+    leg:  { top: 33, ground: 51.5, upperW: 5, cannonW: 2.8 },
+    tailRoot: [6, 21],
+    ears:   { near: [49, 5.5, 2.4, 4.5], inner: [49.7, 6.5, 1, 2.3], far: [47.5, 6, 1.4, 3.5] },
+    eye: [53, 13], nostril: [62, 15], muzzle: [59, 14, 4, 3],
   },
   // Heavy draft: deep barrel, thick crested neck, short stout legs, blunt head.
   draft: {
@@ -394,21 +395,27 @@ function shadeBarrel(g, B, bob) {
   }
 }
 
-// Soft anatomical definition over the barrel: a haunch-muscle highlight, a stifle /
-// flank crease, the sloping shoulder shadow, and a brisket highlight — so the body
-// reads as muscled rather than a smooth sausage. Positioned by barrel landmarks so it
-// follows any build; coat-agnostic alpha overlays.
+// Muscle / dapple shading over the barrel, sampled from the body-relative map traced
+// off the reference art (horseMuscle.js). For each barrel column we read the map at
+// (u = position along the back, v = topline→belly) and darken (shadow) or lighten
+// (highlight) the coat — relative, so it recolours for any coat. Follows the build's
+// own barrel profile, so it works at any proportion.
 function musculature(g, B, bob) {
-  const t = B.barrelTop;
-  const bx0 = t[0][0], bx1 = t[t.length - 1][0];
-  const topY = (x) => snap(yAt(t, x + 0.5) + bob);
-  g.fillStyle(HILITE, 0.09);                                   // haunch dome
-  for (let x = bx0 + 3; x < bx0 + 9; x++) g.fillRect(x, topY(x) + 2, 1, 4);
-  g.fillStyle(SHADE, 0.10);                                    // stifle / flank crease
-  for (let i = 0; i < 7; i++) g.fillRect(bx0 + 9 + i * 0.25, topY(bx0 + 9) + 4 + i, 0.8, 3);
-  for (let i = 0; i < 8; i++) g.fillRect(bx1 - 8 + i * 0.5, topY(bx1 - 8 + i * 0.5) + 3 + i * 0.8, 0.8, 5); // shoulder slope
-  g.fillStyle(HILITE, 0.07);                                   // shoulder / brisket
-  for (let x = bx1 - 5; x < bx1 - 1; x++) g.fillRect(x, topY(x) + 3, 1, 6);
+  const t = B.barrelTop, bt = B.barrelBot;
+  const bx0 = Math.max(t[0][0], bt[0][0]) + 1;
+  const bx1 = Math.min(t[t.length - 1][0], bt[bt.length - 1][0]) - 1;
+  const U = MUSCLE.u, Vn = MUSCLE.v, data = MUSCLE.data;
+  for (let x = bx0; x < bx1; x++) {
+    const yt = snap(yAt(t, x + 0.5) + bob), yb = snap(yAt(bt, x + 0.5) + bob);
+    const h = yb - yt; if (h <= 0) continue;
+    const uu = Math.min(U - 1, Math.max(0, Math.round((x - bx0) / (bx1 - bx0) * (U - 1))));
+    for (let y = yt; y < yb; y += 0.5) {
+      const vv = Math.min(Vn - 1, Math.floor((y - yt) / h * Vn));
+      const s = data[vv][uu];
+      if (s < -2) { g.fillStyle(SHADE, Math.min(0.3, -s / 95)); g.fillRect(x, y, 1, 0.5); }
+      else if (s > 2) { g.fillStyle(HILITE, Math.min(0.2, s / 95)); g.fillRect(x, y, 1, 0.5); }
+    }
+  }
 }
 
 // Mane draped along the neck crest (parametric → follows any build's neck), plus a
@@ -417,18 +424,18 @@ function drawManeAlong(g, coat, bob, B) {
   const m = coat.mane, mk = coat.markings || {};
   const crest = B.neckTop, xW = crest[0][0], xP = crest[crest.length - 1][0];
   const pintoMane = mk.pinto && mk.pintoMane;
-  const L = 5; // mane hair length (kept trim so it doesn't swallow the neck)
-  // Hanging mass: a band off the crest broken into ~3px locks with slightly varied
-  // tips, so the lower edge reads as distinct hanks of hair draped down the near side
-  // of the neck rather than a noisy fringe. Lit roots sit along the crest.
+  const L = 6.5; // mane length (flowing strand styles come with #162)
+  // Hanging mass: a band off the crest broken into hanks with varied tips (longest
+  // mid-neck), so it reads as long flowing hair rather than a trim brush. Lit roots
+  // sit along the crest.
   for (let x = xW; x <= xP; x += 0.5) {
     const cy = yAt(crest, x + 0.25);
     const f = (x - xW) / (xP - xW);                   // 0 at withers … 1 at poll
-    const lock = Math.floor((x - xW) / 3);
-    const tip = L + (lock % 2 ? 1.5 : 0) - f * 2;      // alternate lock length, shorter toward poll
+    const lock = Math.floor((x - xW) / 2.5);
+    const tip = L - Math.abs(f - 0.42) * 4 + (lock % 2 ? 2 : 0); // hanked, longest mid-neck
     const white = pintoMane && f < 0.5;
     g.fillStyle(white ? WHITE : m.lo, 1);  g.fillRect(x - 0.25, cy - 1 + bob, 1, tip);
-    g.fillStyle(white ? WHITE : m.mid, 1); g.fillRect(x - 0.25, cy - 1 + bob, 1, 2.5);
+    g.fillStyle(white ? WHITE : m.mid, 1); g.fillRect(x - 0.25, cy - 1 + bob, 1, Math.min(3, tip));
   }
   // sheen strands picking out a few locks
   g.fillStyle(m.hi, 0.45);

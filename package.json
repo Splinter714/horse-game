@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "smoke": "node scripts/smoke.mjs",
     "sprites": "node scripts/sprite-preview.mjs",
+    "compare": "SPRITE_OUT=/tmp/proc.png node scripts/sprite-preview.mjs horseRiding && python3 scripts/compare.py",
     "deploy": "npm run build && gh-pages -d dist -b gh-pages"
   },
   "dependencies": {
