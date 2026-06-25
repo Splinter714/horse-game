@@ -91,9 +91,7 @@ describe('size budget: scene files stay small (no new mega-files)', () => {
   const BUDGET = 500;
   // Known oversized files not yet split — visible debt that should shrink, never
   // grow. Each entry is self-cleaning (see below): drop it once the file is split.
-  const ALLOW = {
-    'paddock/creatures.js': 'generic creature spawn/movement — split tracked in #169',
-  };
+  const ALLOW = {};
 
   for (const rel of walkJs()) {
     const lines = read(rel).split('\n').length;
