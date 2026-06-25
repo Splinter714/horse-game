@@ -34,6 +34,11 @@ export class Animal {
     // an object of marking flags merged over the coat colour's defaults. null = use
     // the coat preset's own markings.
     this.markings = data.markings ?? null;
+    // Optional per-part customizer selection (swatch keys), e.g. cow → { coat:'brown',
+    // spots:'rust' } / chicken → { style:'2' }. null until the player customizes; the
+    // art is rebuilt from it on boot (data/customize.js lookFromKeys). Horses use the
+    // richer coat/markings system above instead of `look`. (#165 info-panel editor.)
+    this.look = data.look ?? null;
     this.age = data.age ?? def.age;
     // Biological sex ('female' | 'male') — shown in the info panel and used by
     // breeding later (#113/#15). Falls back to the species default for older
@@ -171,6 +176,7 @@ export class Animal {
       lastSeen: this.lastSeen,
     };
     if (this.markings) out.markings = this.markings;
+    if (this.look) out.look = this.look;
     for (const key of Object.keys(this._spec.traits ?? {})) out[key] = this[key];
     for (const key of this._spec.optionalAttrs ?? []) {
       if (this[key] !== undefined) out[key] = this[key];

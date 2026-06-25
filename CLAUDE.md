@@ -52,9 +52,10 @@ emitter** (`this.game.events`).
 ### Registry keys
 - `allHorses` — `{ [key]: Horse }` keyed by texture/registry key (`horse`, `horse2`…`horse7`).
 - `allChickens` — `{ [key]: Chicken }` (`chicken0`…`chicken4`).
+- `allCows` / `allPigs` / `allCats` — `{ [key]: Cow|Pig|Cat }` (one each: `cow` / `pig` / `cat`).
 - `viewingAnimal` — `{ animal, portraitKey, key }` for whatever the info panel is showing
-  (or null). The cat carries an in-memory `Animal` model (not persisted yet) so it gets a
-  panel too.
+  (or null). Every in-world animal is a persisted roster now, so the info-panel
+  customizer's per-part `look` survives reloads (the cat too).
 
 ### Events — use the constants in `src/data/events.js`, never bare strings
 `ANIMAL_ACTION` (`{type, horseKey}`), `PHASE_CHANGE` (`{isNight, phase}`), `SLEEP`,

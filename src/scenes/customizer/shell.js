@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { S } from '../paddock/constants.js';
 import { growHitArea, logicalW, logicalH } from '../uiUtils.js';
-import { CUSTOMIZE, swatchTone, defaultLook } from '../../data/customize.js';
+import { CUSTOMIZE, swatchTone, defaultKeys, lookFromKeys } from '../../data/customize.js';
 import { reskinAnimal } from '../../art/index.js';
 import { ART_SCALE } from '../../art/_frames.js';
 import { DEMO_FOALS } from '../../data/demoFoals.js';
@@ -80,7 +80,12 @@ export const WithCustomizerShell = (Base) => class extends Base {
       if (!this._editKey || !this.allHorses?.[this._editKey]) return false;
     } else {
       if (!CUSTOMIZE[this._custSpecies]?.parts) return false;
-      this._look = defaultLook(this._custSpecies);
+      // In-world, the edited animal's model carries the persisted look (swatch keys);
+      // the art-preview host passes none, so we start from the defaults. Keys drive
+      // persistence + selection highlight; ramps drive the live re-skin.
+      this._partModel = opts.model || null;
+      this._lookKeys = { ...defaultKeys(this._custSpecies), ...(this._partModel?.look || {}) };
+      this._look = lookFromKeys(this._custSpecies, this._lookKeys);
     }
 
     this.scrollY = 0;
@@ -287,10 +292,9 @@ export const WithCustomizerShell = (Base) => class extends Base {
     let y = y0;
     const parts = CUSTOMIZE[this._custSpecies].parts;
     for (const part of parts) {
-      const cur = this._look[part.id];
-      const sel = part.palette.find((s) => s.ramp === cur) || part.palette[0];
+      const curKey = this._lookKeys[part.id];
       const entries = part.palette.map((s) => [s.key, s.label, swatchTone(s.ramp)]);
-      y = this._secSwatches(c, part.label, entries, sel.key, (k) => this._pickPartSwatch(part.id, k), y) + 14;
+      y = this._secSwatches(c, part.label, entries, curKey, (k) => this._pickPartSwatch(part.id, k), y) + 14;
     }
     return y;
   }
@@ -299,8 +303,12 @@ export const WithCustomizerShell = (Base) => class extends Base {
     const part = CUSTOMIZE[this._custSpecies].parts.find((p) => p.id === partId);
     const swatch = part.palette.find((s) => s.key === swatchKey);
     if (!swatch) return;
+    this._lookKeys = { ...this._lookKeys, [partId]: swatchKey };
     this._look = { ...this._look, [partId]: swatch.ramp };
     reskinAnimal(this, this._custSpecies, this._editKey, this._look); // redraws frames in place
+    // In-world: store the keys on the model and persist (art-preview passes no model
+    // and no persist, so it just recolours live).
+    if (this._partModel) { this._partModel.look = { ...this._lookKeys }; this._custPersist?.(); }
     this._custContent(); // refresh the selected-swatch highlight + caption
   }
 

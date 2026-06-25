@@ -39,11 +39,11 @@ export const CAT = {
   },
 
   // World spawn (#167 B4) — read by creatures.js buildAnimals so adding an animal is
-  // data, not a hardcoded spawn. `memoryModel` = no roster (the cat is identity-only,
-  // rebuilt each load); visual params drive the shadow/animation; one placement.
+  // data, not a hardcoded spawn. Spawns from the persisted `allCats` roster (rosters.js)
+  // so its customizer look + happiness survive reloads; visual params drive the
+  // shadow/animation; one placement.
   spawn: {
     inWorld: true,
-    memoryModel: true,
     shadowScale: 0.34, walkFps: 5, tweenRate: 16, bodyR: 11,
     roam: 'world',
     placements: [{ x: 700, y: 600 }], // slow, low-slung prowl

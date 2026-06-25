@@ -17,6 +17,7 @@ import { Horse, EBONY_BASE_STATS } from './species/horse/model.js';
 import { Chicken } from './species/chicken/model.js';
 import { Cow } from './species/cow/model.js';
 import { Pig } from './species/pig/model.js';
+import { Cat } from './species/cat/model.js';
 
 // The canonical herd. Every horse is equal — same persistence, same decay. The
 // only per-horse differences are data (name, coat, age, spawn) plus Ebony's
@@ -70,6 +71,15 @@ function defaultPigRoster() {
   };
 }
 
+// One cat for now, keyed `cat` (matches its texture/sprite key). Identity-only like
+// the chicken — no survival needs, so no offline decay — but now persisted so its
+// customizer look (and happiness) survive reloads. Was an in-memory model before (#84).
+function defaultCatRoster() {
+  return {
+    cat: { id: 'cat-1', name: 'Mittens', breed: 'Barn Cat', coat: 0, age: 2, sex: 'male' },
+  };
+}
+
 export const ROSTERS = {
   horse: {
     storageKey: 'horse-care-save-v2',
@@ -105,6 +115,14 @@ export const ROSTERS = {
     Model: Pig,
     defaultRoster: defaultPigRoster,
     offlineDecay: true,
+    legacy: null,
+  },
+  cat: {
+    storageKey: 'horse-care-cats-v1',
+    registryKey: 'allCats',
+    Model: Cat,
+    defaultRoster: defaultCatRoster,
+    offlineDecay: false, // identity-only (no survival needs) — don't decay offline
     legacy: null,
   },
 };
