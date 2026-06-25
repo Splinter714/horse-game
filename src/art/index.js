@@ -54,3 +54,20 @@ export const PREVIEW_TEXTURES = {
   pig(scene)   { buildPigTextures(scene, 'pig'); },
   dog(scene)   { buildDogTextures(scene, 'dog'); },
 };
+
+// Live re-skin dispatch (#165) — rebuilds one creature's frame textures IN PLACE
+// from a customizer `look` (per-part palette ramps). Registry-driven so no shared
+// file branches on species name (mirrors SPECIES_TEXTURES; keeps the C2 seam guard
+// happy). `gen()` redraws under the same texture key, so the on-screen sprite updates
+// with no rebuild — the same trick reskinHorse() uses for live coat edits.
+const RESKIN = {
+  sheep: (scene, key, look) => buildSheepTextures(scene, key, look),
+  pig:   (scene, key, look) => buildPigTextures(scene, key, look),
+  dog:   (scene, key, look) => buildDogTextures(scene, key, look),
+  cow:   (scene, key, look) => buildCowTextures(scene, key, look),
+  cat:   (scene, key, look) => buildCatTextures(scene, key, look),
+};
+
+export function reskinAnimal(scene, speciesId, key, look) {
+  RESKIN[speciesId]?.(scene, key, look);
+}

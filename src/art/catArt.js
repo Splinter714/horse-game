@@ -7,20 +7,28 @@ import { gen, makeLeg } from './_frames.js';
 
 export const CAT_W = 22, CAT_H = 20;
 
-// Calico palette: a white base with orange and black patches. Tweak here to recolour.
+// Calico palette: a white base with orange and black patches. The orange patch family
+// (`fur`) and the eye colour are data-driven (#165); the customizer passes a `look` of
+// { fur, eyes }. The white base and black saddle stay fixed (the calico structure).
 const WHITE  = { mid: 0xf4efe6, hi: 0xffffff, lo: 0xddd2c4 };
-const ORANGE = { mid: 0xe8943c, hi: 0xf6b45c, lo: 0xc06c20 };
 const BLACK  = { mid: 0x35312a, hi: 0x4c473e, lo: 0x201d18 };
 const EAR    = 0xf2a09a;   // ear inner pink
 const NOSE   = 0xe69a86;
-const EYE    = 0x74c24a, PUPIL = 0x14260a;
+const PUPIL  = 0x14260a;
+
+const DEFAULT_LOOK = {
+  fur:  { mid: 0xe8943c, hi: 0xf6b45c, lo: 0xc06c20 }, // ginger patches
+  eyes: { color: 0x74c24a },
+};
 
 // Short legs → low, crouched stance. Feet stay at y19; the body sits just above.
 const catLeg = makeLeg({ topY: 16, w: 2, h: 3, hoofColor: 0x6a5848, hoofY: 19, hoofW: 4, hoofDX: -1, hoofH: 1 });
 
 // tailTip nudges ONLY the tip of the tail (a small twitch). tailHigh raises the whole
 // tail when truthy (alert pose); otherwise it rides lower and straighter (relaxed).
-function drawCat(g, bob, [lhf, lhn, lff, lfn], tailTip = 0, tailHigh = false) {
+function drawCat(g, bob, [lhf, lhn, lff, lfn], tailTip = 0, tailHigh = false, look) {
+  const ORANGE = look?.fur || DEFAULT_LOOK.fur;       // the calico's main patch colour
+  const EYE = (look?.eyes || DEFAULT_LOOK.eyes).color;
   // Legs — far pair shadow tone, near pair base; white "socks". Cats step quietly:
   // legs barely lift and the body never bobs, so the gait reads as a smooth creep.
   catLeg(g, 5,  lhf, WHITE.lo,  bob); catLeg(g, 15, lff, WHITE.lo,  bob);
@@ -110,7 +118,7 @@ function drawCat(g, bob, [lhf, lhn, lff, lfn], tailTip = 0, tailHigh = false) {
   g.fillStyle(0xffffff, 0.4);  g.fillRect(21, 9+bob, 1, 1);
 }
 
-export function buildCatTextures(scene, key) {
+export function buildCatTextures(scene, key, look) {
   // Cats pad smoothly — no body bob, almost no leg lift, tail mostly still. Idle
   // holds an alert tail-up pose with a slow tip flick; walking drops to the relaxed
   // lower tail. The result is a quiet creep, not a dog's bouncy trot/wag.
@@ -122,5 +130,5 @@ export function buildCatTextures(scene, key) {
     { name: 'walk_2', bob: 0, legs: [0, 0, 1, 0], tail: 1, high: false },
     { name: 'walk_3', bob: 0, legs: [0, 0, 0, 1], tail: 0, high: false },
   ];
-  frames.forEach(f => gen(scene, `${key}_${f.name}`, CAT_W, CAT_H, g => drawCat(g, f.bob, f.legs, f.tail, f.high)));
+  frames.forEach(f => gen(scene, `${key}_${f.name}`, CAT_W, CAT_H, g => drawCat(g, f.bob, f.legs, f.tail, f.high, look)));
 }

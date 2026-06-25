@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { applyDpr, logicalW, logicalH, dprOf } from './uiUtils.js';
 import { saveDevSettings } from '../data/save.js';
+import { CUSTOMIZE } from '../data/customize.js';
 
 // ── Art preview (dev tool) ───────────────────────────────────────────────────
 // A standalone gallery for art-directing the creatures. Boots straight into a
@@ -80,6 +81,18 @@ export default class ArtPreviewScene extends Phaser.Scene {
         const sprite = this.add.sprite(0, 0, b.frames[0]).setScale(scale).setDepth(2);
         if (seq.length > 1) sprite.play(animKey);
 
+        // Tap a creature to open the general customizer for it (#166), launched on top
+        // of this gallery. Editable = the species declares customizable parts, or it's
+        // a horse with a live model (the adult; demo foals have no model). A tap that
+        // was actually a scroll-drag is ignored (see _moved below).
+        const speciesId = this._speciesIdFor(b.m.key);
+        if (this._isEditable(speciesId, b.m.key)) {
+          sprite.setInteractive({ useHandCursor: true });
+          sprite.on('pointerup', () => {
+            if (!this._moved) this._openCustomizer(speciesId, b.m.key);
+          });
+        }
+
         const name = b.m.label ? `${fam.label} ${b.m.label}` : fam.label;
         const label = this.add.text(0, 0, `${name}\n${b.nativeW}×${b.nativeH}`, {
           fontFamily: 'system-ui, sans-serif', fontSize: '12px',
@@ -93,7 +106,7 @@ export default class ArtPreviewScene extends Phaser.Scene {
       this._families.push({ members, famW });
     }
 
-    this._title = this.add.text(0, 0, '🎨 Art Preview — dev', {
+    this._title = this.add.text(0, 0, '🎨 Art Preview — tap an animal to customize', {
       fontFamily: 'system-ui, sans-serif', fontSize: '16px', color: '#143', fontStyle: 'bold',
     }).setOrigin(0, 0).setDepth(3);
 
@@ -119,12 +132,14 @@ export default class ArtPreviewScene extends Phaser.Scene {
     this._maxScroll = 0;
     this.input.on('wheel', (_p, _o, _dx, dy) => this._scrollBy(dy));
     this.input.on('pointerdown', (p) => {
+      this._moved = false; // reset tap-vs-drag tracking each gesture
       if (this._back.getBounds().contains(p.x / dprOf(this), p.y / dprOf(this))) return;
       this._dragY = p.y; this._dragFrom = this._scrollY;
     });
     this.input.on('pointermove', (p) => {
       if (!p.isDown || this._dragY == null) return;
       const dy = (p.y - this._dragY) / dprOf(this);   // physical → logical
+      if (Math.abs(dy) > 6) this._moved = true;       // a scroll-drag, not a tap
       this._setScroll(this._dragFrom - dy);
     });
     this.input.on('pointerup', () => { this._dragY = null; });
@@ -132,6 +147,28 @@ export default class ArtPreviewScene extends Phaser.Scene {
     this.layout();
     this.scale.on('resize', this.layout, this);
     this.events.once('shutdown', () => this.scale.off('resize', this.layout, this));
+  }
+
+  // Texture key → species id. Horses/foals map to 'horse'; chickens to 'chicken';
+  // everything else is its own id (cat/cow/sheep/pig/dog).
+  _speciesIdFor(key) {
+    if (key.startsWith('horse') || key.startsWith('foal')) return 'horse';
+    if (key.startsWith('chicken')) return 'chicken';
+    return key;
+  }
+
+  // A creature is editable if its species declares customizable parts, or it's a horse
+  // that has a live model in the roster (the demo foals don't, so they're skipped).
+  _isEditable(speciesId, key) {
+    if (speciesId === 'horse') return !!this.registry.get('allHorses')?.[key];
+    return !!CUSTOMIZE[speciesId]?.parts;
+  }
+
+  // Launch the general customizer on top of the gallery; it pauses + hides this scene
+  // while editing and restores it on exit (#166).
+  _openCustomizer(speciesId, key) {
+    this._dragY = null;
+    this.scene.launch('CustomizerScene', { speciesId, key, host: 'ArtPreviewScene' });
   }
 
   _scrollBy(dy) { this._setScroll(this._scrollY + dy); }
