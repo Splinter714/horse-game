@@ -8,9 +8,17 @@ export const COW_W = 52, COW_H = 40;
 
 const cowLeg = makeLeg({ topY: 27, w: 5, h: 11, hoofColor: 0x2a2020, hoofY: 38 });
 
+// A leg that matches the coat: white shin (shaded far/near), dark hoof, and a small
+// black coat-spot near the top. The spot sits in the non-lifted upper region so it
+// stays put as a stepping leg shortens. Spotting two legs reads as patchy Holstein.
+function cowLegSpotted(g, x, lift, tone, bob, spot) {
+  cowLeg(g, x, lift, tone, bob);
+  if (spot) { g.fillStyle(0x1a1818, 1); g.fillRect(x, 28 + bob, 4, 4); }
+}
+
 function drawCow(g, bob, [lhf, lhn, lff, lfn]) {
-  cowLeg(g, 6,  lhf, 0x2a2020, bob); cowLeg(g, 33, lff, 0x2a2020, bob);
-  cowLeg(g, 11, lhn, 0x3a3030, bob); cowLeg(g, 37, lfn, 0x3a3030, bob);
+  cowLegSpotted(g, 6,  lhf, 0xdedacf, bob, true);  cowLegSpotted(g, 33, lff, 0xdedacf, bob, false);
+  cowLegSpotted(g, 11, lhn, 0xf0ece4, bob, false); cowLegSpotted(g, 37, lfn, 0xf0ece4, bob, true);
 
   // Tail with tuft
   g.fillStyle(0xb09080, 1); g.fillRect(3, 18+bob, 2, 8);
