@@ -133,15 +133,18 @@ export const FEATHER_LABEL = 'Feathering';
 // coat palette. Each is a 3-tone ramp (hi/mid/lo). The mane is the player's own
 // choice from this set; DEFAULT_MANE picks a sensible per-coat starting colour.
 export const MANE_COLORS = {
-  black:  { hi: 0x2a2828, mid: 0x161414, lo: 0x080606 },
-  brown:  { hi: 0x5a3a22, mid: 0x3e2614, lo: 0x261509 },
+  black:       { hi: 0x2a2828, mid: 0x161414, lo: 0x080606 },
+  brown:       { hi: 0x5a3a22, mid: 0x3e2614, lo: 0x261509 },
+  lightBrown:  { hi: 0xa07c54, mid: 0x83603e, lo: 0x654728 },
+  reddishBrown:{ hi: 0x8a4426, mid: 0x683016, lo: 0x46200d },
   flaxen: { hi: 0xeaddb8, mid: 0xd4c194, lo: 0xb6a274 },
   grey:   { hi: 0xbcbcb8, mid: 0x9c9c98, lo: 0x7a7a78 },
   cream:  { hi: 0xf6eedb, mid: 0xe9ddc4, lo: 0xd2c4a6 },
   silver: { hi: 0xe8e2d8, mid: 0xcfc8bc, lo: 0xb0a89c },
 };
 export const MANE_COLOR_LABELS = {
-  black: 'Black', brown: 'Brown', flaxen: 'Flaxen', grey: 'Grey', cream: 'Cream', silver: 'Silver',
+  black: 'Black', brown: 'Brown', lightBrown: 'Light Brown', reddishBrown: 'Reddish Brown',
+  flaxen: 'Flaxen', grey: 'Grey', cream: 'Cream', silver: 'Silver',
 };
 // Sensible realistic default mane per coat (the player can override from MANE_COLORS).
 export const DEFAULT_MANE = {
