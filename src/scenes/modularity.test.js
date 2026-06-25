@@ -39,6 +39,11 @@ const GROUPS = {
   paddock: ['PaddockScene.js', ...listMixins('paddock/')],
   // The HotbarScene prototype chain: the core scene file + every hotbar/ mixin.
   hotbar: ['HotbarScene.js', ...listMixins('hotbar/')],
+  // The customizer is composed (shell + horse sections) into two hosts: the in-world
+  // info panel and the standalone art-preview host. Each host + the shared customizer/
+  // mixins is one prototype chain, so method names must be unique within each (#165).
+  infopanel: ['InfoPanelScene.js', ...listMixins('customizer/')],
+  customizer: ['CustomizerScene.js', ...listMixins('customizer/')],
 };
 
 // Class methods in this codebase sit at exactly 2-space indentation:
@@ -88,7 +93,6 @@ describe('size budget: scene files stay small (no new mega-files)', () => {
   // grow. Each entry is self-cleaning (see below): drop it once the file is split.
   const ALLOW = {
     'paddock/creatures.js': 'generic creature spawn/movement — split tracked in #169',
-    'customizer.js': 'appearance editor — self-contained, low-collision; split tracked in #169',
   };
 
   for (const rel of walkJs()) {

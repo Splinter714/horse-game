@@ -2,7 +2,9 @@ import Phaser from 'phaser';
 import { getSpecies } from '../data/species/index.js';
 import { growHitArea, applyDpr, logicalW, logicalH } from './uiUtils.js';
 import { ART_SCALE } from '../art/_frames.js';
-import { WithCustomizer } from './customizer.js';
+import { WithCustomizerShell } from './customizer/shell.js';
+import { WithCustomizerNav } from './customizer/nav.js';
+import { WithHorseSections } from './customizer/horse.js';
 
 // Lightweight, ephemeral info popup for any animal. It's a small floating card
 // (not a modal panel) that auto-dismisses the moment you do almost anything else:
@@ -18,7 +20,7 @@ const PAD    = 16;
 // instantly close it on the same input.
 const OPEN_GRACE_MS = 140;
 
-export default class InfoPanelScene extends WithCustomizer(Phaser.Scene) {
+export default class InfoPanelScene extends WithCustomizerShell(WithCustomizerNav(WithHorseSections(Phaser.Scene))) {
   constructor() {
     super('InfoPanelScene');
     this.statFills = {};
@@ -279,7 +281,14 @@ export default class InfoPanelScene extends WithCustomizer(Phaser.Scene) {
     this.moodText  = null;
     this.panel     = null;
     this._mode     = 'edit';
-    this.custEnter();
+    // In-world horse editing: persist the herd after each edit. onExit is left to the
+    // prototype _onCustExit below (rebuilds the info card). The shell handles the
+    // pause/resume of the world + hotbar.
+    this.custEnterFor({
+      speciesId: 'horse',
+      key: this.registry.get('viewingAnimal')?.key,
+      persist: () => this.scene.get('PaddockScene')?._saveHorses(),
+    });
   }
 
   // Called by the mixin's custExit(): the world is already resumed and the editor

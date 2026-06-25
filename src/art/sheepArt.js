@@ -3,26 +3,32 @@
 //
 // Drawn on the shared ART_SCALE super-sampled grid (like the horse/foal) so the wool
 // can be rounded with ellipses and shaded smoothly instead of reading as coarse blocks.
+//
+// Colors are data-driven (#165): the customizer passes a `look` of part palettes
+// ({ wool, skin } shading ramps). An arg-less call falls back to DEFAULT_LOOK so
+// BootScene and the art-preview gallery render the original sheep unchanged.
 
 import { gen, makeLeg, scaledGraphics, ART_SCALE, idleWalkLegs } from './_frames.js';
 
 export const SHEEP_W = 40, SHEEP_H = 30;
 
-// Wool palette (light → shadow) for soft top-lit 3D shading.
-const WOOL_HI   = 0xfbf9f6;
-const WOOL_LIT  = 0xf0ece8;
-const WOOL_MID  = 0xddd8d2;
-const WOOL_SHAD = 0xc4bdb5;
-// Skin (legs + face). Snout shares this family.
-const SKIN      = 0x6b6b6b;
-const SKIN_LIT  = 0x7d7d7d;
-const SKIN_DK   = 0x5a5a5a;
-const SKIN_DKR  = 0x4c4c4c;
+// Default palette. Wool = top-lit 4-tone (light → shadow); skin (legs + face + snout)
+// is a 4-tone grey family (lit → mid → dk → dkr).
+const DEFAULT_LOOK = {
+  wool: { hi: 0xfbf9f6, lit: 0xf0ece8, mid: 0xddd8d2, shad: 0xc4bdb5 },
+  skin: { lit: 0x7d7d7d, mid: 0x6b6b6b, dk: 0x5a5a5a, dkr: 0x4c4c4c },
+};
 
-// Longer, slightly thicker legs; hoof is the same width as the shin (not wider).
-const sheepLeg = makeLeg({ topY: 20, w: 4, h: 8, hoofColor: SKIN_DKR, hoofY: 28, hoofW: 4, hoofDX: 0 });
+function drawSheep(g, bob, [lhf, lhn, lff, lfn], look) {
+  const wool = look?.wool || DEFAULT_LOOK.wool;
+  const skin = look?.skin || DEFAULT_LOOK.skin;
+  const WOOL_LIT = wool.lit, WOOL_MID = wool.mid, WOOL_SHAD = wool.shad;
+  const SKIN = skin.mid, SKIN_LIT = skin.lit, SKIN_DK = skin.dk, SKIN_DKR = skin.dkr;
 
-function drawSheep(g, bob, [lhf, lhn, lff, lfn]) {
+  // Longer, slightly thicker legs; hoof is the same width as the shin (not wider).
+  // Built per-draw so the hoof tone follows the chosen skin palette.
+  const sheepLeg = makeLeg({ topY: 20, w: 4, h: 8, hoofColor: SKIN_DKR, hoofY: 28, hoofW: 4, hoofDX: 0 });
+
   sheepLeg(g, 6,  lhf, SKIN, bob);    sheepLeg(g, 26, lff, SKIN, bob);
   sheepLeg(g, 10, lhn, SKIN_DK, bob); sheepLeg(g, 30, lfn, SKIN_DK, bob);
 
@@ -90,12 +96,12 @@ function drawSheep(g, bob, [lhf, lhn, lff, lfn]) {
   g.fillStyle(0x1a0800, 1); g.fillRect(33, 14 + bob, 1, 2);
 }
 
-export function buildSheepTextures(scene, key) {
+export function buildSheepTextures(scene, key, look) {
   const names = ['idle_0', 'idle_1', 'walk_0', 'walk_1', 'walk_2', 'walk_3'];
   const bobs  = [0, 1, 0, 1, 0, 1];
   idleWalkLegs(2).forEach((legs, i) => {
     gen(scene, `${key}_${names[i]}`, SHEEP_W * ART_SCALE, SHEEP_H * ART_SCALE, g0 => {
-      drawSheep(scaledGraphics(g0), bobs[i], legs);
+      drawSheep(scaledGraphics(g0), bobs[i], legs, look);
     });
   });
 }
