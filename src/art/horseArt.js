@@ -155,6 +155,112 @@ const WALK_LEGS = [
 // sock/stocking colour (white by default, or black, #141). `points` (optional)
 // darkens the lower leg — real bays/buckskins/duns have black points; it's
 // independently colourable now (#141). Sock/stocking is drawn over the points.
+// Linear-interpolate a control-point polyline [[x,y]…] at x (used for the leg's
+// anatomical width profile). Ported from the shelved revamp.
+function yAt(pts, x) {
+  if (x <= pts[0][0]) return pts[0][1];
+  const n = pts.length;
+  for (let i = 1; i < n; i++) {
+    if (x <= pts[i][0]) {
+      const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
+      return y0 + (y1 - y0) * ((x - x0) / (x1 - x0));
+    }
+  }
+  return pts[n - 1][1];
+}
+
+// Blend two packed-RGB colours (t: 0→a, 1→b) — expands the coat's 3-tone ramp into
+// a smooth gradient for the row-by-row anatomical leg.
+function lerpColor(a, b, t) {
+  const ar = (a >> 16) & 255, ag = (a >> 8) & 255, ab = a & 255;
+  const br = (b >> 16) & 255, bg = (b >> 8) & 255, bb = b & 255;
+  return ((Math.round(ar + (br - ar) * t) << 16) | (Math.round(ag + (bg - ag) * t) << 8) | Math.round(ab + (bb - ab) * t));
+}
+
+// Vertical value modulation along a leg's length: subtle light on the forearm/
+// gaskin muscle, the knee/hock knob and the fetlock; soft shadow tucked above the
+// knee and below the joints. Layered over the flat leg so the anatomy reads through
+// SHADING — the leg looks like a jointed limb rather than a plain cylinder. Ported
+// (and toned down) from the shelved art revamp's legShadeV. Returns +light / -dark
+// for a height fraction f (0 = top of leg, 1 = ground).
+function legShadeV(f) {
+  const bump = (c, hw, a) => Math.max(0, a * (1 - Math.abs(f - c) / hw));
+  return bump(0.15, 0.14, 0.045)  // forearm / gaskin muscle (light)
+       - bump(0.34, 0.08, 0.03)   // above the knee (shadow)
+       + bump(0.42, 0.06, 0.035)  // knee / hock knob (light)
+       - bump(0.55, 0.08, 0.03)   // under the joint (shadow)
+       + bump(0.83, 0.05, 0.035)  // fetlock (light)
+       - bump(0.92, 0.06, 0.03);  // pastern (shadow)
+}
+
+// One continuously-tapered limb with real anatomy, drawn row-by-row. The vertical
+// width profile gives it a muscular forearm/gaskin flaring into the body, a narrowing
+// above the knee/hock, a joint KNOB, a thin straight cannon, a fetlock bump, a pinched
+// pastern, then the hoof — so it reads top-to-bottom like a leg, not a cone. Hind legs
+// carry a heavier gaskin + bigger hock and a slight hock angle. Depth-aware: near legs
+// are lit, far legs sink toward the underbelly tone. Markings (points / sock /
+// stocking) layer by height fraction. Ported from the shelved revamp (the legs were
+// the part that read well); the parametric body it came with was NOT brought along.
+function legV2(g, x, lift, body, near, hind, hoof, legMark, sockTone = SOCK, feather = false, points, yo = 0, geo = { top: 35, ground: 50, upperW: 5, cannonW: 3.1 }) {
+  const upperW = geo.upperW, cannonW = geo.cannonW;
+  const topY = geo.top + yo;
+  const ground = geo.ground + yo - lift;
+  if (ground <= topY + 4) return;
+  const H = ground - topY;
+  const cxC = x + upperW / 2;                 // limb centre line
+  const kneeF = 0.46;                          // points (dark lower leg) begin below the knee
+  const base = near ? lerpColor(body.mid, body.hi, 0.28) : body.lo;
+  const topTone = near ? body.mid : body.lo;
+  const pTone = points !== undefined ? (near ? points : lerpColor(points, 0x000000, 0.18)) : null;
+  const sTone = legMark ? (near ? sockTone : lerpColor(sockTone, body.lo, 0.28)) : null;
+  const sockF = legMark === 'stocking' ? 0.5 : 0.78;
+  // anatomical width by height fraction (control points): forearm/gaskin → above-knee
+  // pinch → knee/hock knob → cannon → fetlock → pastern → hoof.
+  const prof = hind
+    ? [[0, upperW + 0.5], [0.20, upperW - 0.4], [0.36, cannonW + 0.6], [0.50, cannonW], [0.78, cannonW], [0.85, cannonW + 0.4], [0.90, cannonW], [1, cannonW + 0.3]]
+    : [[0, upperW],       [0.20, upperW - 0.6], [0.36, cannonW + 0.4], [0.50, cannonW], [0.78, cannonW], [0.85, cannonW + 0.4], [0.90, cannonW], [1, cannonW + 0.3]];
+  const widthAt = (f) => yAt(prof, f);
+  // hind leg leans: gaskin forward at the top, tucking back through the hock, vertical below
+  const centerAt = (f) => cxC + (!hind ? 0 : f < 0.4 ? 0.7 - 0.9 * (f / 0.4) : f < 0.52 ? -0.2 + (f - 0.4) / 0.12 * 0.2 : 0);
+  for (let y = topY; y < ground; y += 0.5) {
+    const f = (y - topY) / H;
+    const w = widthAt(f), lx = centerAt(f) - w / 2;
+    let core;
+    if (sTone && f >= sockF) core = sTone;
+    else if (pTone && f >= kneeF) core = pTone;
+    else core = lerpColor(topTone, base, Math.min(1, f / 0.16)); // blend body tone → base at the top
+    const v = legShadeV(f);                                       // vertical anatomy shading
+    core = v >= 0 ? lerpColor(core, 0xfff2d8, v) : lerpColor(core, 0x000000, -v);
+    g.fillStyle(core, 1); g.fillRect(lx, y, w, 0.5);
+    g.fillStyle(lerpColor(core, 0x000000, near ? 0.13 : 0.09), 1); g.fillRect(lx, y, w * 0.26, 0.5); // back shadow
+    if (near) { g.fillStyle(lerpColor(core, 0xfff2d8, 0.08), 1); g.fillRect(lx + w * 0.72, y, w * 0.2, 0.5); } // front light
+  }
+  // knee/hock: a faint shadow tucked at the back of the joint (the rest of the joint
+  // shaping is carried by legShadeV)
+  const jf = 0.40, jw = widthAt(jf), jc = centerAt(jf), jy = topY + H * jf;
+  g.fillStyle(lerpColor(base, 0x000000, 0.1), 1); g.fillRect(jc - jw / 2, jy - 0.5, jw * 0.2, 1.4);
+  // hoof — light if a white marking sits above it (unpigmented hoof, #151)
+  const hToneBase = legMark ? LIGHT_HOOF : hoof;
+  const hTone = near ? hToneBase : lerpColor(hToneBase, 0x000000, 0.2);
+  const hoofW = cannonW + 1.4, hx = centerAt(1) - hoofW / 2;
+  g.fillStyle(hTone, 1); g.fillRect(hx, ground, hoofW, 2.5);
+  g.fillStyle(lerpColor(hTone, 0x000000, near ? 0.1 : 0.16), 1); g.fillRect(hx, ground, hoofW * 0.28, 2.5);
+  if (near) { g.fillStyle(lerpColor(hTone, 0xffffff, 0.18), 1); g.fillRect(hx + 0.6, ground + 0.3, 1.25, 0.7); }
+  g.fillStyle(SHADE, 0.16); g.fillRect(hx, ground + 2, hoofW, 0.6);
+  // feathering — fluffy tuft cascading over the fetlock/hoof
+  if (feather) {
+    const fetY = topY + H * 0.82, fc = centerAt(0.82);
+    const ft = legMark ? sTone : (pTone !== null ? pTone : base);
+    g.fillStyle(ft, 1);
+    const fw = cannonW + 4;
+    g.fillRect(fc - fw / 2, fetY, fw, 2);
+    g.fillRect(fc - fw / 2 - 0.5, fetY + 1.5, fw + 1, 2);
+    g.fillRect(fc - 2, fetY + 3, 1.5, 3);
+    g.fillRect(fc, fetY + 3, 1.5, 2);
+    g.fillRect(fc + 1, fetY + 3, 1.5, 3.5);
+  }
+}
+
 function leg(g, x, lift, tone, hoof, legMark, sockTone = SOCK, feather, points, offsetY = 0) {
   const topY = 35 + offsetY;
   const fullH = 15;
@@ -170,6 +276,14 @@ function leg(g, x, lift, tone, hoof, legMark, sockTone = SOCK, feather, points, 
     const sH = Math.min(h, legMark === 'stocking' ? 11 : 6);
     g.fillStyle(sockTone, 1);
     g.fillRect(x, topY + h - sH, 4, sH);
+  }
+  // Vertical anatomy shading down the leg's length (forearm / knee / fetlock), so it
+  // reads as a jointed limb instead of an even cylinder. Subtle, layered over the
+  // tone + markings.
+  for (let yy = 0; yy < h; yy += 0.5) {
+    const v = legShadeV(yy / h);
+    if (v > 0)      { g.fillStyle(HILITE, v);  g.fillRect(x, topY + yy, 4, 0.5); }
+    else if (v < 0) { g.fillStyle(SHADE, -v);  g.fillRect(x, topY + yy, 4, 0.5); }
   }
   // Cylindrical shading: a soft highlight down the front (viewer-facing) edge and a
   // shadow down the back, so the leg reads as round rather than a flat bar.
@@ -195,20 +309,69 @@ function leg(g, x, lift, tone, hoof, legMark, sockTone = SOCK, feather, points, 
   }
 }
 
-// Tail as a flowing hank: a narrow dock at the rump, swelling to a fuller belly
-// mid-length, then tapering to a tip — with a soft sheen ribbon down the front.
-// Ported from the shelved art revamp (the one tail tweak that read as nicer) and
-// re-sized to this horse's proportions. Anchored at the dock (x0, y0); `white`
-// draws it in the pinto colour for a two-tone tail (#144).
+// Tail as a flowing hank off the dock (x0,y0 = where it attaches), falling down-left:
+// narrow dock, swelling fuller through the mid-length, then tapering to a tip, with a
+// soft sheen ribbon down the front. This is the FIRST tail design from the shelved
+// art revamp (the clean version built for this horse's scale, before it got bulkier).
+// `white` draws it in the pinto colour for a two-tone tail (#144).
 function drawTailFrom(g, m, x0, y0, bob, white = false) {
-  const lo = white ? WHITE : m.lo, mid = white ? WHITE : m.mid;
-  g.fillStyle(mid, 1); g.fillRect(x0,     y0 + bob,      2, 3);  // dock (attached)
-  g.fillStyle(lo, 1);  g.fillRect(x0 - 1, y0 + 2 + bob,  3, 5);  // upper flow
-  g.fillStyle(mid, 1); g.fillRect(x0 - 2, y0 + 6 + bob,  3, 6);
-  g.fillStyle(lo, 1);  g.fillRect(x0 - 3, y0 + 11 + bob, 3, 6);  // fullest bulge
-  g.fillStyle(mid, 1); g.fillRect(x0 - 2, y0 + 16 + bob, 2, 5);
-  g.fillStyle(lo, 1);  g.fillRect(x0 - 2, y0 + 20 + bob, 2, 3);  // tapering tip
-  if (!white) { g.fillStyle(HILITE, 0.10); g.fillRect(x0 - 0.5, y0 + 3 + bob, 0.7, 15); }
+  const lo = white ? WHITE : m.lo, mid = white ? WHITE : m.mid, hi = white ? WHITE : m.hi;
+  // Silhouette as [dy, xLeft-offset, width] control points — same hank shape as the
+  // flat version, but filled row-by-row so the colour can flow smoothly.
+  const prof = [[0, 0, 3], [3, -2, 3], [8, -3, 3], [14, -3, 3], [21, -2, 2], [26, -2, 1]];
+  const xlAt = (d) => yAt(prof.map((p) => [p[0], p[1]]), d);
+  const wAt  = (d) => yAt(prof.map((p) => [p[0], p[2]]), d);
+  const total = 26;
+  for (let d = 0; d < total; d += 0.5) {
+    const xl = x0 + xlAt(d), w = wAt(d);
+    const fy = d / total;                              // 0 root … 1 tip
+    for (let x = xl; x < xl + w; x += 0.5) {
+      const tx = w > 0 ? (x - xl) / w : 0;             // 0 back edge … 1 front edge
+      let c = lerpColor(mid, lo, fy * 0.85);           // darkens root → tip
+      if (tx > 0.62) c = lerpColor(c, hi, (tx - 0.62) / 0.38 * 0.4);     // front sheen
+      else if (tx < 0.3) c = lerpColor(c, 0x000000, (0.3 - tx) / 0.3 * 0.18); // back shadow
+      g.fillStyle(c, 1); g.fillRect(x, y0 + d + bob, 0.5, 0.5);
+    }
+  }
+  // a couple of bright strands picking out the flow
+  if (!white) {
+    g.fillStyle(hi, 0.45);
+    g.fillRect(x0 - 0.5, y0 + 4 + bob, 0.5, 14);
+    g.fillRect(x0 - 1.75, y0 + 10 + bob, 0.5, 9);
+  }
+}
+
+// Mane draped down the crest of the neck, rendered row-by-row for fine resolution:
+// a smooth root→tip gradient with subtly varied hair locks, sheen strands picking out
+// a few locks, a shadow seam where it meets the neck, and a small forelock at the
+// poll. Pinto two-tone (#144) whitens the upper half when `pintoMane` is set.
+function drawMane(g, coat, bob) {
+  const m = coat.mane, mk = coat.markings || {};
+  const pintoMane = mk.pinto && mk.pintoMane;
+  // Mane band down the near side of the neck: [y, xLeft, width].
+  const prof = [[3, 43, 3], [9, 41, 3.5], [16, 40, 3.5], [24, 40, 2.5], [30, 40.5, 1.5]];
+  const xlAt = (y) => yAt(prof.map((p) => [p[0], p[1]]), y);
+  const wAt  = (y) => yAt(prof.map((p) => [p[0], p[2]]), y);
+  for (let y = 3; y < 30; y += 0.5) {
+    const xl = xlAt(y), w = wAt(y);
+    const f = (y - 3) / 27;                              // 0 poll … 1 withers
+    for (let x = xl; x < xl + w; x += 0.5) {
+      const t = w > 0 ? (x - xl) / w : 0;                // 0 hanging tip (left) … 1 root (right)
+      let c = lerpColor(m.lo, m.mid, Math.min(1, t * 1.2));   // tip dark → root mid
+      if (t > 0.7) c = lerpColor(c, m.hi, (t - 0.7) / 0.3 * 0.5);  // lit roots near the crest
+      const lock = Math.round((x - xl) / 1.1) % 2;       // alternate-lock value variation
+      if (lock) c = lerpColor(c, 0x000000, 0.08);
+      if (pintoMane && f < 0.5) c = WHITE;
+      g.fillStyle(c, 1); g.fillRect(x, y + bob, 0.5, 0.5);
+    }
+    g.fillStyle(SHADE, 0.12); g.fillRect(xl + w - 0.5, y + bob, 0.5, 0.5); // seam at the neck
+  }
+  // sheen strands down a few locks
+  g.fillStyle(m.hi, 0.5);
+  for (let y = 5; y < 28; y += 4) { const xl = xlAt(y), w = wAt(y); g.fillRect(xl + w * 0.45, y + bob, 0.5, 2.5); }
+  // forelock falling at the poll between the ears
+  g.fillStyle(m.mid, 1); g.fillRect(44, 1 + bob, 2, 3);
+  g.fillStyle(m.lo, 1);  g.fillRect(43.5, 2.5 + bob, 1.5, 2.5);
 }
 
 function drawHorse(g, coat, bob, legLift) {
@@ -221,15 +384,16 @@ function drawHorse(g, coat, bob, legLift) {
   const lm = mk.legs || {};
   const pts = coat.points;
   const sockTone = SOCK; // socks/stockings are always white (#153)
-  leg(g, 7,  legLift[0], b.lo,  coat.hoof, lm.hindFar,  sockTone, feather, pts); // hind far
-  leg(g, 38, legLift[2], b.lo,  coat.hoof, lm.foreFar,  sockTone, feather, pts); // fore far
-  leg(g, 13, legLift[1], b.mid, coat.hoof, lm.hindNear, sockTone, feather, pts); // hind near
-  leg(g, 44, legLift[3], b.mid, coat.hoof, lm.foreNear, sockTone, feather, pts); // fore near
+  // Anatomical row-by-row legs (legV2): body=b, plus near/hind flags for depth + shape.
+  legV2(g, 7,  legLift[0], b, false, true,  coat.hoof, lm.hindFar,  sockTone, feather, pts); // hind far
+  legV2(g, 38, legLift[2], b, false, false, coat.hoof, lm.foreFar,  sockTone, feather, pts); // fore far
+  legV2(g, 13, legLift[1], b, true,  true,  coat.hoof, lm.hindNear, sockTone, feather, pts); // hind near
+  legV2(g, 44, legLift[3], b, true,  false, coat.hoof, lm.foreNear, sockTone, feather, pts); // fore near
   legDark(g, 7, legLift[0], mk, lm.hindFar);  legDark(g, 38, legLift[2], mk, lm.foreFar);  // dark leg marks (#152)
   legDark(g, 13, legLift[1], mk, lm.hindNear); legDark(g, 44, legLift[3], mk, lm.foreNear);
 
   // --- tail (flowing hank, anchored at the rump dock) ---
-  drawTailFrom(g, m, 6, 22, bob);
+  drawTailFrom(g, m, 6, 20, bob);
 
   // --- rump + body (3-tone bands) ---
   // Rump left edge is rounded by trimming top and bottom corners.
@@ -290,24 +454,12 @@ function drawHorse(g, coat, bob, legLift) {
   g.fillStyle(SHADE, 0.30);  g.fillRect(50, 7 + bob, 2, 0.5);
   g.fillStyle(HILITE, 0.85); g.fillRect(50.25, 7.5 + bob, 0.5, 0.5);
 
-  // --- mane (over neck) ---
-  g.fillStyle(m.mid, 1); g.fillRect(43, 3 + bob, 3, 6);
-  g.fillStyle(m.lo, 1); g.fillRect(41, 9 + bob, 3, 8);
-  g.fillStyle(m.mid, 1); g.fillRect(40, 16 + bob, 3, 9);
-  g.fillStyle(m.lo, 1); g.fillRect(40, 24 + bob, 2, 6);
-  // A soft highlight ribbon down the front of the mane gives it a bit of sheen
-  // without busying up the blocky locks.
-  g.fillStyle(HILITE, 0.10);
-  g.fillRect(43.25, 3.5 + bob, 0.6, 5);
-  g.fillRect(41.25, 9.5 + bob, 0.6, 7);
-  g.fillRect(40.25, 16.5 + bob, 0.6, 7);
-  // Pinto: optionally carry the white pattern into the lower mane + tail tip for a
-  // two-tone mane (#144, opt-in via mk.pintoMane). Overpaint the lower segments.
+  // --- mane (hi-res, over neck) ---
+  drawMane(g, coat, bob);
+  // Pinto two-tone tail tip (#144): whiten the tail's lower flow to match the mane.
   if (mk.pinto && mk.pintoMane) {
     g.fillStyle(WHITE, 1);
-    g.fillRect(40, 16 + bob, 3, 9); g.fillRect(40, 24 + bob, 2, 6); // lower mane
-    // lower tail (bulge + tip) painted white to match drawTailFrom's geometry
-    g.fillRect(3, 33 + bob, 3, 6); g.fillRect(4, 38 + bob, 2, 5);   // tail tip
+    g.fillRect(3, 34 + bob, 3, 7); g.fillRect(4, 41 + bob, 2, 5); // lower tail + tip
   }
 }
 
