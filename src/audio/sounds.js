@@ -518,6 +518,83 @@ export function playSplash() {
   src.stop(now + dur);
 }
 
+// ─── Milking (squirt into the pail) ──────────────────────────────────────────
+
+// A few rhythmic milk squirts streaming into a pail. Each stroke is two layers:
+//   1. a thin, pressurized "ssst" — resonant bandpass noise sweeping DOWN, the jet
+//      of milk leaving the teat; and
+//   2. a wet "ploop" as the stream hits the surface — a short resonant body whose
+//      pitch RISES stroke to stroke, the way a filling glass/pail climbs in pitch
+//      as the air cavity shrinks. Strokes alternate teats with a little timing/pitch
+//      jitter so it reads as hand-milking, not a metronome. Used when milking the cow.
+export function playMilk() {
+  const c = getCtx();
+  const now = c.currentTime;
+  const STROKES = 5;
+  const gap = 0.26; // a touch more room so each long "ssst" lands before the next
+
+  for (let i = 0; i < STROKES; i++) {
+    const t = now + i * gap + (Math.random() - 0.5) * 0.02;
+    // Shared noise buffer per stroke — long enough to carry the sustained jet hiss.
+    const sDur = 0.26;
+    const buf = c.createBuffer(1, Math.ceil(c.sampleRate * sDur), c.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let j = 0; j < d.length; j++) d[j] = Math.random() * 2 - 1;
+
+    // ── 1. Pressurized jet: a sustained, airy "sssssst" — wide bandpass noise
+    //    sweeping down. Longer and louder so the stream is clearly audible before
+    //    it hits the milk (the lower Q makes it hiss/"shhh" rather than whistle). ──
+    const jet = c.createBufferSource();
+    jet.buffer = buf;
+    const jf = c.createBiquadFilter();
+    jf.type = 'bandpass';
+    jf.Q.value = 1.4; // wide → breathy hiss, not a tone
+    const j0 = 3200 + Math.random() * 400;
+    jf.frequency.setValueAtTime(j0, t);
+    jf.frequency.exponentialRampToValueAtTime(1500, t + 0.16);
+    // A gentle high-shelf-ish second pass would help, but one wide band reads fine.
+    const jEnv = c.createGain();
+    jEnv.gain.setValueAtTime(0.001, t);
+    jEnv.gain.linearRampToValueAtTime(0.34, t + 0.025); // louder
+    jEnv.gain.setValueAtTime(0.34, t + 0.11);           // hold the hiss…
+    jEnv.gain.exponentialRampToValueAtTime(0.001, t + 0.2); // …then trail off
+    jet.connect(jf); jf.connect(jEnv); jEnv.connect(master(1));
+    jet.start(t); jet.stop(t + 0.2);
+
+    // ── 2. Wet "ploop" as the stream hits the milk, pitch rising as the pail fills.
+    //    Lands AFTER the jet has been heard for a moment, so squirt-then-splash reads. ──
+    const fill = STROKES > 1 ? i / (STROKES - 1) : 0;
+    const fHz = 300 + fill * 240 + (Math.random() - 0.5) * 20; // ~300 → ~540 Hz
+    const tp = t + 0.1; // the splash lands a beat into the jet
+
+    const plopN = c.createBufferSource();
+    plopN.buffer = buf;
+    const pf = c.createBiquadFilter();
+    pf.type = 'bandpass';
+    pf.Q.value = 6;
+    pf.frequency.setValueAtTime(fHz * 0.85, tp);
+    pf.frequency.exponentialRampToValueAtTime(fHz, tp + 0.09);
+    const pEnv = c.createGain();
+    pEnv.gain.setValueAtTime(0.001, tp);
+    pEnv.gain.linearRampToValueAtTime(0.2, tp + 0.02);
+    pEnv.gain.exponentialRampToValueAtTime(0.001, tp + 0.14);
+    plopN.connect(pf); pf.connect(pEnv); pEnv.connect(master(1));
+    plopN.start(tp); plopN.stop(tp + 0.14);
+
+    // A soft sine tone under the splash gives the "ploop" a pitched, watery body.
+    const tone = c.createOscillator();
+    tone.type = 'sine';
+    tone.frequency.setValueAtTime(fHz * 0.9, tp);
+    tone.frequency.linearRampToValueAtTime(fHz * 1.15, tp + 0.1);
+    const tEnv = c.createGain();
+    tEnv.gain.setValueAtTime(0.001, tp);
+    tEnv.gain.linearRampToValueAtTime(0.11, tp + 0.02);
+    tEnv.gain.exponentialRampToValueAtTime(0.001, tp + 0.13);
+    tone.connect(tEnv); tEnv.connect(master(1));
+    tone.start(tp); tone.stop(tp + 0.13);
+  }
+}
+
 // ─── Bird chirp (ambient) ────────────────────────────────────────────────────
 
 export function playBirdChirp() {

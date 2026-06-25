@@ -6,6 +6,7 @@
 import { HORSE } from './horse/index.js';
 import { CHICKEN } from './chicken/index.js';
 import { CAT } from './cat/index.js';
+import { COW } from './cow/index.js';
 import * as horseBehaviors from './horse/behaviors.js';
 import * as chickenBehaviors from './chicken/behaviors.js';
 
@@ -13,6 +14,7 @@ export const SPECIES = {
   horse: HORSE,
   chicken: CHICKEN,
   cat: CAT,
+  cow: COW,
 };
 
 export function getSpecies(id) {
@@ -26,6 +28,10 @@ export function getSpecies(id) {
 export const BEHAVIORS = {
   horse: indexById(horseBehaviors),
   chicken: indexById(chickenBehaviors),
+  // The cow is a herbivore grazer like the horse, so she reuses the horse behavior
+  // modules; her own `behaviors` list (cow/index.js) picks the subset she runs
+  // (food/water/graze, no begging). The run() primitives are species-generic.
+  cow: indexById(horseBehaviors),
 };
 
 function indexById(mod) {

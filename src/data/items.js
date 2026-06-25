@@ -9,7 +9,7 @@
 // Carrier kinds: what they accept, how much they hold, and their empty icon.
 export const CARRIER_DEFS = {
   basket: { capacity: 10, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'egg'] },
-  bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water'] },
+  bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'milk'] },
 };
 
 // What each content type looks like in a carrier and what using it does.
@@ -22,12 +22,15 @@ export const CARRIER_DEFS = {
 // horses + pigs → horses + pigs). Multiple foods overlapping the same animals is fine
 // and intended — the owner wants "N apples for N horses", overlap with carrots and all.
 export const CONTENT_DEFS = {
-  hay:    { label: 'Hay',     icon: 'iconBasketHay',    action: 'feed',  ground: 'hayPile',    feeds: ['horse'] },
-  apple:  { label: 'Apples',  icon: 'iconBasketApple',  action: 'feed',  ground: 'applePile',  feeds: ['horse'] },
-  carrot: { label: 'Carrots', icon: 'iconBasketCarrot', action: 'feed',  ground: 'carrotPile', feeds: ['horse'] },
+  hay:    { label: 'Hay',     icon: 'iconBasketHay',    action: 'feed',  ground: 'hayPile',    feeds: ['horse', 'cow'] },
+  apple:  { label: 'Apples',  icon: 'iconBasketApple',  action: 'feed',  ground: 'applePile',  feeds: ['horse', 'cow'] },
+  carrot: { label: 'Carrots', icon: 'iconBasketCarrot', action: 'feed',  ground: 'carrotPile', feeds: ['horse', 'cow'] },
   seed:   { label: 'Seed',    icon: 'iconBasketSeed',   action: 'feed',  ground: 'seedPile',   feeds: ['chicken'] },
   egg:    { label: 'Eggs',    icon: 'iconBasketEgg',    action: 'egg' },
   water:  { label: 'Water',   icon: 'iconBucketWater',  action: 'water' },
+  // Milk is produced by milking a well-cared-for cow into an empty bucket, then
+  // sold at the farm stand (action 'sell', like eggs — see STAND_DEFS).
+  milk:   { label: 'Milk',    icon: 'iconBucketMilk',   action: 'sell' },
 };
 
 // How many of a food to gather in one fill-up (#136): one unit per live animal that

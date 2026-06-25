@@ -9,7 +9,7 @@ describe('carrier definitions', () => {
     expect(CARRIER_DEFS.basket.capacity).toBe(10);
     expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'egg']);
     expect(CARRIER_DEFS.bucket.capacity).toBe(1);
-    expect(CARRIER_DEFS.bucket.accepts).toEqual(['water']);
+    expect(CARRIER_DEFS.bucket.accepts).toEqual(['water', 'milk']); // milk added with the cow (#cow)
   });
 
   it('every content a basket accepts has a content definition', () => {

@@ -498,6 +498,45 @@ export const WithPlayer = (Base) => class extends Base {
     return inst && instD <= inst.reachDist ? inst : null;
   }
 
+  // The cow in this.animals nearest the player and within Use reach, or null. Used
+  // for direct cow care (#cow). Skips the cow while she's tucked away (invisible).
+  _nearestCowInReach() {
+    let best = null, bestD = Infinity;
+    for (const a of this.animals) {
+      if (a.model?.species !== 'cow' || !a.sprite.visible) continue;
+      const d = Phaser.Math.Distance.Between(
+        this.player.sprite.x, this.player.sprite.y, a.sprite.x, a.sprite.y);
+      if (d <= USE_REACH && d < bestD) { bestD = d; best = a; }
+    }
+    return best;
+  }
+
+  // Resolve what Use does with `item` on a nearby cow, or null. Carrier-driven:
+  //   food basket → Feed,  water bucket → Water,  empty bucket → Milk (when ready).
+  // Returns { label, run } so useActiveTool dispatches it and checkToolProximity
+  // labels the prompt with the same wording.
+  _cowUseAction(item) {
+    if (!item || item.type !== 'carrier') return null;
+    const cow = this._nearestCowInReach();
+    if (!cow) return null;
+    const model = cow.model;
+    const who = model?.name ? ` ${model.name}` : '';
+
+    if (item.carrier === 'basket' && item.action === 'feed' && item.count > 0) {
+      return { label: `Feed${who}`, run: () => this.feedCow(cow) };
+    }
+    if (item.carrier === 'bucket') {
+      if (item.content === 'water' && item.count > 0) {
+        return { label: `Water${who}`, run: () => this.waterCow(cow) };
+      }
+      // Empty bucket → milk her, but only when she's actually ready to give it.
+      if (!item.content && model?.readyToProduce && !model.producedToday) {
+        return { label: `Milk${who}`, run: () => this.milkCow(cow) };
+      }
+    }
+    return null;
+  }
+
   // tools: brush/saddle/lead act on the nearest valid horse, feed drops at your
   // feet, and carriers/water/eggs/selling walk to the nearest matching spot.
   useActiveTool() {
@@ -509,6 +548,11 @@ export const WithPlayer = (Base) => class extends Base {
     const { player } = this;
 
     // Use never moves the player — it only acts on something already in reach.
+
+    // Cow care (#cow): a food basket / water bucket / empty (milking) bucket used on
+    // the cow in reach. Checked before the herd tools so it always wins near her.
+    const cowAct = this._cowUseAction(item);
+    if (cowAct) { cowAct.run(); return; }
 
     // Animal-targeted tools: act on the nearest valid horse if it's in reach.
     if (item.action === 'brush' || item.action === 'saddle' || item.action === 'lead') {
@@ -559,6 +603,16 @@ export const WithPlayer = (Base) => class extends Base {
     if (!item || item.action === 'interact') return finish();
 
     const { player } = this;
+
+    // Cow care (#cow): mirror useActiveTool's dispatch so the Use prompt names what
+    // it would do (Feed / Water / Milk) whenever the cow is in reach with the right
+    // carrier.
+    const cowAct = this._cowUseAction(item);
+    if (cowAct) {
+      useLabel = cowAct.label;
+      this._pushPrompt('use', cowAct.label);
+      return finish();
+    }
 
     // Animal-targeted tools: brush / saddle / lead on the nearest valid horse.
     if (item.action === 'brush' || item.action === 'saddle' || item.action === 'lead') {
@@ -942,6 +996,7 @@ export const WithPlayer = (Base) => class extends Base {
     return {
       horse:   Object.keys(this.registry.get('allHorses')   ?? {}).length,
       chicken: Object.keys(this.registry.get('allChickens') ?? {}).length,
+      cow:     Object.keys(this.registry.get('allCows')     ?? {}).length,
     };
   }
 

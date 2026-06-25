@@ -69,6 +69,16 @@ export class Animal {
     this.caredToday = {};
     for (const k of species.dailyCare?.track ?? []) this.caredToday[k] = false;
     this.neglected = false;
+
+    // ── Daily produce (e.g. the cow's milk). `readyToProduce` is set each morning
+    //    from whether yesterday's required care was met; `producedToday` flips once
+    //    she's been milked. Both persist so the once-a-day gate survives a reload. ─
+    if (species.produces) {
+      // `readyAtStart` lets a fresh animal be harvestable on day one (the cow is
+      // milkable immediately) without first living a well-cared-for day.
+      this.readyToProduce = data.readyToProduce ?? !!species.produces.readyAtStart;
+      this.producedToday  = data.producedToday ?? false;
+    }
   }
 
   // Apply `seconds` of time-based decay. `offline` caps how far needs fall so a
@@ -129,7 +139,14 @@ export class Animal {
   // yesterday, then clear the day's care record.
   rollNewDay() {
     const req = this._spec.dailyCare?.requiredForContentment ?? [];
-    this.neglected = req.length ? !req.every((k) => this.caredToday[k]) : false;
+    const metCare = req.length ? req.every((k) => this.caredToday[k]) : true;
+    this.neglected = req.length ? !metCare : false;
+    // A producing animal (the cow) becomes ready to give milk only if she was well
+    // cared for the day that just ended, and hasn't been milked yet today.
+    if (this._spec.produces) {
+      this.readyToProduce = metCare;
+      this.producedToday  = false;
+    }
     for (const k of Object.keys(this.caredToday)) this.caredToday[k] = false;
   }
 
@@ -159,6 +176,10 @@ export class Animal {
       if (this[key] !== undefined) out[key] = this[key];
     }
     if (Object.keys(this.stats).length) out.stats = { ...this.stats };
+    if (this._spec.produces) {
+      out.readyToProduce = this.readyToProduce;
+      out.producedToday  = this.producedToday;
+    }
     return out;
   }
 }

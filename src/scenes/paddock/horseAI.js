@@ -16,7 +16,9 @@ export const WithHorseAI = (Base) => class extends Base {
 
   horseTick() {
     if (this.isNight) return;
-    for (const h of this.horses) {
+    // Drives every grazer (horses + the cow): direct an idle/wandering one toward
+    // food or water via its behavior list. Named horseTick for back-compat (smoke).
+    for (const h of this._grazers()) {
       if (h.state === 'idle' || h.state === 'wandering') this.horseTickForHorse(h);
     }
   }
@@ -171,8 +173,8 @@ export const WithHorseAI = (Base) => class extends Base {
   // Returns true if the horse committed to eating, false if it bailed (e.g.
   // another horse already claimed this pile) so the caller can wander instead.
   horseGoEat(h, pile) {
-    // Only one horse per hay pile
-    const alreadyEating = this.horses.some(o => o !== h && o.state === 'eating' && o._eatPile === pile);
+    // Only one grazer (horse or cow) per food pile
+    const alreadyEating = this._grazers().some(o => o !== h && o.state === 'eating' && o._eatPile === pile);
     if (alreadyEating) return false;
 
     h.state = 'eating';
@@ -194,9 +196,8 @@ export const WithHorseAI = (Base) => class extends Base {
       h.eatTimer = this.time.delayedCall(1800, () => {
         h.eatTimer = null;
         if (h.state !== 'eating') return;
-        const allHorses = this.registry.get('allHorses');
-        allHorses[h.key]?.feed();
-        this.game.events.emit('stats-changed');
+        this._modelFor(h)?.feed();
+        this.game.events.emit(EVENTS.STATS_CHANGED);
         pile.sprite.destroy();
         this.props.hayPiles = this.props.hayPiles.filter(p => p !== pile);
         h._eatPile = null;
@@ -212,10 +213,10 @@ export const WithHorseAI = (Base) => class extends Base {
   // the trough is already busy) so the caller can wander instead.
   horseGoDrink(h) {
     const trough = this.props.trough;
-    // Limit to 2 horses at the trough at once. Stream drinkers also use the
+    // Limit to 2 grazers at the trough at once. Stream drinkers also use the
     // 'drinking' state but carry a _streamSpot claim (#108) — exclude them so the
     // trough count (and the opposite-end partner below) only sees trough drinkers.
-    const atTrough = this.horses.filter(o => o !== h && o.state === 'drinking' && !o._streamSpot).length;
+    const atTrough = this._grazers().filter(o => o !== h && o.state === 'drinking' && !o._streamSpot).length;
     if (atTrough >= 2) return false;
 
     h.state = 'drinking';
@@ -229,7 +230,7 @@ export const WithHorseAI = (Base) => class extends Base {
     // at the nearest clear cell (usually south of it). ±106 = half-width (88) +
     // body radius + margin, so the end anchors are actually reachable. Two horses
     // take opposite ends so they never stack; a lone horse takes the nearer end.
-    const other = this.horses.find(o => o !== h && o.state === 'drinking' && !o._streamSpot);
+    const other = this._grazers().find(o => o !== h && o.state === 'drinking' && !o._streamSpot);
     const onWest = other ? other._drinkEnd !== 'west' : h.sprite.x <= trough.x;
     h._drinkEnd = onWest ? 'west' : 'east';
     const facingRight = onWest; // face inward toward the water
@@ -250,9 +251,8 @@ export const WithHorseAI = (Base) => class extends Base {
           callback: () => {
             if (h.state !== 'drinking') { if (h.eatTimer) { this.time.removeEvent(h.eatTimer); h.eatTimer = null; } return; }
             playDrink();
-            const allHorses = this.registry.get('allHorses');
-            allHorses[h.key]?.water();
-            this.game.events.emit('stats-changed');
+            this._modelFor(h)?.water();
+            this.game.events.emit(EVENTS.STATS_CHANGED);
             drinksDone++;
             this._setTroughLevel(trough.level - 1); // a sip lowers the water (#103)
             if (drinksDone >= 1) {
@@ -306,7 +306,7 @@ export const WithHorseAI = (Base) => class extends Base {
             return;
           }
           playDrink();
-          this.registry.get('allHorses')?.[h.key]?.water();
+          this._modelFor(h)?.water();
           this.game.events.emit(EVENTS.STATS_CHANGED);
           if (++sips >= 2) {
             if (h.eatTimer) { this.time.removeEvent(h.eatTimer); h.eatTimer = null; }
@@ -334,7 +334,7 @@ export const WithHorseAI = (Base) => class extends Base {
     const gateOpen = this._gateOpen();
     const MIN_SPACING = 96; // ≈ a horse body-width, so anchors don't overlap
     const anchorOf = (s) => ({ x: s.bank[0] + s.nrm[0] * 48, y: s.bank[1] + s.nrm[1] * 48 });
-    const taken = this.horses
+    const taken = this._grazers()
       .filter(o => o !== h && o.state === 'drinking' && o._streamSpot)
       .map(o => o._streamSpot);
     let closest = null, closestDist = Infinity;
@@ -354,7 +354,7 @@ export const WithHorseAI = (Base) => class extends Base {
   // priority (see the `graze` behavior), so a horse still prefers dropped hay or
   // begging when those are available. Always claims the horse (returns true).
   horseGraze(h) {
-    const horse = this.registry.get('allHorses')?.[h.key];
+    const horse = this._modelFor(h);
     if (!horse) return false;
 
     h.state = 'grazing';

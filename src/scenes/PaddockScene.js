@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { saveAllHorses, saveAllChickens, loadUiSettings, loadDevSettings } from '../data/save.js';
+import { saveAllHorses, saveAllChickens, saveAllCows, loadUiSettings, loadDevSettings } from '../data/save.js';
 import { CONTENT_DEFS } from '../data/items.js';
 import { composeCoat } from '../data/species/horse/coats.js';
 import { buildHorseTextures } from '../art/horseArt.js';
@@ -7,7 +7,7 @@ import { EVENTS } from '../data/events.js';
 import {
   playHoofbeat, playEat, playDrink, playBrush, playChime,
   playSplash, playBirdChirp, startWind, stopWind, startMusic, stopMusic,
-  setMusicMode, playNicker, playSqueal,
+  setMusicMode, playNicker, playSqueal, playMilk,
 } from '../audio/sounds.js';
 import {
   WORLD_W, WORLD_H, INTERACT_DIST, CARE_DIST, PLAYER_SPEED, RIDE_SPEED,
@@ -332,6 +332,59 @@ export default class PaddockScene
     }
   }
 
+  // ─── Cow care (direct interaction, #cow) ──────────────────────────────────
+  // The cow is fed/watered by using a food basket / water bucket on her directly
+  // (mirrors brushing a horse), and milked with an empty bucket once a day if she
+  // was well cared for the day before. Dispatched from player.js (useActiveTool).
+
+  // Feed the cow one unit from the active food basket.
+  feedCow(cow) {
+    const model = cow.model;
+    if (!model) return;
+    if ((this.scene.get('HotbarScene')?.useActiveCarrier(1) ?? 0) <= 0) return;
+    model.applyAction('feed');
+    playEat();
+    this._afterCowCare(cow, 'iconFeed');
+  }
+
+  // Water the cow, emptying the active water bucket.
+  waterCow(cow) {
+    const model = cow.model;
+    if (!model) return;
+    const item = this.getActiveItem();
+    if (item?.content !== 'water' || item.count <= 0) return;
+    this.scene.get('HotbarScene')?.useActiveCarrier(item.count);
+    model.applyAction('water');
+    playDrink();
+    this._afterCowCare(cow, 'iconWater');
+  }
+
+  // Milk the cow into the active (empty) bucket. Gated on her being ready (well
+  // cared for yesterday) and not already milked today — the bucket fills with milk.
+  milkCow(cow) {
+    const model = cow.model;
+    if (!model?.readyToProduce || model.producedToday) return;
+    // Fill the bucket first; only mark her milked if the milk actually went in.
+    const added = this.scene.get('HotbarScene')?.fillActiveCarrier('milk', 1) ?? 0;
+    if (added <= 0) return;
+    model.producedToday = true;
+    this._saveAnimal(model);
+    playMilk(); // squirty milk-into-the-pail sound (#cow)
+    this.showIcon('iconBucketMilk', cow.sprite);
+  }
+
+  // Shared tail of feed/water: persist, refresh stat bars (live panel + HUD), and
+  // float the care icon over the cow.
+  _afterCowCare(cow, icon) {
+    this._saveAnimal(cow.model);
+    this.game.events.emit(EVENTS.STATS_CHANGED);
+    this.showIcon(icon, cow.sprite);
+    if (this.scene.isActive('InfoPanelScene')) {
+      const viewing = this.registry.get('viewingAnimal');
+      if (viewing?.key === cow.key) this.scene.get('InfoPanelScene').refreshStats(cow.model);
+    }
+  }
+
   // ─── Pet / info interaction ──────────────────────────────────────────────
 
   // Interact (E / gamepad A / tap) pets/loves an animal (#79). Info moved to its
@@ -389,6 +442,7 @@ export default class PaddockScene
   _saveAnimal(model) {
     if (model.species === 'horse')        this._saveHorses();
     else if (model.species === 'chicken') saveAllChickens(this.registry.get('allChickens'));
+    else if (model.species === 'cow')     saveAllCows(this.registry.get('allCows'));
   }
 
   // Pet the current proximity target (foals just get a heart — they have no
@@ -1165,6 +1219,7 @@ export default class PaddockScene
     if (this.saveAccum >= 15000) {
       this.saveAccum = 0;
       this._saveHorses();
+      saveAllCows(this.registry.get('allCows')); // keep her stats/lastSeen fresh (#cow)
     }
   }
 }
