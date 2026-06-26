@@ -61,6 +61,7 @@ export const SHEEP = {
     wanderMin: 4000,
     wanderMax: 9000,
   },
+  // (Glide pace lives in `spawn.tweenRate` below — sheep plod slowly, near the cow.)
 
   // World spawn (#167 B4) — read by creatures.js buildAnimals. Models come from the
   // allSheep roster; `roam: 'pasture'` keeps the flock in the paddock; `grazes`
@@ -71,7 +72,7 @@ export const SHEEP = {
   spawn: {
     inWorld: true,
     superSampled: true,
-    shadowScale: 0.55, walkFps: 5, tweenRate: 9, eatFps: 6, bodyR: 14,
+    shadowScale: 0.55, walkFps: 4, tweenRate: 13, eatFps: 6, bodyR: 14,
     roam: 'pasture',
     placements: [
       { x: 480, y: 1040 },

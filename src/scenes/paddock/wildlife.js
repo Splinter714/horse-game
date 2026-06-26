@@ -29,7 +29,7 @@ export const WithWildlife = (Base) => class extends Base {
     anim('bird_fly', ['bird_fly_0', 'bird_fly_1'], 10);
     anim('bird_peck', ['bird_peck_0', 'bird_peck_1'], 4);
     anim('raccoon_idle', ['raccoon_idle_0', 'raccoon_idle_1'], 2);
-    anim('raccoon_run', ['raccoon_run_0', 'raccoon_run_1', 'raccoon_run_2', 'raccoon_run_3'], 12);
+    anim('raccoon_run', ['raccoon_run_0', 'raccoon_run_1', 'raccoon_run_2', 'raccoon_run_3'], 9);
 
     // Stagger the first appearance of each so they don't all pop in at once.
     this._scheduleFish(Phaser.Math.Between(3000, 8000));
@@ -202,9 +202,10 @@ export const WithWildlife = (Base) => class extends Base {
   }
 
   // ─── Raccoon (#181) ──────────────────────────────────────────────────────────
-  // A raccoon scurries in from a side, darts between a few spots (quick dashes with
-  // pauses), then scurries off. Skittish: bolts if the player gets close. Nocturnal —
-  // it mostly shows up in the evening and at night.
+  // A raccoon scurries in from a side and ambles between the buildings/props (the
+  // barn, coop, nests, gardens, feed sources, stand) — rummaging at each for a beat —
+  // then scurries off. Skittish: bolts if the player gets close. Nocturnal: mostly
+  // shows up in the evening and at night.
 
   _scheduleRaccoonVisit(delay) {
     this.time.delayedCall(delay, () => {
@@ -238,16 +239,43 @@ export const WithWildlife = (Base) => class extends Base {
     sprite.setFlipX(tx < sprite.x);
     sprite.play('raccoon_run', true);
     const dist = Phaser.Math.Distance.Between(sprite.x, sprite.y, tx, ty);
+    // ms-per-pixel of travel (higher = slower). A calm amble — slower than a horse
+    // (~11), not the blur it was before (was 3.4 ≈ 290px/s, which outran the player).
+    // Tuned down twice on owner feedback (#181).
     c.tween = this.tweens.add({
-      targets: sprite, x: tx, y: ty, duration: Math.max(300, dist * 3.4), ease: 'Sine.easeInOut',
+      targets: sprite, x: tx, y: ty, duration: Math.max(700, dist * 9), ease: 'Sine.easeInOut',
       onComplete: () => { c.tween = null; onArrive?.(); },
     });
   }
 
-  // Potter: pick a nearby clear spot, dash there, pause, repeat `n` times, then leave.
+  // Potter: amble to a nearby building/prop, rummage a beat, repeat `n` times, leave.
   _raccoonDart(c, n) {
     if (!c.sprite.active || c.fleeing) return;
     if (n <= 0) { this._raccoonScurryOff(c); return; }
+    const t = this._raccoonNextTarget(c);
+    this._raccoonDartTo(c, t.x, t.y, () => {
+      if (!c.sprite.active || c.fleeing) return;
+      c.sprite.play('raccoon_idle', true); // pause and rummage at the building
+      this.time.delayedCall(Phaser.Math.Between(1000, 3000), () => this._raccoonDart(c, n - 1));
+    });
+  }
+
+  // Choose the raccoon's next stop: a *nearby* building/prop (so it ambles
+  // building-to-building rather than teleporting across the map), with a little
+  // jitter so it stands beside the prop, not on the same pixel. Falls back to a
+  // random clear spot if no props are reachable.
+  _raccoonNextTarget(c) {
+    const near = this._raccoonPropTargets()
+      .map((t) => ({ ...t, d: Phaser.Math.Distance.Between(c.sprite.x, c.sprite.y, t.x, t.y) }))
+      .filter((t) => t.d > 50)          // don't re-pick the spot it's already at
+      .sort((a, b) => a.d - b.d);
+    if (near.length) {
+      const base = near[Phaser.Math.Between(0, Math.min(3, near.length - 1))]; // one of the closest few
+      const jx = Phaser.Math.Clamp(base.x + Phaser.Math.Between(-24, 24), BOUNDS.minX, BOUNDS.maxX);
+      const jy = Phaser.Math.Clamp(base.y + Phaser.Math.Between(-16, 16), BOUNDS.minY, BOUNDS.maxY);
+      return this._collides(jx, jy, 16, this.obstacles) ? { x: base.x, y: base.y } : { x: jx, y: jy };
+    }
+    // Fallback: a random nearby clear point.
     let tx = c.sprite.x, ty = c.sprite.y;
     for (let i = 0; i < 10; i++) {
       const ang = Math.random() * Math.PI * 2, r = Phaser.Math.Between(120, 320);
@@ -255,11 +283,22 @@ export const WithWildlife = (Base) => class extends Base {
       ty = Phaser.Math.Clamp(c.sprite.y + Math.sin(ang) * r, BOUNDS.minY + 40, BOUNDS.maxY);
       if (!this._collides(tx, ty, 16, this.obstacles)) break;
     }
-    this._raccoonDartTo(c, tx, ty, () => {
-      if (!c.sprite.active || c.fleeing) return;
-      c.sprite.play('raccoon_idle', true); // pause and sniff around
-      this.time.delayedCall(Phaser.Math.Between(700, 2200), () => this._raccoonDart(c, n - 1));
-    });
+    return { x: tx, y: ty };
+  }
+
+  // Grass spots just in front of the farm's buildings/props for the raccoon to rummage
+  // at — south of each so it stands clear of the building's own collision footprint.
+  // Clamped to the critter's roam band and filtered to genuinely walkable spots.
+  _raccoonPropTargets() {
+    const p = this.props, out = [];
+    if (p.barn) out.push({ x: p.barn.x + 40, y: p.barn.y + 80 });
+    if (p.coop) out.push({ x: p.coop.x, y: p.coop.y + 48 });
+    for (const s of (p.sources ?? [])) out.push({ x: s.x, y: s.y + 36 }); // hay/gardens/grain/well
+    for (const n of (p.nests ?? [])) out.push({ x: n.x, y: n.y + 24 });   // after the eggs…
+    if (this.farmStand) out.push({ x: this.farmStand.x, y: this.farmStand.y + 42 });
+    return out
+      .map((t) => ({ x: Phaser.Math.Clamp(t.x, BOUNDS.minX, BOUNDS.maxX), y: Phaser.Math.Clamp(t.y, BOUNDS.minY, BOUNDS.maxY) }))
+      .filter((t) => !this._collides(t.x, t.y, 16, this.obstacles));
   }
 
   // Bolt off the nearest side and despawn.

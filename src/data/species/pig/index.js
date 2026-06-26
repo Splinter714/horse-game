@@ -73,7 +73,7 @@ export const PIG = {
   // art has no dedicated eat frames, so eatFps aliases the idle pose (like the cow).
   spawn: {
     inWorld: true,
-    shadowScale: 0.7, walkFps: 5, tweenRate: 7, eatFps: 6, bodyR: 12,
+    shadowScale: 0.7, walkFps: 4, tweenRate: 11, eatFps: 6, bodyR: 12,
     roam: 'pasture',
     placements: [{ x: 1280, y: 1240 }],
   },
