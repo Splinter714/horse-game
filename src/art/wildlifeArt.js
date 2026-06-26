@@ -10,7 +10,7 @@
 // smooth but the sprite reads crisp (and sharp on HiDPI) rather than fuzzy-edged.
 // First-pass draft look — the owner art-directs the polish in the preview.
 
-import { gen, scaledGraphics, ART_SCALE } from './_frames.js';
+import { gen, scaledGraphics, ART_SCALE, blurEdgesSplit } from './_frames.js';
 
 // ── Fish (#183) ──────────────────────────────────────────────────────────────
 // Seen from above through the water: a dark slate silhouette with a faintly lighter
@@ -294,115 +294,6 @@ export function buildWildlifeTextures(scene) {
   buildRaccoonTextures(scene);
 }
 
-// Post-process Gaussian blur on a Phaser canvas-backed texture. Draw the existing
-// texture source through a `ctx.filter=blur()` pass on a temp canvas and write it back.
-// Called right after gen() while still in boot — the sprite picks up the blurred canvas
-// on first upload, so no GL update call needed. Gracefully no-ops in non-canvas contexts.
-function blurTex(scene, key, px) {
-  const src = scene.textures.get(key)?.getSourceImage();
-  if (!src?.getContext) return;
-  const tmp = document.createElement('canvas');
-  tmp.width = src.width; tmp.height = src.height;
-  const ctx = tmp.getContext('2d');
-  ctx.filter = `blur(${px}px)`;
-  ctx.drawImage(src, 0, 0);
-  const srcCtx = src.getContext('2d');
-  srcCtx.clearRect(0, 0, src.width, src.height);
-  srcCtx.drawImage(tmp, 0, 0);
-}
-
-// Three-knob edge blur for sprite silhouettes:
-//   radius   — Gaussian spread in canvas px (controls how wide the blur extends)
-//   strength — 0→1 blend from original to fully blurred at the edge (intensity)
-//   feather  — how many pixel rows inward from the silhouette edge are affected;
-//              the blend fades linearly from `strength` at the outermost row to
-//              strength/feather at the deepest row, then snaps to crisp interior
-// internalBlur/colorThresh let you optionally soften internal color seams the same way.
-function blurEdgesSplit(scene, key, {
-  radius = 1.5, strength = 1.0, feather = 1,
-  internalBlur = 0, internalStrength,   // internalStrength defaults to strength when omitted
-  alphaThresh = 30, colorThresh = 20,
-} = {}) {
-  const iStr = internalStrength ?? strength;
-  const src = scene.textures.get(key)?.getSourceImage();
-  if (!src?.getContext) return;
-  const w = src.width, h = src.height;
-  const origCtx = src.getContext('2d');
-  const origData = new Uint8ClampedArray(origCtx.getImageData(0, 0, w, h).data);
-
-  const makeBlur = (px) => {
-    // Draw with padding so the CSS blur has room to resolve at all four edges,
-    // then crop back to the original size to keep array dimensions consistent.
-    const pad = Math.ceil(px * 3);
-    const tmp = document.createElement('canvas');
-    tmp.width = w + pad * 2; tmp.height = h + pad * 2;
-    const c = tmp.getContext('2d');
-    c.filter = `blur(${px}px)`; c.drawImage(src, pad, pad);
-    return c.getImageData(pad, pad, w, h).data;
-  };
-  const blurSil = makeBlur(radius);
-  const blurInt = internalBlur > 0 ? makeBlur(internalBlur) : null;
-
-  // BFS distance-to-transparency map, capped at feather+1
-  const dist = new Int32Array(w * h).fill(feather + 1);
-  const queue = [];
-  for (let i = 0; i < w * h; i++) {
-    if (origData[i * 4 + 3] < alphaThresh) { dist[i] = 0; queue.push(i); }
-  }
-  for (let qi = 0; qi < queue.length; qi++) {
-    const i = queue[qi];
-    if (dist[i] >= feather) continue;
-    const px = i % w, py = Math.floor(i / w);
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        if (!dx && !dy) continue;
-        const nx = px + dx, ny = py + dy;
-        if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
-        const ni = ny * w + nx;
-        if (dist[ni] > dist[i] + 1) { dist[ni] = dist[i] + 1; queue.push(ni); }
-      }
-    }
-  }
-
-  const out = origCtx.createImageData(w, h);
-  const o = out.data;
-  const lerp = (ci, s, t) => {
-    o[ci]   = origData[ci]   * (1 - t) + s[ci]   * t;
-    o[ci+1] = origData[ci+1] * (1 - t) + s[ci+1] * t;
-    o[ci+2] = origData[ci+2] * (1 - t) + s[ci+2] * t;
-    o[ci+3] = origData[ci+3] * (1 - t) + s[ci+3] * t;
-  };
-
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const ci = (y * w + x) * 4, d = dist[y * w + x];
-
-      if (d === 0) { // transparent — use blurred spread
-        o[ci]=blurSil[ci]; o[ci+1]=blurSil[ci+1]; o[ci+2]=blurSil[ci+2]; o[ci+3]=blurSil[ci+3];
-      } else if (d <= feather) { // silhouette zone: gradient from edge inward
-        lerp(ci, blurSil, strength * (feather - d + 1) / feather);
-      } else if (blurInt) { // interior color seam (only when internalBlur > 0)
-        let col = false;
-        for (let dy = -1; dy <= 1 && !col; dy++)
-          for (let dx = -1; dx <= 1 && !col; dx++) {
-            if (!dx && !dy) continue;
-            const ni = ((y+dy)*w + (x+dx))*4;
-            if (origData[ni+3] >= alphaThresh &&
-                Math.abs(origData[ci]-origData[ni]) + Math.abs(origData[ci+1]-origData[ni+1])
-              + Math.abs(origData[ci+2]-origData[ni+2]) > colorThresh) col = true;
-          }
-        if (col) lerp(ci, blurInt, iStr);
-        else { o[ci]=origData[ci]; o[ci+1]=origData[ci+1]; o[ci+2]=origData[ci+2]; o[ci+3]=origData[ci+3]; }
-      } else { // crisp interior
-        o[ci]=origData[ci]; o[ci+1]=origData[ci+1]; o[ci+2]=origData[ci+2]; o[ci+3]=origData[ci+3];
-      }
-    }
-  }
-  origCtx.putImageData(out, 0, 0);
-  // Re-upload the modified canvas to the WebGL GPU texture. generateTexture uploaded
-  // the pre-blur version; without this the sprite renders the unblurred pixels.
-  scene.textures.get(key)?.refresh?.();
-}
 
 // TEMP comparison scaffolding: the OLD 1× (non-super-sampled) variants under `*Old`
 // keys, built ONLY for the Art Preview gallery so the owner can A/B the soft AA'd edges

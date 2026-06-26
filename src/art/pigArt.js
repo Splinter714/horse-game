@@ -5,7 +5,8 @@
 // (the pig's hide). The snout, inner ear and nostrils stay a fixed pink — pigs keep a
 // pink snout whatever their coat colour. An arg-less call uses DEFAULT_LOOK (original).
 
-import { makeLeg, idleWalkLegs, buildFrames } from './_frames.js';
+import { makeLeg, idleWalkLegs, buildFrames, blurEdgesSplit } from './_frames.js';
+const BLUR = { radius: 0.7, strength: 0.5, feather: 1, internalBlur: 0.7, internalStrength: 0.5, colorThresh: 80 };
 
 export const PIG_W = 32, PIG_H = 26;
 
@@ -63,5 +64,5 @@ function drawPig(g, bob, [lhf, lhn, lff, lfn], look) {
 }
 
 export function buildPigTextures(scene, key, look) {
-  buildFrames(scene, key, PIG_W, PIG_H, (g, bob, legs) => drawPig(g, bob, legs, look), idleWalkLegs(2));
+  buildFrames(scene, key, PIG_W, PIG_H, (g, bob, legs) => drawPig(g, bob, legs, look), idleWalkLegs(2), BLUR);
 }

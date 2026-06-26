@@ -100,12 +100,101 @@ export const walkCycle = (lift) => [ [0, 0, 0, 0], [lift, 0, 0, lift], [0, 0, 0,
 export const idleWalkLegs = (lift) => [ [0, 0, 0, 0], [0, 0, 0, 0], ...walkCycle(lift) ];
 
 // Build the standard idle_0/1 + walk_0..3 sheet from a draw fn taking (g, bob, legs).
-export function buildFrames(scene, baseKey, w, h, drawFn, legSets) {
+// Pass blurOpts to post-process each frame with blurEdgesSplit after it's drawn.
+export function buildFrames(scene, baseKey, w, h, drawFn, legSets, blurOpts) {
   const names = ['idle_0', 'idle_1', 'walk_0', 'walk_1', 'walk_2', 'walk_3'];
   const bobs  = [0, 1, 0, 1, 0, 1];
   legSets.forEach((legs, i) => {
     gen(scene, `${baseKey}_${names[i]}`, w, h, g => drawFn(g, bobs[i], legs));
+    if (blurOpts) blurEdgesSplit(scene, `${baseKey}_${names[i]}`, blurOpts);
   });
+}
+
+// Selective edge + inner-seam blur for a sprite's silhouette.
+//   radius / strength / feather — silhouette edge blur (Gaussian px, blend 0–1, inward depth)
+//   internalBlur / internalStrength / colorThresh — soften interior colour seams
+// Ends with CanvasTexture.refresh() to re-upload the modified canvas to the WebGL GPU.
+export function blurEdgesSplit(scene, key, {
+  radius = 1.5, strength = 1.0, feather = 1,
+  internalBlur = 0, internalStrength,
+  alphaThresh = 30, colorThresh = 20,
+} = {}) {
+  const iStr = internalStrength ?? strength;
+  const src = scene.textures.get(key)?.getSourceImage();
+  if (!src?.getContext) return;
+  const w = src.width, h = src.height;
+  const origCtx = src.getContext('2d');
+  const origData = new Uint8ClampedArray(origCtx.getImageData(0, 0, w, h).data);
+
+  const makeBlur = (px) => {
+    // Draw with padding so the CSS blur has room to resolve at all four edges,
+    // then crop back to the original size to keep array dimensions consistent.
+    const pad = Math.ceil(px * 3);
+    const tmp = document.createElement('canvas');
+    tmp.width = w + pad * 2; tmp.height = h + pad * 2;
+    const c = tmp.getContext('2d');
+    c.filter = `blur(${px}px)`; c.drawImage(src, pad, pad);
+    return c.getImageData(pad, pad, w, h).data;
+  };
+  const blurSil = makeBlur(radius);
+  const blurInt = internalBlur > 0 ? makeBlur(internalBlur) : null;
+
+  // BFS distance-to-transparency map, capped at feather+1
+  const dist = new Int32Array(w * h).fill(feather + 1);
+  const queue = [];
+  for (let i = 0; i < w * h; i++) {
+    if (origData[i * 4 + 3] < alphaThresh) { dist[i] = 0; queue.push(i); }
+  }
+  for (let qi = 0; qi < queue.length; qi++) {
+    const i = queue[qi];
+    if (dist[i] >= feather) continue;
+    const px = i % w, py = Math.floor(i / w);
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        const nx = px + dx, ny = py + dy;
+        if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+        const ni = ny * w + nx;
+        if (dist[ni] > dist[i] + 1) { dist[ni] = dist[i] + 1; queue.push(ni); }
+      }
+    }
+  }
+
+  const out = origCtx.createImageData(w, h);
+  const o = out.data;
+  const lerp = (ci, s, t) => {
+    o[ci]   = origData[ci]   * (1 - t) + s[ci]   * t;
+    o[ci+1] = origData[ci+1] * (1 - t) + s[ci+1] * t;
+    o[ci+2] = origData[ci+2] * (1 - t) + s[ci+2] * t;
+    o[ci+3] = origData[ci+3] * (1 - t) + s[ci+3] * t;
+  };
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const ci = (y * w + x) * 4, d = dist[y * w + x];
+      if (d === 0) {
+        o[ci]=blurSil[ci]; o[ci+1]=blurSil[ci+1]; o[ci+2]=blurSil[ci+2]; o[ci+3]=blurSil[ci+3];
+      } else if (d <= feather) {
+        lerp(ci, blurSil, strength * (feather - d + 1) / feather);
+      } else if (blurInt) {
+        let col = false;
+        for (let dy = -1; dy <= 1 && !col; dy++)
+          for (let dx = -1; dx <= 1 && !col; dx++) {
+            if (!dx && !dy) continue;
+            const ni = ((y+dy)*w + (x+dx))*4;
+            if (origData[ni+3] >= alphaThresh &&
+                Math.abs(origData[ci]-origData[ni]) + Math.abs(origData[ci+1]-origData[ni+1])
+              + Math.abs(origData[ci+2]-origData[ni+2]) > colorThresh) col = true;
+          }
+        if (col) lerp(ci, blurInt, iStr);
+        else { o[ci]=origData[ci]; o[ci+1]=origData[ci+1]; o[ci+2]=origData[ci+2]; o[ci+3]=origData[ci+3]; }
+      } else {
+        o[ci]=origData[ci]; o[ci+1]=origData[ci+1]; o[ci+2]=origData[ci+2]; o[ci+3]=origData[ci+3];
+      }
+    }
+  }
+  origCtx.putImageData(out, 0, 0);
+  scene.textures.get(key)?.refresh?.();
 }
 
 // A simple two-rect leg (shin + hoof) shared by the barnyard quadrupeds (and the
