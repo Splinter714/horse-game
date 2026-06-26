@@ -10,6 +10,7 @@
 
 import Phaser from 'phaser';
 import { S } from './constants.js';
+import { ART_SCALE } from '../../art/_frames.js';
 import { EVENTS } from '../../data/events.js';
 import { playDrink } from '../../audio/sounds.js';
 
@@ -107,8 +108,8 @@ export const WithCatAI = (Base) => class extends Base {
       this.game.events.emit(EVENTS.STATS_CHANGED);
     }
     this._fishRipple(bx, by);
-    const fish = this.add.image(bx, by, 'fish_0')
-      .setScale(S).setDepth(a.sprite.depth + 1).setAlpha(0.95).setFlipX(a.sprite.x < bx);
+    const fish = this.add.image(bx, by, 'fish_0') // fish_0 is super-sampled → show at S/ART_SCALE
+      .setScale(S / ART_SCALE).setDepth(a.sprite.depth + 1).setAlpha(0.95).setFlipX(a.sprite.x < bx);
     this.tweens.add({
       targets: fish, x: a.sprite.x, y: a.sprite.y - 16, angle: 220,
       duration: 420, ease: 'Sine.easeOut',

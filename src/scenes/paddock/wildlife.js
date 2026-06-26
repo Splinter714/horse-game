@@ -10,10 +10,16 @@
 
 import Phaser from 'phaser';
 import { S, WORLD_W, BOUNDS } from './constants.js';
+import { ART_SCALE } from '../../art/_frames.js';
 
 // How close the player can get before a ground critter bolts (skittish). Birds in
 // flight and fish ignore the player.
 const FLEE_DIST = 200;
+
+// Display scale for the wildlife sprites: their textures are super-sampled on the
+// ART_SCALE grid (wildlifeArt.js), so they show at S/ART_SCALE — same on-screen size
+// as before, but crisp edges (matches the horse/sheep pipeline).
+const WILD_SCALE = S / ART_SCALE;
 
 export const WithWildlife = (Base) => class extends Base {
   // ─── Setup ─────────────────────────────────────────────────────────────────
@@ -84,7 +90,7 @@ export const WithWildlife = (Base) => class extends Base {
     const dist = Phaser.Math.Between(36, 80);
 
     const fish = this.add.sprite(p.x - dx * dist * 0.5, p.y - dy * dist * 0.5, 'fish_0')
-      .setOrigin(0.5, 0.5).setScale(S).setDepth(-94).setAlpha(0).setFlipX(dx < 0)
+      .setOrigin(0.5, 0.5).setScale(WILD_SCALE).setDepth(-94).setAlpha(0).setFlipX(dx < 0)
       .play('fish_swim');
     this._fishRipple(fish.x, fish.y); // a ring where it surfaces
 
@@ -129,7 +135,7 @@ export const WithWildlife = (Base) => class extends Base {
     const startX = dir === 1 ? -40 : WORLD_W + 40;
     const endX = dir === 1 ? WORLD_W + 40 : -40;
     const sprite = this.add.sprite(startX, y0, 'bird_fly_0')
-      .setOrigin(0.5, 0.5).setScale(S).setDepth(100000).setFlipX(dir === -1).play('bird_fly');
+      .setOrigin(0.5, 0.5).setScale(WILD_SCALE).setDepth(100000).setFlipX(dir === -1).play('bird_fly');
     const c = { sprite, kind: 'bird', ground: false, state: 'flying', tween: null };
     this._wildCritters.push(c);
 
@@ -154,7 +160,7 @@ export const WithWildlife = (Base) => class extends Base {
     }
     const dir = Math.random() < 0.5 ? 1 : -1;
     const sprite = this.add.sprite(dir === 1 ? -40 : WORLD_W + 40, sy - 220, 'bird_fly_0')
-      .setOrigin(0.5, 1).setScale(S).setDepth(sy).setFlipX(dir === -1).play('bird_fly');
+      .setOrigin(0.5, 1).setScale(WILD_SCALE).setDepth(sy).setFlipX(dir === -1).play('bird_fly');
     const c = { sprite, kind: 'bird', ground: false, state: 'descending', tween: null, fleeing: false };
     this._wildCritters.push(c);
 
@@ -223,7 +229,7 @@ export const WithWildlife = (Base) => class extends Base {
     const x = fromLeft ? -30 : WORLD_W + 30;
     const y = Phaser.Math.Between(BOUNDS.minY + 60, BOUNDS.maxY);
     const sprite = this.add.sprite(x, y, 'raccoon_idle_0')
-      .setOrigin(0.5, 1).setScale(S).setDepth(y).setFlipX(!fromLeft).play('raccoon_run');
+      .setOrigin(0.5, 1).setScale(WILD_SCALE).setDepth(y).setFlipX(!fromLeft).play('raccoon_run');
     const c = { sprite, kind: 'raccoon', ground: true, state: 'darting', tween: null, fleeing: false };
     this._wildCritters.push(c);
     this._raccoonOut = true;

@@ -3,11 +3,14 @@
 // animals — no roster, no needs, no info panel — so their art lives here and builds
 // alongside the world/player textures (BootScene), not via the species art registry.
 //
-// All face RIGHT and use origin (0.5, 1) like the other small critters (the cat),
-// drawn on a 1× design grid and displayed at scale S. First-pass draft look — the
-// shapes read as fish/bird/raccoon; the owner art-directs the polish in the preview.
+// All face RIGHT and use origin (0.5, 1) like the other small critters. They're drawn
+// from rounded primitives (ellipses/triangles), which the canvas anti-aliases — so we
+// SUPER-SAMPLE them on the ART_SCALE grid (like the horse/sheep) and display at
+// S/ART_SCALE. That keeps the soft AA rim sub-pixel at game size, so the curves stay
+// smooth but the sprite reads crisp (and sharp on HiDPI) rather than fuzzy-edged.
+// First-pass draft look — the owner art-directs the polish in the preview.
 
-import { gen } from './_frames.js';
+import { gen, scaledGraphics, ART_SCALE } from './_frames.js';
 
 // ── Fish (#183) ──────────────────────────────────────────────────────────────
 // Seen from above through the water: a dark slate silhouette with a faintly lighter
@@ -33,10 +36,12 @@ function drawFish(g, flick) {
 }
 
 export function buildFishTextures(scene) {
-  gen(scene, 'fish_0', FISH_W, FISH_H, (g) => drawFish(g, 0));
-  gen(scene, 'fish_1', FISH_W, FISH_H, (g) => drawFish(g, 1)); // tail swished
+  gen(scene, 'fish_0', FISH_W * ART_SCALE, FISH_H * ART_SCALE, (g) => drawFish(scaledGraphics(g), 0));
+  gen(scene, 'fish_1', FISH_W * ART_SCALE, FISH_H * ART_SCALE, (g) => drawFish(scaledGraphics(g), 1)); // tail swished
 
-  // A tiny expanding ring left where a fish surfaces/darts — a soft white ripple.
+  // A tiny expanding ring left where a fish surfaces/darts — a soft white ripple. Kept
+  // 1× (not super-sampled): a ripple is meant to be soft, and strokeCircle isn't on the
+  // scaledGraphics wrapper.
   gen(scene, 'fishRipple', 16, 16, (g) => {
     g.lineStyle(1, 0xdff4ff, 0.9); g.strokeCircle(8, 8, 6);
     g.lineStyle(1, 0xbfeaff, 0.5); g.strokeCircle(8, 8, 3);
@@ -82,10 +87,11 @@ function drawBirdPeck(g, headDown) {
 }
 
 export function buildBirdTextures(scene) {
-  gen(scene, 'bird_fly_0', BIRD_W, BIRD_H, (g) => drawBirdFly(g, true));
-  gen(scene, 'bird_fly_1', BIRD_W, BIRD_H, (g) => drawBirdFly(g, false));
-  gen(scene, 'bird_peck_0', BIRD_W, BIRD_H, (g) => drawBirdPeck(g, false));
-  gen(scene, 'bird_peck_1', BIRD_W, BIRD_H, (g) => drawBirdPeck(g, true));
+  const W = BIRD_W * ART_SCALE, H = BIRD_H * ART_SCALE;
+  gen(scene, 'bird_fly_0', W, H, (g) => drawBirdFly(scaledGraphics(g), true));
+  gen(scene, 'bird_fly_1', W, H, (g) => drawBirdFly(scaledGraphics(g), false));
+  gen(scene, 'bird_peck_0', W, H, (g) => drawBirdPeck(scaledGraphics(g), false));
+  gen(scene, 'bird_peck_1', W, H, (g) => drawBirdPeck(scaledGraphics(g), true));
 }
 
 // ── Raccoon (#181) ─────────────────────────────────────────────────────────��─
@@ -139,7 +145,8 @@ export function buildRaccoonTextures(scene) {
     { name: 'run_2', legs: [0, 2, 2, 0], bob: 0 },
     { name: 'run_3', legs: [0, 0, 0, 0], bob: 1 },
   ];
-  frames.forEach((f) => gen(scene, `raccoon_${f.name}`, RACC_W, RACC_H, (g) => drawRaccoon(g, f.legs, f.bob)));
+  frames.forEach((f) => gen(scene, `raccoon_${f.name}`, RACC_W * ART_SCALE, RACC_H * ART_SCALE,
+    (g) => drawRaccoon(scaledGraphics(g), f.legs, f.bob)));
 }
 
 // One call BootScene makes for all ambient wildlife textures (parallel to the
