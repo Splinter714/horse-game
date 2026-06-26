@@ -105,13 +105,14 @@ try {
     } catch (e) { behaviorDecision = 'threw: ' + String(e); }
 
     // Demand-based gathering (#136): a full gather pulls one food per animal that
-    // eats it — hay/apple/carrot = horse count, seed = chicken count — capped at the
-    // carrier capacity. Non-food (water) ignores demand and fills to capacity.
+    // eats it — capped at the carrier capacity. The basket is now effectively
+    // unlimited (999), so we probe with a high capacity to assert the true per-animal
+    // demand uncapped. Non-food (water) ignores demand and fills to capacity (bucket=1).
     const gatherTargets = {
-      hay:    paddock._gatherTarget('hay', 10),
-      apple:  paddock._gatherTarget('apple', 10),
-      carrot: paddock._gatherTarget('carrot', 10),
-      seed:   paddock._gatherTarget('seed', 10),
+      hay:    paddock._gatherTarget('hay', 999),
+      apple:  paddock._gatherTarget('apple', 999),
+      carrot: paddock._gatherTarget('carrot', 999),
+      seed:   paddock._gatherTarget('seed', 999),
       water:  paddock._gatherTarget('water', 1),
     };
 
@@ -254,11 +255,11 @@ try {
   if (!result.movementOk) fail('creature movement/pathfinding threw: ' + result.movementError);
   if (result.behaviorDecision !== 'seekFood') fail(`hungry horse with hay nearby did not select seekFood (got ${result.behaviorDecision})`);
   // #136: gather one food per animal that eats it, water → capacity. Diets differ:
-  // hay feeds the 7 horses + the cow + the 3 sheep (11, capped at the basket's
-  // capacity 10); apples/carrots also feed the pig but NOT the sheep, who refuse them
-  // (9). The split is the proof the pig/sheep pickier diets are wired up.
+  // hay feeds the 7 horses + the cow + the 3 sheep (11); apples/carrots also feed the
+  // pig but NOT the sheep, who refuse them (9). The split is the proof the pig/sheep
+  // pickier diets are wired up. (Probed with a high capacity so demand isn't capped.)
   const gt = result.gatherTargets;
-  if (gt.hay !== 10) fail(`gather target for hay = ${gt.hay}, expected 10 (7 horses + 1 cow + 3 sheep = 11, capped at capacity 10)`);
+  if (gt.hay !== 11) fail(`gather target for hay = ${gt.hay}, expected 11 (7 horses + 1 cow + 3 sheep)`);
   for (const food of ['apple', 'carrot']) {
     if (gt[food] !== 9) fail(`gather target for ${food} = ${gt[food]}, expected 9 (7 horses + 1 cow + 1 pig; sheep refuse them, #136)`);
   }

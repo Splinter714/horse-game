@@ -8,7 +8,11 @@
 
 // Carrier kinds: what they accept, how much they hold, and their empty icon.
 export const CARRIER_DEFS = {
-  basket: { capacity: 10, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'egg'] },
+  // Effectively unlimited: a gather only ever pulls what's *needed* (one food per
+  // animal that eats it, #136), so the basket's cap is just a safety ceiling, not a
+  // limit you should hit. Kept finite (not Infinity) so it never trips serialization
+  // or UI maths — but high enough that the demand always fits (and you can hoard eggs).
+  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'egg'] },
   bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'milk'] },
 };
 
