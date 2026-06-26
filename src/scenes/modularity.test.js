@@ -44,6 +44,8 @@ const GROUPS = {
   // mixins is one prototype chain, so method names must be unique within each (#165).
   infopanel: ['InfoPanelScene.js', ...listMixins('customizer/')],
   customizer: ['CustomizerScene.js', ...listMixins('customizer/')],
+  // The player customizer (#44) is a third host of the same shell + nav.
+  playercustomizer: ['PlayerCustomizerScene.js', ...listMixins('customizer/')],
 };
 
 // Class methods in this codebase sit at exactly 2-space indentation:

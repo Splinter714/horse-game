@@ -241,3 +241,19 @@ describe('audio settings', () => {
     expect(a.volumes).toEqual({ master: 1, music: 0.2, ambient: 1, effects: 1 });
   });
 });
+
+describe('player look persistence (#44)', () => {
+  it('returns {} when nothing is stored (defaults are filled by lookFromKeys)', () => {
+    expect(save.loadPlayerLook()).toEqual({});
+  });
+
+  it('round-trips a saved key map', () => {
+    save.savePlayerLook({ hair: 'black', bottom: 'skirt', sleeves: 'none' });
+    expect(save.loadPlayerLook()).toEqual({ hair: 'black', bottom: 'skirt', sleeves: 'none' });
+  });
+
+  it('tolerates corrupt JSON, returning {}', () => {
+    globalThis.localStorage.setItem('horse-game-player-v1', '{not json');
+    expect(save.loadPlayerLook()).toEqual({});
+  });
+});

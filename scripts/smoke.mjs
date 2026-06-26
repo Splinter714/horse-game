@@ -235,6 +235,34 @@ try {
   });
   await page.screenshot({ path: '/tmp/panel-editor.png' });
 
+  // Player character customizer (#44): the player sprite must build from the saved look
+  // on boot (player_down_0 exists), and the pause-menu editor must open, recolour/reshape
+  // live, and PERSIST the look-keys to localStorage. Reuses the generic customizer shell.
+  result.playerCustomizer = await page.evaluate(async () => {
+    const g = window.__game;
+    const hasTexture = g.textures.exists('player_down_0');
+    const registered = !!g.scene.getScene('PlayerCustomizerScene');
+    g.scene.getScene('PaddockScene').scene.launch('PlayerCustomizerScene'); // as the pause-menu button does
+    await new Promise((r) => setTimeout(r, 300));
+    const sc = g.scene.getScene('PlayerCustomizerScene');
+    const opened = sc?._mode === 'edit' && !!sc.contentC;
+    const focusCount = sc?._focusables?.length ?? 0;
+    const paused = g.scene.isPaused('PaddockScene');
+    // Apply a colour swatch + two shape options through the same handler the UI calls.
+    sc._pickPartSwatch('hair', 'black');
+    sc._pickPartSwatch('bottom', 'skirt');
+    sc._pickPartSwatch('sleeves', 'none');
+    const saved = JSON.parse(localStorage.getItem('horse-game-player-v1') || '{}');
+    sc.custExit();
+    await new Promise((r) => setTimeout(r, 60));
+    return {
+      hasTexture, registered, opened, focusCount, paused,
+      saved: { hair: saved.hair, bottom: saved.bottom, sleeves: saved.sleeves },
+      resumed: !g.scene.isPaused('PaddockScene') && !g.scene.isActive('PlayerCustomizerScene'),
+    };
+  });
+  await page.screenshot({ path: '/tmp/player-customizer.png' });
+
   console.log(JSON.stringify(result, null, 2));
 
   if (pageErrors.length) fail('uncaught page errors:\n' + pageErrors.join('\n'));
@@ -273,6 +301,17 @@ try {
   if (result.editor.coat !== 'grey') fail(`coat edit did not apply (got ${result.editor.coat})`);
   if (!result.editor.resumed) fail('world/info not restored after closing the editor');
   if (!result.editor.noStable) fail('ManagementPanelScene still registered (should be removed)');
+  // Player customizer (#44).
+  const pc = result.playerCustomizer;
+  if (!pc.hasTexture) fail('player_down_0 texture missing after boot (player art not built from look)');
+  if (!pc.registered) fail('PlayerCustomizerScene not registered');
+  if (!pc.opened) fail('player customizer did not open');
+  if (pc.focusCount < 20) fail(`player customizer registered too few focusables (${pc.focusCount})`);
+  if (!pc.paused) fail('world was not paused while editing the player');
+  if (pc.saved.hair !== 'black' || pc.saved.bottom !== 'skirt' || pc.saved.sleeves !== 'none') {
+    fail(`player look not persisted (got ${JSON.stringify(pc.saved)})`);
+  }
+  if (!pc.resumed) fail('world not restored / player customizer not closed after exit');
 
   // ── HiDPI rendering: the game must render at the device's PHYSICAL pixels so
   // pixel-art/text are crisp on Retina screens (e.g. iPad, devicePixelRatio 2).

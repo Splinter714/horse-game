@@ -16,6 +16,7 @@ import { buildCowTextures } from './cowArt.js';
 import { buildSheepTextures } from './sheepArt.js';
 import { buildPigTextures } from './pigArt.js';
 import { buildDogTextures } from './dogArt.js';
+import { buildPlayerTextures } from './playerArt.js';
 import { composeCoat } from '../data/species/horse/coats.js';
 import { DEMO_FOALS } from '../data/demoFoals.js';
 import { lookFromKeys } from '../data/customize.js';
@@ -93,6 +94,9 @@ const RESKIN = {
   // The chicken picks a whole coat (a STYLE), not per-part ramps: the customizer's
   // single 'style' part stores the chosen CHICKEN_COATS entry under look.style.
   chicken: (scene, key, look) => buildChickenTextures(scene, key, look.style ?? look),
+  // The player isn't a keyed roster — one shared set of textures — so `key` is ignored
+  // and the whole look (colour ramps + shape keys) rebuilds every player frame (#44).
+  player: (scene, key, look) => buildPlayerTextures(scene, look),
 };
 
 export function reskinAnimal(scene, speciesId, key, look) {

@@ -219,6 +219,29 @@ export function saveUiSettings(settings) {
   } catch {}
 }
 
+// ── Player appearance (#44) ───────────────────────────────────────────────────
+// The customizer look = a map of per-part keys ({ hairStyle, hair, skin, eyes,
+// sleeves, shirt, bottom, bottomColor }). Its own storage key (not the hotbar
+// gameState, which saveGameState rewrites wholesale and would drop it). Stored as raw
+// keys; lookFromKeys('player', …) fills any missing/stale key with that part's default,
+// so this file stays species-agnostic (no customize import needed).
+const PLAYER_KEY = 'horse-game-player-v1';
+
+export function loadPlayerLook() {
+  try {
+    const data = JSON.parse(localStorage.getItem(PLAYER_KEY));
+    return (data && typeof data === 'object') ? data : {};
+  } catch {
+    return {};
+  }
+}
+
+export function savePlayerLook(keys) {
+  try {
+    localStorage.setItem(PLAYER_KEY, JSON.stringify(keys || {}));
+  } catch {}
+}
+
 // ── Dev settings (pause-menu dev tools) ──────────────────────────────────────
 // Persisted "start state" knobs so the owner can test things without replaying
 // from scratch: which time-of-day the day/night clock boots into, and whether

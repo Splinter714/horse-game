@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { buildWorldTextures } from '../art/worldArt.js';
 import { buildPlayerTextures } from '../art/playerArt.js';
 import { SPECIES_TEXTURES, PREVIEW_TEXTURES } from '../art/index.js';
-import { ROSTER_SPECIES, loadAudioSettings, saveAudioSettings, loadDevSettings } from '../data/save.js';
+import { ROSTER_SPECIES, loadAudioSettings, saveAudioSettings, loadDevSettings, loadPlayerLook } from '../data/save.js';
+import { lookFromKeys } from '../data/customize.js';
 import { applyAudioSettings } from '../audio/sounds.js';
 
 // Boot: restore settings, load every persisted roster into the registry, build all
@@ -32,7 +33,9 @@ export default class BootScene extends Phaser.Scene {
     // species' textures — the horse/chicken builders read their loaded roster from
     // the registry set just above, so this must come after it.
     buildWorldTextures(this);
-    buildPlayerTextures(this);
+    // Build the player sprite from their saved customizer look (#44); an unset look
+    // resolves to the defaults (today's appearance) via lookFromKeys.
+    buildPlayerTextures(this, lookFromKeys('player', loadPlayerLook()));
     for (const build of Object.values(SPECIES_TEXTURES)) build(this);
 
     // Dev tool: boot straight into the standalone art-preview gallery instead of
