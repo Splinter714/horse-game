@@ -331,11 +331,14 @@ function blurEdgesSplit(scene, key, {
   const origData = new Uint8ClampedArray(origCtx.getImageData(0, 0, w, h).data);
 
   const makeBlur = (px) => {
+    // Draw with padding so the CSS blur has room to resolve at all four edges,
+    // then crop back to the original size to keep array dimensions consistent.
+    const pad = Math.ceil(px * 3);
     const tmp = document.createElement('canvas');
-    tmp.width = w; tmp.height = h;
+    tmp.width = w + pad * 2; tmp.height = h + pad * 2;
     const c = tmp.getContext('2d');
-    c.filter = `blur(${px}px)`; c.drawImage(src, 0, 0);
-    return c.getImageData(0, 0, w, h).data;
+    c.filter = `blur(${px}px)`; c.drawImage(src, pad, pad);
+    return c.getImageData(pad, pad, w, h).data;
   };
   const blurSil = makeBlur(radius);
   const blurInt = internalBlur > 0 ? makeBlur(internalBlur) : null;
