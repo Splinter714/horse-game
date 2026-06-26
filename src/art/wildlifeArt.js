@@ -270,7 +270,7 @@ export function buildRaccoonTextures(scene) {
   RACCOON_FRAMES.forEach((f) => {
     gen(scene, `raccoon_${f.name}`, RACC_W * ART_SCALE, RACC_H * ART_SCALE,
       (g) => drawRaccoon2(scaledGraphics(g), f.legs, f.bob));
-    blurEdgesSplit(scene, `raccoon_${f.name}`, { radius: 1.5, strength: 1.0, feather: 3, internalBlur: 0.4, internalStrength: 0.45 });
+    blurEdgesSplit(scene, `raccoon_${f.name}`, { radius: 0.7, strength: 0.5, feather: 1, internalBlur: 0.7, internalStrength: 0.5, colorThresh: 80 });
   });
 }
 
@@ -418,6 +418,6 @@ export function buildWildlifeOldTextures(scene) {
   RACCOON_FRAMES.forEach((f) => {
     gen(scene, `raccoon5_${f.name}`, RACC_W * ART_SCALE, RACC_H * ART_SCALE,
       (g) => drawRaccoon2(scaledGraphics(g), f.legs, f.bob));
-    blurEdgesSplit(scene, `raccoon5_${f.name}`, { radius: 1.5, strength: 1.0, feather: 3, internalBlur: 0.4, internalStrength: 0.45 });
+    blurEdgesSplit(scene, `raccoon5_${f.name}`, { radius: 0.7, strength: 0.5, feather: 1, internalBlur: 0.7, internalStrength: 0.5, colorThresh: 80 });
   });
 }
