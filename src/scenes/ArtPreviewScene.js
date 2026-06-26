@@ -35,9 +35,26 @@ const FAMILIES = [
   { label: 'Chicken', members: [{ key: 'chicken0' }] },
   { label: 'Cat',     members: [{ key: 'cat' }] },
   { label: 'Cow',     members: [{ key: 'cow' }] },
-  { label: 'Sheep',   members: [{ key: 'sheep' }] },
+  { label: 'Sheep',   members: [{ key: 'sheep0' }] }, // flock roster keys sheep0..2 (like chicken0)
   { label: 'Pig',     members: [{ key: 'pig' }] },
   { label: 'Dog',     members: [{ key: 'dog' }] },
+  // Ambient wildlife (#181/#182/#183) — shown here so its art can be eyeballed even
+  // though these critters only flit through the world on timers. Not tap-to-customize
+  // (no customizer parts). The raccoon's run + the bird's flap animate (see the
+  // locomotion-cycle filter below); the fish does its tail-flick.
+  // New (crisp, super-sampled) next to the old (soft, 1×) for an A/B — the *Old keys
+  // are gallery-only (PREVIEW_TEXTURES.wildlifeOld), so they just don't appear in
+  // normal play. Each family normalizes to the same on-screen height, so the only
+  // difference you see is edge crispness. TEMP: drop the (old 1×) rows once decided.
+  { label: 'Raccoon (crisp)',    members: [{ key: 'raccoon2' }] },
+  { label: 'Edge r1.5 f3',      members: [{ key: 'raccoon5' }] },
+  { label: 'Edge r2.5 f5',      members: [{ key: 'raccoon5b' }] },
+  { label: 'Edge r1.0 f2',      members: [{ key: 'raccoon5c' }] },
+  { label: 'Edge+Inner blur',   members: [{ key: 'raccoon6' }] },
+  { label: 'Bird (new 4×)',     members: [{ key: 'bird' }] },
+  { label: 'Bird (old 1×)',     members: [{ key: 'birdOld' }] },
+  { label: 'Fish (new 4×)',     members: [{ key: 'fish' }] },
+  { label: 'Fish (old 1×)',     members: [{ key: 'fishOld' }] },
 ];
 
 const TARGET_H = 200;       // tallest family member's on-screen height (logical px)
@@ -72,8 +89,9 @@ export default class ArtPreviewScene extends Phaser.Scene {
 
       const scale = TARGET_H / maxH;   // shared within the family → true relative sizes
       const members = built.map((b) => {
-        // Animate the walk cycle if present, else whatever frames exist (idle).
-        const walk = b.frames.filter((k) => k.includes('_walk_'));
+        // Animate the locomotion cycle if present (walk / the raccoon's run / the
+        // bird's fly), else whatever frames exist (idle, or the fish's tail-flick).
+        const walk = b.frames.filter((k) => /_(walk|run|fly)_/.test(k));
         const seq = (walk.length ? walk : b.frames).map((k) => ({ key: k }));
         const animKey = `preview_${b.m.key}`;
         if (!this.anims.exists(animKey)) {
@@ -156,6 +174,7 @@ export default class ArtPreviewScene extends Phaser.Scene {
     if (key.startsWith('foal')) return 'foal';   // young horse — its own (smaller) art
     if (key.startsWith('horse')) return 'horse';
     if (key.startsWith('chicken')) return 'chicken';
+    if (key.startsWith('sheep')) return 'sheep'; // flock roster keys sheep0..2 → the sheep species
     return key;
   }
 

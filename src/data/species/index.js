@@ -8,8 +8,11 @@ import { CHICKEN } from './chicken/index.js';
 import { CAT } from './cat/index.js';
 import { COW } from './cow/index.js';
 import { PIG } from './pig/index.js';
+import { SHEEP } from './sheep/index.js';
+import { DOG } from './dog/index.js';
 import * as horseBehaviors from './horse/behaviors.js';
 import * as chickenBehaviors from './chicken/behaviors.js';
+import * as catBehaviors from './cat/behaviors.js';
 
 export const SPECIES = {
   horse: HORSE,
@@ -17,6 +20,8 @@ export const SPECIES = {
   cat: CAT,
   cow: COW,
   pig: PIG,
+  sheep: SHEEP,
+  dog: DOG,
 };
 
 export function getSpecies(id) {
@@ -38,6 +43,14 @@ export const BEHAVIORS = {
   // her `behaviors` list (pig/index.js) picks the subset she runs. Her pickier diet
   // (apples/carrots, no hay) is enforced by the food data, not a separate behavior.
   pig: indexById(horseBehaviors),
+  // The sheep is a grazer like the cow/pig — reuses the horse behavior modules; her
+  // `behaviors` list (sheep/index.js) picks the subset (hay/water/graze, no begging).
+  sheep: indexById(horseBehaviors),
+  // The cat hunts fish at the stream when hungry (#163) — its own one-behavior module.
+  cat: indexById(catBehaviors),
+  // The dog has no goal-driven behaviors yet (#185 first pass just wanders); a real
+  // job — companion-follow / herding — is #186. So no BEHAVIORS.dog entry: chooseBehavior
+  // returns null and it falls back to the plain wander.
 };
 
 function indexById(mod) {

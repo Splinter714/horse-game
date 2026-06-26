@@ -16,7 +16,7 @@ import { buildCowTextures } from './cowArt.js';
 import { buildSheepTextures } from './sheepArt.js';
 import { buildPigTextures } from './pigArt.js';
 import { buildDogTextures } from './dogArt.js';
-import { buildPlayerTextures } from './playerArt.js';
+import { buildWildlifeOldTextures } from './wildlifeArt.js'; // TEMP: old-vs-new gallery A/B
 import { composeCoat } from '../data/species/horse/coats.js';
 import { DEMO_FOALS } from '../data/demoFoals.js';
 import { lookFromKeys } from '../data/customize.js';
@@ -58,6 +58,10 @@ export const SPECIES_TEXTURES = {
   pig(scene) { buildRosterLooks(scene, 'allPigs', 'pig', buildPigTextures); },
 
   cat(scene) { buildRosterLooks(scene, 'allCats', 'cat', buildCatTextures); },
+
+  sheep(scene) { buildRosterLooks(scene, 'allSheep', 'sheep', buildSheepTextures); },
+
+  dog(scene) { buildRosterLooks(scene, 'allDogs', 'dog', buildDogTextures); },
 };
 
 // A hen's coat index: its customized style if set, else the roster `coat` default.
@@ -73,11 +77,12 @@ function buildRosterLooks(scene, registryKey, speciesId, build) {
   }
 }
 
-// Disabled barnyard animals — their art exists but they aren't in the world yet.
-// Built only for the dev Art-preview gallery so we can art-direct them early.
+// Built only for the dev Art-preview gallery (not the live world). TEMP: the OLD 1×
+// wildlife variants, so the owner can A/B them against the crisp super-sampled versions
+// side by side. Remove `wildlifeOld` (and the gallery's old families) once the look is
+// settled. (Sheep #184 / dog #185 are now live in SPECIES_TEXTURES above.)
 export const PREVIEW_TEXTURES = {
-  sheep(scene) { buildSheepTextures(scene, 'sheep'); },
-  dog(scene)   { buildDogTextures(scene, 'dog'); },
+  wildlifeOld(scene) { buildWildlifeOldTextures(scene); },
 };
 
 // Live re-skin dispatch (#165) — rebuilds one creature's frame textures IN PLACE

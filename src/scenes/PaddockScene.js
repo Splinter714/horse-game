@@ -6,6 +6,8 @@ import {
 } from '../audio/sounds.js';
 import { INTERACT_DIST } from './paddock/constants.js';
 import { WithWorld } from './paddock/world.js';
+import { WithWildlife } from './paddock/wildlife.js';
+import { WithCatAI } from './paddock/catAI.js';
 import { WithCreatures } from './paddock/creatures.js';
 import { WithFlock } from './paddock/flock.js';
 import { WithHerd } from './paddock/herd.js';
@@ -29,9 +31,9 @@ import { WithInput } from './paddock/input.js';
 import { applyDpr } from './uiUtils.js';
 
 export default class PaddockScene
-  extends WithWorld(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithDayNight(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
+  extends WithWorld(WithWildlife(WithCatAI(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithDayNight(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
     WithEffects(WithPersistence(WithRendering(WithWorldObjects(WithCareActions(WithInteraction(WithInput(
-    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene))))))))))))))))))))) {
+    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene))))))))))))))))))))))) {
   constructor() {
     super('PaddockScene');
   }
@@ -71,6 +73,7 @@ export default class PaddockScene
     this.buildPlayer();
     this.buildFarmStand();
     this.buildInteractables();
+    this.buildWildlife(); // ambient fish/birds/raccoon (needs the stream path + player)
 
     // Periodic AI tick: direct idle horses to food/water
     this.time.addEvent({ delay: 3000, loop: true, callback: this.horseTick, callbackScope: this });
@@ -177,6 +180,7 @@ export default class PaddockScene
     this._syncActionButtons();
     this.separateHorses();
     this.depthSort();
+    this.updateWildlife();
     this.tickDecay(delta);
     this.tickAutosave(delta);
   }

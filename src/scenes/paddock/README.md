@@ -16,13 +16,15 @@ core orchestrator.
 | Concern | File | Owns |
 |---|---|---|
 | Orchestration | `PaddockScene.js` (core) | `constructor`/`create`/`update`, `buildHorses`, `checkProximity`, `movePlayer`, sleep/wake |
-| World build | `paddock/world.js` (`WithWorld`) | terrain/props, obstacles, collision helpers |
+| World build | `paddock/world.js` (`WithWorld`) | terrain/props, obstacles, collision helpers, stream + `streamPath` |
+| Ambient wildlife | `paddock/wildlife.js` (`WithWildlife`) | scenery critters (stream fish, fly-by/peck birds, scampering raccoon) — spawn timers, tween movement, skittish flee. Not roster/care animals |
 | Creatures | `paddock/creatures.js` (`WithCreatures`) | species-neutral spawn + shared wander/movement primitives, foals, horse spawn |
 | Flock | `paddock/flock.js` (`WithFlock`) | chicken flock driver, follow/gather/peck, egg laying + collection |
 | Herd | `paddock/herd.js` (`WithHerd`) | horse need-driven wander, herd separation/pairing, rolling, greeting |
 | Farm stand | `paddock/farmStand.js` (`WithFarmStand`) | stand build + NPC customers |
 | Day/night | `paddock/dayNight.js` (`WithDayNight`) | phase response, rest/wake, roosting, birds |
 | Horse AI | `paddock/horseAI.js` (`WithHorseAI`) | horse eat/drink seeking + gate-aware pathing |
+| Cat AI | `paddock/catAI.js` (`WithCatAI`) | cat fishing — `_catContext`, `_nearestStreamSpot`, `catGoFish` (hungry cat hunts fish at the stream, #163) |
 | Behavior registry | `paddock/behaviors.js` (`WithBehaviors`) | data-driven AI dispatch (`runBehaviors`) |
 | Riding | `paddock/riding.js` (`WithRiding`) | riding, saddle, leading |
 | Player core | `paddock/player.js` (`WithPlayer`) | `buildPlayer` (sprite/camera/input bindings), `handleTap`, `_isDoubleTap` |

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { buildWorldTextures } from '../art/worldArt.js';
 import { buildPlayerTextures } from '../art/playerArt.js';
+import { buildWildlifeTextures } from '../art/wildlifeArt.js';
 import { SPECIES_TEXTURES, PREVIEW_TEXTURES } from '../art/index.js';
 import { ROSTER_SPECIES, loadAudioSettings, saveAudioSettings, loadDevSettings, loadPlayerLook } from '../data/save.js';
 import { lookFromKeys } from '../data/customize.js';
@@ -36,6 +37,7 @@ export default class BootScene extends Phaser.Scene {
     // Build the player sprite from their saved customizer look (#44); an unset look
     // resolves to the defaults (today's appearance) via lookFromKeys.
     buildPlayerTextures(this, lookFromKeys('player', loadPlayerLook()));
+    buildWildlifeTextures(this); // ambient fish/birds/raccoon — scenery, not a roster
     for (const build of Object.values(SPECIES_TEXTURES)) build(this);
 
     // Dev tool: boot straight into the standalone art-preview gallery instead of

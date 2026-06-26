@@ -9,6 +9,7 @@
 import Phaser from 'phaser';
 import { CONTENT_DEFS, foodDemand } from '../../data/items.js';
 import { getSpecies } from '../../data/species/index.js';
+import { ROSTER_SPECIES } from '../../data/save.js';
 import { CARE_DIST, USE_REACH } from './constants.js';
 import { playGather } from '../../audio/sounds.js';
 
@@ -152,14 +153,15 @@ export const WithUseDispatch = (Base) => class extends Base {
     return best;
   }
 
-  // Live animal counts by species id, for demand-based gathering (#136).
+  // Live animal counts by species id, for demand-based gathering (#136). Driven by
+  // the roster registry so a newly-spawned species (sheep #184) is counted with no
+  // edit here — foodDemand only sums the species listed in a food's `feeds` anyway.
   _speciesCounts() {
-    return {
-      horse:   Object.keys(this.registry.get('allHorses')   ?? {}).length,
-      chicken: Object.keys(this.registry.get('allChickens') ?? {}).length,
-      cow:     Object.keys(this.registry.get('allCows')     ?? {}).length,
-      pig:     Object.keys(this.registry.get('allPigs')     ?? {}).length,
-    };
+    const out = {};
+    for (const { id, registryKey } of ROSTER_SPECIES) {
+      out[id] = Object.keys(this.registry.get(registryKey) ?? {}).length;
+    }
+    return out;
   }
 
   // How many of `content` a full gather should land on. Food: one per animal that can
