@@ -107,12 +107,14 @@ export function setupDissectOverlay() {
 }
 
 function idle() {
+  wrap.style.display = 'none';
   breadcrumbEl.innerHTML = '<span style="opacity:0.4">click an animal to dissect</span>';
   panelsEl.innerHTML = '';
 }
 
 // ── Main render ─────────────────────────────────────────────────────────────
 function render() {
+  wrap.style.display = 'flex';
   const rawKey = state.key;
   const part   = state.crumb.length ? state.crumb[state.crumb.length - 1] : null;
 
