@@ -208,6 +208,19 @@ export const WithWorld = (Base) => class extends Base {
       this.streamObstacles.push({ x: x - 42, y: y - 30, w: 84, h: 60, isStream: true });
     }
 
+    // Sampled centerline of the *visible* water (skip the off-screen top/right tails),
+    // each point carrying the unit flow tangent. Ambient stream life reads this: fish
+    // dart along it (#183) and the cat fishes at the nearest bank (#163).
+    this.streamPath = [];
+    for (let i = 0; i < path.length; i += 4) {
+      const [x, y] = path[i];
+      if (y < 80 || x > 1880) continue;
+      const a = path[Math.max(0, i - 1)], b = path[Math.min(path.length - 1, i + 1)];
+      let tx = b[0] - a[0], ty = b[1] - a[1];
+      const tl = Math.hypot(tx, ty) || 1;
+      this.streamPath.push({ x, y, tx: tx / tl, ty: ty / tl });
+    }
+
     // Bucket-fill points all along the stream's field-facing bank, so it can be
     // gathered from anywhere along its visible length (not just one spot). Each
     // is spriteless/obstacle-less — the river graphics is the visual and its
