@@ -42,9 +42,16 @@ const FAMILIES = [
   // though these critters only flit through the world on timers. Not tap-to-customize
   // (no customizer parts). The raccoon's run + the bird's flap animate (see the
   // locomotion-cycle filter below); the fish does its tail-flick.
-  { label: 'Raccoon', members: [{ key: 'raccoon' }] },
-  { label: 'Bird',    members: [{ key: 'bird' }] },
-  { label: 'Fish',    members: [{ key: 'fish' }] },
+  // New (crisp, super-sampled) next to the old (soft, 1×) for an A/B — the *Old keys
+  // are gallery-only (PREVIEW_TEXTURES.wildlifeOld), so they just don't appear in
+  // normal play. Each family normalizes to the same on-screen height, so the only
+  // difference you see is edge crispness. TEMP: drop the (old 1×) rows once decided.
+  { label: 'Raccoon (new 4×)',  members: [{ key: 'raccoon' }] },
+  { label: 'Raccoon (old 1×)',  members: [{ key: 'raccoonOld' }] },
+  { label: 'Bird (new 4×)',     members: [{ key: 'bird' }] },
+  { label: 'Bird (old 1×)',     members: [{ key: 'birdOld' }] },
+  { label: 'Fish (new 4×)',     members: [{ key: 'fish' }] },
+  { label: 'Fish (old 1×)',     members: [{ key: 'fishOld' }] },
 ];
 
 const TARGET_H = 200;       // tallest family member's on-screen height (logical px)

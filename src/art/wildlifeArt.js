@@ -135,17 +135,18 @@ function drawRaccoon(g, [l0, l1, l2, l3], bob = 0) {
   g.fillStyle(0xf4f0e6, 1); g.fillRect(20, 7 + y, 1, 1); g.fillRect(22, 7 + y, 1, 1); // eye glints
 }
 
+// idle (a low sit) + a 4-frame scamper (diagonal leg pairs, with a bounce).
+const RACCOON_FRAMES = [
+  { name: 'idle_0', legs: [0, 0, 0, 0], bob: 0 },
+  { name: 'idle_1', legs: [0, 0, 0, 0], bob: 1 },
+  { name: 'run_0', legs: [2, 0, 0, 2], bob: 0 },
+  { name: 'run_1', legs: [0, 0, 0, 0], bob: 1 },
+  { name: 'run_2', legs: [0, 2, 2, 0], bob: 0 },
+  { name: 'run_3', legs: [0, 0, 0, 0], bob: 1 },
+];
+
 export function buildRaccoonTextures(scene) {
-  // idle (a low sit) + a 4-frame scamper (diagonal leg pairs, with a bounce).
-  const frames = [
-    { name: 'idle_0', legs: [0, 0, 0, 0], bob: 0 },
-    { name: 'idle_1', legs: [0, 0, 0, 0], bob: 1 },
-    { name: 'run_0', legs: [2, 0, 0, 2], bob: 0 },
-    { name: 'run_1', legs: [0, 0, 0, 0], bob: 1 },
-    { name: 'run_2', legs: [0, 2, 2, 0], bob: 0 },
-    { name: 'run_3', legs: [0, 0, 0, 0], bob: 1 },
-  ];
-  frames.forEach((f) => gen(scene, `raccoon_${f.name}`, RACC_W * ART_SCALE, RACC_H * ART_SCALE,
+  RACCOON_FRAMES.forEach((f) => gen(scene, `raccoon_${f.name}`, RACC_W * ART_SCALE, RACC_H * ART_SCALE,
     (g) => drawRaccoon(scaledGraphics(g), f.legs, f.bob)));
 }
 
@@ -155,4 +156,18 @@ export function buildWildlifeTextures(scene) {
   buildFishTextures(scene);
   buildBirdTextures(scene);
   buildRaccoonTextures(scene);
+}
+
+// TEMP comparison scaffolding: the OLD 1× (non-super-sampled) variants under `*Old`
+// keys, built ONLY for the Art Preview gallery so the owner can A/B the soft AA'd edges
+// against the crisp super-sampled versions. Not used in-world. Remove once the look is
+// settled (these draw fns are the same — only the 1× vs ART_SCALE grid differs).
+export function buildWildlifeOldTextures(scene) {
+  gen(scene, 'fishOld_0', FISH_W, FISH_H, (g) => drawFish(g, 0));
+  gen(scene, 'fishOld_1', FISH_W, FISH_H, (g) => drawFish(g, 1));
+  gen(scene, 'birdOld_fly_0', BIRD_W, BIRD_H, (g) => drawBirdFly(g, true));
+  gen(scene, 'birdOld_fly_1', BIRD_W, BIRD_H, (g) => drawBirdFly(g, false));
+  gen(scene, 'birdOld_peck_0', BIRD_W, BIRD_H, (g) => drawBirdPeck(g, false));
+  gen(scene, 'birdOld_peck_1', BIRD_W, BIRD_H, (g) => drawBirdPeck(g, true));
+  RACCOON_FRAMES.forEach((f) => gen(scene, `raccoonOld_${f.name}`, RACC_W, RACC_H, (g) => drawRaccoon(g, f.legs, f.bob)));
 }
