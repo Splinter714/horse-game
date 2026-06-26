@@ -27,6 +27,13 @@ export const WithPauseMenu = (Base) => class extends Base {
     this.game.events.emit(EVENTS.PROMPTS_CHANGED, this._showPrompts);
   }
 
+  // Close the pause menu (which resumes the world) and launch the player customizer on
+  // top; it pauses/hides the world + hotbar itself while editing and restores them on exit.
+  _openPlayerCustomizer() {
+    this._closePause();
+    this.scene.launch('PlayerCustomizerScene');
+  }
+
   // Build one full-width toggle row in the pause menu. Returns its label Text so
   // the caller can update the wording when the value flips.
   _addToggleRow(rowX, rowY, rowW, rowH, text, onClick) {
@@ -108,7 +115,8 @@ export const WithPauseMenu = (Base) => class extends Base {
       ['Effects', 'effects'],
     ];
     const devH   = 38 + rowH * 5;  // TEMP dev-tools: heading + hint + 5 rows
-    const panelH = 56 + rowH * 2 + sliders.length * sliderH + 8 + devH;
+    // 3 action/toggle rows: mute, control-prompts, Customize Character.
+    const panelH = 56 + rowH * 3 + sliders.length * sliderH + 8 + devH;
     const px = Math.round((sw - panelW) / 2);
     const py = Math.round((sh - panelH) / 2);
 
@@ -153,9 +161,15 @@ export const WithPauseMenu = (Base) => class extends Base {
     this._promptRowLbl = this._addToggleRow(rowX, promptRowY, rowW, rowH,
       `Control Prompts: ${this._showPrompts ? 'On' : 'Off'}`, () => this._togglePrompts());
 
+    // Open the player character customizer (#44). A real (non-dev) feature, so it sits
+    // here with the settings, above the TEMP dev tools.
+    const customizeRowY = promptRowY + rowH;
+    this._addToggleRow(rowX, customizeRowY, rowW, rowH,
+      '🧑 Customize Character', () => this._openPlayerCustomizer());
+
     // Per-bus volume sliders, stacked below the toggle rows.
     const vols = getAudioSettings().volumes;
-    let sy = promptRowY + rowH + 4;
+    let sy = customizeRowY + rowH + 4;
     for (const [label, bus] of sliders) {
       this._addVolumeSlider(rowX, sy, rowW, label, bus, vols[bus]);
       sy += sliderH;

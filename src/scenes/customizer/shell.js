@@ -62,6 +62,12 @@ export const WithCustomizerShell = (Base) => class extends Base {
     if (opts.onExit) this._onCustExit = opts.onExit;
     this._mode = 'edit';
 
+    // Preview animation frames. Creatures use their idle_0/idle_1 breathing pair by
+    // default; a subject without idle textures (the player — directional walk frames,
+    // no idle sheet) passes its own frame keys + rate (#44).
+    this._previewFrames = opts.previewFrames || [{ key: `${this._editKey}_idle_0` }, { key: `${this._editKey}_idle_1` }];
+    this._previewFrameRate = opts.previewFrameRate || 2;
+
     // Resolve the thing being edited. Horse-like subjects (horse + foal) carry a live
     // model the rich editor reads/writes; simple "parts" animals have no model, just an
     // in-memory `look` of per-part palette ramps that recolours the art live.
@@ -148,7 +154,8 @@ export const WithCustomizerShell = (Base) => class extends Base {
   _buildPreview() {
     const r = this._worldRegion;
     const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
-    const src = this.textures.get(`${this._editKey}_idle_0`).getSourceImage();
+    const baseKey = this._previewFrames[0].key;
+    const src = this.textures.get(baseKey).getSourceImage();
     const aspect = src.width / src.height;
 
     // Size the creature to fill ~70% of whichever region dimension is the limit, with
@@ -170,11 +177,11 @@ export const WithCustomizerShell = (Base) => class extends Base {
     if (!this.anims.exists(animKey)) {
       this.anims.create({
         key: animKey,
-        frames: [{ key: `${this._editKey}_idle_0` }, { key: `${this._editKey}_idle_1` }],
-        frameRate: 2, repeat: -1,
+        frames: this._previewFrames,
+        frameRate: this._previewFrameRate, repeat: -1,
       });
     }
-    this._previewSprite = this.add.sprite(cx, cy, `${this._editKey}_idle_0`)
+    this._previewSprite = this.add.sprite(cx, cy, baseKey)
       .setDisplaySize(dw, dh).setOrigin(0.5, 0.5).setDepth(1);
     this._previewSprite.play(animKey);
   }
@@ -290,30 +297,38 @@ export const WithCustomizerShell = (Base) => class extends Base {
     if (this._focusActive) this._refreshFocusRing();
   }
 
-  // Data-driven simple parts: one swatch grid per editable part, naming the selection
-  // beneath it. Picking a swatch recolours the live sprite (#165, live-recolor only).
+  // Data-driven simple parts: one section per editable part. Colour parts get a swatch
+  // grid; shape OPTION parts (player hair/sleeves/bottom) get a row of option pills.
+  // Either way, picking recolours/reshapes the live sprite (#165, live-recolor only).
   _buildPartSections(c, y0) {
     let y = y0;
     const parts = CUSTOMIZE[this._custSpecies].parts;
     for (const part of parts) {
       const curKey = this._lookKeys[part.id];
-      const entries = part.palette.map((s) => [s.key, s.label, swatchTone(s.ramp)]);
-      y = this._secSwatches(c, part.label, entries, curKey, (k) => this._pickPartSwatch(part.id, k), y) + 14;
+      const onPick = (k) => this._pickPartSwatch(part.id, k);
+      if (part.options) {
+        y = this._secOptions(c, part.label, part.options.map((o) => [o.key, o.label]), curKey, onPick, y) + 14;
+      } else {
+        const entries = part.palette.map((s) => [s.key, s.label, swatchTone(s.ramp)]);
+        y = this._secSwatches(c, part.label, entries, curKey, onPick, y) + 14;
+      }
     }
     return y;
   }
 
+  // Apply a part choice (a colour swatch or a shape option) and re-resolve the whole
+  // look. Re-resolving via lookFromKeys handles both flavours uniformly (option parts
+  // resolve to their key, colour parts to a ramp).
   _pickPartSwatch(partId, swatchKey) {
-    const part = CUSTOMIZE[this._custSpecies].parts.find((p) => p.id === partId);
-    const swatch = part.palette.find((s) => s.key === swatchKey);
-    if (!swatch) return;
+    const choices = (() => { const p = CUSTOMIZE[this._custSpecies].parts.find((p) => p.id === partId); return p?.palette ?? p?.options; })();
+    if (!choices?.some((ch) => ch.key === swatchKey)) return;
     this._lookKeys = { ...this._lookKeys, [partId]: swatchKey };
-    this._look = { ...this._look, [partId]: swatch.ramp };
+    this._look = lookFromKeys(this._custSpecies, this._lookKeys);
     reskinAnimal(this, this._custSpecies, this._editKey, this._look); // redraws frames in place
     // In-world: store the keys on the model and persist (art-preview passes no model
     // and no persist, so it just recolours live).
     if (this._partModel) { this._partModel.look = { ...this._lookKeys }; this._custPersist?.(); }
-    this._custContent(); // refresh the selected-swatch highlight + caption
+    this._custContent(); // refresh the selected highlight + caption
   }
 
   _heading(c, text, y) {

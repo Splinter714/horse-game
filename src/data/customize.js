@@ -89,6 +89,66 @@ const CAT_EYES = [
 const CHICKEN_LABELS = ['White', 'Rhode Island Red', 'Black', 'Buff', 'Grey'];
 const CHICKEN_STYLES = CHICKEN_COATS.map((coat, i) => sw(String(i), CHICKEN_LABELS[i] || `Style ${i + 1}`, coat));
 
+// ── Player character (#44) ────────────────────────────────────────────────────
+// The player is just another data-driven "parts" subject, but with two flavours of
+// part: colour parts (a swatch grid) and shape OPTION parts (mutually-exclusive
+// pills). Option parts carry `options: [{key,label}]` instead of a `palette`, and
+// resolve to the chosen KEY (a string) rather than a colour ramp — the art reads the
+// string to pick a body shape (see art/playerArt.js).
+//
+// Colour ramps here are `{ main }` (single-tone parts: hair/skin), `{ main, shad }`
+// (clothing, with a hand-authored shadow), or `{ color }` (eyes — matches CAT_EYES).
+// The FIRST entry of every part is today's look, so the defaults reproduce the
+// current sprite exactly (shoes stay fixed, so there's no shoe part).
+const opt = (key, label) => ({ key, label });
+
+const PLAYER_HAIR = [
+  sw('auburn',   'Auburn',   { main: 0xc8844a }), // today
+  sw('brown',    'Brown',    { main: 0x6b4a2a }),
+  sw('chestnut', 'Chestnut', { main: 0x8a4a2a }),
+  sw('red',      'Red',      { main: 0xb5532a }),
+  sw('blonde',   'Blonde',   { main: 0xe6c878 }),
+  sw('black',    'Black',    { main: 0x2a2424 }),
+  sw('grey',     'Grey',     { main: 0xb0b0b4 }),
+  sw('white',    'White',    { main: 0xeceae6 }),
+];
+const PLAYER_SKIN = [
+  sw('peach', 'Peach', { main: 0xf5c48a }), // today
+  sw('fair',  'Fair',  { main: 0xfcdcb4 }),
+  sw('tan',   'Tan',   { main: 0xe0a878 }),
+  sw('olive', 'Olive', { main: 0xc89860 }),
+  sw('brown', 'Brown', { main: 0xa6754a }),
+  sw('deep',  'Deep',  { main: 0x7a4f30 }),
+  sw('dark',  'Dark',  { main: 0x523524 }),
+];
+const PLAYER_EYES = [
+  sw('dark',  'Dark',  { color: 0x1a0a04 }), // today
+  sw('brown', 'Brown', { color: 0x5a3a1e }),
+  sw('hazel', 'Hazel', { color: 0x8a6a3a }),
+  sw('green', 'Green', { color: 0x4a8a4a }),
+  sw('blue',  'Blue',  { color: 0x4a78b0 }),
+  sw('grey',  'Grey',  { color: 0x707078 }),
+];
+const PLAYER_SHIRT = [
+  sw('teal',   'Teal',   { main: 0x5aab8a, shad: 0x3d8a6c }), // today
+  sw('red',    'Red',    { main: 0xd05a4a, shad: 0xaa4034 }),
+  sw('blue',   'Blue',   { main: 0x5a7fd0, shad: 0x4060aa }),
+  sw('green',  'Green',  { main: 0x5aac4a, shad: 0x408a34 }),
+  sw('yellow', 'Yellow', { main: 0xe6c24a, shad: 0xc09a2e }),
+  sw('purple', 'Purple', { main: 0x9a5ac0, shad: 0x7840a0 }),
+  sw('pink',   'Pink',   { main: 0xe890b0, shad: 0xc86a90 }),
+  sw('white',  'White',  { main: 0xeef0f0, shad: 0xc8ccce }),
+];
+const PLAYER_BOTTOM_COLOR = [
+  sw('brown', 'Brown', { main: 0x7a5a38, shad: 0x5a4028 }), // today
+  sw('denim', 'Denim', { main: 0x4a5a80, shad: 0x36446a }),
+  sw('black', 'Black', { main: 0x3a3636, shad: 0x282424 }),
+  sw('grey',  'Grey',  { main: 0x8a8a90, shad: 0x6a6a70 }),
+  sw('green', 'Green', { main: 0x5a7a4a, shad: 0x426034 }),
+  sw('red',   'Red',   { main: 0xb05040, shad: 0x8a3a2e }),
+  sw('tan',   'Tan',   { main: 0xc8a878, shad: 0xa88858 }),
+];
+
 export const CUSTOMIZE = {
   sheep: {
     parts: [
@@ -125,6 +185,21 @@ export const CUSTOMIZE = {
     ],
   },
 
+  // Player avatar (#44): a mix of shape OPTION parts and colour parts. Shoes are not
+  // editable, so there's no shoe part. Order here = top-to-bottom order in the panel.
+  player: {
+    parts: [
+      { id: 'hairStyle',   label: 'Hairstyle', options: [opt('short', 'Short'), opt('long', 'Long'), opt('bun', 'Bun')] },
+      { id: 'hair',        label: 'Hair',      palette: PLAYER_HAIR },
+      { id: 'skin',        label: 'Skin',      palette: PLAYER_SKIN },
+      { id: 'eyes',        label: 'Eyes',      palette: PLAYER_EYES },
+      { id: 'sleeves',     label: 'Sleeves',   options: [opt('long', 'Long'), opt('short', 'Short'), opt('none', 'Sleeveless')] },
+      { id: 'shirt',       label: 'Shirt',     palette: PLAYER_SHIRT },
+      { id: 'bottom',      label: 'Bottoms',   options: [opt('pants', 'Pants'), opt('skirt', 'Skirt')] },
+      { id: 'bottomColor', label: 'Bottom colour', palette: PLAYER_BOTTOM_COLOR },
+    ],
+  },
+
   // Horse + foal share the rich, bespoke section set (the foal is just a young horse,
   // same coat system) rather than a flat part list. See scenes/customizer/horse.js.
   horse: { sections: 'horse' },
@@ -132,31 +207,38 @@ export const CUSTOMIZE = {
 };
 
 // The swatch button colour for a swatch (the most representative tone). Covers every
-// ramp shape used: body ramps (mid/lit/hi), single-colour parts (color), spots (mid),
-// and a whole chicken coat (its `body` feather colour).
-export const swatchTone = (ramp) => ramp.mid ?? ramp.lit ?? ramp.hi ?? ramp.color ?? ramp.body ?? 0x888888;
+// ramp shape used: body ramps (mid/lit/hi), single-colour parts (color/main), spots
+// (mid), and a whole chicken coat (its `body` feather colour).
+export const swatchTone = (ramp) => ramp.mid ?? ramp.lit ?? ramp.hi ?? ramp.color ?? ramp.main ?? ramp.body ?? 0x888888;
 
-// The default swatch KEY per part (first swatch). Keys (not ramps) are what gets
-// persisted on the model, so the look survives reloads (the art is rebuilt from them
-// on boot). e.g. cow → { coat: 'white', spots: 'black' }, chicken → { style: '0' }.
+// A part's choice list, regardless of flavour: colour parts carry `palette`, shape
+// OPTION parts carry `options`. Both are arrays of `{ key, label, … }`.
+const partChoices = (part) => part.palette ?? part.options;
+
+// The default KEY per part (first choice). Keys (not ramps) are what gets persisted on
+// the model, so the look survives reloads (the art is rebuilt from them on boot).
+// e.g. cow → { coat: 'white', spots: 'black' }, chicken → { style: '0' },
+// player → { hairStyle: 'short', hair: 'auburn', … }.
 export function defaultKeys(speciesId) {
   const def = CUSTOMIZE[speciesId];
   if (!def?.parts) return undefined;
   const keys = {};
-  for (const part of def.parts) keys[part.id] = part.palette[0].key;
+  for (const part of def.parts) keys[part.id] = partChoices(part)[0].key;
   return keys;
 }
 
-// Resolve a persisted swatch-key map to the ramp `look` the art builders consume.
-// Unknown/missing keys fall back to each part's first swatch, so a stale save never
-// throws — it just shows the default for that part.
+// Resolve a persisted key map to the `look` the art builders consume. Colour parts
+// resolve to their ramp; shape OPTION parts resolve to the chosen KEY (a string the
+// art reads to pick a body shape). Unknown/missing keys fall back to each part's first
+// choice, so a stale save never throws — it just shows the default for that part.
 export function lookFromKeys(speciesId, keyMap) {
   const def = CUSTOMIZE[speciesId];
   if (!def?.parts) return undefined;
   const look = {};
   for (const part of def.parts) {
-    const swatch = part.palette.find((s) => s.key === keyMap?.[part.id]) || part.palette[0];
-    look[part.id] = swatch.ramp;
+    const choices = partChoices(part);
+    const choice = choices.find((c) => c.key === keyMap?.[part.id]) || choices[0];
+    look[part.id] = part.options ? choice.key : choice.ramp;
   }
   return look;
 }

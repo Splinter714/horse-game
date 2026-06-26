@@ -1,206 +1,281 @@
 // Procedural pixel-art player character. 16×24 sprite, 4 directions, 4 walk frames each.
-// Rendered at scale 2 in the world (32×48 on screen). Origin (0.5, 1) — feet at bottom.
+// Rendered at scale 3 in the world (48×72 on screen). Origin (0.5, 1) — feet at bottom.
 //
 // Walk cycle is 4 frames: 0 = passing (neutral), 1 = left-foot lead,
 // 2 = passing (neutral), 3 = right-foot lead. Frame 0 doubles as the idle pose.
 // Arms swing opposite the same-side leg for a natural gait.
+//
+// The look is data-driven (#44): buildPlayerTextures takes a resolved `look` from
+// data/customize.js (lookFromKeys('player', …)) carrying colour ramps (hair/skin/eyes/
+// shirt/bottomColor) plus shape KEYS (hairStyle, sleeves, bottom). Called with no look
+// it falls back to defaultLook('player'), which reproduces the original sprite exactly.
+// Shoes are not customizable, so they stay a fixed dark brown.
 
-const HAIR    = 0xc8844a; // warm auburn
-const SKIN    = 0xf5c48a; // warm peach
-const SHIRT   = 0x5aab8a; // teal green
-const SHIRT_D = 0x3d8a6c; // teal shadow
-const PANTS   = 0x7a5a38; // warm brown
-const PANTS_D = 0x5a4028; // pants shadow
-const SHOE    = 0x2a1808; // dark brown
-const EYE     = 0x1a0a04; // near-black
+import { gen } from './_frames.js';
+import { defaultLook } from '../data/customize.js';
+
+const SHOE = 0x2a1808; // dark brown — fixed (no shoe customization)
+
+// Resolve a customizer `look` into the flat palette + shape flags the draw fns read.
+function palette(look) {
+  const L = look || defaultLook('player');
+  return {
+    HAIR:    L.hair.main,
+    SKIN:    L.skin.main,
+    EYE:     L.eyes.color,
+    SHIRT:   L.shirt.main,
+    SHIRT_D: L.shirt.shad,
+    PANTS:   L.bottomColor.main, // "pants" colour also clothes the skirt
+    PANTS_D: L.bottomColor.shad,
+    SHOE,
+    hairStyle: L.hairStyle, // 'short' | 'long' | 'bun'
+    sleeves:   L.sleeves,   // 'long'  | 'short' | 'none'
+    bottom:    L.bottom,    // 'pants' | 'skirt'
+  };
+}
 
 // Per-frame stride for the front/back views. lead: 0 = none, -1 = left foot
 // forward, +1 = right foot forward. A forward foot plants lower (toward camera
 // for "down", away for "up"); the trailing foot lifts.
 const STRIDE = [0, -1, 0, 1];
 
-// Draw the two legs + shoes for the front/back views given the stride lead.
-function drawLegsVert(g, lead) {
-  // Base (passing) positions. Legs narrower (2px) and more centered.
-  let llY = 16, rlY = 16;   // leg-top y (moved up to y=16 for better pelvis connection)
-  let lsY = 21, rsY = 21;   // shoe y
-  let llX = 5,  rlX = 9;    // leg x (left leg centered around x=6, right around x=10)
-  let lsX = 4,  rsX = 9;    // shoe x
-  if (lead === -1) {        // left foot forward, right trailing
-    llY = 17; lsY = 22;
-    rlY = 15; rsY = 20;
-  } else if (lead === 1) {  // right foot forward, left trailing
-    rlY = 17; rsY = 22;
-    llY = 15; lsY = 20;
+// One front/back arm (3px wide, `len` tall from `topY`). The sleeve covers the top of
+// the arm; the rest is bare skin. Long = full sleeve, Short = a 2px cap, Sleeveless = none.
+function drawArmVert(g, x, topY, len, P) {
+  const sleeveLen = P.sleeves === 'long' ? len : P.sleeves === 'short' ? 2 : 0;
+  if (sleeveLen > 0) { g.fillStyle(P.SHIRT, 1); g.fillRect(x, topY, 3, sleeveLen); }
+  if (sleeveLen < len) { g.fillStyle(P.SKIN, 1); g.fillRect(x, topY + sleeveLen, 3, len - sleeveLen); }
+}
+
+// Pants legs OR a flared skirt for the front/back views, given the stride lead. Pants
+// draw two PANTS-coloured legs; a skirt is a PANTS-coloured flare over bare (skin) lower
+// legs. Either way the same shoes plant at the bottom.
+function drawBottomVert(g, lead, P) {
+  if (P.bottom === 'skirt') {
+    g.fillStyle(P.PANTS, 1);
+    g.fillRect(4, 15, 8, 3);   // waist (y15–18)
+    g.fillRect(3, 18, 10, 2);  // flare (y18–20)
+    g.fillStyle(P.PANTS_D, 1);
+    g.fillRect(3, 19, 10, 1);  // hem shadow
+    drawLegsVert(g, lead, P, P.SKIN, 20); // bare lower legs + shoes below the hem
+  } else {
+    g.fillStyle(P.PANTS, 1);
+    g.fillRect(4, 15, 8, 2);   // waistband
+    drawLegsVert(g, lead, P, P.PANTS, 16);
   }
-  g.fillStyle(PANTS, 1);
-  g.fillRect(llX, llY, 2, 21 - llY + 3);  // narrower legs (2px)
-  g.fillRect(rlX, rlY, 2, 21 - rlY + 3);
-  g.fillStyle(PANTS_D, 1);
-  g.fillRect(llX + 1, llY + 2, 1, 2);
-  g.fillRect(rlX + 1, rlY + 2, 1, 2);
-  g.fillStyle(SHOE, 1);
-  g.fillRect(lsX, lsY, 3, 3);  // narrower shoes to match legs
+}
+
+// The two legs + shoes for the front/back views. `legColor`/`legTopY` let the same
+// routine draw full pants (PANTS from y16) or bare lower legs under a skirt (SKIN from y20).
+function drawLegsVert(g, lead, P, legColor, legTopY) {
+  let llY = legTopY, rlY = legTopY;
+  let lsY = 21, rsY = 21;
+  const llX = 5, rlX = 9, lsX = 4, rsX = 9;
+  if (lead === -1) {        // left foot forward, right trailing
+    llY = legTopY + 1; lsY = 22;
+    rlY = legTopY - 1; rsY = 20;
+  } else if (lead === 1) {  // right foot forward, left trailing
+    rlY = legTopY + 1; rsY = 22;
+    llY = legTopY - 1; lsY = 20;
+  }
+  g.fillStyle(legColor, 1);
+  g.fillRect(llX, llY, 2, 24 - llY);
+  g.fillRect(rlX, rlY, 2, 24 - rlY);
+  if (legColor === P.PANTS) {                 // subtle inseam shadow on pants only
+    g.fillStyle(P.PANTS_D, 1);
+    g.fillRect(llX + 1, llY + 2, 1, 2);
+    g.fillRect(rlX + 1, rlY + 2, 1, 2);
+  }
+  g.fillStyle(P.SHOE, 1);
+  g.fillRect(lsX, lsY, 3, 3);
   g.fillRect(rsX, rsY, 3, 3);
 }
 
 // Hands for the front/back views. Arms swing opposite the same-side leg, so a
 // forward foot pairs with a raised (back) hand on that side.
-function drawHandsVert(g, lead) {
+function drawHandsVert(g, lead, P) {
   let lhY = 14, rhY = 14;
   if (lead === -1) { lhY = 13; rhY = 15; }      // left leg fwd → left arm back
   else if (lead === 1) { lhY = 15; rhY = 13; }  // right leg fwd → right arm back
-  g.fillStyle(SKIN, 1);
+  g.fillStyle(P.SKIN, 1);
   g.fillRect(2, lhY, 2, 2);
   g.fillRect(12, rhY, 2, 2);
 }
 
 // Facing down (toward camera) — we see the face.
-function drawDown(g, frame) {
+function drawDown(g, frame, P) {
   const lead = STRIDE[frame];
 
-  // Hair top + sides framing the face
-  g.fillStyle(HAIR, 1);
+  // Hair top + sides framing the face. Style sets how far the sides hang; a bun pulls
+  // the hair back (minimal sides), long hangs past the jaw.
+  const sideH = P.hairStyle === 'long' ? 9 : P.hairStyle === 'bun' ? 3 : 6;
+  g.fillStyle(P.HAIR, 1);
   g.fillRect(4, 0, 8, 3);
-  g.fillRect(3, 2, 2, 7);  // left side
-  g.fillRect(11, 2, 2, 7); // right side
+  g.fillRect(3, 2, 2, sideH);  // left side
+  g.fillRect(11, 2, 2, sideH); // right side
 
   // Face (drawn after hair, overwrites center hair pixels to show skin)
-  g.fillStyle(SKIN, 1);
+  g.fillStyle(P.SKIN, 1);
   g.fillRect(5, 2, 6, 7);
 
   // Eyes
-  g.fillStyle(EYE, 1);
+  g.fillStyle(P.EYE, 1);
   g.fillRect(6, 5, 1, 2);
   g.fillRect(9, 5, 1, 2);
 
   // Shirt torso + arms
-  g.fillStyle(SHIRT, 1);
+  g.fillStyle(P.SHIRT, 1);
   g.fillRect(4, 9, 8, 6);
-  g.fillRect(2, 9, 3, 5);   // left arm
-  g.fillRect(11, 9, 3, 5);  // right arm
-  g.fillStyle(SHIRT_D, 1);
-  g.fillRect(4, 13, 8, 2);  // bottom shadow
+  drawArmVert(g, 2, 9, 5, P);   // left arm
+  drawArmVert(g, 11, 9, 5, P);  // right arm
+  g.fillStyle(P.SHIRT_D, 1);
+  g.fillRect(4, 13, 8, 2);      // bottom shadow
 
-  drawHandsVert(g, lead);
+  // Long hair drapes over the shoulders (drawn over the arms).
+  if (P.hairStyle === 'long') {
+    g.fillStyle(P.HAIR, 1);
+    g.fillRect(3, 9, 1, 4);
+    g.fillRect(12, 9, 1, 4);
+  }
 
-  // Belt / pants top
-  g.fillStyle(PANTS, 1);
-  g.fillRect(4, 15, 8, 2);
-
-  drawLegsVert(g, lead);
+  drawHandsVert(g, lead, P);
+  drawBottomVert(g, lead, P);
 }
 
 // Facing up (away from camera) — we see the back of the head.
-function drawUp(g, frame) {
+function drawUp(g, frame, P) {
   const lead = STRIDE[frame];
 
-  // Back of head (all hair)
-  g.fillStyle(HAIR, 1);
+  // Back of head (all hair).
+  g.fillStyle(P.HAIR, 1);
   g.fillRect(4, 0, 8, 3);
   g.fillRect(3, 2, 10, 6);  // wide hair covering back of head
   g.fillRect(3, 7, 2, 2);   // hair sides hanging
   g.fillRect(11, 7, 2, 2);
 
   // Tiny neck
-  g.fillStyle(SKIN, 1);
+  g.fillStyle(P.SKIN, 1);
   g.fillRect(7, 8, 2, 1);
 
-  // Shirt + arms (same as down)
-  g.fillStyle(SHIRT, 1);
+  // Shirt + arms
+  g.fillStyle(P.SHIRT, 1);
   g.fillRect(4, 9, 8, 6);
-  g.fillRect(2, 9, 3, 5);
-  g.fillRect(11, 9, 3, 5);
-  g.fillStyle(SHIRT_D, 1);
+  drawArmVert(g, 2, 9, 5, P);
+  drawArmVert(g, 11, 9, 5, P);
+  g.fillStyle(P.SHIRT_D, 1);
   g.fillRect(4, 13, 8, 2);
 
-  drawHandsVert(g, lead);
+  // Long hair runs down the back over the shirt; a bun is a knot at the crown.
+  if (P.hairStyle === 'long') {
+    g.fillStyle(P.HAIR, 1);
+    g.fillRect(4, 9, 8, 4);
+  } else if (P.hairStyle === 'bun') {
+    g.fillStyle(P.HAIR, 1);
+    g.fillCircle(8, 2, 2.4);
+  }
 
-  // Belt
-  g.fillStyle(PANTS, 1);
-  g.fillRect(4, 15, 8, 2);
-
-  drawLegsVert(g, lead);
+  drawHandsVert(g, lead, P);
+  drawBottomVert(g, lead, P);
 }
 
 // Facing right (side profile). Flipped for left.
 // Side stride alternates which leg leads: frame 1 swings the near (front) leg
 // forward, frame 3 swings the far (back) leg forward; arms swing opposite.
-function drawSide(g, frame) {
+function drawSide(g, frame, P) {
   const lead = STRIDE[frame]; // -1 near leg fwd, +1 far leg fwd, 0 passing
 
-  // Hair — back hangs left, slight front tuft
-  g.fillStyle(HAIR, 1);
-  g.fillRect(5, 0, 7, 3);    // hair top
-  g.fillRect(3, 2, 4, 7);    // hair back (left side of sprite)
-  g.fillRect(11, 1, 2, 4);   // hair front tuft
+  // Hair — back hangs left, slight front tuft. Long extends down the back; bun is a
+  // knot bulging off the back of the head.
+  const backH = P.hairStyle === 'long' ? 14 : 7;
+  g.fillStyle(P.HAIR, 1);
+  g.fillRect(5, 0, 7, 3);        // hair top
+  g.fillRect(3, 2, 4, backH);    // hair back (left side of sprite)
+  g.fillRect(11, 1, 2, 4);       // hair front tuft
+  if (P.hairStyle === 'bun') g.fillCircle(4, 3, 2.4);
 
   // Face profile (right side of frame)
-  g.fillStyle(SKIN, 1);
-  g.fillRect(7, 2, 6, 7);    // face (overwrites front hair tuft at face level)
+  g.fillStyle(P.SKIN, 1);
+  g.fillRect(7, 2, 6, 7);        // face (overwrites front hair tuft at face level)
 
   // Eye (single eye in profile, toward front of face)
-  g.fillStyle(EYE, 1);
+  g.fillStyle(P.EYE, 1);
   g.fillRect(10, 4, 1, 2);
 
   // Shirt body (slightly narrower in profile)
-  g.fillStyle(SHIRT, 1);
+  g.fillStyle(P.SHIRT, 1);
   g.fillRect(5, 9, 7, 6);
-  // Arms — front arm swings forward when the near leg trails (lead +1) and
-  // back when the near leg leads (lead -1).
-  const armF = lead === -1 ? 11 : (lead === 1 ? 13 : 11);
-  const armB = lead === -1 ? 3  : (lead === 1 ? 5  : 4);
-  g.fillRect(armF, 9, 2, 5);   // front arm
-  g.fillRect(armB, 10, 2, 4);  // back arm (shorter, partially occluded)
-  g.fillStyle(SHIRT_D, 1);
+  g.fillStyle(P.SHIRT_D, 1);
   g.fillRect(5, 13, 7, 2);
 
+  // Arms — front arm swings forward when the near leg trails (lead +1) and back when
+  // the near leg leads (lead -1). Sleeves cover the top of each arm; bare skin below.
+  const armF = lead === -1 ? 11 : (lead === 1 ? 13 : 11);
+  const armB = lead === -1 ? 3  : (lead === 1 ? 5  : 4);
+  drawSideArm(g, armF, 9, 5, P); // front arm
+  drawSideArm(g, armB, 10, 4, P); // back arm (shorter, partially occluded)
+
   // Hands
-  g.fillStyle(SKIN, 1);
+  g.fillStyle(P.SKIN, 1);
   g.fillRect(armF, 13, 2, 2);
   g.fillRect(armB, 13, 2, 2);
 
-  // Belt
-  g.fillStyle(PANTS, 1);
-  g.fillRect(5, 15, 7, 2);
-
-  // Legs — near leg under body center (x=7), far leg behind (x=6). On a step the
-  // leading leg reaches forward (+x) and plants lower; the trailing leg pulls
-  // back (−x) and lifts. Legs narrower (2px) and better anchored.
-  let nearX = 7, nearY = 16, nearShoeX = 7, nearShoeY = 21;
-  let farX = 6,  farY = 16,  farShoeX = 6,  farShoeY = 21;
-  let farShoeVisible = true;
-  if (lead === -1) {          // near leg forward
-    nearX = 8; nearShoeX = 8; nearShoeY = 21;
-    farX = 5;  farY = 17;     farShoeX = 5; farShoeY = 20; // back leg lifted
-  } else if (lead === 1) {    // far leg forward, near leg pulled back/lifted
-    nearX = 6; nearY = 17;    nearShoeX = 6; nearShoeY = 20;
-    farX = 8;  farY = 16;     farShoeX = 8; farShoeY = 21;
-  }
-
-  g.fillStyle(PANTS, 1);
-  g.fillRect(farX, farY, 2, 24 - farY);    // far leg (drawn first, behind) — 2px width
-  g.fillRect(nearX, nearY, 2, 24 - nearY); // near leg — 2px width
-  g.fillStyle(PANTS_D, 1);
-  g.fillRect(nearX + 1, nearY + 2, 1, 2);
-
-  // Shoes
-  g.fillStyle(SHOE, 1);
-  if (farShoeVisible) g.fillRect(farShoeX, farShoeY, 2, 2); // far shoe (behind) — narrower
-  g.fillRect(nearShoeX, nearShoeY, 3, 3);                   // near shoe — narrower
+  drawSideBottom(g, lead, P);
 }
 
-export function buildPlayerTextures(scene) {
-  const make = (key, fn) => {
-    const g = scene.make.graphics({ x: 0, y: 0, add: false });
-    fn(g);
-    g.generateTexture(key, 16, 24);
-    g.destroy();
-  };
+// One side-view arm (2px wide). Sleeve length mirrors the front/back arms.
+function drawSideArm(g, x, topY, len, P) {
+  const sleeveLen = P.sleeves === 'long' ? len : P.sleeves === 'short' ? 2 : 0;
+  if (sleeveLen > 0) { g.fillStyle(P.SHIRT, 1); g.fillRect(x, topY, 2, sleeveLen); }
+  if (sleeveLen < len) { g.fillStyle(P.SKIN, 1); g.fillRect(x, topY + sleeveLen, 2, len - sleeveLen); }
+}
 
+// Side-view pants legs OR skirt + bare lower legs.
+function drawSideBottom(g, lead, P) {
+  if (P.bottom === 'skirt') {
+    g.fillStyle(P.PANTS, 1);
+    g.fillRect(5, 15, 7, 3);   // waist (y15–18)
+    g.fillRect(4, 18, 9, 2);   // flare (y18–20)
+    g.fillStyle(P.PANTS_D, 1);
+    g.fillRect(4, 19, 9, 1);   // hem shadow
+    drawSideLegs(g, lead, P, P.SKIN, 20);
+  } else {
+    g.fillStyle(P.PANTS, 1);
+    g.fillRect(5, 15, 7, 2);   // waistband
+    drawSideLegs(g, lead, P, P.PANTS, 16);
+  }
+}
+
+// Side-view legs. Near leg under body center (x=7), far leg behind (x=6). On a step the
+// leading leg reaches forward (+x) and plants lower; the trailing leg pulls back and lifts.
+function drawSideLegs(g, lead, P, legColor, legTopY) {
+  let nearX = 7, nearY = legTopY, nearShoeX = 7, nearShoeY = 21;
+  let farX = 6,  farY = legTopY,  farShoeX = 6,  farShoeY = 21;
+  if (lead === -1) {          // near leg forward
+    nearX = 8; nearShoeX = 8; nearShoeY = 21;
+    farX = 5;  farY = legTopY + 1; farShoeX = 5; farShoeY = 20; // back leg lifted
+  } else if (lead === 1) {    // far leg forward, near leg pulled back/lifted
+    nearX = 6; nearY = legTopY + 1; nearShoeX = 6; nearShoeY = 20;
+    farX = 8;  farY = legTopY;      farShoeX = 8; farShoeY = 21;
+  }
+
+  g.fillStyle(legColor, 1);
+  g.fillRect(farX, farY, 2, 24 - farY);    // far leg (drawn first, behind)
+  g.fillRect(nearX, nearY, 2, 24 - nearY); // near leg
+  if (legColor === P.PANTS) {
+    g.fillStyle(P.PANTS_D, 1);
+    g.fillRect(nearX + 1, nearY + 2, 1, 2);
+  }
+
+  g.fillStyle(P.SHOE, 1);
+  g.fillRect(farShoeX, farShoeY, 2, 2);  // far shoe (behind)
+  g.fillRect(nearShoeX, nearShoeY, 3, 3); // near shoe
+}
+
+export function buildPlayerTextures(scene, look) {
+  const P = palette(look);
   for (let f = 0; f < 4; f++) {
-    make(`player_down_${f}`, g => drawDown(g, f));
-    make(`player_up_${f}`,   g => drawUp(g, f));
-    make(`player_side_${f}`, g => drawSide(g, f));
+    gen(scene, `player_down_${f}`, 16, 24, (g) => drawDown(g, f, P));
+    gen(scene, `player_up_${f}`,   16, 24, (g) => drawUp(g, f, P));
+    gen(scene, `player_side_${f}`, 16, 24, (g) => drawSide(g, f, P));
   }
 }
