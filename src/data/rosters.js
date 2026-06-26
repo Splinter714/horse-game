@@ -18,6 +18,8 @@ import { Chicken } from './species/chicken/model.js';
 import { Cow } from './species/cow/model.js';
 import { Pig } from './species/pig/model.js';
 import { Cat } from './species/cat/model.js';
+import { Sheep } from './species/sheep/model.js';
+import { Dog } from './species/dog/model.js';
 
 // The canonical herd. Every horse is equal — same persistence, same decay. The
 // only per-horse differences are data (name, coat, age, spawn) plus Ebony's
@@ -80,6 +82,26 @@ function defaultCatRoster() {
   };
 }
 
+// A small flock of sheep (#184). Grazers with full stats + daily-care like the cow/
+// pig; offline decay applies on load, forgiving like the herd. Keyed sheep0..2 like
+// the chickens; the spawn block (sheep/index.js) places one per individual.
+function defaultSheepRoster() {
+  return {
+    sheep0: { id: 'sheep-1', name: 'Cloud',     breed: 'Wooly', coat: 0, age: 3, sex: 'female' },
+    sheep1: { id: 'sheep-2', name: 'Dandelion', breed: 'Wooly', coat: 0, age: 2, sex: 'female' },
+    sheep2: { id: 'sheep-3', name: 'Marshmallow', breed: 'Wooly', coat: 0, age: 4, sex: 'male' },
+  };
+}
+
+// One dog for now, keyed `dog` (matches its texture/sprite key). Identity-only like
+// the cat — no survival needs, so no offline decay — but persisted so its customizer
+// look + happiness survive reloads. A real "dog job" is the follow-up #186.
+function defaultDogRoster() {
+  return {
+    dog: { id: 'dog-1', name: 'Scout', breed: 'Farm Dog', coat: 0, age: 3, sex: 'male' },
+  };
+}
+
 export const ROSTERS = {
   horse: {
     storageKey: 'horse-care-save-v2',
@@ -122,6 +144,22 @@ export const ROSTERS = {
     registryKey: 'allCats',
     Model: Cat,
     defaultRoster: defaultCatRoster,
+    offlineDecay: false, // identity-only (no survival needs) — don't decay offline
+    legacy: null,
+  },
+  sheep: {
+    storageKey: 'horse-care-sheep-v1',
+    registryKey: 'allSheep',
+    Model: Sheep,
+    defaultRoster: defaultSheepRoster,
+    offlineDecay: true, // grazer with survival needs — forgiving offline decay
+    legacy: null,
+  },
+  dog: {
+    storageKey: 'horse-care-dogs-v1',
+    registryKey: 'allDogs',
+    Model: Dog,
+    defaultRoster: defaultDogRoster,
     offlineDecay: false, // identity-only (no survival needs) — don't decay offline
     legacy: null,
   },

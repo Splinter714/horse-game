@@ -161,6 +161,10 @@ try {
       pigDiet,
       pigCount: Object.keys(g.registry.get('allPigs') ?? {}).length,
       pigsInScene: paddock.animals.filter((a) => a.model?.species === 'pig').length,
+      sheepCount: Object.keys(g.registry.get('allSheep') ?? {}).length,
+      sheepInScene: paddock.animals.filter((a) => a.model?.species === 'sheep').length,
+      dogCount: Object.keys(g.registry.get('allDogs') ?? {}).length,
+      dogsInScene: paddock.animals.filter((a) => a.model?.species === 'dog').length,
       renderer: g.config.renderType, // 1=Canvas, 2=WebGL
       movementOk, movementError,
       behaviorDecision,
@@ -250,12 +254,13 @@ try {
   if (!result.movementOk) fail('creature movement/pathfinding threw: ' + result.movementError);
   if (result.behaviorDecision !== 'seekFood') fail(`hungry horse with hay nearby did not select seekFood (got ${result.behaviorDecision})`);
   // #136: gather one food per animal that eats it, water → capacity. Diets differ:
-  // hay feeds the 7 horses + the cow (8); apples/carrots also feed the pig, who
-  // refuses hay (9). The split is the proof the pig's pickier diet is wired up.
+  // hay feeds the 7 horses + the cow + the 3 sheep (11, capped at the basket's
+  // capacity 10); apples/carrots also feed the pig but NOT the sheep, who refuse them
+  // (9). The split is the proof the pig/sheep pickier diets are wired up.
   const gt = result.gatherTargets;
-  if (gt.hay !== 8) fail(`gather target for hay = ${gt.hay}, expected 8 (7 horses + 1 cow; the pig won't eat hay)`);
+  if (gt.hay !== 10) fail(`gather target for hay = ${gt.hay}, expected 10 (7 horses + 1 cow + 3 sheep = 11, capped at capacity 10)`);
   for (const food of ['apple', 'carrot']) {
-    if (gt[food] !== 9) fail(`gather target for ${food} = ${gt[food]}, expected 9 (7 horses + 1 cow + 1 pig, #136)`);
+    if (gt[food] !== 9) fail(`gather target for ${food} = ${gt[food]}, expected 9 (7 horses + 1 cow + 1 pig; sheep refuse them, #136)`);
   }
   if (gt.seed !== 5) fail(`gather target for seed = ${gt.seed}, expected 5 (one per chicken, #136)`);
   if (gt.water !== 1) fail(`gather target for water = ${gt.water}, expected 1 (capacity — water ignores demand)`);
@@ -264,6 +269,11 @@ try {
   if (result.pigCount !== 1) fail(`expected 1 pig in roster, got ${result.pigCount}`);
   if (result.pigsInScene !== 1) fail(`expected 1 pig sprite in scene, got ${result.pigsInScene}`);
   if (result.pigDiet !== 'apples-not-hay') fail(`pig diet wrong (got ${result.pigDiet}) — should ignore hay, seek apples`);
+  // The sheep flock (#184) + the dog (#185): both spawned from data-driven rosters.
+  if (result.sheepCount !== 3) fail(`expected 3 sheep in roster, got ${result.sheepCount}`);
+  if (result.sheepInScene !== 3) fail(`expected 3 sheep sprites in scene, got ${result.sheepInScene}`);
+  if (result.dogCount !== 1) fail(`expected 1 dog in roster, got ${result.dogCount}`);
+  if (result.dogsInScene !== 1) fail(`expected 1 dog sprite in scene, got ${result.dogsInScene}`);
   if (!result.horsePanel.active) fail('InfoPanelScene did not open for a horse');
   if (result.horsePanel.parts < 15) fail(`horse panel looks too sparse (parts=${result.horsePanel.parts}) — identity/stat bars missing?`);
   if (!result.chickenPanel.active) fail('InfoPanelScene did not open for a chicken');

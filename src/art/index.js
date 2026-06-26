@@ -57,6 +57,10 @@ export const SPECIES_TEXTURES = {
   pig(scene) { buildRosterLooks(scene, 'allPigs', 'pig', buildPigTextures); },
 
   cat(scene) { buildRosterLooks(scene, 'allCats', 'cat', buildCatTextures); },
+
+  sheep(scene) { buildRosterLooks(scene, 'allSheep', 'sheep', buildSheepTextures); },
+
+  dog(scene) { buildRosterLooks(scene, 'allDogs', 'dog', buildDogTextures); },
 };
 
 // A hen's coat index: its customized style if set, else the roster `coat` default.
@@ -73,11 +77,10 @@ function buildRosterLooks(scene, registryKey, speciesId, build) {
 }
 
 // Disabled barnyard animals — their art exists but they aren't in the world yet.
-// Built only for the dev Art-preview gallery so we can art-direct them early.
-export const PREVIEW_TEXTURES = {
-  sheep(scene) { buildSheepTextures(scene, 'sheep'); },
-  dog(scene)   { buildDogTextures(scene, 'dog'); },
-};
+// Built only for the dev Art-preview gallery so we can art-direct them early. The
+// sheep (#184) and dog (#185) are now live (SPECIES_TEXTURES above), so this is empty
+// until the next not-yet-spawned creature lands here.
+export const PREVIEW_TEXTURES = {};
 
 // Live re-skin dispatch (#165) — rebuilds one creature's frame textures IN PLACE
 // from a customizer `look` (per-part palette ramps). Registry-driven so no shared

@@ -22,7 +22,7 @@ export const CARRIER_DEFS = {
 // horses + pigs → horses + pigs). Multiple foods overlapping the same animals is fine
 // and intended — the owner wants "N apples for N horses", overlap with carrots and all.
 export const CONTENT_DEFS = {
-  hay:    { label: 'Hay',     icon: 'iconBasketHay',    action: 'feed',  ground: 'hayPile',    feeds: ['horse', 'cow'] },
+  hay:    { label: 'Hay',     icon: 'iconBasketHay',    action: 'feed',  ground: 'hayPile',    feeds: ['horse', 'cow', 'sheep'] },
   // Apples and carrots feed the pig too; hay does NOT (pigs won't touch it). This
   // `feeds` list is the single source of truth for the pig's pickier diet — the
   // grazing AI reads it (speciesEatsContent) when choosing which pile to walk to.
