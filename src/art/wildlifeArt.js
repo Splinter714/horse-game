@@ -135,6 +135,127 @@ function drawRaccoon(g, [l0, l1, l2, l3], bob = 0) {
   g.fillStyle(0xf4f0e6, 1); g.fillRect(20, 7 + y, 1, 1); g.fillRect(22, 7 + y, 1, 1); // eye glints
 }
 
+// ── Detailed raccoon (#181 redraw draft) ──────────────────────────────────────
+// Same proportions/anchors as drawRaccoon, but built the way the cat/chicken are —
+// many small rects, fur shading (dark grizzled back, pale belly, scattered guard-hair
+// flecks), a properly banded bushy tail, a shaped snout + bandit mask, and a broken,
+// fur-tufted silhouette — instead of a few big ovals/triangles. Owner-review draft.
+function raccoonLeg2(g, x, lift) {
+  g.fillStyle(0x2c2f35, 1); g.fillRect(x, 13 - lift, 2, 4 + lift); // dark furry leg
+  g.fillStyle(0x3d4047, 1); g.fillRect(x, 13 - lift, 1, 2);        // front-edge highlight
+  g.fillStyle(0x17181c, 1); g.fillRect(x - 1, 16, 3, 1);          // paw
+  g.fillStyle(0x2c2f35, 1); g.fillRect(x, 16, 1, 1);              // toe split
+}
+
+function drawRaccoon2(g, [l0, l1, l2, l3], bob = 0) {
+  const y = bob;
+  const FUR = 0x8d8f94, LO = 0x686b71, HI = 0xb4b6bb, GUARD = 0x4a4d54, DARK = 0x2c2f35,
+    MASK = 0x1c1d21, PALE = 0xdedfe1, PALElo = 0xb9bbbf, NOSE = 0x120f0c, EARP = 0xc59a9a, SHINE = 0xf2efe6;
+
+  // ── Ringed bushy tail (left) — stacked bands, bushier toward the rump; outline
+  //    roughed with stray fur so it reads furry, not a smooth oval.
+  g.fillStyle(MASK, 1);   g.fillRect(0, 11 + y, 3, 5);   // dark tip
+  g.fillStyle(PALE, 1);   g.fillRect(2, 10 + y, 2, 6);   // pale ring
+  g.fillStyle(DARK, 1);   g.fillRect(4, 10 + y, 2, 6);   // dark ring
+  g.fillStyle(PALElo, 1); g.fillRect(5, 9 + y, 2, 7);    // pale ring
+  g.fillStyle(FUR, 1);    g.fillRect(6, 9 + y, 3, 7);    // grey, joins the rump
+  g.fillStyle(LO, 1);     g.fillRect(8, 10 + y, 1, 5);   // shade at the join
+  g.fillStyle(DARK, 1);   g.fillRect(1, 10 + y, 1, 1); g.fillRect(3, 9 + y, 1, 1); g.fillRect(0, 15 + y, 1, 1);
+  g.fillStyle(PALE, 1);   g.fillRect(2, 9 + y, 1, 1);  g.fillRect(4, 16 + y, 1, 1);
+
+  // far legs (behind the body)
+  raccoonLeg2(g, 9, l0); raccoonLeg2(g, 18, l2);
+
+  // ── Body ── hunched, grizzled; layered rects with a darker back + pale belly.
+  g.fillStyle(FUR, 1);
+  g.fillRect(7, 10 + y, 13, 5); g.fillRect(8, 8 + y, 11, 2); g.fillRect(9, 7 + y, 7, 1);
+  g.fillRect(6, 11 + y, 2, 3); g.fillRect(18, 9 + y, 3, 4);
+  g.fillStyle(GUARD, 1); // dark guard-hair back + scattered flecks
+  g.fillRect(9, 7 + y, 7, 1); g.fillRect(8, 8 + y, 11, 1);
+  g.fillRect(10, 9 + y, 1, 1); g.fillRect(13, 8 + y, 1, 1); g.fillRect(16, 9 + y, 1, 1); g.fillRect(12, 10 + y, 1, 1);
+  g.fillStyle(LO, 1);  g.fillRect(7, 14 + y, 12, 1);          // belly shadow line
+  g.fillStyle(HI, 1);  g.fillRect(8, 13 + y, 10, 1);          // pale underside
+  g.fillRect(9, 12 + y, 1, 1); g.fillRect(14, 12 + y, 1, 1);  // pale flecks
+  g.fillStyle(FUR, 1); g.fillRect(8, 15 + y, 1, 1); g.fillRect(12, 15 + y, 1, 1); g.fillRect(16, 15 + y, 1, 1); // fur tufts
+
+  // near legs (over the body)
+  raccoonLeg2(g, 11, l1); raccoonLeg2(g, 20, l3);
+
+  // ── Head + stepped snout ──
+  g.fillStyle(FUR, 1);  g.fillRect(19, 6 + y, 5, 6); g.fillRect(20, 5 + y, 3, 1);
+  g.fillStyle(HI, 1);   g.fillRect(20, 6 + y, 3, 1);
+  g.fillStyle(PALElo, 1); g.fillRect(24, 8 + y, 2, 2); g.fillRect(23, 9 + y, 3, 2);
+  g.fillStyle(PALE, 1);   g.fillRect(23, 10 + y, 2, 1);
+  g.fillStyle(NOSE, 1);   g.fillRect(25, 8 + y, 1, 1); g.fillRect(24, 9 + y, 1, 1);
+
+  // ── Ears (rects, pale inner, dark tips) ──
+  g.fillStyle(FUR, 1);   g.fillRect(19, 4 + y, 2, 2); g.fillRect(18, 5 + y, 1, 1); g.fillRect(22, 4 + y, 2, 2); g.fillRect(24, 5 + y, 1, 1);
+  g.fillStyle(EARP, 1);  g.fillRect(19, 5 + y, 1, 1); g.fillRect(23, 5 + y, 1, 1);
+  g.fillStyle(GUARD, 1); g.fillRect(19, 4 + y, 1, 1); g.fillRect(23, 4 + y, 1, 1);
+
+  // ── Bandit mask: pale brow, dark band wrapping the cheeks, bright eyes ──
+  g.fillStyle(PALE, 1); g.fillRect(19, 6 + y, 6, 1);
+  g.fillStyle(MASK, 1); g.fillRect(20, 7 + y, 5, 2); g.fillRect(19, 8 + y, 1, 1); g.fillRect(24, 7 + y, 1, 1);
+  g.fillStyle(SHINE, 1); g.fillRect(21, 7 + y, 1, 1); g.fillRect(23, 7 + y, 1, 1);
+}
+
+// ── Hybrid raccoon draft — soft edges + pixel detail (#181) ──────────────────
+// Same character as drawRaccoon2 but outer silhouette built from curves (ellipses /
+// circles / triangles) so the canvas anti-aliases the rim. Interior fur detail stays
+// as rects. The AA bakes into the 4× texture and becomes sub-pixel at the 0.5× display
+// scale — smooth edge, pixel-art feel inside.
+function drawRaccoon3(g, [l0, l1, l2, l3], bob = 0) {
+  const y = bob;
+  const FUR = 0x8d8f94, LO = 0x686b71, HI = 0xb4b6bb, GUARD = 0x4a4d54, DARK = 0x2c2f35,
+    MASK = 0x1c1d21, PALE = 0xdedfe1, PALElo = 0xb9bbbf, NOSE = 0x120f0c, EARP = 0xc59a9a, SHINE = 0xf2efe6;
+
+  // ── Tail: banded rings from overlapping ellipses → soft shape; stray rects = fur tufts
+  g.fillStyle(MASK, 1);  g.fillEllipse(3,   12 + y, 6,   8);    // dark tip
+  g.fillStyle(PALE, 1);  g.fillEllipse(5,   11.5 + y, 5, 8);    // pale ring
+  g.fillStyle(DARK, 1);  g.fillEllipse(6,   11 + y, 4,   8);    // dark ring
+  g.fillStyle(FUR, 1);   g.fillEllipse(8,   10.5 + y, 5, 8);    // rump join
+  g.fillStyle(DARK, 1);  g.fillRect(0, 9 + y, 1, 2); g.fillRect(1, 15 + y, 1, 1); // stray tufts
+  g.fillStyle(PALE, 1);  g.fillRect(3, 8 + y, 1, 1); g.fillRect(5, 16 + y, 1, 1);
+  g.fillStyle(LO, 1);    g.fillRect(8, 10 + y, 1, 5);            // shade at join
+
+  // far legs (behind body)
+  raccoonLeg2(g, 9, l0); raccoonLeg2(g, 18, l2);
+
+  // ── Body: smooth ellipse silhouette + rect fur/guard-hair detail on top
+  g.fillStyle(FUR, 1);  g.fillEllipse(13, 10.5 + y, 15, 8);
+  g.fillStyle(GUARD, 1);
+  g.fillRect(8, 8 + y, 9, 1); g.fillRect(9, 7 + y, 7, 1);        // dark back
+  g.fillRect(10, 9 + y, 1, 1); g.fillRect(13, 8 + y, 1, 1); g.fillRect(15, 9 + y, 1, 1); // flecks
+  g.fillStyle(LO, 1);   g.fillRect(8, 14 + y, 11, 1);             // belly shadow
+  g.fillStyle(HI, 1);   g.fillRect(9, 13 + y, 9,  1);             // pale underside
+  g.fillRect(10, 12 + y, 1, 1); g.fillRect(14, 12 + y, 1, 1);     // pale flecks
+
+  // near legs (over body)
+  raccoonLeg2(g, 11, l1); raccoonLeg2(g, 20, l3);
+
+  // ── Head: smooth circle skull; detail rects on top
+  g.fillStyle(FUR, 1); g.fillCircle(21, 8.5 + y, 4);
+  g.fillStyle(HI, 1);  g.fillRect(20, 6 + y, 3, 1);               // crown highlight
+
+  // Ears — triangles for soft pointy shape, rects for pink inner + dark tip
+  g.fillStyle(FUR, 1);   g.fillTriangle(19, 5 + y, 20.5, 2 + y, 22, 6 + y);
+  g.fillStyle(EARP, 1);  g.fillRect(20, 4 + y, 1, 1);
+  g.fillStyle(GUARD, 1); g.fillRect(19, 3 + y, 1, 1);
+  g.fillStyle(FUR, 1);   g.fillTriangle(22, 5 + y, 23.5, 2 + y, 25, 6 + y);
+  g.fillStyle(EARP, 1);  g.fillRect(23, 4 + y, 1, 1);
+  g.fillStyle(GUARD, 1); g.fillRect(22, 3 + y, 1, 1);
+
+  // Stepped snout (rects keep the pointy silhouette)
+  g.fillStyle(PALElo, 1); g.fillRect(24, 8 + y, 2, 2); g.fillRect(23, 9 + y, 3, 2);
+  g.fillStyle(PALE, 1);   g.fillRect(23, 10 + y, 2, 1);
+  g.fillStyle(NOSE, 1);   g.fillRect(25, 8 + y, 1, 1); g.fillRect(24, 9 + y, 1, 1);
+
+  // ── Bandit mask: pale brow, dark wrap, bright eye shines
+  g.fillStyle(PALE, 1);  g.fillRect(19, 6 + y, 6, 1);
+  g.fillStyle(MASK, 1);  g.fillRect(20, 7 + y, 5, 2); g.fillRect(19, 8 + y, 1, 1); g.fillRect(24, 7 + y, 1, 1);
+  g.fillStyle(SHINE, 1); g.fillRect(21, 7 + y, 1, 1); g.fillRect(23, 7 + y, 1, 1);
+}
+
 // idle (a low sit) + a 4-frame scamper (diagonal leg pairs, with a bounce).
 const RACCOON_FRAMES = [
   { name: 'idle_0', legs: [0, 0, 0, 0], bob: 0 },
@@ -146,8 +267,11 @@ const RACCOON_FRAMES = [
 ];
 
 export function buildRaccoonTextures(scene) {
-  RACCOON_FRAMES.forEach((f) => gen(scene, `raccoon_${f.name}`, RACC_W * ART_SCALE, RACC_H * ART_SCALE,
-    (g) => drawRaccoon(scaledGraphics(g), f.legs, f.bob)));
+  RACCOON_FRAMES.forEach((f) => {
+    gen(scene, `raccoon_${f.name}`, RACC_W * ART_SCALE, RACC_H * ART_SCALE,
+      (g) => drawRaccoon2(scaledGraphics(g), f.legs, f.bob));
+    blurEdgesSplit(scene, `raccoon_${f.name}`, { radius: 1.5, strength: 1.0, feather: 3, internalBlur: 0.4, internalStrength: 0.45 });
+  });
 }
 
 // One call BootScene makes for all ambient wildlife textures (parallel to the
@@ -156,6 +280,110 @@ export function buildWildlifeTextures(scene) {
   buildFishTextures(scene);
   buildBirdTextures(scene);
   buildRaccoonTextures(scene);
+}
+
+// Post-process Gaussian blur on a Phaser canvas-backed texture. Draw the existing
+// texture source through a `ctx.filter=blur()` pass on a temp canvas and write it back.
+// Called right after gen() while still in boot — the sprite picks up the blurred canvas
+// on first upload, so no GL update call needed. Gracefully no-ops in non-canvas contexts.
+function blurTex(scene, key, px) {
+  const src = scene.textures.get(key)?.getSourceImage();
+  if (!src?.getContext) return;
+  const tmp = document.createElement('canvas');
+  tmp.width = src.width; tmp.height = src.height;
+  const ctx = tmp.getContext('2d');
+  ctx.filter = `blur(${px}px)`;
+  ctx.drawImage(src, 0, 0);
+  const srcCtx = src.getContext('2d');
+  srcCtx.clearRect(0, 0, src.width, src.height);
+  srcCtx.drawImage(tmp, 0, 0);
+}
+
+// Three-knob edge blur for sprite silhouettes:
+//   radius   — Gaussian spread in canvas px (controls how wide the blur extends)
+//   strength — 0→1 blend from original to fully blurred at the edge (intensity)
+//   feather  — how many pixel rows inward from the silhouette edge are affected;
+//              the blend fades linearly from `strength` at the outermost row to
+//              strength/feather at the deepest row, then snaps to crisp interior
+// internalBlur/colorThresh let you optionally soften internal color seams the same way.
+function blurEdgesSplit(scene, key, {
+  radius = 1.5, strength = 1.0, feather = 1,
+  internalBlur = 0, internalStrength,   // internalStrength defaults to strength when omitted
+  alphaThresh = 30, colorThresh = 20,
+} = {}) {
+  const iStr = internalStrength ?? strength;
+  const src = scene.textures.get(key)?.getSourceImage();
+  if (!src?.getContext) return;
+  const w = src.width, h = src.height;
+  const origCtx = src.getContext('2d');
+  const origData = new Uint8ClampedArray(origCtx.getImageData(0, 0, w, h).data);
+
+  const makeBlur = (px) => {
+    const tmp = document.createElement('canvas');
+    tmp.width = w; tmp.height = h;
+    const c = tmp.getContext('2d');
+    c.filter = `blur(${px}px)`; c.drawImage(src, 0, 0);
+    return c.getImageData(0, 0, w, h).data;
+  };
+  const blurSil = makeBlur(radius);
+  const blurInt = internalBlur > 0 ? makeBlur(internalBlur) : null;
+
+  // BFS distance-to-transparency map, capped at feather+1
+  const dist = new Int32Array(w * h).fill(feather + 1);
+  const queue = [];
+  for (let i = 0; i < w * h; i++) {
+    if (origData[i * 4 + 3] < alphaThresh) { dist[i] = 0; queue.push(i); }
+  }
+  for (let qi = 0; qi < queue.length; qi++) {
+    const i = queue[qi];
+    if (dist[i] >= feather) continue;
+    const px = i % w, py = Math.floor(i / w);
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        const nx = px + dx, ny = py + dy;
+        if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+        const ni = ny * w + nx;
+        if (dist[ni] > dist[i] + 1) { dist[ni] = dist[i] + 1; queue.push(ni); }
+      }
+    }
+  }
+
+  const out = origCtx.createImageData(w, h);
+  const o = out.data;
+  const lerp = (ci, s, t) => {
+    o[ci]   = origData[ci]   * (1 - t) + s[ci]   * t;
+    o[ci+1] = origData[ci+1] * (1 - t) + s[ci+1] * t;
+    o[ci+2] = origData[ci+2] * (1 - t) + s[ci+2] * t;
+    o[ci+3] = origData[ci+3] * (1 - t) + s[ci+3] * t;
+  };
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const ci = (y * w + x) * 4, d = dist[y * w + x];
+
+      if (d === 0) { // transparent — use blurred spread
+        o[ci]=blurSil[ci]; o[ci+1]=blurSil[ci+1]; o[ci+2]=blurSil[ci+2]; o[ci+3]=blurSil[ci+3];
+      } else if (d <= feather) { // silhouette zone: gradient from edge inward
+        lerp(ci, blurSil, strength * (feather - d + 1) / feather);
+      } else if (blurInt) { // interior color seam (only when internalBlur > 0)
+        let col = false;
+        for (let dy = -1; dy <= 1 && !col; dy++)
+          for (let dx = -1; dx <= 1 && !col; dx++) {
+            if (!dx && !dy) continue;
+            const ni = ((y+dy)*w + (x+dx))*4;
+            if (origData[ni+3] >= alphaThresh &&
+                Math.abs(origData[ci]-origData[ni]) + Math.abs(origData[ci+1]-origData[ni+1])
+              + Math.abs(origData[ci+2]-origData[ni+2]) > colorThresh) col = true;
+          }
+        if (col) lerp(ci, blurInt, iStr);
+        else { o[ci]=origData[ci]; o[ci+1]=origData[ci+1]; o[ci+2]=origData[ci+2]; o[ci+3]=origData[ci+3]; }
+      } else { // crisp interior
+        o[ci]=origData[ci]; o[ci+1]=origData[ci+1]; o[ci+2]=origData[ci+2]; o[ci+3]=origData[ci+3];
+      }
+    }
+  }
+  origCtx.putImageData(out, 0, 0);
 }
 
 // TEMP comparison scaffolding: the OLD 1× (non-super-sampled) variants under `*Old`
@@ -169,5 +397,20 @@ export function buildWildlifeOldTextures(scene) {
   gen(scene, 'birdOld_fly_1', BIRD_W, BIRD_H, (g) => drawBirdFly(g, false));
   gen(scene, 'birdOld_peck_0', BIRD_W, BIRD_H, (g) => drawBirdPeck(g, false));
   gen(scene, 'birdOld_peck_1', BIRD_W, BIRD_H, (g) => drawBirdPeck(g, true));
-  RACCOON_FRAMES.forEach((f) => gen(scene, `raccoonOld_${f.name}`, RACC_W, RACC_H, (g) => drawRaccoon(g, f.legs, f.bob)));
+  // raccoon2 = crisp reference; raccoon5/5b/5c = silhouette-blur iterations;
+  // raccoon6 = silhouette blur + lighter internal-seam blur (different radius+strength each).
+  const buildR2 = (key) => RACCOON_FRAMES.forEach((f) =>
+    gen(scene, `${key}_${f.name}`, RACC_W * ART_SCALE, RACC_H * ART_SCALE,
+      (g) => drawRaccoon2(scaledGraphics(g), f.legs, f.bob)));
+  const blurR = (key, opts) => RACCOON_FRAMES.forEach((f) => blurEdgesSplit(scene, `${key}_${f.name}`, opts));
+
+  buildR2('raccoon2');                              // crisp reference
+
+  buildR2('raccoon5');  blurR('raccoon5',  { radius: 1.5, strength: 1.0, feather: 3 });
+  buildR2('raccoon5b'); blurR('raccoon5b', { radius: 2.5, strength: 0.85, feather: 5 });
+  buildR2('raccoon5c'); blurR('raccoon5c', { radius: 1.0, strength: 1.0,  feather: 2 });
+
+  // Edge+inner: silhouette gets wide feathered blur; internal seams get tighter, subtler blur.
+  buildR2('raccoon6');
+  blurR('raccoon6', { radius: 1.5, strength: 1.0, feather: 3, internalBlur: 0.4, internalStrength: 0.45 });
 }

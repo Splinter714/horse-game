@@ -46,8 +46,11 @@ const FAMILIES = [
   // are gallery-only (PREVIEW_TEXTURES.wildlifeOld), so they just don't appear in
   // normal play. Each family normalizes to the same on-screen height, so the only
   // difference you see is edge crispness. TEMP: drop the (old 1×) rows once decided.
-  { label: 'Raccoon (new 4×)',  members: [{ key: 'raccoon' }] },
-  { label: 'Raccoon (old 1×)',  members: [{ key: 'raccoonOld' }] },
+  { label: 'Raccoon (crisp)',    members: [{ key: 'raccoon2' }] },
+  { label: 'Edge r1.5 f3',      members: [{ key: 'raccoon5' }] },
+  { label: 'Edge r2.5 f5',      members: [{ key: 'raccoon5b' }] },
+  { label: 'Edge r1.0 f2',      members: [{ key: 'raccoon5c' }] },
+  { label: 'Edge+Inner blur',   members: [{ key: 'raccoon6' }] },
   { label: 'Bird (new 4×)',     members: [{ key: 'bird' }] },
   { label: 'Bird (old 1×)',     members: [{ key: 'birdOld' }] },
   { label: 'Fish (new 4×)',     members: [{ key: 'fish' }] },
