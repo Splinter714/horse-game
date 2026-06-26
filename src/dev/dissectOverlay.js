@@ -68,6 +68,11 @@ export function setupDissectOverlay() {
   wrap.append(headerRow, panelsEl);
   document.body.appendChild(wrap);
 
+  // Block clicks from reaching Phaser's input listeners (which fire on window/document).
+  wrap.addEventListener('pointerdown', (e) => e.stopPropagation());
+  wrap.addEventListener('pointerup',   (e) => e.stopPropagation());
+  wrap.addEventListener('click',       (e) => e.stopPropagation());
+
   // drag via handle
   let drag = null;
   handle.addEventListener('pointerdown', (e) => {
