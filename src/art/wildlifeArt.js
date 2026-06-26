@@ -274,6 +274,20 @@ export function buildRaccoonTextures(scene) {
   });
 }
 
+// Rebuild raccoon2-style frames under `keyPrefix_*` with the given blur opts.
+// Called live from ArtPreviewScene's blur-parameter sliders so the owner can tune
+// the look without reloading. After modifying the canvas-backed texture we call
+// source[0].update() to push the new pixels to the GL texture.
+export function buildRaccoon2Frames(scene, keyPrefix, blurOpts = {}) {
+  RACCOON_FRAMES.forEach((f) => {
+    const key = `${keyPrefix}_${f.name}`;
+    gen(scene, key, RACC_W * ART_SCALE, RACC_H * ART_SCALE,
+      (g) => drawRaccoon2(scaledGraphics(g), f.legs, f.bob));
+    blurEdgesSplit(scene, key, blurOpts);
+    scene.textures.get(key)?.source[0]?.update?.();
+  });
+}
+
 // One call BootScene makes for all ambient wildlife textures (parallel to the
 // world/player builders — these aren't a roster species).
 export function buildWildlifeTextures(scene) {

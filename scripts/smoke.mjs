@@ -283,11 +283,11 @@ try {
   if (!result.movementOk) fail('creature movement/pathfinding threw: ' + result.movementError);
   if (result.behaviorDecision !== 'seekFood') fail(`hungry horse with hay nearby did not select seekFood (got ${result.behaviorDecision})`);
   // #136: gather one food per animal that eats it, water → capacity. Diets differ:
-  // hay feeds the 7 horses + the cow + the 3 sheep (11); apples/carrots also feed the
+  // hay feeds the 7 horses + the cow + the 1 sheep (9); apples/carrots also feed the
   // pig but NOT the sheep, who refuse them (9). The split is the proof the pig/sheep
   // pickier diets are wired up. (Probed with a high capacity so demand isn't capped.)
   const gt = result.gatherTargets;
-  if (gt.hay !== 11) fail(`gather target for hay = ${gt.hay}, expected 11 (7 horses + 1 cow + 3 sheep)`);
+  if (gt.hay !== 9) fail(`gather target for hay = ${gt.hay}, expected 9 (7 horses + 1 cow + 1 sheep)`);
   for (const food of ['apple', 'carrot']) {
     if (gt[food] !== 9) fail(`gather target for ${food} = ${gt[food]}, expected 9 (7 horses + 1 cow + 1 pig; sheep refuse them, #136)`);
   }
@@ -299,8 +299,8 @@ try {
   if (result.pigsInScene !== 1) fail(`expected 1 pig sprite in scene, got ${result.pigsInScene}`);
   if (result.pigDiet !== 'apples-not-hay') fail(`pig diet wrong (got ${result.pigDiet}) — should ignore hay, seek apples`);
   // The sheep flock (#184) + the dog (#185): both spawned from data-driven rosters.
-  if (result.sheepCount !== 3) fail(`expected 3 sheep in roster, got ${result.sheepCount}`);
-  if (result.sheepInScene !== 3) fail(`expected 3 sheep sprites in scene, got ${result.sheepInScene}`);
+  if (result.sheepCount !== 1) fail(`expected 1 sheep in roster, got ${result.sheepCount}`);
+  if (result.sheepInScene !== 1) fail(`expected 1 sheep sprite in scene, got ${result.sheepInScene}`);
   if (result.dogCount !== 1) fail(`expected 1 dog in roster, got ${result.dogCount}`);
   if (result.dogsInScene !== 1) fail(`expected 1 dog sprite in scene, got ${result.dogsInScene}`);
   if (!result.horsePanel.active) fail('InfoPanelScene did not open for a horse');

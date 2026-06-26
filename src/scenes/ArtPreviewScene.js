@@ -3,6 +3,7 @@ import { applyDpr, logicalW, logicalH, dprOf } from './uiUtils.js';
 import { saveDevSettings } from '../data/save.js';
 import { CUSTOMIZE } from '../data/customize.js';
 import { DEMO_FOALS } from '../data/demoFoals.js';
+import { buildRaccoon2Frames } from '../art/wildlifeArt.js';
 
 // ── Art preview (dev tool) ───────────────────────────────────────────────────
 // A standalone gallery for art-directing the creatures. Boots straight into a
@@ -166,7 +167,105 @@ export default class ArtPreviewScene extends Phaser.Scene {
 
     this.layout();
     this.scale.on('resize', this.layout, this);
-    this.events.once('shutdown', () => this.scale.off('resize', this.layout, this));
+
+    this._blurPanel = this._buildBlurPanel();
+    this.events.once('shutdown', () => {
+      this.scale.off('resize', this.layout, this);
+      this._blurPanel?.remove();
+    });
+  }
+
+  // ── Raccoon blur-parameter slider panel ──────────────────────────────────────
+  // Injects an HTML overlay with 6 range sliders (silhouette: radius/strength/feather;
+  // inner seams: radius/strength/color-thresh). On every change, rebuilds all raccoon5
+  // frames live so the owner can see the effect without reloading.
+  _buildBlurPanel() {
+    // Current params — start at the same values used in buildWildlifeOldTextures.
+    const p = { radius: 1.5, strength: 1.0, feather: 3, internalBlur: 0.4, internalStrength: 0.45, colorThresh: 20 };
+
+    const SLIDERS = [
+      { section: 'Silhouette blur' },
+      { key: 'radius',           label: 'radius',       min: 0.2, max: 4.0, step: 0.1  },
+      { key: 'strength',         label: 'strength',     min: 0,   max: 1.0, step: 0.05 },
+      { key: 'feather',          label: 'feather',      min: 1,   max: 10,  step: 1    },
+      { section: 'Inner-seam blur' },
+      { key: 'internalBlur',     label: 'radius',       min: 0,   max: 2.0, step: 0.05 },
+      { key: 'internalStrength', label: 'strength',     min: 0,   max: 1.0, step: 0.05 },
+      { key: 'colorThresh',      label: 'color thresh', min: 5,   max: 80,  step: 5    },
+    ];
+
+    const panel = document.createElement('div');
+    panel.style.cssText = [
+      'position:fixed;bottom:16px;right:16px',
+      'background:rgba(255,255,255,0.94)',
+      'border-radius:10px;padding:14px 18px 16px',
+      'font-family:system-ui,sans-serif;font-size:13px;color:#1a2010',
+      'box-shadow:0 2px 16px rgba(0,0,0,0.22)',
+      'z-index:9999;min-width:310px;line-height:1.6',
+    ].join(';');
+
+    const title = document.createElement('div');
+    title.style.cssText = 'font-weight:700;font-size:14px;margin-bottom:6px';
+    title.textContent = '🦝 Raccoon blur params';
+    panel.appendChild(title);
+
+    const valSpans = {};
+
+    for (const row of SLIDERS) {
+      if (row.section) {
+        const hdr = document.createElement('div');
+        hdr.style.cssText = 'font-size:11px;color:#678;font-weight:600;margin-top:8px;margin-bottom:2px;text-transform:uppercase;letter-spacing:.04em';
+        hdr.textContent = row.section;
+        panel.appendChild(hdr);
+        continue;
+      }
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'display:flex;align-items:center;gap:8px;margin:2px 0';
+
+      const lbl = document.createElement('span');
+      lbl.style.cssText = 'width:88px;flex-shrink:0;color:#444';
+      lbl.textContent = row.label;
+
+      const input = document.createElement('input');
+      input.type = 'range';
+      input.min = row.min; input.max = row.max; input.step = row.step;
+      input.value = p[row.key];
+      input.style.cssText = 'flex:1;accent-color:#5a8a3a;cursor:pointer';
+
+      const val = document.createElement('span');
+      val.style.cssText = 'width:36px;text-align:right;font-variant-numeric:tabular-nums;color:#222';
+      val.textContent = p[row.key];
+      valSpans[row.key] = val;
+
+      input.addEventListener('input', () => {
+        p[row.key] = row.step >= 1 ? parseInt(input.value) : parseFloat(input.value);
+        val.textContent = p[row.key];
+        this._applyRaccoonBlur(p);
+      });
+
+      wrap.appendChild(lbl); wrap.appendChild(input); wrap.appendChild(val);
+      panel.appendChild(wrap);
+    }
+
+    document.body.appendChild(panel);
+    return panel;
+  }
+
+  _applyRaccoonBlur(p) {
+    // Rebuild all raccoon5 frames (the "edge blur" iteration row) with new params.
+    buildRaccoon2Frames(this, 'raccoon5', {
+      radius: p.radius, strength: p.strength, feather: p.feather,
+      internalBlur: p.internalBlur, internalStrength: p.internalStrength,
+      colorThresh: p.colorThresh,
+    });
+    // Also rebuild the other iteration rows so you can A/B against them.
+    buildRaccoon2Frames(this, 'raccoon5b', { radius: 2.5, strength: 0.85, feather: 5 });
+    buildRaccoon2Frames(this, 'raccoon5c', { radius: 1.0, strength: 1.0,  feather: 2 });
+    buildRaccoon2Frames(this, 'raccoon6',  {
+      radius: p.radius, strength: p.strength, feather: p.feather,
+      internalBlur: p.internalBlur, internalStrength: p.internalStrength,
+      colorThresh: p.colorThresh,
+    });
   }
 
   // Texture key → species id. Horses/foals map to 'horse'; chickens to 'chicken';

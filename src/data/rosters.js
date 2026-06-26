@@ -87,9 +87,7 @@ function defaultCatRoster() {
 // the chickens; the spawn block (sheep/index.js) places one per individual.
 function defaultSheepRoster() {
   return {
-    sheep0: { id: 'sheep-1', name: 'Cloud',     breed: 'Wooly', coat: 0, age: 3, sex: 'female' },
-    sheep1: { id: 'sheep-2', name: 'Dandelion', breed: 'Wooly', coat: 0, age: 2, sex: 'female' },
-    sheep2: { id: 'sheep-3', name: 'Marshmallow', breed: 'Wooly', coat: 0, age: 4, sex: 'male' },
+    sheep0: { id: 'sheep-1', name: 'Cloud', breed: 'Wooly', coat: 0, age: 3, sex: 'female' },
   };
 }
 
