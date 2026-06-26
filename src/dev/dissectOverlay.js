@@ -31,6 +31,8 @@ export function setupDissectOverlay() {
     position: 'fixed', top: '8px', left: '8px', zIndex: '9999',
     fontFamily: 'monospace', fontSize: '12px',
     boxShadow: '0 2px 16px rgba(0,0,0,0.7)', borderRadius: '6px', overflow: 'hidden',
+    maxWidth: 'calc(100vw - 16px)', maxHeight: 'calc(100vh - 16px)',
+    display: 'flex', flexDirection: 'column',
   });
 
   // ── header row ───────────────────────────────────────────────────────────
@@ -58,7 +60,9 @@ export function setupDissectOverlay() {
   // ── panels row ───────────────────────────────────────────────────────────
   panelsEl = document.createElement('div');
   Object.assign(panelsEl.style, {
-    display: 'flex', flexDirection: 'row', overflowX: 'auto', background: '#1e2026',
+    display: 'flex', flexDirection: 'row',
+    overflow: 'auto', background: '#1e2026',
+    flex: '1', minHeight: '0',
   });
 
   wrap.append(headerRow, panelsEl);
