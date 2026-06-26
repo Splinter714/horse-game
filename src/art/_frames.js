@@ -18,6 +18,49 @@ export function gen(scene, key, w, h, drawFn) {
   }
   g.generateTexture(key, w, h);
   g.destroy();
+  if (import.meta.env.DEV) captureLayers(key, w, h, drawFn);
+}
+
+// Dev-only art dissection (`npm run dissect`): re-run the SAME draw fn into a recording
+// graphics that captures every fill as a tagged op instead of drawing pixels, so the
+// dissect tool can show each part of a sprite separately. Parts are named by the
+// `g.layer('name')` calls sprinkled through the art (a no-op in the real build). Stored
+// on a global keyed by texture key. Best-effort — never let it break a texture build.
+function captureLayers(key, w, h, drawFn) {
+  try {
+    const cap = makeCaptureGraphics();
+    drawFn(cap);
+    (globalThis.__artLayers ||= {})[key] = { w, h, ops: cap.ops };
+    globalThis.dispatchEvent(new CustomEvent('artLayersUpdated', { detail: { key } }));
+  } catch { /* capture is best-effort; ignore */ }
+}
+
+// A graphics-shaped recorder. Mirrors the methods scaledGraphics forwards (so it can be
+// wrapped exactly like a real Phaser Graphics) plus the few path/shape calls some art
+// uses directly, turning each into a serializable op tagged with the current layer.
+export function makeCaptureGraphics() {
+  const ops = [];
+  let cur = 'base', color = 0, alpha = 1, path = [];
+  const rec = (o) => ops.push({ ...o, color, alpha, layer: cur });
+  return {
+    __capture: true,
+    ops,
+    layer(name) { cur = name; },
+    fillStyle(c, a = 1) { color = c; alpha = a; },
+    lineStyle() {},
+    fillRect(x, y, w, h) { rec({ t: 'rect', x, y, w, h }); },
+    fillRoundedRect(x, y, w, h) { rec({ t: 'rect', x, y, w, h }); },
+    fillCircle(x, y, r) { rec({ t: 'circle', x, y, r }); },
+    fillEllipse(x, y, w, h) { rec({ t: 'ellipse', x, y, w, h }); },
+    fillTriangle(a, b, c, d, e, f) { rec({ t: 'tri', pts: [a, b, c, d, e, f] }); },
+    fillPoints(points) { rec({ t: 'poly', points: points.map((p) => ({ x: p.x, y: p.y })) }); },
+    beginPath() { path = []; },
+    moveTo(x, y) { path.push({ x, y }); },
+    lineTo(x, y) { path.push({ x, y }); },
+    closePath() {},
+    fillPath() { if (path.length) rec({ t: 'poly', points: path.slice() }); },
+    strokePath() {},
+  };
 }
 
 // Super-sampling factor for a creature's procedural art (#2 follow-up). The game
@@ -37,6 +80,9 @@ export function scaledGraphics(g, r = ART_SCALE) {
   const s = (n) => n * r;
   return {
     raw: g,
+    // Tag the following draws as a named part for the dissect tool. No-op in the real
+    // build (Phaser Graphics has no `.layer`); only the capture recorder consumes it.
+    layer: (name) => { if (g.__capture) g.layer(name); },
     fillStyle: (c, a) => g.fillStyle(c, a),
     lineStyle: (w, c, a) => g.lineStyle(w * r, c, a),
     fillRect: (x, y, w, h) => g.fillRect(s(x), s(y), s(w), s(h)),

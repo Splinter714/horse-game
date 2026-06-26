@@ -79,4 +79,5 @@ if (window.ResizeObserver && gameEl) new ResizeObserver(applySize).observe(gameE
 // Exposed for debugging/automated checks during development.
 if (import.meta.env.DEV) {
   window.__game = game;
+  import('./dev/dissectOverlay.js').then((m) => m.setupDissectOverlay());
 }
