@@ -12,6 +12,7 @@ import { SHEEP } from './sheep/index.js';
 import { DOG } from './dog/index.js';
 import * as horseBehaviors from './horse/behaviors.js';
 import * as chickenBehaviors from './chicken/behaviors.js';
+import * as catBehaviors from './cat/behaviors.js';
 
 export const SPECIES = {
   horse: HORSE,
@@ -45,9 +46,11 @@ export const BEHAVIORS = {
   // The sheep is a grazer like the cow/pig — reuses the horse behavior modules; her
   // `behaviors` list (sheep/index.js) picks the subset (hay/water/graze, no begging).
   sheep: indexById(horseBehaviors),
+  // The cat hunts fish at the stream when hungry (#163) — its own one-behavior module.
+  cat: indexById(catBehaviors),
   // The dog has no goal-driven behaviors yet (#185 first pass just wanders); a real
   // job — companion-follow / herding — is #186. So no BEHAVIORS.dog entry: chooseBehavior
-  // returns null and it falls back to the plain wander, like the cat.
+  // returns null and it falls back to the plain wander.
 };
 
 function indexById(mod) {

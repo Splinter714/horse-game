@@ -24,6 +24,7 @@ core orchestrator.
 | Farm stand | `paddock/farmStand.js` (`WithFarmStand`) | stand build + NPC customers |
 | Day/night | `paddock/dayNight.js` (`WithDayNight`) | phase response, rest/wake, roosting, birds |
 | Horse AI | `paddock/horseAI.js` (`WithHorseAI`) | horse eat/drink seeking + gate-aware pathing |
+| Cat AI | `paddock/catAI.js` (`WithCatAI`) | cat fishing — `_catContext`, `_nearestStreamSpot`, `catGoFish` (hungry cat hunts fish at the stream, #163) |
 | Behavior registry | `paddock/behaviors.js` (`WithBehaviors`) | data-driven AI dispatch (`runBehaviors`) |
 | Riding | `paddock/riding.js` (`WithRiding`) | riding, saddle, leading |
 | Player core | `paddock/player.js` (`WithPlayer`) | `buildPlayer` (sprite/camera/input bindings), `handleTap`, `_isDoubleTap` |

@@ -114,6 +114,10 @@ export const WithCreatures = (Base) => class extends Base {
       a.tick = (c) => this.horseTickForHorse(c);
     }
     if (cap.pecks) a.onSettle = (c) => this._maybeChickenPeck(c); // occasional peck (#130)
+    // `hunts` (the cat, #163): goal-tick that runs the species' behavior list — when
+    // hungry it heads to the stream to fish before a plain wander. Same hook shape as
+    // grazers, but it dispatches via the behavior registry instead of the herbivore AI.
+    if (cap.hunts) a.tick = (c) => this.runBehaviors(c);
     if (cap.roosts) {
       // Hold hidden until the first phase change decides how they enter: out of the
       // coop in the morning, or already milling in the yard otherwise (no yard flash).

@@ -23,7 +23,9 @@ export const WithBehaviors = (Base) => class extends Base {
     // _speciesOf (world.js) maps a creature key to its species id: 'horse2' →
     // 'horse', 'chicken0' → 'chicken'.
     const species = this._speciesOf(agent.key);
-    const ctx = species === 'chicken' ? this._chickenContext(agent) : this._horseContext(agent);
+    const ctx = species === 'chicken' ? this._chickenContext(agent)
+      : species === 'cat' ? this._catContext(agent)
+      : this._horseContext(agent);
     const spec = getSpecies(species);
     const registry = BEHAVIORS[species] ?? {};
     for (const id of spec.behaviors ?? []) {
