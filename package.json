@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "smoke": "node scripts/smoke.mjs",
     "sprites": "node scripts/sprite-preview.mjs",
+    "dissect": "node scripts/dissect.mjs",
     "deploy": "npm run build && gh-pages -d dist -b gh-pages"
   },
   "dependencies": {

@@ -100,17 +100,18 @@ export default class ArtPreviewScene extends Phaser.Scene {
         const sprite = this.add.sprite(0, 0, b.frames[0]).setScale(scale).setDepth(2);
         if (seq.length > 1) sprite.play(animKey);
 
-        // Tap a creature to open the general customizer for it (#166), launched on top
-        // of this gallery. Editable = the species declares customizable parts, or it's
-        // a horse with a live model (the adult; demo foals have no model). A tap that
-        // was actually a scroll-drag is ignored (see _moved below).
+        // Tap a creature to dissect its art (dev mode) or open the customizer (prod).
+        // A tap that was actually a scroll-drag is ignored (see _moved below).
         const speciesId = this._speciesIdFor(b.m.key);
-        if (this._isEditable(speciesId, b.m.key)) {
-          sprite.setInteractive({ useHandCursor: true });
-          sprite.on('pointerup', () => {
-            if (!this._moved) this._openCustomizer(speciesId, b.m.key);
-          });
-        }
+        sprite.setInteractive({ useHandCursor: true });
+        sprite.on('pointerup', () => {
+          if (this._moved) return;
+          if (globalThis.__dissect) {
+            globalThis.__dissect.show(b.m.key);
+          } else if (this._isEditable(speciesId, b.m.key)) {
+            this._openCustomizer(speciesId, b.m.key);
+          }
+        });
 
         const name = b.m.label ? `${fam.label} ${b.m.label}` : fam.label;
         const label = this.add.text(0, 0, `${name}\n${b.nativeW}×${b.nativeH}`, {
@@ -125,7 +126,7 @@ export default class ArtPreviewScene extends Phaser.Scene {
       this._families.push({ members, famW });
     }
 
-    this._title = this.add.text(0, 0, '🎨 Art Preview — tap an animal to customize', {
+    this._title = this.add.text(0, 0, '🎨 Art Preview — tap an animal to dissect', {
       fontFamily: 'system-ui, sans-serif', fontSize: '16px', color: '#143', fontStyle: 'bold',
     }).setOrigin(0, 0).setDepth(3);
 
