@@ -47,6 +47,7 @@ export const CHICKEN = {
   // roam radius (#130). `pecks`/`roosts` capabilities wire the idle peck + coop entry.
   spawn: {
     inWorld: true,
+    superSampled: true, // drawn on the ART_SCALE grid — display at S/ART_SCALE
     shadowScale: 0.25, walkFps: 8, tweenRate: 10, eatFps: 6, bodyR: 11,
     roam: 'world',
     placements: [

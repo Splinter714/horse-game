@@ -43,6 +43,7 @@ export const DOG = {
   // super-sampled), so it displays at the base S scale. One placement.
   spawn: {
     inWorld: true,
+    superSampled: true, // drawn on the ART_SCALE grid — display at S/ART_SCALE
     shadowScale: 0.5, walkFps: 6, tweenRate: 8, bodyR: 11,
     roam: 'world',
     placements: [{ x: 520, y: 760 }],

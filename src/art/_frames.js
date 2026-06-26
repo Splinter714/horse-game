@@ -100,12 +100,17 @@ export const walkCycle = (lift) => [ [0, 0, 0, 0], [lift, 0, 0, lift], [0, 0, 0,
 export const idleWalkLegs = (lift) => [ [0, 0, 0, 0], [0, 0, 0, 0], ...walkCycle(lift) ];
 
 // Build the standard idle_0/1 + walk_0..3 sheet from a draw fn taking (g, bob, legs).
-// Pass blurOpts to post-process each frame with blurEdgesSplit after it's drawn.
+// Frames are super-sampled on the ART_SCALE grid (like the horse/sheep) for HiDPI
+// crispness: the canvas is R× larger and the draw fn receives a scaledGraphics wrapper,
+// so its design-grid coords are unchanged. The sprite displays at S/ART_SCALE (the
+// spawn's `superSampled` flag), keeping on-screen size identical. Pass blurOpts to
+// post-process each frame with blurEdgesSplit after it's drawn.
 export function buildFrames(scene, baseKey, w, h, drawFn, legSets, blurOpts) {
   const names = ['idle_0', 'idle_1', 'walk_0', 'walk_1', 'walk_2', 'walk_3'];
   const bobs  = [0, 1, 0, 1, 0, 1];
   legSets.forEach((legs, i) => {
-    gen(scene, `${baseKey}_${names[i]}`, w, h, g => drawFn(g, bobs[i], legs));
+    gen(scene, `${baseKey}_${names[i]}`, w * ART_SCALE, h * ART_SCALE,
+      g0 => drawFn(scaledGraphics(g0), bobs[i], legs));
     if (blurOpts) blurEdgesSplit(scene, `${baseKey}_${names[i]}`, blurOpts);
   });
 }

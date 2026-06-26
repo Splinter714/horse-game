@@ -128,9 +128,11 @@ export default class InfoPanelScene extends WithCustomizerShell(WithCustomizerNa
           frameRate: 2, repeat: -1,
         });
       }
-      // Horse art is super-sampled (ART_SCALE×) for HiDPI crispness, so its textures
-      // are larger — divide that out. Other animated portraits (the cat) are 1×.
-      const pScale = animal.species === 'horse' ? 3 / ART_SCALE : 3;
+      // Every animated-portrait species (horse, cow, pig, dog, cat, sheep) is drawn
+      // super-sampled (ART_SCALE×) for HiDPI crispness, so its idle textures are
+      // ART_SCALE× larger — divide that out to keep the portrait at the intended size.
+      // (The chicken uses the static portrait branch below, sized via setDisplaySize.)
+      const pScale = 3 / ART_SCALE;
       const sprite = this.add.sprite(CARD_W / 2, 78, `${key}_idle_0`)
         .setScale(pScale).setOrigin(0.5, 0.5);
       sprite.play(animKey);

@@ -50,6 +50,7 @@ export const CAT = {
   // shadow/animation; one placement.
   spawn: {
     inWorld: true,
+    superSampled: true, // drawn on the ART_SCALE grid — display at S/ART_SCALE
     shadowScale: 0.34, walkFps: 5, tweenRate: 16, bodyR: 11,
     roam: 'world',
     placements: [{ x: 700, y: 600 }], // slow, low-slung prowl

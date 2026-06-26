@@ -3,7 +3,7 @@
 // and `makeLeg` helpers from _frames.js, but builds its own frames so the tail can be
 // animated independently of the legs and the walk stays smooth (cats don't bounce).
 
-import { gen, makeLeg, blurEdgesSplit } from './_frames.js';
+import { gen, makeLeg, blurEdgesSplit, scaledGraphics, ART_SCALE } from './_frames.js';
 const BLUR = { radius: 0.7, strength: 0.5, feather: 1, internalBlur: 0.7, internalStrength: 0.5, colorThresh: 80 };
 
 export const CAT_W = 22, CAT_H = 20;
@@ -132,7 +132,8 @@ export function buildCatTextures(scene, key, look) {
     { name: 'walk_3', bob: 0, legs: [0, 0, 0, 1], tail: 0, high: false },
   ];
   frames.forEach(f => {
-    gen(scene, `${key}_${f.name}`, CAT_W, CAT_H, g => drawCat(g, f.bob, f.legs, f.tail, f.high, look));
+    gen(scene, `${key}_${f.name}`, CAT_W * ART_SCALE, CAT_H * ART_SCALE,
+      g0 => drawCat(scaledGraphics(g0), f.bob, f.legs, f.tail, f.high, look));
     blurEdgesSplit(scene, `${key}_${f.name}`, BLUR);
   });
 }

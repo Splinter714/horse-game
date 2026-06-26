@@ -77,6 +77,9 @@ export const COW = {
   // `grazes` (capabilities) wires the shared food/water goal tick at spawn.
   spawn: {
     inWorld: true,
+    // Super-sampled art (drawn on the ART_SCALE grid like the horse) — display at
+    // S/ART_SCALE so the on-screen size is unchanged; `scale` rides on top.
+    superSampled: true,
     // tweenRate is ms-per-pixel of travel, so a HIGHER value = slower. The horse
     // pace is 10; the cow is a placid, heavy plodder, so she walks slower (14).
     shadowScale: 0.85, walkFps: 3, tweenRate: 14, eatFps: 6, bodyR: 18,
