@@ -412,20 +412,9 @@ export function buildWildlifeOldTextures(scene) {
   gen(scene, 'birdOld_fly_1', BIRD_W, BIRD_H, (g) => drawBirdFly(g, false));
   gen(scene, 'birdOld_peck_0', BIRD_W, BIRD_H, (g) => drawBirdPeck(g, false));
   gen(scene, 'birdOld_peck_1', BIRD_W, BIRD_H, (g) => drawBirdPeck(g, true));
-  // raccoon2 = crisp reference; raccoon5/5b/5c = silhouette-blur iterations;
-  // raccoon6 = silhouette blur + lighter internal-seam blur (different radius+strength each).
-  const buildR2 = (key) => RACCOON_FRAMES.forEach((f) =>
-    gen(scene, `${key}_${f.name}`, RACC_W * ART_SCALE, RACC_H * ART_SCALE,
-      (g) => drawRaccoon2(scaledGraphics(g), f.legs, f.bob)));
-  const blurR = (key, opts) => RACCOON_FRAMES.forEach((f) => blurEdgesSplit(scene, `${key}_${f.name}`, opts));
-
-  buildR2('raccoon2');                              // crisp reference
-
-  buildR2('raccoon5');  blurR('raccoon5',  { radius: 1.5, strength: 1.0, feather: 3 });
-  buildR2('raccoon5b'); blurR('raccoon5b', { radius: 2.5, strength: 0.85, feather: 5 });
-  buildR2('raccoon5c'); blurR('raccoon5c', { radius: 1.0, strength: 1.0,  feather: 2 });
-
-  // Edge+inner: silhouette gets wide feathered blur; internal seams get tighter, subtler blur.
-  buildR2('raccoon6');
-  blurR('raccoon6', { radius: 1.5, strength: 1.0, feather: 3, internalBlur: 0.4, internalStrength: 0.45 });
+  RACCOON_FRAMES.forEach((f) => {
+    gen(scene, `raccoon5_${f.name}`, RACC_W * ART_SCALE, RACC_H * ART_SCALE,
+      (g) => drawRaccoon2(scaledGraphics(g), f.legs, f.bob));
+    blurEdgesSplit(scene, `raccoon5_${f.name}`, { radius: 1.5, strength: 1.0, feather: 3, internalBlur: 0.4, internalStrength: 0.45 });
+  });
 }

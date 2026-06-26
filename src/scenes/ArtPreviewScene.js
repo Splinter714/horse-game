@@ -47,11 +47,7 @@ const FAMILIES = [
   // are gallery-only (PREVIEW_TEXTURES.wildlifeOld), so they just don't appear in
   // normal play. Each family normalizes to the same on-screen height, so the only
   // difference you see is edge crispness. TEMP: drop the (old 1×) rows once decided.
-  { label: 'Raccoon (crisp)',    members: [{ key: 'raccoon2' }] },
-  { label: 'Edge r1.5 f3',      members: [{ key: 'raccoon5' }] },
-  { label: 'Edge r2.5 f5',      members: [{ key: 'raccoon5b' }] },
-  { label: 'Edge r1.0 f2',      members: [{ key: 'raccoon5c' }] },
-  { label: 'Edge+Inner blur',   members: [{ key: 'raccoon6' }] },
+  { label: 'Raccoon',            members: [{ key: 'raccoon5' }] },
   { label: 'Bird (new 4×)',     members: [{ key: 'bird' }] },
   { label: 'Bird (old 1×)',     members: [{ key: 'birdOld' }] },
   { label: 'Fish (new 4×)',     members: [{ key: 'fish' }] },
@@ -248,20 +244,18 @@ export default class ArtPreviewScene extends Phaser.Scene {
     }
 
     document.body.appendChild(panel);
+
+    // Pause the raccoon sprite so tweaks read on a still frame.
+    for (const fam of this._families) {
+      const s = fam.members[0]?.sprite;
+      if (s?.texture?.key?.startsWith('raccoon5')) { s.stop(); break; }
+    }
+
     return panel;
   }
 
   _applyRaccoonBlur(p) {
-    // Rebuild all raccoon5 frames (the "edge blur" iteration row) with new params.
     buildRaccoon2Frames(this, 'raccoon5', {
-      radius: p.radius, strength: p.strength, feather: p.feather,
-      internalBlur: p.internalBlur, internalStrength: p.internalStrength,
-      colorThresh: p.colorThresh,
-    });
-    // Also rebuild the other iteration rows so you can A/B against them.
-    buildRaccoon2Frames(this, 'raccoon5b', { radius: 2.5, strength: 0.85, feather: 5 });
-    buildRaccoon2Frames(this, 'raccoon5c', { radius: 1.0, strength: 1.0,  feather: 2 });
-    buildRaccoon2Frames(this, 'raccoon6',  {
       radius: p.radius, strength: p.strength, feather: p.feather,
       internalBlur: p.internalBlur, internalStrength: p.internalStrength,
       colorThresh: p.colorThresh,
