@@ -193,6 +193,29 @@ function legShadeV(f) {
        - bump(0.92, 0.06, 0.03);  // pastern (shadow)
 }
 
+// Feathering — the long hair a draft horse grows from the back of the cannon, draping
+// over the fetlock and hoof. Drawn as a small row of hanging locks — the SAME soft
+// tapering clumps used for the mane — rather than a solid blob, so it reads as flowing
+// hair. `tone` is the hair colour, already resolved per-leg (#155: white over a sock,
+// dark over points, else the leg's tone); `near` lights it a touch for the front pair.
+function drawFeather(g, cx, topY, tone, near = true) {
+  const root = lerpColor(tone, 0xfff2d8, near ? 0.11 : 0.04); // lit where it leaves the leg
+  const tip  = lerpColor(tone, 0x000000, 0.16);               // darker at the hanging tips
+  // Overlapping locks across the fetlock — longest in the middle so they drape over the
+  // hoof; each tapers to a point on the root→tip gradient. [x-offset from cx, length].
+  const locks = [[-2.3, 4], [-1.1, 5.5], [0.2, 6], [1.4, 5], [2.6, 3.6]];
+  for (const [dx, len] of locks) {
+    for (let i = 0; i < len; i += 0.5) {
+      const fy = i / len;
+      const w = 2.1 * (1 - fy * 0.7);            // widest at the root, tapering to a point
+      const lx = cx + dx - w / 2 + fy * 0.4;     // drifts gently inward as it falls
+      const c = lerpColor(root, tip, 0.28 + fy * 0.72);
+      g.fillStyle(c, 1); g.fillRect(lx, topY + i, w, 0.5);
+      g.fillStyle(lerpColor(c, 0x000000, 0.08), 1); g.fillRect(lx, topY + i, 0.5, 0.5); // soft seam
+    }
+  }
+}
+
 // One continuously-tapered limb with real anatomy, drawn row-by-row. The vertical
 // width profile gives it a muscular forearm/gaskin flaring into the body, a narrowing
 // above the knee/hock, a joint KNOB, a thin straight cannon, a fetlock bump, a pinched
@@ -247,17 +270,10 @@ function legV2(g, x, lift, body, near, hind, hoof, legMark, sockTone = SOCK, fea
   g.fillStyle(lerpColor(hTone, 0x000000, near ? 0.1 : 0.16), 1); g.fillRect(hx, ground, hoofW * 0.28, 2.5);
   if (near) { g.fillStyle(lerpColor(hTone, 0xffffff, 0.18), 1); g.fillRect(hx + 0.6, ground + 0.3, 1.25, 0.7); }
   g.fillStyle(SHADE, 0.16); g.fillRect(hx, ground + 2, hoofW, 0.6);
-  // feathering — fluffy tuft cascading over the fetlock/hoof
+  // feathering — flowing hair draping over the fetlock/hoof (mane-matched style, #155)
   if (feather) {
-    const fetY = topY + H * 0.82, fc = centerAt(0.82);
     const ft = legMark ? sTone : (pTone !== null ? pTone : base);
-    g.fillStyle(ft, 1);
-    const fw = cannonW + 4;
-    g.fillRect(fc - fw / 2, fetY, fw, 2);
-    g.fillRect(fc - fw / 2 - 0.5, fetY + 1.5, fw + 1, 2);
-    g.fillRect(fc - 2, fetY + 3, 1.5, 3);
-    g.fillRect(fc, fetY + 3, 1.5, 2);
-    g.fillRect(fc + 1, fetY + 3, 1.5, 3.5);
+    drawFeather(g, centerAt(0.8), topY + H * 0.8, ft, near);
   }
 }
 
@@ -298,14 +314,10 @@ function leg(g, x, lift, tone, hoof, legMark, sockTone = SOCK, feather, points, 
   g.fillStyle(SHADE, 0.16);  g.fillRect(x, topY + h + 2.25, 4, 0.75);
   if (feather) {
     // Feathering matches the bottom of the leg (#155): white over a sock/stocking,
-    // dark over dark legs ("points"), otherwise the leg's own tone. A fluffy tuft
-    // that widens toward the ground, broken into tapering strands so it looks wispy.
+    // dark over dark legs ("points"), otherwise the leg's own tone. Flowing hair
+    // draped over the fetlock/hoof in the mane-matched style (see drawFeather).
     const ft = legMark ? sockTone : (points !== undefined ? points : tone);
-    g.fillStyle(ft, 1);
-    g.fillRect(x - 1.5, topY + h - 5, 7, 2.5);   // mid tuft
-    g.fillRect(x - 2, topY + h - 2.5, 8, 2.25);  // wide base fringe
-    g.fillRect(x - 0.5, topY + h - 1, 2.5, 2.5); // inner strand
-    g.fillRect(x + 3, topY + h - 0.75, 2, 2.25); // outer strand
+    drawFeather(g, x + 2, topY + h - 4, ft, true);
   }
 }
 
@@ -332,22 +344,45 @@ function drawTailFrom(g, m, x0, y0, bob, white = false) {
       if (tx > 0.62) c = lerpColor(c, hi, (tx - 0.62) / 0.38 * 0.4);     // front sheen
       else if (tx < 0.3) c = lerpColor(c, 0x000000, (0.3 - tx) / 0.3 * 0.18); // back shadow
       const lock = Math.round((x - xl) / 0.9) % 2;     // fine lock striping (strands)
-      if (lock) c = lerpColor(c, 0x000000, 0.06);
+      if (lock) c = lerpColor(c, 0x000000, 0.085);
       g.fillStyle(c, 1); g.fillRect(x, y0 + d + bob, 0.5, 0.5);
     }
   }
   if (!white) {
-    // wispy strands trailing off both edges for a fluffier, less solid tail
-    const strands = [[5, 9, -0.5], [10, 10, -1], [16, 9, -0.5], [9, 8, 1], [15, 7, 1.5]];
-    for (const [dd, len, side] of strands) {
+    // Locks cascading off the hank's edges and tip — many fine, tapering strands rooted
+    // right at the silhouette edge so they read as part of one full mass of flowing hair,
+    // not a solid segment with a few detached strands beside it.
+    const edge = lerpColor(lo, mid, 0.35);
+    // [start d, side (-1 left / +1 right), length, outward splay]
+    const locks = [
+      [3, -1, 8, 1.2], [6, -1, 11, 1.6], [10, -1, 13, 1.8], [14, -1, 12, 1.6], [18, -1, 9, 1.2], [22, -1, 6, 0.8],
+      [5,  1, 7, 1.0], [9,  1, 10, 1.3], [13, 1, 11, 1.4], [17, 1, 8, 1.0], [21, 1, 5, 0.7],
+    ];
+    for (const [dd, side, len, splay] of locks) {
       const xl = x0 + xlAt(dd), w = wAt(dd);
-      const sx = side < 0 ? xl + side : xl + w + side - 0.5;
-      g.fillStyle(lerpColor(lo, mid, 0.3), 1); g.fillRect(sx, y0 + dd + bob, 0.5, len);
+      const root = side < 0 ? xl : xl + w - 0.5;
+      for (let i = 0; i < len; i += 0.5) {
+        const f = i / len;
+        const ww = Math.max(0.5, 1.1 * (1 - f * 0.8));            // taper to a point
+        const x = root + side * splay * f - (side < 0 ? ww - 0.5 : 0); // splay outward as it falls
+        g.fillStyle(lerpColor(edge, 0x000000, f * 0.22), 1);     // darken toward the tip
+        g.fillRect(x, y0 + dd + i + bob, ww, 0.5);
+      }
     }
-    // bright strands picking out the flow
-    g.fillStyle(hi, 0.45);
-    g.fillRect(x0 - 0.5, y0 + 4 + bob, 0.5, 15);
-    g.fillRect(x0 - 1.75, y0 + 10 + bob, 0.5, 10);
+    // frayed tip — a few wispy points fanning off the bottom of the hank
+    const tx0 = x0 + xlAt(25);
+    for (const [dx, len] of [[-1, 5], [0.5, 7], [2, 6], [3.5, 4]]) {
+      for (let i = 0; i < len; i += 0.5) {
+        const f = i / len;
+        g.fillStyle(lerpColor(lo, 0x000000, 0.12 + f * 0.22), 1);
+        g.fillRect(tx0 + dx - f * 0.6, y0 + 25 + i + bob, Math.max(0.5, 1 - f * 0.7), 0.5);
+      }
+    }
+    // bright locks picking out the flow (within the hank, not detached)
+    g.fillStyle(hi, 0.42);
+    for (const [frac, dy0, len] of [[0.18, 4, 14], [0.3, 8, 10], [0.45, 12, 7]]) {
+      for (let i = 0; i < len; i += 0.5) { const d = dy0 + i, xl = x0 + xlAt(d), w = wAt(d); g.fillRect(xl + w * frac, y0 + d + bob, 0.5, 0.5); }
+    }
   }
 }
 
@@ -358,38 +393,47 @@ function drawTailFrom(g, m, x0, y0, bob, white = false) {
 function drawMane(g, coat, bob) {
   const m = coat.mane, mk = coat.markings || {};
   const pintoMane = mk.pinto && mk.pintoMane;
-  // Thicker mane band; the root (right) edge overlaps the neck crest so the mane reads
-  // attached to the horse rather than floating beside it. [y, xLeft, width].
-  const prof = [[0, 44.5, 3.5], [6, 42, 5], [13, 40, 5.5], [20, 39.5, 5], [27, 40, 3.8], [31, 41, 2.5]];
+  // Full, cohesive mane band; the root (right) edge overlaps the neck crest so the mane
+  // reads attached to the horse. [y, xLeft, width].
+  const prof = [[0, 45.8, 1.6], [3, 43.5, 3.6], [7, 41.5, 5.2], [13, 40, 5.5], [20, 39.5, 5], [27, 40, 3.8], [31, 41, 2.5]];
   const xlAt = (y) => yAt(prof.map((p) => [p[0], p[1]]), y);
   const wAt  = (y) => yAt(prof.map((p) => [p[0], p[2]]), y);
-  for (let y = 0; y < 31; y += 0.5) {
-    const xl = xlAt(y), w = wAt(y);
-    const f = y / 31;                                   // 0 poll … 1 withers
+  // The hanging (left) edge bulges out in a few soft lobes, giving one full mane shape
+  // with a gently waved, locked silhouette (not loose strands).
+  const lobes = [[5, 1.6], [11, 2.1], [17, 2.2], [23, 1.9], [29, 1.2]]; // [y-centre, depth]
+  const edgePush = (y) => { let e = 0; for (const [c, d] of lobes) e += d * Math.max(0, 1 - ((y - c) / 4) ** 2); return e; };
+  for (let y = 0; y < 33; y += 0.5) {
+    const push = edgePush(y);
+    const xl = xlAt(y) - push, w = wAt(y) + push;       // edge waves out at the lobes
+    const f = y / 31;                                    // 0 poll … 1 withers
     for (let x = xl; x < xl + w; x += 0.5) {
-      const t = w > 0 ? (x - xl) / w : 0;               // 0 hanging tip (left) … 1 root (right)
-      let c = lerpColor(m.lo, m.mid, Math.min(1, t * 1.15));   // tip dark → root mid
-      if (t > 0.66) c = lerpColor(c, m.hi, (t - 0.66) / 0.34 * 0.55); // lit roots blend INTO the neck
-      const lock = Math.round((x - xl) / 0.9) % 2;      // fine alternate-lock value variation (strands)
-      if (lock) c = lerpColor(c, 0x000000, 0.07);
+      const t = w > 0 ? (x - xl) / w : 0;                // 0 hanging tip (left) … 1 root (right)
+      let c = lerpColor(m.lo, m.mid, Math.min(1, t * 1.1));   // tip dark → root mid
+      if (t > 0.64) c = lerpColor(c, m.hi, (t - 0.64) / 0.36 * 0.5); // lit roots blend INTO the neck
+      const lock = Math.round((x - xl) / 0.9) % 2;       // fine lock striping, matched to the tail
+      if (lock) c = lerpColor(c, 0x000000, 0.075);
       if (pintoMane && f < 0.5) c = WHITE;
       g.fillStyle(c, 1); g.fillRect(x, y + bob, 0.5, 0.5);
     }
   }
-  // Wispy hanging strands cascading off the front edge for a fluffier, less solid
-  // lower edge — varied lock lengths reaching past the band.
-  const strands = [[3, 4], [7, 6], [11, 7], [15, 7], [19, 8], [23, 7], [27, 5]];
-  for (const [dy, len] of strands) {
-    const y = dy, xl = xlAt(y);
-    g.fillStyle(lerpColor(m.lo, m.mid, 0.25), 1); g.fillRect(xl - 0.5, y + bob, 0.5, len);
-    g.fillStyle(m.lo, 1);                          g.fillRect(xl - 1,   y + 1 + bob, 0.5, len * 0.6);
+  // bright sheen strands picking out a few locks (same look as the tail)
+  g.fillStyle(m.hi, 0.42);
+  for (const [y0s, len, frac] of [[4, 13, 0.62], [13, 11, 0.48], [21, 7, 0.55]]) {
+    for (let i = 0; i < len; i += 0.5) { const y = y0s + i, xl = xlAt(y), w = wAt(y); g.fillRect(xl + w * frac, y + bob, 0.5, 0.5); }
   }
-  // sheen strands picking out a few locks
-  g.fillStyle(m.hi, 0.5);
-  for (let y = 3; y < 30; y += 3) { const xl = xlAt(y), w = wAt(y); g.fillRect(xl + w * 0.55, y + bob, 0.5, 2.5); }
-  // forelock at the poll, tying the mane to the head between the ears
-  g.fillStyle(m.mid, 1); g.fillRect(44, -1 + bob, 2.5, 4);
-  g.fillStyle(m.lo, 1);  g.fillRect(43.5, 1.5 + bob, 1.5, 3);
+  // forelock — a small fall of hair from the poll over the brow, flowing like the mane
+  // (tapered locks) instead of a solid block between the ears. Kept at y>=0 so the bob
+  // never pushes it above the frame's top edge (clipping there pins it in place and it
+  // stops animating — the old "non-moving block" bug).
+  for (const [fx, fy0, len] of [[44, 0, 4.5], [45.4, 0.3, 5], [46.6, 1, 4]]) {
+    for (let i = 0; i < len; i += 0.5) {
+      const f = i / len;
+      const w = 1.5 * (1 - f * 0.72);
+      let c = lerpColor(m.mid, m.lo, 0.3 + f * 0.6);
+      if (pintoMane) c = WHITE;          // forelock sits in the white upper half
+      g.fillStyle(c, 1); g.fillRect(fx + f * 0.8, fy0 + i + bob, w, 0.5);
+    }
+  }
 }
 
 function drawHorse(g, coat, bob, legLift) {
