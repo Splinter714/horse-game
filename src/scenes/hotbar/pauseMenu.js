@@ -212,6 +212,13 @@ export const WithPauseMenu = (Base) => class extends Base {
       this._closePause();           // resume the game first so events are visible
       this._toggleDevEvents();
     });
+    dy += rowH;
+    const freezeDecayLbl = this._addToggleRow(rowX, dy, rowW, rowH,
+      `❄️ Freeze Decay: ${window.__devFreezeDecay ? 'ON' : 'Off'}`,
+      () => {
+        window.__devFreezeDecay = !window.__devFreezeDecay;
+        freezeDecayLbl.setText(`❄️ Freeze Decay: ${window.__devFreezeDecay ? 'ON' : 'Off'}`);
+      });
 
     // Controller focus highlight, drawn above the rows (#159).
     this._pauseRing = this.add.graphics().setDepth(106);
