@@ -98,11 +98,19 @@ export default class ArtPreviewScene extends Phaser.Scene {
         if (seq.length > 1) sprite.play(animKey);
 
         // Tap a creature to dissect its art (dev mode) or open the customizer (prod).
-        // A tap that was actually a scroll-drag is ignored (see _moved below).
+        // A tap that was actually a scroll-drag is ignored (see _moved below). We also
+        // require the press to have STARTED on this sprite: a gesture begun on the HTML
+        // blur panel has its pointerdown stopped before Phaser sees it (so this sprite is
+        // never "pressed"), but its pointerup can still land on a sprite if the pointer
+        // drifted off the panel mid-drag — without this guard, dragging a slider would
+        // dissect whatever sits behind the panel.
         const speciesId = this._speciesIdFor(b.m.key);
         sprite.setInteractive({ useHandCursor: true });
+        sprite.on('pointerdown', () => { this._pressedSprite = sprite; });
         sprite.on('pointerup', () => {
-          if (this._moved) return;
+          const pressedHere = this._pressedSprite === sprite;
+          this._pressedSprite = null;
+          if (!pressedHere || this._moved) return;
           if (globalThis.__dissect) {
             globalThis.__dissect.show(b.m.key);
           } else if (this._isEditable(speciesId, b.m.key)) {
@@ -159,7 +167,7 @@ export default class ArtPreviewScene extends Phaser.Scene {
       if (Math.abs(dy) > 6) this._moved = true;       // a scroll-drag, not a tap
       this._setScroll(this._dragFrom - dy);
     });
-    this.input.on('pointerup', () => { this._dragY = null; });
+    this.input.on('pointerup', () => { this._dragY = null; this._pressedSprite = null; });
 
     this.layout();
     this.scale.on('resize', this.layout, this);
