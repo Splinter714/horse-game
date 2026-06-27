@@ -563,22 +563,23 @@ function drawHorseSleep(g, coat, bob) {
   const mk = coat.markings || {};
   const dy = 11;
 
-  // Legs tucked/bent (very short — sleeping position)
+  g.layer('legs');
   const lm = mk.legs || {};
   const pts = coat.points;
   const sockTone = SOCK; // socks/stockings are always white (#153)
-  leg(g, 7,  10, b.lo,  coat.hoof, lm.hindFar,  sockTone, undefined, pts, dy); // hind far (folded)
-  leg(g, 38, 10, b.lo,  coat.hoof, lm.foreFar,  sockTone, undefined, pts, dy); // fore far (folded)
-  leg(g, 13, 10, b.mid, coat.hoof, lm.hindNear, sockTone, undefined, pts, dy); // hind near (folded)
-  leg(g, 44, 10, b.mid, coat.hoof, lm.foreNear, sockTone, undefined, pts, dy); // fore near (folded)
-  legDark(g, 7, 10, mk, lm.hindFar, dy);  legDark(g, 38, 10, mk, lm.foreFar, dy);  // dark leg marks (#152)
+  leg(g, 7,  10, b.lo,  coat.hoof, lm.hindFar,  sockTone, undefined, pts, dy);
+  leg(g, 38, 10, b.lo,  coat.hoof, lm.foreFar,  sockTone, undefined, pts, dy);
+  leg(g, 13, 10, b.mid, coat.hoof, lm.hindNear, sockTone, undefined, pts, dy);
+  leg(g, 44, 10, b.mid, coat.hoof, lm.foreNear, sockTone, undefined, pts, dy);
+  legDark(g, 7, 10, mk, lm.hindFar, dy);  legDark(g, 38, 10, mk, lm.foreFar, dy);
   legDark(g, 13, 10, mk, lm.hindNear, dy); legDark(g, 44, 10, mk, lm.foreNear, dy);
 
-  // Tail relaxed
+  g.layer('tail');
   g.fillStyle(m.mid, 1); g.fillRect(6, 22 + bob + dy, 2, 2);
   g.fillStyle(m.lo, 1);  g.fillRect(4, 24 + bob + dy, 2, 4);
   g.fillStyle(m.mid, 1); g.fillRect(3, 27 + bob + dy, 2, 3);
 
+  g.layer('body');
   // Rump — flatter/lower, showing side view
   g.fillStyle(b.mid, 1);
   g.fillRect(8, 22 + bob + dy, 8, 12);   // main rump
@@ -605,6 +606,7 @@ function drawHorseSleep(g, coat, bob) {
   bodyPatterns(g, coat, bob + dy);
   darkMarkings(g, coat, bob + dy);
 
+  g.layer('neck');
   // Neck angled back/down (horse on its side)
   g.fillStyle(b.mid, 1);
   g.fillRect(42, 18 + bob + dy, 8, 8);   // base
@@ -613,6 +615,7 @@ function drawHorseSleep(g, coat, bob) {
   g.fillRect(43, 18 + bob + dy, 3, 8);
   g.fillRect(44, 24 + bob + dy, 3, 5);
 
+  g.layer('head');
   // Head relaxed/resting
   const headY = 28 + bob + dy;
   g.fillStyle(b.mid, 1); g.fillRect(48, headY, 12, 7);   // skull
@@ -626,7 +629,7 @@ function drawHorseSleep(g, coat, bob) {
   // Closed/sleepy eye (smaller, different position)
   g.fillStyle(coat.eye, 1);  g.fillRect(50, headY + 1, 1, 1);
 
-  // Mane lying down
+  g.layer('mane');
   g.fillStyle(m.mid, 1); g.fillRect(42, 18 + bob + dy, 2, 4);
   g.fillStyle(m.lo, 1);  g.fillRect(41, 22 + bob + dy, 2, 4);
   g.fillStyle(m.mid, 1); g.fillRect(40, 26 + bob + dy, 2, 3);
@@ -644,7 +647,7 @@ function drawHorseEat(g, coat, bob) {
   const mk = coat.markings || {};
   const feather = !!mk.feather; // feathering is on/off; colour derives per-leg (#155)
 
-  // Legs all planted
+  g.layer('legs');
   const lm = mk.legs || {};
   const pts = coat.points;
   const sockTone = SOCK; // socks/stockings are always white (#153)
@@ -652,15 +655,16 @@ function drawHorseEat(g, coat, bob) {
   leg(g, 38, 0, b.lo,  coat.hoof, lm.foreFar,  sockTone, feather, pts);
   leg(g, 13, 0, b.mid, coat.hoof, lm.hindNear, sockTone, feather, pts);
   leg(g, 44, 0, b.mid, coat.hoof, lm.foreNear, sockTone, feather, pts);
-  legDark(g, 7, 0, mk, lm.hindFar);  legDark(g, 38, 0, mk, lm.foreFar);   // dark leg marks (#152)
+  legDark(g, 7, 0, mk, lm.hindFar);  legDark(g, 38, 0, mk, lm.foreFar);
   legDark(g, 13, 0, mk, lm.hindNear); legDark(g, 44, 0, mk, lm.foreNear);
 
-  // Tail
+  g.layer('tail');
   g.fillStyle(m.mid, 1); g.fillRect(6, 22 + bob, 2, 4);
   g.fillStyle(m.lo, 1);  g.fillRect(4, 25 + bob, 2, 7);
   g.fillStyle(m.mid, 1); g.fillRect(3, 31 + bob, 2, 7);
   g.fillStyle(m.lo, 1);  g.fillRect(4, 37 + bob, 2, 5);
 
+  g.layer('body');
   // Rump
   g.fillStyle(b.mid, 1); g.fillRect(8, 20 + bob, 8, 16); g.fillRect(7, 22 + bob, 1, 12);
   g.fillStyle(b.hi, 1);  g.fillRect(8, 18 + bob, 8, 4);  g.fillRect(7, 20 + bob, 1, 2);
@@ -669,7 +673,6 @@ function drawHorseEat(g, coat, bob) {
   g.fillStyle(b.hi, 1);  g.fillRect(12, 18 + bob, 35, 5);  g.fillRect(47, 21 + bob, 1, 2);
   g.fillStyle(b.lo, 1);  g.fillRect(12, 33 + bob, 35, 4);  g.fillRect(47, 33 + bob, 1, 2);
 
-  // Rounded-barrel shading (matches the standing pose)
   g.fillStyle(HILITE, 0.10);
   g.fillRect(13, 18.5 + bob, 33, 1.25); g.fillRect(9, 18.5 + bob, 6, 1.25); g.fillRect(9.5, 22 + bob, 4, 5);
   g.fillStyle(SHADE, 0.07);  g.fillRect(12, 31 + bob, 35, 1.5);
@@ -679,6 +682,7 @@ function drawHorseEat(g, coat, bob) {
   bodyPatterns(g, coat, bob);
   darkMarkings(g, coat, bob);
 
+  g.layer('neck');
   // Neck angled downward (head eating from ground)
   g.fillStyle(b.mid, 1);
   g.fillRect(42, 20 + bob, 7, 5);   // base
@@ -689,6 +693,7 @@ function drawHorseEat(g, coat, bob) {
   g.fillRect(45, 24 + bob, 3, 8);
   g.fillRect(47, 30 + bob, 3, 8);
 
+  g.layer('head');
   // Head tilted down — staggered steps so nose angles toward ground
   const headY = 37 + bob;
   // Poll / back of head (highest point)
@@ -711,7 +716,7 @@ function drawHorseEat(g, coat, bob) {
   g.fillStyle(coat.eye, 1);  g.fillRect(50, headY + 1, 2, 2);
   g.fillStyle(WHITE, 0.8);   g.fillRect(50, headY + 1, 1, 1);
 
-  // Mane follows neck down
+  g.layer('mane');
   g.fillStyle(m.mid, 1); g.fillRect(41, 20 + bob, 3, 5);
   g.fillStyle(m.lo, 1);  g.fillRect(40, 24 + bob, 3, 8);
   g.fillStyle(m.mid, 1); g.fillRect(42, 30 + bob, 3, 8);
@@ -745,17 +750,17 @@ function drawFoalSleep(g, coat, bob) {
   const m = coat.mane;
   const mk = coat.markings || {};
 
-  // Legs tucked/bent (sleeping position)
+  g.layer('legs');
   legFoal(g, 7,  7, b.lo,  0, coat.hoof);
   legFoal(g, 27, 7, b.lo,  0, coat.hoof);
   legFoal(g, 11, 7, b.mid, 0, coat.hoof);
   legFoal(g, 31, 7, b.mid, 0, coat.hoof);
 
-  // Tail stub relaxed
+  g.layer('tail');
   g.fillStyle(m.mid, 1); g.fillRect(5, 17 + bob, 2, 2);
   g.fillStyle(m.lo, 1);  g.fillRect(4, 19 + bob, 2, 3);
 
-  // Rump (flatter)
+  g.layer('body');
   g.fillStyle(b.mid, 1); g.fillRect(7, 17 + bob, 5, 8); g.fillRect(6, 19 + bob, 1, 6);
   g.fillStyle(b.hi, 1);  g.fillRect(7, 15 + bob, 5, 2);  g.fillRect(6, 17 + bob, 1, 1);
 
@@ -770,11 +775,11 @@ function drawFoalSleep(g, coat, bob) {
     g.fillRect(22, 18 + bob, 5, 4);
   }
 
-  // Neck (relaxed, down)
+  g.layer('neck');
   g.fillStyle(b.mid, 1); g.fillRect(29, 12 + bob, 5, 6);
   g.fillStyle(b.hi, 1);  g.fillRect(30, 12 + bob, 2, 6);
 
-  // Head (sleeping)
+  g.layer('head');
   g.fillStyle(b.mid, 1); g.fillRect(30, 6 + bob, 10, 7);
   g.fillStyle(b.hi, 1);  g.fillRect(30, 6 + bob, 10, 1.5);
   g.fillStyle(b.lo, 1);  g.fillRect(35, 8 + bob, 5, 4);
@@ -786,7 +791,7 @@ function drawFoalSleep(g, coat, bob) {
   // Sleepy eye
   g.fillStyle(coat.eye, 1);  g.fillRect(32, 7 + bob, 2, 1.5);
 
-  // Mane (lying down, fluffy)
+  g.layer('mane');
   g.fillStyle(m.mid, 1); g.fillRect(29, 6 + bob, 2, 3);
   g.fillStyle(m.lo, 1);  g.fillRect(28, 9 + bob, 2, 3);
 }
@@ -796,17 +801,17 @@ function drawFoal(g, coat, bob, legLift) {
   const m = coat.mane;
   const mk = coat.markings || {};
 
-  // Legs — long relative to body (classic foal proportion)
+  g.layer('legs');
   legFoal(g, 7,  legLift[0], b.lo,  0, coat.hoof);
   legFoal(g, 27, legLift[2], b.lo,  0, coat.hoof);
   legFoal(g, 11, legLift[1], b.mid, 0, coat.hoof);
   legFoal(g, 31, legLift[3], b.mid, 0, coat.hoof);
 
-  // Tail stub
+  g.layer('tail');
   g.fillStyle(m.mid, 1); g.fillRect(5, 17 + bob, 2, 3);
   g.fillStyle(m.lo, 1);  g.fillRect(4, 19 + bob, 2, 5);
 
-  // Rump
+  g.layer('body');
   g.fillStyle(b.mid, 1); g.fillRect(7, 16 + bob, 5, 10); g.fillRect(6, 18 + bob, 1, 8);
   g.fillStyle(b.hi, 1);  g.fillRect(7, 14 + bob, 5, 3);  g.fillRect(6, 16 + bob, 1, 2);
 
@@ -821,10 +826,11 @@ function drawFoal(g, coat, bob, legLift) {
     g.fillRect(22, 17 + bob, 5, 5);
   }
 
-  // Neck (short and upright)
+  g.layer('neck');
   g.fillStyle(b.mid, 1); g.fillRect(29, 9 + bob, 5, 8);
   g.fillStyle(b.hi, 1);  g.fillRect(30, 9 + bob, 2, 8);
 
+  g.layer('head');
   // Head — disproportionately large (key foal feature)
   g.fillStyle(b.mid, 1); g.fillRect(30, 2 + bob, 10, 9);
   g.fillStyle(b.hi, 1);  g.fillRect(30, 2 + bob, 10, 2);
@@ -838,7 +844,7 @@ function drawFoal(g, coat, bob, legLift) {
   g.fillStyle(coat.eye, 1);  g.fillRect(32, 4 + bob, 3, 3);
   g.fillStyle(WHITE, 0.8);   g.fillRect(32, 4 + bob, 1, 1);
 
-  // Mane (fluffy and upright — young horses have bristly manes)
+  g.layer('mane');
   g.fillStyle(m.mid, 1); g.fillRect(29, 2 + bob, 2, 4);
   g.fillStyle(m.lo, 1);  g.fillRect(28, 5 + bob, 2, 5);
   g.fillStyle(m.mid, 1); g.fillRect(27, 9 + bob, 2, 4);
