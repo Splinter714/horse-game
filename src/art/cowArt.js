@@ -6,8 +6,7 @@
 // palettes. An arg-less call falls back to DEFAULT_LOOK (the original Holstein), so
 // BootScene and the art-preview gallery render the cow unchanged.
 
-import { makeLeg, idleWalkLegs, buildFrames, blurEdgesSplit } from './_frames.js';
-const BLUR = { radius: 0.7, strength: 0.5, feather: 1, internalBlur: 0.7, internalStrength: 0.5, colorThresh: 80 };
+import { makeLeg, idleWalkLegs, buildFrames, blurEdgesSplit, ANIMAL_BLUR } from './_frames.js';
 
 export const COW_W = 56, COW_H = 40;
 
@@ -97,5 +96,5 @@ function drawCow(g, bob, [lhf, lhn, lff, lfn], look) {
 }
 
 export function buildCowTextures(scene, key, look) {
-  buildFrames(scene, key, COW_W, COW_H, (g, bob, legs) => drawCow(g, bob, legs, look), idleWalkLegs(3), BLUR);
+  buildFrames(scene, key, COW_W, COW_H, (g, bob, legs) => drawCow(g, bob, legs, look), idleWalkLegs(3), ANIMAL_BLUR);
 }

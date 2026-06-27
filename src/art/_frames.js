@@ -13,8 +13,11 @@ export function gen(scene, key, w, h, drawFn) {
   const g = scene.make.graphics({ x: 0, y: 0, add: false });
   drawFn(g);
   if (scene.textures.exists(key)) {
-    const src = scene.textures.get(key).getSourceImage();
+    const tex = scene.textures.get(key);
+    const src = tex.getSourceImage();
     src.getContext?.('2d')?.clearRect(0, 0, src.width, src.height);
+    delete tex.__blurOrig; // the sprite's being redrawn (e.g. a customizer re-skin) — drop the
+                           // stale pre-blur stash so the next blurEdgesSplit re-captures the new pixels
   }
   g.generateTexture(key, w, h);
   g.destroy();
@@ -115,6 +118,14 @@ export function buildFrames(scene, baseKey, w, h, drawFn, legSets, blurOpts) {
   });
 }
 
+// The single shared animal-sprite blur (issue #193). ONE global value so every
+// creature reads with the same soft silhouette — uniform super-sampling (ART_SCALE)
+// makes a single setting look the same on a big horse or a tiny bird, so there's no
+// per-animal or size-based blur. Every art builder imports this; nothing keeps its
+// own copy (the per-file copies used to drift). Owner-tuned via the dev Art-Preview
+// blur panel, whose 'Bake' button copies the chosen numbers back into this const.
+export const ANIMAL_BLUR = { radius: 0.7, strength: 0.5, feather: 1, internalBlur: 0.7, internalStrength: 0.5, colorThresh: 80 };
+
 // Selective edge + inner-seam blur for a sprite's silhouette.
 //   radius / strength / feather — silhouette edge blur (Gaussian px, blend 0–1, inward depth)
 //   internalBlur / internalStrength / colorThresh — soften interior colour seams
@@ -125,11 +136,25 @@ export function blurEdgesSplit(scene, key, {
   alphaThresh = 30, colorThresh = 20,
 } = {}) {
   const iStr = internalStrength ?? strength;
-  const src = scene.textures.get(key)?.getSourceImage();
+  const tex = scene.textures.get(key);
+  const src = tex?.getSourceImage();
   if (!src?.getContext) return;
   const w = src.width, h = src.height;
   const origCtx = src.getContext('2d');
-  const origData = new Uint8ClampedArray(origCtx.getImageData(0, 0, w, h).data);
+
+  // DEV: stash the pristine (pre-blur) pixels the first time this key is blurred, then
+  // always blur FROM that stash. Lets the global Art-Preview blur panel re-apply new
+  // params live without compounding — each re-tune blurs the original, not the already-
+  // blurred canvas (which `makeBlur` below reads via `src`), so we restore it first.
+  let origData;
+  if (import.meta.env.DEV) {
+    origData = (tex.__blurOrig ||= new Uint8ClampedArray(origCtx.getImageData(0, 0, w, h).data));
+    const pristine = origCtx.createImageData(w, h);
+    pristine.data.set(origData);
+    origCtx.putImageData(pristine, 0, 0);
+  } else {
+    origData = new Uint8ClampedArray(origCtx.getImageData(0, 0, w, h).data);
+  }
 
   const makeBlur = (px) => {
     // Draw with padding so the CSS blur has room to resolve at all four edges,
@@ -199,7 +224,7 @@ export function blurEdgesSplit(scene, key, {
     }
   }
   origCtx.putImageData(out, 0, 0);
-  scene.textures.get(key)?.refresh?.();
+  tex.refresh?.();
 }
 
 // A simple two-rect leg (shin + hoof) shared by the barnyard quadrupeds (and the

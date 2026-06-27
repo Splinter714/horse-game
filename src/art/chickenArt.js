@@ -2,8 +2,7 @@
 // and eat_0/1 (pecking) frames, in five feather coats. Drawn via the shared `gen`
 // helper (_frames.js).
 
-import { gen, blurEdgesSplit, scaledGraphics, ART_SCALE } from './_frames.js';
-const BLUR = { radius: 0.7, strength: 0.5, feather: 1, internalBlur: 0.7, internalStrength: 0.5, colorThresh: 80 };
+import { gen, blurEdgesSplit, scaledGraphics, ART_SCALE, ANIMAL_BLUR } from './_frames.js';
 
 export const CHICKEN_W = 16, CHICKEN_H = 22;
 
@@ -86,11 +85,11 @@ export function buildChickenTextures(scene, key, coat) {
   const W = CHICKEN_W * ART_SCALE, H = CHICKEN_H * ART_SCALE;
   names.forEach((name, i) => {
     gen(scene, `${key}_${name}`, W, H, g0 => drawChicken(scaledGraphics(g0), bobs[i], phases[i], coat));
-    blurEdgesSplit(scene, `${key}_${name}`, BLUR);
+    blurEdgesSplit(scene, `${key}_${name}`, ANIMAL_BLUR);
   });
   // Eat (peck) frames: beak at ground / beak lifted
   gen(scene, `${key}_eat_0`, W, H, g0 => drawChickenEat(scaledGraphics(g0), 2, coat));
-  blurEdgesSplit(scene, `${key}_eat_0`, BLUR);
+  blurEdgesSplit(scene, `${key}_eat_0`, ANIMAL_BLUR);
   gen(scene, `${key}_eat_1`, W, H, g0 => drawChickenEat(scaledGraphics(g0), 0, coat));
-  blurEdgesSplit(scene, `${key}_eat_1`, BLUR);
+  blurEdgesSplit(scene, `${key}_eat_1`, ANIMAL_BLUR);
 }

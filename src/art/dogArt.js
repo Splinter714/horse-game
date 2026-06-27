@@ -6,8 +6,7 @@
 // palettes. An arg-less call falls back to DEFAULT_LOOK (the original golden), so
 // BootScene and the art-preview gallery render the dog unchanged.
 
-import { makeLeg, idleWalkLegs, buildFrames, blurEdgesSplit } from './_frames.js';
-const BLUR = { radius: 0.7, strength: 0.5, feather: 1, internalBlur: 0.7, internalStrength: 0.5, colorThresh: 80 };
+import { makeLeg, idleWalkLegs, buildFrames, blurEdgesSplit, ANIMAL_BLUR } from './_frames.js';
 
 export const DOG_W = 28, DOG_H = 24;
 
@@ -66,5 +65,5 @@ function drawDog(g, bob, [lhf, lhn, lff, lfn], look) {
 }
 
 export function buildDogTextures(scene, key, look) {
-  buildFrames(scene, key, DOG_W, DOG_H, (g, bob, legs) => drawDog(g, bob, legs, look), idleWalkLegs(2), BLUR);
+  buildFrames(scene, key, DOG_W, DOG_H, (g, bob, legs) => drawDog(g, bob, legs, look), idleWalkLegs(2), ANIMAL_BLUR);
 }

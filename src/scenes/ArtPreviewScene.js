@@ -3,7 +3,7 @@ import { applyDpr, logicalW, logicalH, dprOf } from './uiUtils.js';
 import { saveDevSettings } from '../data/save.js';
 import { CUSTOMIZE } from '../data/customize.js';
 import { DEMO_FOALS } from '../data/demoFoals.js';
-import { buildRaccoon2Frames } from '../art/wildlifeArt.js';
+import { blurEdgesSplit, ANIMAL_BLUR } from '../art/_frames.js';
 
 // ── Art preview (dev tool) ───────────────────────────────────────────────────
 // A standalone gallery for art-directing the creatures. Boots straight into a
@@ -164,20 +164,22 @@ export default class ArtPreviewScene extends Phaser.Scene {
     this.layout();
     this.scale.on('resize', this.layout, this);
 
-    this._blurPanel = this._buildBlurPanel();
+    if (import.meta.env.DEV) this._blurPanel = this._buildBlurPanel();
     this.events.once('shutdown', () => {
       this.scale.off('resize', this.layout, this);
+      if (this._blurRAF) cancelAnimationFrame(this._blurRAF);
       this._blurPanel?.remove();
     });
   }
 
-  // ── Raccoon blur-parameter slider panel ──────────────────────────────────────
+  // ── Global animal-blur slider panel (dev, #193) ──────────────────────────────
   // Injects an HTML overlay with 6 range sliders (silhouette: radius/strength/feather;
-  // inner seams: radius/strength/color-thresh). On every change, rebuilds all raccoon5
-  // frames live so the owner can see the effect without reloading.
+  // inner seams: radius/strength/color-thresh) seeded from the shared ANIMAL_BLUR. On
+  // every change it re-blurs EVERY animal in the gallery live, so the one global look can
+  // be art-directed here. 'Bake' copies the chosen values as the ANIMAL_BLUR const line
+  // (clipboard + console) to paste into src/art/_frames.js.
   _buildBlurPanel() {
-    // Current params — start at the same values used in buildWildlifeOldTextures.
-    const p = { radius: 1.5, strength: 1.0, feather: 3, internalBlur: 0.4, internalStrength: 0.45, colorThresh: 20 };
+    const p = { ...ANIMAL_BLUR };   // seed from the live shared blur (single source of truth)
 
     const SLIDERS = [
       { section: 'Silhouette blur' },
@@ -202,10 +204,8 @@ export default class ArtPreviewScene extends Phaser.Scene {
 
     const title = document.createElement('div');
     title.style.cssText = 'font-weight:700;font-size:14px;margin-bottom:6px';
-    title.textContent = '🦝 Raccoon blur params';
+    title.textContent = '🎨 Animal blur — all (ANIMAL_BLUR)';
     panel.appendChild(title);
-
-    const valSpans = {};
 
     for (const row of SLIDERS) {
       if (row.section) {
@@ -231,35 +231,61 @@ export default class ArtPreviewScene extends Phaser.Scene {
       const val = document.createElement('span');
       val.style.cssText = 'width:36px;text-align:right;font-variant-numeric:tabular-nums;color:#222';
       val.textContent = p[row.key];
-      valSpans[row.key] = val;
 
       input.addEventListener('input', () => {
         p[row.key] = row.step >= 1 ? parseInt(input.value) : parseFloat(input.value);
         val.textContent = p[row.key];
-        this._applyRaccoonBlur(p);
+        this._scheduleGlobalBlur(p);
       });
 
       wrap.appendChild(lbl); wrap.appendChild(input); wrap.appendChild(val);
       panel.appendChild(wrap);
     }
 
+    // Bake → copy the chosen values as the ANIMAL_BLUR source line (to commit by hand).
+    const bake = document.createElement('button');
+    bake.textContent = '⬇ Bake — copy ANIMAL_BLUR';
+    bake.style.cssText = 'margin-top:12px;width:100%;padding:7px;border:0;border-radius:7px;background:#5a8a3a;color:#fff;font-weight:700;cursor:pointer;font-size:13px';
+    const note = document.createElement('div');
+    note.style.cssText = 'font-size:11px;color:#567;margin-top:5px;min-height:14px;word-break:break-all';
+    bake.addEventListener('click', () => {
+      const line = `export const ANIMAL_BLUR = { radius: ${p.radius}, strength: ${p.strength}, feather: ${p.feather}, internalBlur: ${p.internalBlur}, internalStrength: ${p.internalStrength}, colorThresh: ${p.colorThresh} };`;
+      navigator.clipboard?.writeText(line).catch(() => {});
+      console.log('[ANIMAL_BLUR bake]\n' + line);
+      note.textContent = 'Copied to clipboard + logged ✓ — paste into src/art/_frames.js';
+    });
+    panel.appendChild(bake);
+    panel.appendChild(note);
+
     document.body.appendChild(panel);
 
-    // Pause the raccoon sprite so tweaks read on a still frame.
-    for (const fam of this._families) {
-      const s = fam.members[0]?.sprite;
-      if (s?.texture?.key?.startsWith('raccoon5')) { s.stop(); break; }
-    }
+    // Pause every sprite so blur tweaks read on still frames.
+    for (const fam of this._families) for (const m of fam.members) m.sprite.stop();
 
     return panel;
   }
 
-  _applyRaccoonBlur(p) {
-    buildRaccoon2Frames(this, 'raccoon5', {
-      radius: p.radius, strength: p.strength, feather: p.feather,
-      internalBlur: p.internalBlur, internalStrength: p.internalStrength,
-      colorThresh: p.colorThresh,
+  // Coalesce rapid slider input to one re-blur per animation frame — re-blurring every
+  // gallery frame on each input event would jank the drag.
+  _scheduleGlobalBlur(p) {
+    this._pendingBlur = { ...p };
+    if (this._blurRAF) return;
+    this._blurRAF = requestAnimationFrame(() => {
+      this._blurRAF = null;
+      this._applyGlobalBlur(this._pendingBlur);
     });
+  }
+
+  // Re-blur every gallery animal's frames from the shared params, skipping the
+  // deliberately-unblurred 1× A/B comparison rows (`*Old`). blurEdgesSplit re-blurs from
+  // each texture's pristine stash (DEV), so dragging a slider re-tunes without compounding.
+  _applyGlobalBlur(p) {
+    for (const fam of FAMILIES) {
+      for (const m of fam.members) {
+        if (m.key.endsWith('Old')) continue;
+        for (const key of this._frameKeysFor(m.key)) blurEdgesSplit(this, key, p);
+      }
+    }
   }
 
   // Texture key → species id. Horses/foals map to 'horse'; chickens to 'chicken';

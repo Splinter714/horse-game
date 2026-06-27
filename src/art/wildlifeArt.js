@@ -10,12 +10,11 @@
 // smooth but the sprite reads crisp (and sharp on HiDPI) rather than fuzzy-edged.
 // First-pass draft look — the owner art-directs the polish in the preview.
 
-import { gen, scaledGraphics, ART_SCALE, blurEdgesSplit } from './_frames.js';
+import { gen, scaledGraphics, ART_SCALE, blurEdgesSplit, ANIMAL_BLUR } from './_frames.js';
 
-// The settled creature edge+inner blur (owner-tuned on the raccoon). Shared by every
-// wildlife sprite so they all read with the same soft silhouette as the barnyard
-// animals. The fish ripple is an effect, not a creature, so it stays un-blurred.
-const BLUR = { radius: 0.7, strength: 0.5, feather: 1, internalBlur: 0.7, internalStrength: 0.5, colorThresh: 80 };
+// Every wildlife sprite uses the shared ANIMAL_BLUR (defined in _frames.js) so they read
+// with the same soft silhouette as the barnyard animals. The fish ripple is an effect,
+// not a creature, so it stays un-blurred.
 
 // ── Fish (#183) ──────────────────────────────────────────────────────────────
 // Seen from above through the water: a dark slate silhouette with a faintly lighter
@@ -43,8 +42,8 @@ function drawFish(g, flick) {
 export function buildFishTextures(scene) {
   gen(scene, 'fish_0', FISH_W * ART_SCALE, FISH_H * ART_SCALE, (g) => drawFish(scaledGraphics(g), 0));
   gen(scene, 'fish_1', FISH_W * ART_SCALE, FISH_H * ART_SCALE, (g) => drawFish(scaledGraphics(g), 1)); // tail swished
-  blurEdgesSplit(scene, 'fish_0', BLUR);
-  blurEdgesSplit(scene, 'fish_1', BLUR);
+  blurEdgesSplit(scene, 'fish_0', ANIMAL_BLUR);
+  blurEdgesSplit(scene, 'fish_1', ANIMAL_BLUR);
 
   // A tiny expanding ring left where a fish surfaces/darts — a soft white ripple. Kept
   // 1× (not super-sampled): a ripple is meant to be soft, and strokeCircle isn't on the
@@ -99,7 +98,7 @@ export function buildBirdTextures(scene) {
   gen(scene, 'bird_fly_1', W, H, (g) => drawBirdFly(scaledGraphics(g), false));
   gen(scene, 'bird_peck_0', W, H, (g) => drawBirdPeck(scaledGraphics(g), false));
   gen(scene, 'bird_peck_1', W, H, (g) => drawBirdPeck(scaledGraphics(g), true));
-  ['bird_fly_0', 'bird_fly_1', 'bird_peck_0', 'bird_peck_1'].forEach((k) => blurEdgesSplit(scene, k, BLUR));
+  ['bird_fly_0', 'bird_fly_1', 'bird_peck_0', 'bird_peck_1'].forEach((k) => blurEdgesSplit(scene, k, ANIMAL_BLUR));
 }
 
 // ── Raccoon (#181) ─────────────────────────────────────────────────────────��─
@@ -278,19 +277,7 @@ export function buildRaccoonTextures(scene) {
   RACCOON_FRAMES.forEach((f) => {
     gen(scene, `raccoon_${f.name}`, RACC_W * ART_SCALE, RACC_H * ART_SCALE,
       (g) => drawRaccoon2(scaledGraphics(g), f.legs, f.bob));
-    blurEdgesSplit(scene, `raccoon_${f.name}`, BLUR);
-  });
-}
-
-// Rebuild raccoon2-style frames under `keyPrefix_*` with the given blur opts.
-// Called live from ArtPreviewScene's blur-parameter sliders so the owner can tune
-// the look without reloading. blurEdgesSplit handles the WebGL re-upload via refresh().
-export function buildRaccoon2Frames(scene, keyPrefix, blurOpts = {}) {
-  RACCOON_FRAMES.forEach((f) => {
-    const key = `${keyPrefix}_${f.name}`;
-    gen(scene, key, RACC_W * ART_SCALE, RACC_H * ART_SCALE,
-      (g) => drawRaccoon2(scaledGraphics(g), f.legs, f.bob));
-    blurEdgesSplit(scene, key, blurOpts);
+    blurEdgesSplit(scene, `raccoon_${f.name}`, ANIMAL_BLUR);
   });
 }
 
@@ -317,6 +304,6 @@ export function buildWildlifeOldTextures(scene) {
   RACCOON_FRAMES.forEach((f) => {
     gen(scene, `raccoon5_${f.name}`, RACC_W * ART_SCALE, RACC_H * ART_SCALE,
       (g) => drawRaccoon2(scaledGraphics(g), f.legs, f.bob));
-    blurEdgesSplit(scene, `raccoon5_${f.name}`, { radius: 0.7, strength: 0.5, feather: 1, internalBlur: 0.7, internalStrength: 0.5, colorThresh: 80 });
+    blurEdgesSplit(scene, `raccoon5_${f.name}`, ANIMAL_BLUR);
   });
 }

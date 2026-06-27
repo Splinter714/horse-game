@@ -230,10 +230,26 @@ try {
     const paused = g.scene.isPaused('PaddockScene');
     info._pickColor('grey');
     const coat = g.registry.get('allHorses').horse2.coat;
+
+    // #193 regression guard: a live re-skin must actually CHANGE the texture pixels.
+    // The shared blur (ANIMAL_BLUR) stashes each texture's pristine pre-blur pixels in
+    // DEV so the blur panel can re-tune live; gen() must DROP that stash when it redraws,
+    // or blurEdgesSplit would restore the boot-time pixels and silently revert recolours.
+    // Two clearly-different coats must yield two different frame textures.
+    const sig = () => {
+      const src = g.textures.get('horse2_idle_0').getSourceImage();
+      const d = src.getContext('2d').getImageData(0, 0, src.width, src.height).data;
+      let s = 0; for (let i = 0; i < d.length; i += 521) s = (s * 31 + d[i]) >>> 0; // sparse hash
+      return s;
+    };
+    info._pickColor('black');    const sigBlack = sig();
+    info._pickColor('palomino'); const sigPalomino = sig();
+
     info.custExit();
     await new Promise((r) => setTimeout(r, 60));
     return {
       opened, focusCount, paused, coat,
+      reskinPixelsChanged: sigBlack !== sigPalomino,
       resumed: !g.scene.isPaused('PaddockScene') && info._mode === 'info',
       noStable: !g.scene.getScene('ManagementPanelScene'),
     };
@@ -310,6 +326,7 @@ try {
   if (result.editor.focusCount < 20) fail(`editor registered too few focusables (${result.editor.focusCount})`);
   if (!result.editor.paused) fail('world was not paused while editing');
   if (result.editor.coat !== 'grey') fail(`coat edit did not apply (got ${result.editor.coat})`);
+  if (!result.editor.reskinPixelsChanged) fail('re-skin did not change texture pixels (#193: gen() must drop the pre-blur stash on redraw, else recolours revert)');
   if (!result.editor.resumed) fail('world/info not restored after closing the editor');
   if (!result.editor.noStable) fail('ManagementPanelScene still registered (should be removed)');
   // Player customizer (#44).
