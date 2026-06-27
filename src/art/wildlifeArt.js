@@ -328,12 +328,16 @@ export function buildWildlifeTextures(scene) {
 // against the crisp super-sampled versions. Not used in-world. Remove once the look is
 // settled (these draw fns are the same — only the 1× vs ART_SCALE grid differs).
 export function buildWildlifeOldTextures(scene) {
-  gen(scene, 'fishOld_0', FISH_W, FISH_H, (g) => drawFish(g, 0));
-  gen(scene, 'fishOld_1', FISH_W, FISH_H, (g) => drawFish(g, 1));
-  gen(scene, 'birdOld_fly_0', BIRD_W, BIRD_H, (g) => drawBirdFly(g, true));
-  gen(scene, 'birdOld_fly_1', BIRD_W, BIRD_H, (g) => drawBirdFly(g, false));
-  gen(scene, 'birdOld_peck_0', BIRD_W, BIRD_H, (g) => drawBirdPeck(g, false));
-  gen(scene, 'birdOld_peck_1', BIRD_W, BIRD_H, (g) => drawBirdPeck(g, true));
+  // These "Old" textures draw at 1× (no scaledGraphics wrapper) so the art-preview
+  // can A/B crisp vs super-sampled. The draw fns have g.layer() calls for the dissect
+  // tool, but raw Phaser Graphics has no .layer() — shim a no-op so they don't throw.
+  const L = (g) => (g.layer ??= () => {}, g);
+  gen(scene, 'fishOld_0', FISH_W, FISH_H, (g) => drawFish(L(g), 0));
+  gen(scene, 'fishOld_1', FISH_W, FISH_H, (g) => drawFish(L(g), 1));
+  gen(scene, 'birdOld_fly_0', BIRD_W, BIRD_H, (g) => drawBirdFly(L(g), true));
+  gen(scene, 'birdOld_fly_1', BIRD_W, BIRD_H, (g) => drawBirdFly(L(g), false));
+  gen(scene, 'birdOld_peck_0', BIRD_W, BIRD_H, (g) => drawBirdPeck(L(g), false));
+  gen(scene, 'birdOld_peck_1', BIRD_W, BIRD_H, (g) => drawBirdPeck(L(g), true));
   RACCOON_FRAMES.forEach((f) => {
     gen(scene, `raccoon5_${f.name}`, RACC_W * ART_SCALE, RACC_H * ART_SCALE,
       (g) => drawRaccoon2(scaledGraphics(g), f.legs, f.bob));
