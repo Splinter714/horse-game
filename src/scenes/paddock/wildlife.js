@@ -41,6 +41,7 @@ export const WithWildlife = (Base) => class extends Base {
     this._scheduleFish(Phaser.Math.Between(3000, 8000));
     this._scheduleBirdVisit(Phaser.Math.Between(5000, 12000));
     this._scheduleRaccoonVisit(Phaser.Math.Between(8000, 20000));
+    this._scheduleHorsePerch(Phaser.Math.Between(20000, 45000));
   }
 
   // Per-frame upkeep for the active ground critters: keep them depth-sorted against
@@ -50,6 +51,29 @@ export const WithWildlife = (Base) => class extends Base {
     const px = this.player.sprite.x, py = this.player.sprite.y;
     for (const c of this._wildCritters) {
       if (!c.sprite.active) continue;
+
+      // Horse-perched birds: track the host's position and flush if it moves.
+      if (c.perchHost) {
+        const horse = c.perchHost;
+        const hostCalm = horse.sprite?.active &&
+          (horse.state === 'idle' || horse.state === 'grazing' ||
+           horse.state === 'eating' || horse.state === 'drinking');
+        if (!hostCalm) {
+          c.perchHost = null;
+          this._birdTakeOff(c);
+          continue;
+        }
+        // Keep depth just above the horse.
+        c.sprite.setDepth(horse.sprite.y + 1);
+        // Follow the horse by applying the position delta each frame.
+        if (c._lastHostX !== undefined && c.state === 'perched') {
+          c.sprite.x += horse.sprite.x - c._lastHostX;
+          c.sprite.y += horse.sprite.y - c._lastHostY;
+        }
+        c._lastHostX = horse.sprite.x;
+        c._lastHostY = horse.sprite.y;
+      }
+
       if (c.ground) c.sprite.setDepth(c.sprite.y);
       if (c.ground && !c.fleeing && Phaser.Math.Distance.Between(px, py, c.sprite.x, c.sprite.y) < FLEE_DIST) {
         if (c.kind === 'bird') this._birdTakeOff(c);
@@ -204,6 +228,78 @@ export const WithWildlife = (Base) => class extends Base {
       x: toLeft ? -60 : WORLD_W + 60, y: Phaser.Math.Between(80, 200),
       duration: Phaser.Math.Between(1800, 2800), ease: 'Sine.easeIn',
       onComplete: () => this._despawnCritter(c),
+    });
+  }
+
+  // ─── Horse-back perch (#192) ────────────────────────────────────────────────
+  // Occasionally a bird flies in and lands on a calm horse's back — a cozy oxpecker
+  // moment. The bird tracks the host sprite frame-by-frame and flushes the instant
+  // the horse starts moving or the player draws near.
+
+  // px above sprite.y (origin bottom) to reach the horse's back/withers.
+  // FRAME_H=54, scale=2 → top of horse ≈ 108px up; back sits at ~64px up.
+  static get _PERCH_Y() { return -64; }
+
+  _scheduleHorsePerch(delay) {
+    this.time.delayedCall(delay, () => {
+      if (!this._sleeping && this._phase !== 'Night') this._maybeSpawnHorsePerch();
+      // A treat — infrequent so it stays charming.
+      this._scheduleHorsePerch(Phaser.Math.Between(30000, 70000));
+    });
+  }
+
+  _maybeSpawnHorsePerch() {
+    const horses = Object.values(this.registry.get('allHorses') ?? {});
+    const calm = horses.filter((h) =>
+      h.sprite?.active && !h.wanderTween &&
+      (h.state === 'idle' || h.state === 'grazing' ||
+       h.state === 'eating' || h.state === 'drinking')
+    );
+    if (!calm.length) return;
+    const horse = calm[Phaser.Math.Between(0, calm.length - 1)];
+    this._spawnHorsePerch(horse);
+  }
+
+  _spawnHorsePerch(horse) {
+    const hx = horse.sprite.x, hy = horse.sprite.y;
+    const tx = hx + Phaser.Math.Between(-8, 8);   // land near the centre of the back
+    const ty = hy + WithWildlife._PERCH_Y;
+
+    // Swoop in from an arc above one side.
+    const fromLeft = Math.random() < 0.5;
+    const startX = fromLeft ? hx - 200 : hx + 200;
+    const startY = hy - 160;
+
+    const sprite = this.add.sprite(startX, startY, 'bird_fly_0')
+      .setOrigin(0.5, 1).setScale(WILD_SCALE).setDepth(hy + 1)
+      .setFlipX(startX > tx).play('bird_fly');
+
+    const c = { sprite, kind: 'bird', ground: false, state: 'descending',
+                tween: null, fleeing: false, perchHost: horse,
+                _lastHostX: hx, _lastHostY: hy };
+    this._wildCritters.push(c);
+
+    c.tween = this.tweens.add({
+      targets: sprite, x: tx, y: ty,
+      duration: Phaser.Math.Between(900, 1400), ease: 'Sine.easeIn',
+      onComplete: () => {
+        if (!sprite.active || c.fleeing) return;
+        c.state = 'perched';
+        // ground=false so the depth block is skipped; perchHost block handles depth.
+        sprite.play('bird_peck');
+        this._horsePerchHop(c, Phaser.Math.Between(3, 7));
+      },
+    });
+  }
+
+  _horsePerchHop(c, n) {
+    if (!c.sprite.active || c.fleeing || c.state !== 'perched') return;
+    if (n <= 0) { this._birdTakeOff(c); return; }
+    if (Math.random() < 0.3) c.sprite.setFlipX(!c.sprite.flipX);
+    c.tween = this.tweens.add({
+      targets: c.sprite, y: c.sprite.y - 5, duration: 120, yoyo: true, ease: 'Quad.easeOut',
+      onComplete: () =>
+        this.time.delayedCall(Phaser.Math.Between(600, 1800), () => this._horsePerchHop(c, n - 1)),
     });
   }
 
