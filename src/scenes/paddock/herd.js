@@ -70,9 +70,9 @@ export const WithHerd = (Base) => class extends Base {
   _faceHeadToTail(h, buddy) {
     if (!buddy.sprite.active) return;
     h.sprite.setFlipX(!buddy.sprite.flipX);
-    // Sell the pose as the mutual fly-swatting it's meant to be — a gentle
-    // synchronized tail-swish on the pair (#187, charm.js).
-    this._charmFlySwat(h, buddy);
+    // (The head-to-tail pose is the moment; an added angle-wobble "tail swish"
+    // tilted the whole bottom-origin sprite and read as teetering, so it was
+    // removed (#187). A real tail-swish needs separated tail art.)
   }
 
   // Keep idle horses from collapsing into one overlapping blob: any two standing

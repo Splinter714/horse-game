@@ -179,23 +179,6 @@ export const WithCharm = (Base) => class extends Base {
     });
   }
 
-  // ─── Horses head-to-tail fly-swatting (#187 enhancement) ────────────────────
-
-  // A gentle synchronized tail-swish (a small angle wobble) so the existing
-  // head-to-tail buddy pose (_needTarget / _faceHeadToTail) reads as the mutual
-  // fly-swatting it's meant to be. Purely visual and self-restoring.
-  _charmFlySwat(h, buddy) {
-    for (const horse of [h, buddy]) {
-      if (!horse?.sprite?.active || horse.state !== 'idle') continue;
-      const base = horse.sprite.angle;
-      this.tweens.add({
-        targets: horse.sprite, angle: base + 2.5, duration: 380, yoyo: true, repeat: 1,
-        ease: 'Sine.easeInOut',
-        onComplete: () => { if (horse.sprite.active && horse.state === 'idle') horse.sprite.angle = base; },
-      });
-    }
-  }
-
   // ─── Night settling: the barnyard beds down together (#187) ─────────────────
 
   // Called per animal from restAllAnimals at nightfall. Horses are the herd centre —

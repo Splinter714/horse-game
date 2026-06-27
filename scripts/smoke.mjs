@@ -63,7 +63,7 @@ try {
       // Cross-animal charm behaviors (#187): dog↔sheep, chicken scatter, pig nap,
       // night settle/curl, head-to-tail swat.
       'dogGoHerd', '_sheepBunch', 'chickenScatterFrom', '_maybePigNap', '_charmNap',
-      '_charmFlySwat', '_settleAnimalForNight', 'catCurlUp', '_restAnimalInPlace', '_dogContext',
+      '_settleAnimalForNight', 'catCurlUp', '_restAnimalInPlace', '_dogContext',
       'runBehaviors', '_horseContext', '_chickenContext', '_nearestReachableHay',
       'onPhaseChange', 'depthSort', 'tickDecay',
       // Extracted concern mixins (issue #167): effects / persistence / rendering.
@@ -176,7 +176,7 @@ try {
       if (chick) paddock.chickenScatterFrom(chick);
       if (pig)   { pig.state = 'idle'; paddock._maybePigNap(pig); }
       const wired = ['dogGoHerd', 'chickenScatterFrom', 'catCurlUp', '_maybePigNap',
-        '_settleAnimalForNight', '_charmFlySwat'].every((m) => typeof paddock[m] === 'function');
+        '_settleAnimalForNight', '_charmNap'].every((m) => typeof paddock[m] === 'function');
       charm = wired ? 'wired' : 'missing-methods';
     } catch (e) { charm = 'threw: ' + String(e); }
 
