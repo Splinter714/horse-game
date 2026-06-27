@@ -3,7 +3,7 @@
 // it while the world is frozen (#159). Freezes/*un*freezes the gameplay scenes.
 // Extracted from the monolithic HotbarScene (issue #167).
 
-import { toggleMute, isMuted, setVolume, getAudioSettings } from '../../audio/sounds.js';
+import { toggleMute, isMuted, setVolume, getAudioSettings, playNicker } from '../../audio/sounds.js';
 import { saveUiSettings, resetAllHorses, loadDevSettings, saveDevSettings } from '../../data/save.js';
 import { EVENTS } from '../../data/events.js';
 import { growHitArea, logicalW, logicalH, dprOf } from '../uiUtils.js';
@@ -212,6 +212,13 @@ export const WithPauseMenu = (Base) => class extends Base {
       this._closePause();           // resume the game first so events are visible
       this._toggleDevEvents();
     });
+    dy += rowH;
+    const freezeDecayLbl = this._addToggleRow(rowX, dy, rowW, rowH,
+      `❄️ Freeze Decay: ${window.__devFreezeDecay ? 'ON' : 'Off'}`,
+      () => {
+        window.__devFreezeDecay = !window.__devFreezeDecay;
+        freezeDecayLbl.setText(`❄️ Freeze Decay: ${window.__devFreezeDecay ? 'ON' : 'Off'}`);
+      });
 
     // Controller focus highlight, drawn above the rows (#159).
     this._pauseRing = this.add.graphics().setDepth(106);
@@ -258,7 +265,7 @@ export const WithPauseMenu = (Base) => class extends Base {
       { label: '🐴 Horse nicker',        fire: (p) => {
         const h = idleHorse(p); if (!h) return;
         p._shake?.(h.sprite);
-        import('../../audio/sounds.js').then(({ playNicker }) => playNicker());
+        playNicker();
       }},
     ];
   }
