@@ -231,11 +231,9 @@ try {
     info._pickColor('grey');
     const coat = g.registry.get('allHorses').horse2.coat;
 
-    // #193 regression guard: a live re-skin must actually CHANGE the texture pixels.
-    // The shared blur (ANIMAL_BLUR) stashes each texture's pristine pre-blur pixels in
-    // DEV so the blur panel can re-tune live; gen() must DROP that stash when it redraws,
-    // or blurEdgesSplit would restore the boot-time pixels and silently revert recolours.
-    // Two clearly-different coats must yield two different frame textures.
+    // Regression guard: a live re-skin must actually CHANGE the texture pixels — gen()
+    // redraws the frame in place, so two clearly-different coats must yield two different
+    // frame textures (catches a re-skin that silently keeps the old pixels).
     const sig = () => {
       const src = g.textures.get('horse2_idle_0').getSourceImage();
       const d = src.getContext('2d').getImageData(0, 0, src.width, src.height).data;
@@ -326,7 +324,7 @@ try {
   if (result.editor.focusCount < 20) fail(`editor registered too few focusables (${result.editor.focusCount})`);
   if (!result.editor.paused) fail('world was not paused while editing');
   if (result.editor.coat !== 'grey') fail(`coat edit did not apply (got ${result.editor.coat})`);
-  if (!result.editor.reskinPixelsChanged) fail('re-skin did not change texture pixels (#193: gen() must drop the pre-blur stash on redraw, else recolours revert)');
+  if (!result.editor.reskinPixelsChanged) fail('re-skin did not change texture pixels (gen() redraw not taking effect?)');
   if (!result.editor.resumed) fail('world/info not restored after closing the editor');
   if (!result.editor.noStable) fail('ManagementPanelScene still registered (should be removed)');
   // Player customizer (#44).

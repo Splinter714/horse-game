@@ -3,8 +3,6 @@ import { applyDpr, logicalW, logicalH, dprOf } from './uiUtils.js';
 import { saveDevSettings } from '../data/save.js';
 import { CUSTOMIZE } from '../data/customize.js';
 import { DEMO_FOALS } from '../data/demoFoals.js';
-import { blurEdgesSplit, ANIMAL_BLUR } from '../art/_frames.js';
-import { swallowDomInput } from '../dev/swallowDomInput.js';
 
 // ── Art preview (dev tool) ───────────────────────────────────────────────────
 // A standalone gallery for art-directing the creatures. Boots straight into a
@@ -59,8 +57,6 @@ const TARGET_H = 200;       // tallest family member's on-screen height (logical
 const PAD = 24;             // gap between family cells
 const INNER_GAP = 14;       // gap between members within a family
 const TOP = 56;             // y where the grid starts (below the title)
-const PANEL_W = 312;        // width reserved on the right for the docked dev blur panel
-                            // (dev only) so the gallery never lays a sprite under it.
 
 export default class ArtPreviewScene extends Phaser.Scene {
   constructor() {
@@ -172,15 +168,11 @@ export default class ArtPreviewScene extends Phaser.Scene {
     });
     this.input.on('pointerup', () => { this._dragY = null; this._pressedSprite = null; });
 
-    // Dock the dev blur panel as a right-hand sidebar (not a floating overlay): the
-    // gallery reserves this width so no sprite sits under the panel, which is what made
-    // clicks fall through to dissect. Zero in production (no panel).
-    this._reservedRight = import.meta.env.DEV ? PANEL_W : 0;
-
     // The dissect overlay docks as a LEFT sidebar (dev). It fires `dissectDockChanged` with
     // its width on open / 0 on close; reserve matching gallery space so it never covers a
     // card. (Bare event name — a dev-only DOM event, decoupled from src/dev/dissectOverlay.)
     this._reservedLeft = 0;
+    this._reservedRight = 0;
     this._onDissectDock = (e) => {
       const w = e.detail?.width || 0;
       if (w === this._reservedLeft) return;
@@ -192,138 +184,10 @@ export default class ArtPreviewScene extends Phaser.Scene {
     this.layout();
     this.scale.on('resize', this.layout, this);
 
-    if (import.meta.env.DEV) this._blurPanel = this._buildBlurPanel();
     this.events.once('shutdown', () => {
       this.scale.off('resize', this.layout, this);
       window.removeEventListener('dissectDockChanged', this._onDissectDock);
-      if (this._blurRAF) cancelAnimationFrame(this._blurRAF);
-      this._blurPanel?.remove();
     });
-  }
-
-  // ── Global animal-blur slider panel (dev, #193) ──────────────────────────────
-  // A docked right-hand sidebar (the gallery reserves PANEL_W for it) with 6 range sliders
-  // (silhouette: radius/strength/feather; inner seams: radius/strength/color-thresh) seeded
-  // from the shared ANIMAL_BLUR. On every change it re-blurs EVERY animal in the gallery
-  // live, so the one global look can be art-directed here. 'Bake' copies the chosen values
-  // as the ANIMAL_BLUR const line (clipboard + console) to paste into src/art/_frames.js.
-  _buildBlurPanel() {
-    const p = { ...ANIMAL_BLUR };   // seed from the live shared blur (single source of truth)
-
-    const SLIDERS = [
-      { section: 'Silhouette blur' },
-      { key: 'radius',           label: 'radius',       min: 0.2, max: 4.0, step: 0.1  },
-      { key: 'strength',         label: 'strength',     min: 0,   max: 1.0, step: 0.05 },
-      { key: 'feather',          label: 'feather',      min: 1,   max: 10,  step: 1    },
-      { section: 'Inner-seam blur' },
-      { key: 'internalBlur',     label: 'radius',       min: 0,   max: 2.0, step: 0.05 },
-      { key: 'internalStrength', label: 'strength',     min: 0,   max: 1.0, step: 0.05 },
-      { key: 'colorThresh',      label: 'color thresh', min: 5,   max: 80,  step: 5    },
-    ];
-
-    // Docked as a solid right-hand sidebar (full height) rather than a floating box, so
-    // it reads as a separate region beside the gallery instead of sitting over the art.
-    // The gallery reserves PANEL_W for it, so nothing dissectable is ever behind it.
-    const panel = document.createElement('div');
-    panel.style.cssText = [
-      `position:fixed;top:0;right:0;bottom:0;width:${PANEL_W - 12}px`,
-      'background:rgba(248,250,245,0.98)',
-      'border-left:1px solid rgba(0,0,0,0.12)',
-      'padding:14px 16px;overflow-y:auto;box-sizing:border-box',
-      'font-family:system-ui,sans-serif;font-size:13px;color:#1a2010',
-      'box-shadow:-2px 0 16px rgba(0,0,0,0.18)',
-      'z-index:9999;line-height:1.6',
-    ].join(';');
-
-    const title = document.createElement('div');
-    title.style.cssText = 'font-weight:700;font-size:14px;margin-bottom:6px;user-select:none';
-    title.textContent = '🎨 Animal blur — all (ANIMAL_BLUR)';
-    panel.appendChild(title);
-
-    for (const row of SLIDERS) {
-      if (row.section) {
-        const hdr = document.createElement('div');
-        hdr.style.cssText = 'font-size:11px;color:#678;font-weight:600;margin-top:8px;margin-bottom:2px;text-transform:uppercase;letter-spacing:.04em';
-        hdr.textContent = row.section;
-        panel.appendChild(hdr);
-        continue;
-      }
-      const wrap = document.createElement('div');
-      wrap.style.cssText = 'display:flex;align-items:center;gap:8px;margin:2px 0';
-
-      const lbl = document.createElement('span');
-      lbl.style.cssText = 'width:88px;flex-shrink:0;color:#444';
-      lbl.textContent = row.label;
-
-      const input = document.createElement('input');
-      input.type = 'range';
-      input.min = row.min; input.max = row.max; input.step = row.step;
-      input.value = p[row.key];
-      input.style.cssText = 'flex:1;accent-color:#5a8a3a;cursor:pointer';
-
-      const val = document.createElement('span');
-      val.style.cssText = 'width:36px;text-align:right;font-variant-numeric:tabular-nums;color:#222';
-      val.textContent = p[row.key];
-
-      input.addEventListener('input', () => {
-        p[row.key] = row.step >= 1 ? parseInt(input.value) : parseFloat(input.value);
-        val.textContent = p[row.key];
-        this._scheduleGlobalBlur(p);
-      });
-
-      wrap.appendChild(lbl); wrap.appendChild(input); wrap.appendChild(val);
-      panel.appendChild(wrap);
-    }
-
-    // Bake → copy the chosen values as the ANIMAL_BLUR source line (to commit by hand).
-    const bake = document.createElement('button');
-    bake.textContent = '⬇ Bake — copy ANIMAL_BLUR';
-    bake.style.cssText = 'margin-top:12px;width:100%;padding:7px;border:0;border-radius:7px;background:#5a8a3a;color:#fff;font-weight:700;cursor:pointer;font-size:13px';
-    const note = document.createElement('div');
-    note.style.cssText = 'font-size:11px;color:#567;margin-top:5px;min-height:14px;word-break:break-all';
-    bake.addEventListener('click', () => {
-      const line = `export const ANIMAL_BLUR = { radius: ${p.radius}, strength: ${p.strength}, feather: ${p.feather}, internalBlur: ${p.internalBlur}, internalStrength: ${p.internalStrength}, colorThresh: ${p.colorThresh} };`;
-      navigator.clipboard?.writeText(line).catch(() => {});
-      console.log('[ANIMAL_BLUR bake]\n' + line);
-      note.textContent = 'Copied to clipboard + logged ✓ — paste into src/art/_frames.js';
-    });
-    panel.appendChild(bake);
-    panel.appendChild(note);
-
-    document.body.appendChild(panel);
-
-    // Defense-in-depth: the gallery already reserves this column so no sprite sits behind
-    // the panel, but also stop the panel's own input from reaching Phaser (which listens on
-    // window) in case anything overlaps the edge. See swallowDomInput.
-    swallowDomInput(panel);
-
-    // Pause every sprite so blur tweaks read on still frames.
-    for (const fam of this._families) for (const m of fam.members) m.sprite.stop();
-
-    return panel;
-  }
-
-  // Coalesce rapid slider input to one re-blur per animation frame — re-blurring every
-  // gallery frame on each input event would jank the drag.
-  _scheduleGlobalBlur(p) {
-    this._pendingBlur = { ...p };
-    if (this._blurRAF) return;
-    this._blurRAF = requestAnimationFrame(() => {
-      this._blurRAF = null;
-      this._applyGlobalBlur(this._pendingBlur);
-    });
-  }
-
-  // Re-blur every gallery animal's frames from the shared params, skipping the
-  // deliberately-unblurred 1× A/B comparison rows (`*Old`). blurEdgesSplit re-blurs from
-  // each texture's pristine stash (DEV), so dragging a slider re-tunes without compounding.
-  _applyGlobalBlur(p) {
-    for (const fam of FAMILIES) {
-      for (const m of fam.members) {
-        if (m.key.endsWith('Old')) continue;
-        for (const key of this._frameKeysFor(m.key)) blurEdgesSplit(this, key, p);
-      }
-    }
   }
 
   // Texture key → species id. Horses/foals map to 'horse'; chickens to 'chicken';

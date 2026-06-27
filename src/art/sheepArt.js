@@ -8,7 +8,7 @@
 // ({ wool, skin } shading ramps). An arg-less call falls back to DEFAULT_LOOK so
 // BootScene and the art-preview gallery render the original sheep unchanged.
 
-import { gen, makeLeg, scaledGraphics, ART_SCALE, idleWalkLegs, blurEdgesSplit, ANIMAL_BLUR } from './_frames.js';
+import { gen, makeLeg, scaledGraphics, ART_SCALE, idleWalkLegs } from './_frames.js';
 
 export const SHEEP_W = 40, SHEEP_H = 30;
 
@@ -103,6 +103,5 @@ export function buildSheepTextures(scene, key, look) {
     gen(scene, `${key}_${names[i]}`, SHEEP_W * ART_SCALE, SHEEP_H * ART_SCALE, g0 => {
       drawSheep(scaledGraphics(g0), bobs[i], legs, look);
     });
-    blurEdgesSplit(scene, `${key}_${names[i]}`, ANIMAL_BLUR);
   });
 }

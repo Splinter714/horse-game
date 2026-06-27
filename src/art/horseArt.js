@@ -5,7 +5,7 @@
 // helper (`gen`) and the simple two-rect leg (`makeLeg`) from _frames.js; the horse's
 // own `leg` is kept local because it adds socks and feathering.
 
-import { gen, makeLeg, scaledGraphics, ART_SCALE, blurEdgesSplit, ANIMAL_BLUR } from './_frames.js';
+import { gen, makeLeg, scaledGraphics, ART_SCALE } from './_frames.js';
 import { dappleCircles, roanFlecks, pintoSpec, appaloosaSpec } from '../data/species/horse/patterns.js';
 
 export const FRAME_W = 64;
@@ -860,9 +860,7 @@ export function buildFoalTextures(scene, baseKey, coat) {
       const g = scaledGraphics(g0);
       if (f.sleep) drawFoalSleep(g, coat, f.bob);
       else drawFoal(g, coat, f.bob, f.legs);
-    });
-    blurEdgesSplit(scene, `${baseKey}_${f.name}`, ANIMAL_BLUR);
-  }
+    });  }
 }
 
 // Builds idle_0, idle_1, walk_0..3, eat_0..1, sleep_0..1 textures under `${baseKey}_...`.
@@ -889,7 +887,5 @@ export function buildHorseTextures(scene, baseKey, coat) {
       if (f.eat) drawHorseEat(g, coat, f.bob);
       else if (f.sleep) drawHorseSleep(g, coat, f.bob);
       else drawHorse(g, coat, f.bob, f.legs);
-    });
-    blurEdgesSplit(scene, `${baseKey}_${f.name}`, ANIMAL_BLUR);
-  }
+    });  }
 }
