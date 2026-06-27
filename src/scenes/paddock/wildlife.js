@@ -52,13 +52,14 @@ export const WithWildlife = (Base) => class extends Base {
     for (const c of this._wildCritters) {
       if (!c.sprite.active) continue;
 
-      // Horse-perched birds: track the host's position and flush if it moves.
+      // Horse-perched birds: track the host's position; flush only once perched.
       if (c.perchHost) {
         const horse = c.perchHost;
         const hostCalm = horse.sprite?.active &&
           (horse.state === 'idle' || horse.state === 'grazing' ||
-           horse.state === 'eating' || horse.state === 'drinking');
-        if (!hostCalm) {
+           horse.state === 'eating' || horse.state === 'drinking' ||
+           horse.state === 'wandering'); // tolerate wander during descent
+        if (!hostCalm || (c.state === 'perched' && horse.state === 'wandering')) {
           c.perchHost = null;
           this._birdTakeOff(c);
           continue;
@@ -255,19 +256,27 @@ export const WithWildlife = (Base) => class extends Base {
        h.state === 'eating' || h.state === 'drinking')
     );
     if (!calm.length) return;
-    const horse = calm[Phaser.Math.Between(0, calm.length - 1)];
-    this._spawnHorsePerch(horse);
+
+    // Prefer a horse that's visible in the camera so the event is seen.
+    const view = this.cameras.main.worldView;
+    const onScreen = calm.filter((h) =>
+      h.sprite.x >= view.x - 80 && h.sprite.x <= view.x + view.width + 80 &&
+      h.sprite.y >= view.y && h.sprite.y <= view.y + view.height + 80
+    );
+    const pool = onScreen.length ? onScreen : calm;
+    this._spawnHorsePerch(pool[Phaser.Math.Between(0, pool.length - 1)]);
   }
 
   _spawnHorsePerch(horse) {
     const hx = horse.sprite.x, hy = horse.sprite.y;
-    const tx = hx + Phaser.Math.Between(-8, 8);   // land near the centre of the back
+    const tx = hx + Phaser.Math.Between(-8, 8);
     const ty = hy + WithWildlife._PERCH_Y;
 
-    // Swoop in from an arc above one side.
+    // Start just above the top of the visible area so the swoop is always seen.
+    const view = this.cameras.main.worldView;
     const fromLeft = Math.random() < 0.5;
-    const startX = fromLeft ? hx - 200 : hx + 200;
-    const startY = hy - 160;
+    const startX = fromLeft ? hx - Phaser.Math.Between(120, 220) : hx + Phaser.Math.Between(120, 220);
+    const startY = view.y - 20;
 
     const sprite = this.add.sprite(startX, startY, 'bird_fly_0')
       .setOrigin(0.5, 1).setScale(WILD_SCALE).setDepth(hy + 1)
@@ -280,13 +289,12 @@ export const WithWildlife = (Base) => class extends Base {
 
     c.tween = this.tweens.add({
       targets: sprite, x: tx, y: ty,
-      duration: Phaser.Math.Between(900, 1400), ease: 'Sine.easeIn',
+      duration: Phaser.Math.Between(1200, 1800), ease: 'Sine.easeIn',
       onComplete: () => {
         if (!sprite.active || c.fleeing) return;
         c.state = 'perched';
-        // ground=false so the depth block is skipped; perchHost block handles depth.
         sprite.play('bird_peck');
-        this._horsePerchHop(c, Phaser.Math.Between(3, 7));
+        this._horsePerchHop(c, Phaser.Math.Between(5, 9));
       },
     });
   }
