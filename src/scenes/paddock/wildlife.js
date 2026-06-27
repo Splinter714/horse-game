@@ -16,6 +16,10 @@ import { ART_SCALE } from '../../art/_frames.js';
 // flight and fish ignore the player.
 const FLEE_DIST = 200;
 
+// World-px above horse sprite.y (origin bottom) to reach the back/withers.
+// FRAME_H=54, scale=2 → top of horse ≈ 108px up; back sits at ~64px up.
+const PERCH_Y = -64;
+
 // Display scale for the wildlife sprites: their textures are super-sampled on the
 // ART_SCALE grid (wildlifeArt.js), so they show at S/ART_SCALE — same on-screen size
 // as before, but crisp edges (matches the horse/sheep pipeline).
@@ -237,9 +241,8 @@ export const WithWildlife = (Base) => class extends Base {
   // moment. The bird tracks the host sprite frame-by-frame and flushes the instant
   // the horse starts moving or the player draws near.
 
-  // px above sprite.y (origin bottom) to reach the horse's back/withers.
-  // FRAME_H=54, scale=2 → top of horse ≈ 108px up; back sits at ~64px up.
-  static get _PERCH_Y() { return -64; }
+  // (PERCH_Y is defined as a module constant below — static getters on anonymous
+  //  mixin classes are not reachable by the class name at call sites.)
 
   _scheduleHorsePerch(delay) {
     this.time.delayedCall(delay, () => {
@@ -261,7 +264,7 @@ export const WithWildlife = (Base) => class extends Base {
     const view = this.cameras.main.worldView;
     const onScreen = calm.filter((h) =>
       h.sprite.x >= view.x - 80 && h.sprite.x <= view.x + view.width + 80 &&
-      h.sprite.y >= view.y && h.sprite.y <= view.y + view.height + 80
+      h.sprite.y >= view.y - 80 && h.sprite.y <= view.y + view.height + 300
     );
     const pool = onScreen.length ? onScreen : calm;
     this._spawnHorsePerch(pool[Phaser.Math.Between(0, pool.length - 1)]);
@@ -270,13 +273,14 @@ export const WithWildlife = (Base) => class extends Base {
   _spawnHorsePerch(horse) {
     const hx = horse.sprite.x, hy = horse.sprite.y;
     const tx = hx + Phaser.Math.Between(-8, 8);
-    const ty = hy + WithWildlife._PERCH_Y;
+    const ty = hy + PERCH_Y;
 
-    // Start just above the top of the visible area so the swoop is always seen.
+    // Enter from off the left or right edge of the camera view, angled down toward
+    // the horse's back — same approach as the ground-perch swoop, not straight down.
     const view = this.cameras.main.worldView;
     const fromLeft = Math.random() < 0.5;
-    const startX = fromLeft ? hx - Phaser.Math.Between(120, 220) : hx + Phaser.Math.Between(120, 220);
-    const startY = view.y - 20;
+    const startX = fromLeft ? view.x - 40 : view.x + view.width + 40;
+    const startY = ty - Phaser.Math.Between(80, 160);
 
     const sprite = this.add.sprite(startX, startY, 'bird_fly_0')
       .setOrigin(0.5, 1).setScale(WILD_SCALE).setDepth(hy + 1)

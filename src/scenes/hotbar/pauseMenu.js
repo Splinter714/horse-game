@@ -295,14 +295,7 @@ export const WithPauseMenu = (Base) => class extends Base {
       fontFamily: 'system-ui, sans-serif', fontSize: '13px', color: '#c8cce0',
     }).setOrigin(0.5, 0));
 
-    // Close button
-    const closeBtn = this.add.text(W - 10, 8, '✕', {
-      fontFamily: 'system-ui, sans-serif', fontSize: '15px', color: '#8090b0',
-    }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
-    closeBtn.on('pointerdown', () => this._closeDevEvents());
-    panel.add(closeBtn);
-
-    // Drag handle — the title bar strip
+    // Drag handle — title bar strip (added before close button so ✕ sits on top).
     const drag = this.add.zone(0, 0, W, HDR).setOrigin(0, 0).setInteractive({ useHandCursor: true });
     let _lx = 0, _ly = 0, _dragging = false;
     drag.on('pointerdown', (ptr) => { _dragging = true; _lx = ptr.x; _ly = ptr.y; });
@@ -316,6 +309,13 @@ export const WithPauseMenu = (Base) => class extends Base {
     this.input.on('pointerup', onUp);
     this._devPanelDragListeners = { onMove, onUp };
     panel.add(drag);
+
+    // Close button — added after drag zone so it's on top and gets input first.
+    const closeBtn = this.add.text(W - 10, 8, '✕', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '15px', color: '#8090b0',
+    }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+    closeBtn.on('pointerdown', () => this._closeDevEvents());
+    panel.add(closeBtn);
 
     // Event buttons
     const paddock = this.scene.get('PaddockScene');
