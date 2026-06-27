@@ -324,7 +324,7 @@ export const WithWildlife = (Base) => class extends Base {
     this.time.delayedCall(delay, () => {
       // Active at dusk/night; an occasional daytime cameo.
       const nocturnal = this._phase === 'Evening' || this._phase === 'Night';
-      if (!this._sleeping && (nocturnal || Math.random() < 0.15) && !this._raccoonOut) {
+      if (!this._sleeping && (nocturnal || Math.random() < 0.15)) {
         this._spawnRaccoon();
       }
       this._scheduleRaccoonVisit(nocturnal ? Phaser.Math.Between(12000, 28000) : Phaser.Math.Between(30000, 60000));
@@ -339,7 +339,6 @@ export const WithWildlife = (Base) => class extends Base {
       .setOrigin(0.5, 1).setScale(WILD_SCALE).setDepth(y).setFlipX(!fromLeft).play('raccoon_run');
     const c = { sprite, kind: 'raccoon', ground: true, state: 'darting', tween: null, fleeing: false };
     this._wildCritters.push(c);
-    this._raccoonOut = true;
     // First dash brings it on-screen, then it potters between a few spots.
     const inX = fromLeft ? Phaser.Math.Between(200, 500) : WORLD_W - Phaser.Math.Between(200, 500);
     this._raccoonDartTo(c, inX, y, () => this._raccoonDart(c, Phaser.Math.Between(2, 4)));
@@ -421,7 +420,6 @@ export const WithWildlife = (Base) => class extends Base {
     if (c.tween) { c.tween.stop(); c.tween = null; }
     const toLeft = c.sprite.x < WORLD_W / 2;
     this._raccoonDartTo(c, toLeft ? -40 : WORLD_W + 40, c.sprite.y, () => {
-      this._raccoonOut = false;
       this._despawnCritter(c);
     });
   }
