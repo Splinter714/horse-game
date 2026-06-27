@@ -2,11 +2,18 @@
 // - globalThis.__dissect.show(key) opens the overlay for any texture key
 // - Click a panel to drill into its sub-parts (▸ suffix = drillable)
 // - Click the key/part segments in the header to navigate back up
-// - Draggable via the ⠿ handle; × to close
+// - Docked as a fixed LEFT sidebar; panels stack vertically and scroll; × to close
 // - Re-renders automatically on every 'artLayersUpdated' event (hot-reload)
 // Activated from ArtPreviewScene animal clicks, or with ?dissect=horse&part=mane.
 
 import { swallowDomInput } from './swallowDomInput.js';
+
+// Docked as a fixed left sidebar (#193). It fires a `dissectDockChanged` window event with
+// its width on open and 0 on close; ArtPreviewScene listens to reserve matching gallery
+// space so the dock never covers the cards. (Outside the gallery — e.g. ?dissect= on the
+// real game — nothing listens and it just docks over the left edge.)
+const DOCK_W = 300;
+const fireDock = (width) => window.dispatchEvent(new CustomEvent('dissectDockChanged', { detail: { width } }));
 
 const CODE = ['#e0907a', '#7fb5e8', '#86c98e', '#e8c66b', '#b79be0', '#e69bbf', '#8fd3c4', '#d99a6c'];
 const hex  = (n) => '#' + (n >>> 0 & 0xffffff).toString(16).padStart(6, '0');
@@ -20,39 +27,32 @@ const bbox = (o) => o.t === 'rect'    ? [o.x, o.y, o.x+o.w, o.y+o.h]
 
 // State: key = texture base key, crumb = stack of parent parts (null = top level)
 const state = { key: null, crumb: [] };
-let wrap, handle, breadcrumbEl, panelsEl;
-let SCALE = 3;
+let wrap, breadcrumbEl, panelsEl;
+let SCALE = 3;        // working scale, recomputed per render to fit the dock width
+let MAX_SCALE = 3;    // upper bound (overridable with ?scale=)
 
 export function setupDissectOverlay() {
   const params = new URLSearchParams(location.search);
-  SCALE = Number(params.get('scale') || 3);
+  MAX_SCALE = Number(params.get('scale') || 3);
 
-  // ── outer wrapper ─────────────────────────────────────────────────────────
+  // ── outer wrapper: docked LEFT sidebar, full height ───────────────────────
   wrap = document.createElement('div');
   Object.assign(wrap.style, {
-    position: 'fixed', top: '8px', left: '8px', zIndex: '9999',
-    fontFamily: 'monospace', fontSize: '12px',
-    boxShadow: '0 2px 16px rgba(0,0,0,0.7)', borderRadius: '6px', overflow: 'hidden',
-    maxWidth: 'calc(100vw - 16px)', maxHeight: 'calc(100vh - 16px)',
+    position: 'fixed', top: '0', left: '0', bottom: '0', width: DOCK_W + 'px', zIndex: '9999',
+    fontFamily: 'monospace', fontSize: '12px', background: '#1e2026',
+    boxShadow: '2px 0 16px rgba(0,0,0,0.5)',
     display: 'flex', flexDirection: 'column',
   });
 
-  // ── header row ───────────────────────────────────────────────────────────
+  // ── header row (pinned; panels scroll below it) ───────────────────────────
   const headerRow = document.createElement('div');
   Object.assign(headerRow.style, {
-    background: '#1e2026', color: '#9ba3b0', padding: '5px 8px',
-    userSelect: 'none', display: 'flex', alignItems: 'center', gap: '6px', minWidth: '180px',
+    background: '#1e2026', color: '#9ba3b0', padding: '7px 8px',
+    userSelect: 'none', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: '0',
   });
 
-  handle = document.createElement('span');
-  handle.textContent = '⠿';
-  Object.assign(handle.style, { cursor: 'grab', opacity: '0.4', flexShrink: '0', padding: '0 2px' });
-  headerRow.appendChild(handle);
-
-  // Close at the LEFT of the header (next to the grip). The overlay is anchored top-left
-  // and grows rightward with its panels, so a right-aligned × drifts under the Art-Preview
-  // "Back to Farm" button at the top-right — aiming for it kept closing the whole gallery.
-  // A wider hit target, too, so it's easy to land on.
+  // × at the LEFT of the header (the dock is on the left, away from the Art-Preview
+  // "Back to Farm" button). A wide hit target so it's easy to land on.
   const closeBtn = document.createElement('span');
   closeBtn.textContent = '×';
   Object.assign(closeBtn.style, { cursor: 'pointer', opacity: '0.6', padding: '0 7px', fontSize: '16px', flexShrink: '0' });
@@ -63,10 +63,10 @@ export function setupDissectOverlay() {
   breadcrumbEl.style.flex = '1';
   headerRow.appendChild(breadcrumbEl);
 
-  // ── panels row ───────────────────────────────────────────────────────────
+  // ── panels column (stack vertically, scroll vertically) ───────────────────
   panelsEl = document.createElement('div');
   Object.assign(panelsEl.style, {
-    display: 'flex', flexDirection: 'row',
+    display: 'flex', flexDirection: 'column', gap: '6px', padding: '6px',
     overflow: 'auto', background: '#1e2026',
     flex: '1', minHeight: '0',
   });
@@ -78,21 +78,6 @@ export function setupDissectOverlay() {
   // targeting the canvas) — otherwise interacting with the overlay dissects/customises the
   // sprite behind it. Phaser uses mouse/touch, not pointer, events; see swallowDomInput.
   swallowDomInput(wrap);
-
-  // drag via handle
-  let drag = null;
-  handle.addEventListener('pointerdown', (e) => {
-    const r = wrap.getBoundingClientRect();
-    drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
-    handle.setPointerCapture(e.pointerId);
-    handle.style.cursor = 'grabbing';
-  });
-  handle.addEventListener('pointermove', (e) => {
-    if (!drag) return;
-    wrap.style.left = (e.clientX - drag.dx) + 'px';
-    wrap.style.top  = (e.clientY - drag.dy) + 'px';
-  });
-  handle.addEventListener('pointerup', () => { drag = null; handle.style.cursor = 'grab'; });
 
   // re-render on texture rebuild
   window.addEventListener('artLayersUpdated', () => { if (state.key) render(); });
@@ -116,11 +101,13 @@ function idle() {
   wrap.style.display = 'none';
   breadcrumbEl.innerHTML = '<span style="opacity:0.4">click an animal to dissect</span>';
   panelsEl.innerHTML = '';
+  fireDock(0); // tell the gallery to reclaim the reserved space
 }
 
 // ── Main render ─────────────────────────────────────────────────────────────
 function render() {
   wrap.style.display = 'flex';
+  fireDock(DOCK_W); // gallery reserves matching left space so the dock doesn't cover cards
   const rawKey = state.key;
   const part   = state.crumb.length ? state.crumb[state.crumb.length - 1] : null;
 
@@ -159,6 +146,9 @@ function render() {
   // ── bounding box ─────────────────────────────────────────────────────────
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const o of scoped) { const b = bbox(o); x0=Math.min(x0,b[0]); y0=Math.min(y0,b[1]); x1=Math.max(x1,b[2]); y1=Math.max(y1,b[3]); }
+  // Auto-fit each panel to the dock width (ops are super-sampled, so a fixed scale would
+  // overflow the column). Cap at MAX_SCALE so small/drilled-in parts don't blow up.
+  SCALE = Math.min(MAX_SCALE, (DOCK_W - 30) / Math.max(1, (x1 - x0) + 10));
   const pad = Math.round(5 * SCALE), lh = 18;
   const cw  = Math.ceil((x1-x0)*SCALE) + pad*2;
   const ch  = Math.ceil((y1-y0)*SCALE) + pad*2 + lh;
