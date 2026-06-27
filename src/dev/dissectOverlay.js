@@ -47,15 +47,19 @@ export function setupDissectOverlay() {
   Object.assign(handle.style, { cursor: 'grab', opacity: '0.4', flexShrink: '0', padding: '0 2px' });
   headerRow.appendChild(handle);
 
+  // Close at the LEFT of the header (next to the grip). The overlay is anchored top-left
+  // and grows rightward with its panels, so a right-aligned × drifts under the Art-Preview
+  // "Back to Farm" button at the top-right — aiming for it kept closing the whole gallery.
+  // A wider hit target, too, so it's easy to land on.
+  const closeBtn = document.createElement('span');
+  closeBtn.textContent = '×';
+  Object.assign(closeBtn.style, { cursor: 'pointer', opacity: '0.6', padding: '0 7px', fontSize: '16px', flexShrink: '0' });
+  closeBtn.addEventListener('click', () => { state.key = null; state.crumb = []; idle(); });
+  headerRow.appendChild(closeBtn);
+
   breadcrumbEl = document.createElement('span');
   breadcrumbEl.style.flex = '1';
   headerRow.appendChild(breadcrumbEl);
-
-  const closeBtn = document.createElement('span');
-  closeBtn.textContent = '×';
-  Object.assign(closeBtn.style, { cursor: 'pointer', opacity: '0.5', padding: '0 2px', fontSize: '14px', flexShrink: '0' });
-  closeBtn.addEventListener('click', () => { state.key = null; state.crumb = []; idle(); });
-  headerRow.appendChild(closeBtn);
 
   // ── panels row ───────────────────────────────────────────────────────────
   panelsEl = document.createElement('div');

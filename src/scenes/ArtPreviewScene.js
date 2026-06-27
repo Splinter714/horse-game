@@ -202,10 +202,13 @@ export default class ArtPreviewScene extends Phaser.Scene {
       'z-index:9999;min-width:310px;line-height:1.6',
     ].join(';');
 
+    // Draggable title bar (the ⠿ grip hints it) so the panel can be moved off whichever
+    // animal is being tuned.
     const title = document.createElement('div');
-    title.style.cssText = 'font-weight:700;font-size:14px;margin-bottom:6px';
-    title.textContent = '🎨 Animal blur — all (ANIMAL_BLUR)';
+    title.style.cssText = 'font-weight:700;font-size:14px;margin-bottom:6px;cursor:move;user-select:none;display:flex;align-items:center;gap:6px';
+    title.innerHTML = '<span style="opacity:.4">⠿</span>🎨 Animal blur — all (ANIMAL_BLUR)';
     panel.appendChild(title);
+    this._makePanelDraggable(panel, title);
 
     for (const row of SLIDERS) {
       if (row.section) {
@@ -259,10 +262,40 @@ export default class ArtPreviewScene extends Phaser.Scene {
 
     document.body.appendChild(panel);
 
+    // Keep panel interactions from falling through to the Phaser canvas underneath —
+    // Phaser listens on window, so a click that bubbles that far would dissect/customise
+    // the animal behind the panel. Stopping pointermove too prevents the gallery from
+    // scrolling while a slider is dragged.
+    for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'click']) {
+      panel.addEventListener(ev, (e) => e.stopPropagation());
+    }
+
     // Pause every sprite so blur tweaks read on still frames.
     for (const fam of this._families) for (const m of fam.members) m.sprite.stop();
 
     return panel;
+  }
+
+  // Drag the blur panel by its title bar. Switches from the default bottom/right anchoring
+  // to absolute left/top on first grab, and clamps to the top-left so it can't be lost.
+  _makePanelDraggable(panel, handle) {
+    let drag = null;
+    handle.addEventListener('pointerdown', (e) => {
+      const r = panel.getBoundingClientRect();
+      panel.style.left = `${r.left}px`; panel.style.top = `${r.top}px`;
+      panel.style.right = 'auto';       panel.style.bottom = 'auto';
+      drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+      handle.setPointerCapture(e.pointerId);
+      handle.style.cursor = 'grabbing';
+    });
+    handle.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      panel.style.left = `${Math.max(0, e.clientX - drag.dx)}px`;
+      panel.style.top  = `${Math.max(0, e.clientY - drag.dy)}px`;
+    });
+    const end = () => { drag = null; handle.style.cursor = 'move'; };
+    handle.addEventListener('pointerup', end);
+    handle.addEventListener('pointercancel', end);
   }
 
   // Coalesce rapid slider input to one re-blur per animation frame — re-blurring every
