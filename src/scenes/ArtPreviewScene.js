@@ -4,6 +4,7 @@ import { saveDevSettings } from '../data/save.js';
 import { CUSTOMIZE } from '../data/customize.js';
 import { DEMO_FOALS } from '../data/demoFoals.js';
 import { blurEdgesSplit, ANIMAL_BLUR } from '../art/_frames.js';
+import { swallowDomInput } from '../dev/swallowDomInput.js';
 
 // ── Art preview (dev tool) ───────────────────────────────────────────────────
 // A standalone gallery for art-directing the creatures. Boots straight into a
@@ -270,13 +271,10 @@ export default class ArtPreviewScene extends Phaser.Scene {
 
     document.body.appendChild(panel);
 
-    // Keep panel interactions from falling through to the Phaser canvas underneath —
-    // Phaser listens on window, so a click that bubbles that far would dissect/customise
-    // the animal behind the panel. Stopping pointermove too prevents the gallery from
-    // scrolling while a slider is dragged.
-    for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'click']) {
-      panel.addEventListener(ev, (e) => e.stopPropagation());
-    }
+    // Keep panel interactions (clicks, slider drags) from falling through to the Phaser
+    // canvas — which would dissect/customise the animal behind the panel and scroll the
+    // gallery. See swallowDomInput for why pointer-only stopping wasn't enough.
+    swallowDomInput(panel);
 
     // Pause every sprite so blur tweaks read on still frames.
     for (const fam of this._families) for (const m of fam.members) m.sprite.stop();

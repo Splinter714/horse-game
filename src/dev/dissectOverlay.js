@@ -6,6 +6,8 @@
 // - Re-renders automatically on every 'artLayersUpdated' event (hot-reload)
 // Activated from ArtPreviewScene animal clicks, or with ?dissect=horse&part=mane.
 
+import { swallowDomInput } from './swallowDomInput.js';
+
 const CODE = ['#e0907a', '#7fb5e8', '#86c98e', '#e8c66b', '#b79be0', '#e69bbf', '#8fd3c4', '#d99a6c'];
 const hex  = (n) => '#' + (n >>> 0 & 0xffffff).toString(16).padStart(6, '0');
 const bbox = (o) => o.t === 'rect'    ? [o.x, o.y, o.x+o.w, o.y+o.h]
@@ -72,10 +74,10 @@ export function setupDissectOverlay() {
   wrap.append(headerRow, panelsEl);
   document.body.appendChild(wrap);
 
-  // Block clicks from reaching Phaser's input listeners (which fire on window/document).
-  wrap.addEventListener('pointerdown', (e) => e.stopPropagation());
-  wrap.addEventListener('pointerup',   (e) => e.stopPropagation());
-  wrap.addEventListener('click',       (e) => e.stopPropagation());
+  // Block clicks/drags from reaching Phaser's input (which fires on window for events not
+  // targeting the canvas) — otherwise interacting with the overlay dissects/customises the
+  // sprite behind it. Phaser uses mouse/touch, not pointer, events; see swallowDomInput.
+  swallowDomInput(wrap);
 
   // drag via handle
   let drag = null;
