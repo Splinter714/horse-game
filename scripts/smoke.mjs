@@ -60,6 +60,10 @@ try {
       'horseTick', 'horseGoEat', 'horseGoDrink', 'spawnHorse', 'spawnAnimal',
       'buildAnimals', '_worldSpecies', '_applySpawnCapabilities', // generic spawn (#167 B4)
       'separateHorses', '_horseBeg', '_begWait',
+      // Cross-animal charm behaviors (#187): dog↔sheep, chicken scatter, pig nap,
+      // night settle/curl, head-to-tail swat.
+      'dogGoHerd', '_sheepBunch', 'chickenScatterFrom', '_maybePigNap', '_charmNap',
+      '_charmFlySwat', '_settleAnimalForNight', 'catCurlUp', '_restAnimalInPlace', '_dogContext',
       'runBehaviors', '_horseContext', '_chickenContext', '_nearestReachableHay',
       'onPhaseChange', 'depthSort', 'tickDecay',
       // Extracted concern mixins (issue #167): effects / persistence / rendering.
@@ -157,7 +161,27 @@ try {
       }
     } catch (e) { pigDiet = 'threw: ' + String(e); }
 
+    // #187 charm behaviors: the night settle/wake cycle must round-trip without
+    // throwing (it rewires restAllAnimals/wakeAllAnimals), and the new run primitives
+    // must resolve. Probed last (it mutates animal state) and lenient — this proves
+    // the wiring holds; the actual "aww" feel is for the owner to watch in-game.
+    let charm = 'ok';
+    try {
+      paddock.restAllAnimals();   // bed everyone down (settle/curl/roost paths)
+      paddock.wakeAllAnimals();   // …and wake them back up (un-settle/un-curl)
+      const dog   = paddock.animals.find((a) => a.model?.species === 'dog');
+      const chick = paddock.animals.find((a) => a.key.startsWith('chicken'));
+      const pig   = paddock.animals.find((a) => a.model?.species === 'pig');
+      if (dog)   paddock.dogGoHerd(dog);          // no-op/returns false if no sheep near
+      if (chick) paddock.chickenScatterFrom(chick);
+      if (pig)   { pig.state = 'idle'; paddock._maybePigNap(pig); }
+      const wired = ['dogGoHerd', 'chickenScatterFrom', 'catCurlUp', '_maybePigNap',
+        '_settleAnimalForNight', '_charmFlySwat'].every((m) => typeof paddock[m] === 'function');
+      charm = wired ? 'wired' : 'missing-methods';
+    } catch (e) { charm = 'threw: ' + String(e); }
+
     return {
+      charm,
       cowMilk,
       pigDiet,
       pigCount: Object.keys(g.registry.get('allPigs') ?? {}).length,
@@ -294,6 +318,8 @@ try {
   if (gt.seed !== 5) fail(`gather target for seed = ${gt.seed}, expected 5 (one per chicken, #136)`);
   if (gt.water !== 1) fail(`gather target for water = ${gt.water}, expected 1 (capacity — water ignores demand)`);
   if (result.cowMilk !== 'milked-once') fail(`cow generic produce path failed (got ${result.cowMilk}) — #167 B3 unified care`);
+  // #187 charm behaviors: night settle/wake cycle + charm run primitives must hold.
+  if (result.charm !== 'wired') fail(`charm behaviors (#187) failed: ${result.charm}`);
   // The pig: it spawned into the world and eats apples but not hay.
   if (result.pigCount !== 1) fail(`expected 1 pig in roster, got ${result.pigCount}`);
   if (result.pigsInScene !== 1) fail(`expected 1 pig sprite in scene, got ${result.pigsInScene}`);

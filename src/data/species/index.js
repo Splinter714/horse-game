@@ -13,6 +13,7 @@ import { DOG } from './dog/index.js';
 import * as horseBehaviors from './horse/behaviors.js';
 import * as chickenBehaviors from './chicken/behaviors.js';
 import * as catBehaviors from './cat/behaviors.js';
+import * as dogBehaviors from './dog/behaviors.js';
 
 export const SPECIES = {
   horse: HORSE,
@@ -48,9 +49,9 @@ export const BEHAVIORS = {
   sheep: indexById(horseBehaviors),
   // The cat hunts fish at the stream when hungry (#163) — its own one-behavior module.
   cat: indexById(catBehaviors),
-  // The dog has no goal-driven behaviors yet (#185 first pass just wanders); a real
-  // job — companion-follow / herding — is #186. So no BEHAVIORS.dog entry: chooseBehavior
-  // returns null and it falls back to the plain wander.
+  // The dog occasionally noses the sheep flock into a bunch (#187 charm) — its own
+  // one-behavior module. A fuller "dog job" (companion-follow / real herding) is #186.
+  dog: indexById(dogBehaviors),
 };
 
 function indexById(mod) {

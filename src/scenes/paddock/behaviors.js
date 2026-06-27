@@ -14,7 +14,7 @@
 import Phaser from 'phaser';
 import { getSpecies, BEHAVIORS } from '../../data/species/index.js';
 import { speciesEatsContent } from '../../data/items.js';
-import { BEG, CHICKEN_HUNGRY_FOLLOW_DIST } from './constants.js';
+import { BEG, CHICKEN_HUNGRY_FOLLOW_DIST, CHARM } from './constants.js';
 
 export const WithBehaviors = (Base) => class extends Base {
   // Walk the agent's species behavior list; return true if a behavior claimed it
@@ -25,6 +25,7 @@ export const WithBehaviors = (Base) => class extends Base {
     const species = this._speciesOf(agent.key);
     const ctx = species === 'chicken' ? this._chickenContext(agent)
       : species === 'cat' ? this._catContext(agent)
+      : species === 'dog' ? this._dogContext(agent)
       : this._horseContext(agent);
     const spec = getSpecies(species);
     const registry = BEHAVIORS[species] ?? {};
@@ -93,8 +94,16 @@ export const WithBehaviors = (Base) => class extends Base {
     const playerDist = this.player
       ? Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, this.player.sprite.x, this.player.sprite.y)
       : Infinity;
+    // A passing dog spooks the flock (#187) — distance to the nearest dog so the
+    // fleeDog behavior (highest priority) can bolt the chicken a short way off.
+    const dog = this._nearestDog(a);
+    const dogDist = dog
+      ? Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, dog.sprite.x, dog.sprite.y)
+      : Infinity;
     return {
       nearestSeed: this._nearestReachableSeed(a, gateOpen),
+      dogDist,
+      scatterDist: CHARM.SCATTER_DIST,
       luring: !!this.player && item?.carrier === 'basket' && item.content === 'seed' && item.count > 0,
       // Hungry until actually fed today — NOT until the morning phase ends (#129).
       // An unfed flock keeps anticipating breakfast at the bin all day rather than
@@ -104,6 +113,26 @@ export const WithBehaviors = (Base) => class extends Base {
       playerDist,
       hungryFollowDist: CHICKEN_HUNGRY_FOLLOW_DIST,
       gateOpen,
+    };
+  }
+
+  // Context for the dog's charm behavior (#187). Only what dogHerdSheep needs: how
+  // close the nearest sheep is (Infinity when none are within herding range), and a
+  // per-dog cooldown so the herding bout stays an occasional beat, not a constant.
+  _dogContext(a) {
+    const flock = this._sheepNear(a, CHARM.HERD_RANGE);
+    let nearestSheepDist = Infinity;
+    for (const s of flock) {
+      nearestSheepDist = Math.min(
+        nearestSheepDist,
+        Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, s.sprite.x, s.sprite.y));
+    }
+    return {
+      isNight: !!this.isNight,
+      nearestSheepDist,
+      now: this.time.now,
+      lastHerd: a._lastHerd ?? null,
+      herdCooldown: CHARM.HERD_COOLDOWN,
     };
   }
 

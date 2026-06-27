@@ -118,6 +118,12 @@ export const WithCreatures = (Base) => class extends Base {
     // hungry it heads to the stream to fish before a plain wander. Same hook shape as
     // grazers, but it dispatches via the behavior registry instead of the herbivore AI.
     if (cap.hunts) a.tick = (c) => this.runBehaviors(c);
+    // `herds` (the dog, #187): same goal-tick shape as hunts — runs the dog's
+    // behavior list (occasionally noses the sheep into a bunch) before a plain wander.
+    if (cap.herds) { a.needTarget = null; a.tick = (c) => this.runBehaviors(c); }
+    // `sunbathes` (the pig, #187): an onSettle nap, like the horse roll / chicken
+    // peck — a content pig occasionally flops for a sunbathe when it finishes a wander.
+    if (cap.sunbathes) a.onSettle = (c) => this._maybePigNap(c);
     if (cap.roosts) {
       // Hold hidden until the first phase change decides how they enter: out of the
       // coop in the morning, or already milling in the yard otherwise (no yard flash).
