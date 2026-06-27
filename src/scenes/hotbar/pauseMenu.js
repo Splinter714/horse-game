@@ -114,7 +114,7 @@ export const WithPauseMenu = (Base) => class extends Base {
       ['Ambient', 'ambient'],
       ['Effects', 'effects'],
     ];
-    const devH   = 38 + rowH * 5;  // TEMP dev-tools: heading + hint + 5 rows
+    const devH   = 38 + rowH * 6;  // TEMP dev-tools: heading + hint + 6 rows
     // 3 action/toggle rows: mute, control-prompts, Customize Character.
     const panelH = 56 + rowH * 3 + sliders.length * sliderH + 8 + devH;
     const px = Math.round((sw - panelW) / 2);
@@ -207,6 +207,11 @@ export const WithPauseMenu = (Base) => class extends Base {
       (v) => saveDevSettings({ startLocation: v }));
     dy += rowH;
     this._addToggleRow(rowX, dy, rowW, rowH, '♻ Reset Herd to Default', () => this._resetHerd());
+    dy += rowH;
+    this._addToggleRow(rowX, dy, rowW, rowH, '🎲 Random Events…', () => {
+      this._closePause();           // resume the game first so events are visible
+      this._toggleDevEvents();
+    });
 
     // Controller focus highlight, drawn above the rows (#159).
     this._pauseRing = this.add.graphics().setDepth(106);
@@ -231,6 +236,114 @@ export const WithPauseMenu = (Base) => class extends Base {
     if (!ok) return;
     resetAllHorses();
     window.location.reload();
+  }
+
+  _devEventList() {
+    const idleHorse = (p) => {
+      const agents = p._grazers?.() ?? [];
+      const idle = agents.filter((h) => h.state === 'idle' && h.sprite?.active);
+      return idle.length ? idle[Phaser.Math.Between(0, idle.length - 1)] : null;
+    };
+    return [
+      { label: '🐦 Bird on horse back',  fire: (p) => p._maybeSpawnHorsePerch?.() },
+      { label: '🐦 Bird fly-by',         fire: (p) => p._spawnFlyby?.() },
+      { label: '🐦 Bird perch (ground)', fire: (p) => p._spawnPerch?.() },
+      { label: '🦝 Raccoon visit',       fire: (p) => p._spawnRaccoon?.() },
+      { label: '🐟 Fish surface',        fire: (p) => p._spawnFish?.() },
+      { label: '🐴 Horse rolls in dirt', fire: (p) => {
+        const h = idleHorse(p); if (!h) return;
+        const horse = p.registry.get('allHorses')?.[h.key];
+        if (horse) p._rollInDirt?.(h, horse);
+      }},
+      { label: '🐴 Horse nicker',        fire: (p) => {
+        const h = idleHorse(p); if (!h) return;
+        p._shake?.(h.sprite);
+        import('../../audio/sounds.js').then(({ playNicker }) => playNicker());
+      }},
+    ];
+  }
+
+  _toggleDevEvents() {
+    if (this._devPanel?.active) { this._closeDevEvents(); return; }
+    this._openDevEvents();
+  }
+
+  _openDevEvents() {
+    this._closeDevEvents();
+
+    const sw = logicalW(this), sh = logicalH(this);
+    const events = this._devEventList();
+    const ROW = 40, PAD = 12, HDR = 38;
+    const W = 230, H = HDR + events.length * ROW + PAD;
+
+    // Start near bottom-left, clear of the hotbar.
+    let cx = 20, cy = sh - H - 80;
+
+    const panel = this.add.container(cx, cy).setDepth(300);
+    this._devPanel = panel;
+
+    // Background
+    const bg = this.add.graphics();
+    bg.fillStyle(0x0d1020, 0.97);
+    bg.fillRoundedRect(0, 0, W, H, 10);
+    bg.lineStyle(2, 0x3a4060, 1);
+    bg.strokeRoundedRect(0, 0, W, H, 10);
+    panel.add(bg);
+
+    // Title
+    panel.add(this.add.text(W / 2, 12, '🎲 Random Events', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '13px', color: '#c8cce0',
+    }).setOrigin(0.5, 0));
+
+    // Drag handle — title bar strip (added before close button so ✕ sits on top).
+    const drag = this.add.zone(0, 0, W, HDR).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+    let _lx = 0, _ly = 0, _dragging = false;
+    drag.on('pointerdown', (ptr) => { _dragging = true; _lx = ptr.x; _ly = ptr.y; });
+    const onMove = (ptr) => {
+      if (!_dragging) return;
+      panel.x += ptr.x - _lx; panel.y += ptr.y - _ly;
+      _lx = ptr.x; _ly = ptr.y;
+    };
+    const onUp = () => { _dragging = false; };
+    this.input.on('pointermove', onMove);
+    this.input.on('pointerup', onUp);
+    this._devPanelDragListeners = { onMove, onUp };
+    panel.add(drag);
+
+    // Close button — added after drag zone so it's on top and gets input first.
+    const closeBtn = this.add.text(W - 10, 8, '✕', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '15px', color: '#8090b0',
+    }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+    closeBtn.on('pointerdown', () => this._closeDevEvents());
+    panel.add(closeBtn);
+
+    // Event buttons
+    const paddock = this.scene.get('PaddockScene');
+    events.forEach((ev, i) => {
+      const ry = HDR + i * ROW, bh = ROW - 6, bw = W - PAD * 2;
+      const g = this.add.graphics();
+      const draw = (col) => { g.clear(); g.fillStyle(col, 0.9); g.fillRoundedRect(PAD, ry, bw, bh, 7); };
+      draw(0x1a1e30);
+      panel.add(g);
+      panel.add(this.add.text(W / 2, ry + bh / 2, ev.label, {
+        fontFamily: 'system-ui, sans-serif', fontSize: '13px', color: '#dfe4f5',
+      }).setOrigin(0.5, 0.5));
+      const zone = this.add.zone(PAD, ry, bw, bh).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+      zone.on('pointerover', () => draw(0x2a3860));
+      zone.on('pointerout',  () => draw(0x1a1e30));
+      zone.on('pointerdown', () => { if (paddock) ev.fire(paddock); });
+      panel.add(zone);
+    });
+  }
+
+  _closeDevEvents() {
+    if (this._devPanel) { this._devPanel.destroy(true); this._devPanel = null; }
+    const dl = this._devPanelDragListeners;
+    if (dl) {
+      this.input.off('pointermove', dl.onMove);
+      this.input.off('pointerup', dl.onUp);
+      this._devPanelDragListeners = null;
+    }
   }
 
   // Draggable horizontal volume slider for one mixer bus (0–1). Calls setVolume
