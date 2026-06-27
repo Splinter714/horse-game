@@ -248,7 +248,7 @@ export const WithPauseMenu = (Base) => class extends Base {
       { label: '🐦 Bird on horse back',  fire: (p) => p._maybeSpawnHorsePerch?.() },
       { label: '🐦 Bird fly-by',         fire: (p) => p._spawnFlyby?.() },
       { label: '🐦 Bird perch (ground)', fire: (p) => p._spawnPerch?.() },
-      { label: '🦝 Raccoon visit',       fire: (p) => { if (!p._raccoonOut) p._spawnRaccoon?.(); } },
+      { label: '🦝 Raccoon visit',       fire: (p) => p._spawnRaccoon?.() },
       { label: '🐟 Fish surface',        fire: (p) => p._spawnFish?.() },
       { label: '🐴 Horse rolls in dirt', fire: (p) => {
         const h = idleHorse(p); if (!h) return;
