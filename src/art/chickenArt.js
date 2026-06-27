@@ -20,62 +20,77 @@ function drawChicken(g, bob, phase, coat = CHICKEN_COATS[0]) {
   const lL = phase === 1 ? 2 : 0;
   const lR = phase === 3 ? 2 : 0;
 
+  g.layer('legs');
   g.fillStyle(0xe0c030, 1);
   g.fillRect(4, 16+bob, 2, 5-lL); g.fillRect(9, 16+bob, 2, 5-lR);
   g.fillStyle(0xb89820, 1);
   g.fillRect(2, 21+bob-lL, 5, 1); g.fillRect(7, 21+bob-lR, 5, 1);
 
+  g.layer('tail');
   g.fillStyle(tail, 1);     g.fillRect(1, 9+bob, 3, 5);
   g.fillStyle(tailDark, 1); g.fillRect(1, 12+bob, 2, 4);
 
+  g.layer('body');
   g.fillStyle(body, 1);    g.fillRect(2, 10+bob, 12, 8);
   g.fillStyle(bodyHi, 1);  g.fillRect(2, 10+bob, 12, 2);
   g.fillStyle(bodyLo, 1);  g.fillRect(2, 15+bob, 12, 3);
+  g.layer('wing');
   g.fillStyle(wing, 1);    g.fillRect(3, 11+bob, 9, 5);
   g.fillStyle(wingLo, 1);  g.fillRect(3, 14+bob, 9, 2);
 
+  g.layer('neck');
   g.fillStyle(body, 1); g.fillRect(11, 7+bob, 4, 6);
+  g.layer('head');
   g.fillStyle(body, 1); g.fillRect(10, 2+bob, 6, 7);
   g.fillStyle(bodyHi, 1); g.fillRect(10, 2+bob, 6, 2);
+  g.layer('comb');
   g.fillStyle(0xe03030, 1);
   g.fillRect(11, 0+bob, 2, 3); g.fillRect(13, 1+bob, 2, 2); g.fillRect(10, 1+bob, 2, 2);
+  g.layer('wattle');
   g.fillStyle(0xe03030, 1); g.fillRect(14, 6+bob, 2, 3);
+  g.layer('beak');
   g.fillStyle(0xe0c030, 1); g.fillRect(15, 4+bob, 1, 2);
-  g.fillStyle(0x1a0800, 1); g.fillRect(12, 4+bob, 2, 2); // eye
-  g.fillStyle(0xffffff, 0.8); g.fillRect(12, 4+bob, 1, 1); // catchlight
+  g.layer('eye');
+  g.fillStyle(0x1a0800, 1); g.fillRect(12, 4+bob, 2, 2);
+  g.fillStyle(0xffffff, 0.8); g.fillRect(12, 4+bob, 1, 1);
 }
 
 // Pecking pose — peckDepth 0 = beak lifted, 2 = beak at ground
 function drawChickenEat(g, peckDepth, coat = CHICKEN_COATS[0]) {
   const { body, bodyHi, bodyLo, wing, wingLo, tail, tailDark } = coat;
 
-  // Legs — both grounded
+  g.layer('legs');
   g.fillStyle(0xe0c030, 1); g.fillRect(4, 16, 2, 5); g.fillRect(9, 16, 2, 5);
   g.fillStyle(0xb89820, 1); g.fillRect(2, 21, 5, 1); g.fillRect(7, 21, 5, 1);
 
-  // Tail raised as front dips
+  g.layer('tail');
   g.fillStyle(tail, 1);     g.fillRect(1, 6, 3, 6);
   g.fillStyle(tailDark, 1); g.fillRect(1, 9, 2, 4);
 
-  // Body
+  g.layer('body');
   g.fillStyle(body, 1);   g.fillRect(2, 10, 12, 8);
   g.fillStyle(bodyHi, 1); g.fillRect(2, 10, 12, 2);
   g.fillStyle(bodyLo, 1); g.fillRect(2, 15, 12, 3);
+  g.layer('wing');
   g.fillStyle(wing, 1);   g.fillRect(3, 11, 9, 5);
   g.fillStyle(wingLo, 1); g.fillRect(3, 14, 9, 2);
 
-  // Neck angled down-forward
+  g.layer('neck');
   g.fillStyle(body, 1); g.fillRect(12, 12, 3, 6);
 
-  // Head tilted down — peckDepth controls how far it dips
+  g.layer('head');
   const hy = 14 + peckDepth;
   g.fillStyle(body, 1);    g.fillRect(11, hy, 5, 5);
   g.fillStyle(bodyHi, 1);  g.fillRect(11, hy, 5, 1);
-  g.fillStyle(0xe03030, 1); g.fillRect(12, hy - 1, 2, 2); // comb (small)
-  g.fillStyle(0xe03030, 1); g.fillRect(14, hy + 3, 2, 2); // wattle
-  g.fillStyle(0xe0c030, 1); g.fillRect(15, hy + 4, 1, 2); // beak pointing down
-  g.fillStyle(0x1a0800, 1); g.fillRect(12, hy + 1, 2, 2); // eye
-  g.fillStyle(0xffffff, 0.8); g.fillRect(12, hy + 1, 1, 1); // catchlight
+  g.layer('comb');
+  g.fillStyle(0xe03030, 1); g.fillRect(12, hy - 1, 2, 2);
+  g.layer('wattle');
+  g.fillStyle(0xe03030, 1); g.fillRect(14, hy + 3, 2, 2);
+  g.layer('beak');
+  g.fillStyle(0xe0c030, 1); g.fillRect(15, hy + 4, 1, 2);
+  g.layer('eye');
+  g.fillStyle(0x1a0800, 1); g.fillRect(12, hy + 1, 2, 2);
+  g.fillStyle(0xffffff, 0.8); g.fillRect(12, hy + 1, 1, 1);
 }
 
 export function buildChickenTextures(scene, key, coat) {

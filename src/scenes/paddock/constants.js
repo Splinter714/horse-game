@@ -84,6 +84,31 @@ export const HERD = {
   SEP_PUSH:   0.6,   // max px/frame a horse is nudged to separate (a slow drift)
 };
 
+// ── Cross-animal charm behaviors (#187) ─────────────────────────────────────
+// Low-frequency "aww" moments layered on top of the need-driven AI: the dog
+// noses the sheep into a bunch, chickens scatter from a passing dog, the pig
+// flops for a sunbathe, the barnyard beds down together at night, and the cat
+// curls up by a companion. All purely cosmetic (no stat/mood effects) and lower
+// priority than any need, so they never get in the way of care. Tuned to read as
+// occasional special beats rather than constant motion.
+export const CHARM = {
+  // Dog ↔ sheep: the dog ambles over to a nearby sheep and the flock bunches up.
+  HERD_RANGE:    280,   // dog notices sheep within this many px and trots over
+  HERD_COOLDOWN: 22000, // min ms between herding bouts (keeps it occasional)
+  HERD_STANDOFF: 70,    // dog pulls up this far short of the flock centre
+  SHEEP_BUNCH:   28,    // px a startled sheep hops in toward the flock centre
+  // Chickens scatter when the dog trots close.
+  SCATTER_DIST:  96,    // a chicken this close to the dog bolts
+  SCATTER_RUN:  140,    // how far away it darts before settling
+  // Pig sunbathe flop (an onSettle nap, like the horse roll / chicken peck).
+  PIG_NAP_CHANCE: 0.22, // odds a pig naps when it finishes a wander (daytime only)
+  NAP_MS: [4000, 7000], // how long a sunbathe / curl-up lasts
+  // Night settling: non-horse pasture animals drift in to bed down with the herd;
+  // the dog beds down near the barn; the cat curls by a companion or the barn.
+  CLUSTER_CHANCE: 0.7,  // odds an animal drifts to the night huddle (else rests put)
+  CAT_CURL_CHANCE: 0.5, // odds the cat curls outside instead of going into the barn
+};
+
 // Cleanliness (issue #26): below DUST_CLEAN_AT grooming the dust overlay starts
 // to show, ramping to DUST_MAX_ALPHA opacity at grooming 0. Below STINK_AT a
 // very dirty horse also gets wavering "stink" lines above its back.

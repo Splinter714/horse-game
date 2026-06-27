@@ -326,7 +326,10 @@ function leg(g, x, lift, tone, hoof, legMark, sockTone = SOCK, feather, points, 
 // soft sheen ribbon down the front. This is the FIRST tail design from the shelved
 // art revamp (the clean version built for this horse's scale, before it got bulkier).
 // `white` draws it in the pinto colour for a two-tone tail (#144).
-function drawTailFrom(g, m, x0, y0, bob, white = false) {
+// `sway` swings the hank sideways for a tail-swish animation (#187): a horizontal
+// lean rooted at the dock that grows toward the tip (sw(d) below), so the dock stays
+// put and the bottom of the tail flicks. 0 for the normal resting tail.
+function drawTailFrom(g, m, x0, y0, bob, white = false, sway = 0) {
   const lo = white ? WHITE : m.lo, mid = white ? WHITE : m.mid, hi = white ? WHITE : m.hi;
   // Silhouette as [dy, xLeft-offset, width] control points — same hank shape as the
   // flat version, but filled row-by-row so the colour can flow smoothly.
@@ -335,9 +338,10 @@ function drawTailFrom(g, m, x0, y0, bob, white = false) {
   const xlAt = (d) => yAt(prof.map((p) => [p[0], p[1]]), d);
   const wAt  = (d) => yAt(prof.map((p) => [p[0], p[2]]), d);
   const total = 28;
+  const sw = (d) => sway * (d / total); // 0 at the dock → full sway at the tip
   g.layer('tail.body');
   for (let d = 0; d < total; d += 0.5) {
-    const xl = x0 + xlAt(d), w = wAt(d);
+    const xl = x0 + xlAt(d) + sw(d), w = wAt(d);
     const fy = d / total;                              // 0 root … 1 tip
     for (let x = xl; x < xl + w; x += 0.5) {
       const tx = w > 0 ? (x - xl) / w : 0;             // 0 back edge … 1 front edge
@@ -361,7 +365,7 @@ function drawTailFrom(g, m, x0, y0, bob, white = false) {
       [5,  1, 7, 1.0], [9,  1, 10, 1.3], [13, 1, 11, 1.4], [17, 1, 8, 1.0], [21, 1, 5, 0.7],
     ];
     for (const [dd, side, len, splay] of locks) {
-      const xl = x0 + xlAt(dd), w = wAt(dd);
+      const xl = x0 + xlAt(dd) + sw(dd), w = wAt(dd);
       const root = side < 0 ? xl : xl + w - 0.5;
       for (let i = 0; i < len; i += 0.5) {
         const f = i / len;
@@ -373,7 +377,7 @@ function drawTailFrom(g, m, x0, y0, bob, white = false) {
     }
     // frayed tip — a few wispy points fanning off the bottom of the hank
     g.layer('tail.tip');
-    const tx0 = x0 + xlAt(25);
+    const tx0 = x0 + xlAt(25) + sw(25);
     for (const [dx, len] of [[-1, 5], [0.5, 7], [2, 6], [3.5, 4]]) {
       for (let i = 0; i < len; i += 0.5) {
         const f = i / len;
@@ -385,7 +389,7 @@ function drawTailFrom(g, m, x0, y0, bob, white = false) {
     g.layer('tail.sheen');
     g.fillStyle(hi, 0.42);
     for (const [frac, dy0, len] of [[0.18, 4, 14], [0.3, 8, 10], [0.45, 12, 7]]) {
-      for (let i = 0; i < len; i += 0.5) { const d = dy0 + i, xl = x0 + xlAt(d), w = wAt(d); g.fillRect(xl + w * frac, y0 + d + bob, 0.5, 0.5); }
+      for (let i = 0; i < len; i += 0.5) { const d = dy0 + i, xl = x0 + xlAt(d) + sw(d), w = wAt(d); g.fillRect(xl + w * frac, y0 + d + bob, 0.5, 0.5); }
     }
   }
 }
@@ -460,7 +464,7 @@ function drawMane(g, coat, bob) {
   }
 }
 
-function drawHorse(g, coat, bob, legLift) {
+function drawHorse(g, coat, bob, legLift, sway = 0) {
   const b = coat.body;
   const m = coat.mane;
   const mk = coat.markings || {};
@@ -480,7 +484,7 @@ function drawHorse(g, coat, bob, legLift) {
   legDark(g, 13, legLift[1], mk, lm.hindNear); legDark(g, 44, legLift[3], mk, lm.foreNear);
 
   // --- tail (flowing hank, anchored at the rump dock) ---
-  drawTailFrom(g, m, 6, 20, bob);
+  drawTailFrom(g, m, 6, 20, bob, false, sway);
 
   // --- rump + body (3-tone bands) ---
   g.layer('body');
@@ -550,7 +554,9 @@ function drawHorse(g, coat, bob, legLift) {
   if (mk.pinto && mk.pintoMane) {
     g.layer('tail.tip');
     g.fillStyle(WHITE, 1);
-    g.fillRect(2.5, 34 + bob, 4.5, 7); g.fillRect(3.5, 41 + bob, 3, 6); // lower tail + tip
+    // Offset with the tail sway (sw(d) at d≈14/21 of the 28-long hank) so the
+    // two-tone tip stays on the swished tail (#187).
+    g.fillRect(2.5 + sway * 0.5, 34 + bob, 4.5, 7); g.fillRect(3.5 + sway * 0.75, 41 + bob, 3, 6);
   }
 }
 
@@ -563,22 +569,23 @@ function drawHorseSleep(g, coat, bob) {
   const mk = coat.markings || {};
   const dy = 11;
 
-  // Legs tucked/bent (very short — sleeping position)
+  g.layer('legs');
   const lm = mk.legs || {};
   const pts = coat.points;
   const sockTone = SOCK; // socks/stockings are always white (#153)
-  leg(g, 7,  10, b.lo,  coat.hoof, lm.hindFar,  sockTone, undefined, pts, dy); // hind far (folded)
-  leg(g, 38, 10, b.lo,  coat.hoof, lm.foreFar,  sockTone, undefined, pts, dy); // fore far (folded)
-  leg(g, 13, 10, b.mid, coat.hoof, lm.hindNear, sockTone, undefined, pts, dy); // hind near (folded)
-  leg(g, 44, 10, b.mid, coat.hoof, lm.foreNear, sockTone, undefined, pts, dy); // fore near (folded)
-  legDark(g, 7, 10, mk, lm.hindFar, dy);  legDark(g, 38, 10, mk, lm.foreFar, dy);  // dark leg marks (#152)
+  leg(g, 7,  10, b.lo,  coat.hoof, lm.hindFar,  sockTone, undefined, pts, dy);
+  leg(g, 38, 10, b.lo,  coat.hoof, lm.foreFar,  sockTone, undefined, pts, dy);
+  leg(g, 13, 10, b.mid, coat.hoof, lm.hindNear, sockTone, undefined, pts, dy);
+  leg(g, 44, 10, b.mid, coat.hoof, lm.foreNear, sockTone, undefined, pts, dy);
+  legDark(g, 7, 10, mk, lm.hindFar, dy);  legDark(g, 38, 10, mk, lm.foreFar, dy);
   legDark(g, 13, 10, mk, lm.hindNear, dy); legDark(g, 44, 10, mk, lm.foreNear, dy);
 
-  // Tail relaxed
+  g.layer('tail');
   g.fillStyle(m.mid, 1); g.fillRect(6, 22 + bob + dy, 2, 2);
   g.fillStyle(m.lo, 1);  g.fillRect(4, 24 + bob + dy, 2, 4);
   g.fillStyle(m.mid, 1); g.fillRect(3, 27 + bob + dy, 2, 3);
 
+  g.layer('body');
   // Rump — flatter/lower, showing side view
   g.fillStyle(b.mid, 1);
   g.fillRect(8, 22 + bob + dy, 8, 12);   // main rump
@@ -605,6 +612,7 @@ function drawHorseSleep(g, coat, bob) {
   bodyPatterns(g, coat, bob + dy);
   darkMarkings(g, coat, bob + dy);
 
+  g.layer('neck');
   // Neck angled back/down (horse on its side)
   g.fillStyle(b.mid, 1);
   g.fillRect(42, 18 + bob + dy, 8, 8);   // base
@@ -613,6 +621,7 @@ function drawHorseSleep(g, coat, bob) {
   g.fillRect(43, 18 + bob + dy, 3, 8);
   g.fillRect(44, 24 + bob + dy, 3, 5);
 
+  g.layer('head');
   // Head relaxed/resting
   const headY = 28 + bob + dy;
   g.fillStyle(b.mid, 1); g.fillRect(48, headY, 12, 7);   // skull
@@ -626,7 +635,7 @@ function drawHorseSleep(g, coat, bob) {
   // Closed/sleepy eye (smaller, different position)
   g.fillStyle(coat.eye, 1);  g.fillRect(50, headY + 1, 1, 1);
 
-  // Mane lying down
+  g.layer('mane');
   g.fillStyle(m.mid, 1); g.fillRect(42, 18 + bob + dy, 2, 4);
   g.fillStyle(m.lo, 1);  g.fillRect(41, 22 + bob + dy, 2, 4);
   g.fillStyle(m.mid, 1); g.fillRect(40, 26 + bob + dy, 2, 3);
@@ -644,7 +653,7 @@ function drawHorseEat(g, coat, bob) {
   const mk = coat.markings || {};
   const feather = !!mk.feather; // feathering is on/off; colour derives per-leg (#155)
 
-  // Legs all planted
+  g.layer('legs');
   const lm = mk.legs || {};
   const pts = coat.points;
   const sockTone = SOCK; // socks/stockings are always white (#153)
@@ -652,15 +661,16 @@ function drawHorseEat(g, coat, bob) {
   leg(g, 38, 0, b.lo,  coat.hoof, lm.foreFar,  sockTone, feather, pts);
   leg(g, 13, 0, b.mid, coat.hoof, lm.hindNear, sockTone, feather, pts);
   leg(g, 44, 0, b.mid, coat.hoof, lm.foreNear, sockTone, feather, pts);
-  legDark(g, 7, 0, mk, lm.hindFar);  legDark(g, 38, 0, mk, lm.foreFar);   // dark leg marks (#152)
+  legDark(g, 7, 0, mk, lm.hindFar);  legDark(g, 38, 0, mk, lm.foreFar);
   legDark(g, 13, 0, mk, lm.hindNear); legDark(g, 44, 0, mk, lm.foreNear);
 
-  // Tail
+  g.layer('tail');
   g.fillStyle(m.mid, 1); g.fillRect(6, 22 + bob, 2, 4);
   g.fillStyle(m.lo, 1);  g.fillRect(4, 25 + bob, 2, 7);
   g.fillStyle(m.mid, 1); g.fillRect(3, 31 + bob, 2, 7);
   g.fillStyle(m.lo, 1);  g.fillRect(4, 37 + bob, 2, 5);
 
+  g.layer('body');
   // Rump
   g.fillStyle(b.mid, 1); g.fillRect(8, 20 + bob, 8, 16); g.fillRect(7, 22 + bob, 1, 12);
   g.fillStyle(b.hi, 1);  g.fillRect(8, 18 + bob, 8, 4);  g.fillRect(7, 20 + bob, 1, 2);
@@ -669,7 +679,6 @@ function drawHorseEat(g, coat, bob) {
   g.fillStyle(b.hi, 1);  g.fillRect(12, 18 + bob, 35, 5);  g.fillRect(47, 21 + bob, 1, 2);
   g.fillStyle(b.lo, 1);  g.fillRect(12, 33 + bob, 35, 4);  g.fillRect(47, 33 + bob, 1, 2);
 
-  // Rounded-barrel shading (matches the standing pose)
   g.fillStyle(HILITE, 0.10);
   g.fillRect(13, 18.5 + bob, 33, 1.25); g.fillRect(9, 18.5 + bob, 6, 1.25); g.fillRect(9.5, 22 + bob, 4, 5);
   g.fillStyle(SHADE, 0.07);  g.fillRect(12, 31 + bob, 35, 1.5);
@@ -679,6 +688,7 @@ function drawHorseEat(g, coat, bob) {
   bodyPatterns(g, coat, bob);
   darkMarkings(g, coat, bob);
 
+  g.layer('neck');
   // Neck angled downward (head eating from ground)
   g.fillStyle(b.mid, 1);
   g.fillRect(42, 20 + bob, 7, 5);   // base
@@ -689,6 +699,7 @@ function drawHorseEat(g, coat, bob) {
   g.fillRect(45, 24 + bob, 3, 8);
   g.fillRect(47, 30 + bob, 3, 8);
 
+  g.layer('head');
   // Head tilted down — staggered steps so nose angles toward ground
   const headY = 37 + bob;
   // Poll / back of head (highest point)
@@ -711,7 +722,7 @@ function drawHorseEat(g, coat, bob) {
   g.fillStyle(coat.eye, 1);  g.fillRect(50, headY + 1, 2, 2);
   g.fillStyle(WHITE, 0.8);   g.fillRect(50, headY + 1, 1, 1);
 
-  // Mane follows neck down
+  g.layer('mane');
   g.fillStyle(m.mid, 1); g.fillRect(41, 20 + bob, 3, 5);
   g.fillStyle(m.lo, 1);  g.fillRect(40, 24 + bob, 3, 8);
   g.fillStyle(m.mid, 1); g.fillRect(42, 30 + bob, 3, 8);
@@ -745,17 +756,17 @@ function drawFoalSleep(g, coat, bob) {
   const m = coat.mane;
   const mk = coat.markings || {};
 
-  // Legs tucked/bent (sleeping position)
+  g.layer('legs');
   legFoal(g, 7,  7, b.lo,  0, coat.hoof);
   legFoal(g, 27, 7, b.lo,  0, coat.hoof);
   legFoal(g, 11, 7, b.mid, 0, coat.hoof);
   legFoal(g, 31, 7, b.mid, 0, coat.hoof);
 
-  // Tail stub relaxed
+  g.layer('tail');
   g.fillStyle(m.mid, 1); g.fillRect(5, 17 + bob, 2, 2);
   g.fillStyle(m.lo, 1);  g.fillRect(4, 19 + bob, 2, 3);
 
-  // Rump (flatter)
+  g.layer('body');
   g.fillStyle(b.mid, 1); g.fillRect(7, 17 + bob, 5, 8); g.fillRect(6, 19 + bob, 1, 6);
   g.fillStyle(b.hi, 1);  g.fillRect(7, 15 + bob, 5, 2);  g.fillRect(6, 17 + bob, 1, 1);
 
@@ -770,11 +781,11 @@ function drawFoalSleep(g, coat, bob) {
     g.fillRect(22, 18 + bob, 5, 4);
   }
 
-  // Neck (relaxed, down)
+  g.layer('neck');
   g.fillStyle(b.mid, 1); g.fillRect(29, 12 + bob, 5, 6);
   g.fillStyle(b.hi, 1);  g.fillRect(30, 12 + bob, 2, 6);
 
-  // Head (sleeping)
+  g.layer('head');
   g.fillStyle(b.mid, 1); g.fillRect(30, 6 + bob, 10, 7);
   g.fillStyle(b.hi, 1);  g.fillRect(30, 6 + bob, 10, 1.5);
   g.fillStyle(b.lo, 1);  g.fillRect(35, 8 + bob, 5, 4);
@@ -786,7 +797,7 @@ function drawFoalSleep(g, coat, bob) {
   // Sleepy eye
   g.fillStyle(coat.eye, 1);  g.fillRect(32, 7 + bob, 2, 1.5);
 
-  // Mane (lying down, fluffy)
+  g.layer('mane');
   g.fillStyle(m.mid, 1); g.fillRect(29, 6 + bob, 2, 3);
   g.fillStyle(m.lo, 1);  g.fillRect(28, 9 + bob, 2, 3);
 }
@@ -796,17 +807,17 @@ function drawFoal(g, coat, bob, legLift) {
   const m = coat.mane;
   const mk = coat.markings || {};
 
-  // Legs — long relative to body (classic foal proportion)
+  g.layer('legs');
   legFoal(g, 7,  legLift[0], b.lo,  0, coat.hoof);
   legFoal(g, 27, legLift[2], b.lo,  0, coat.hoof);
   legFoal(g, 11, legLift[1], b.mid, 0, coat.hoof);
   legFoal(g, 31, legLift[3], b.mid, 0, coat.hoof);
 
-  // Tail stub
+  g.layer('tail');
   g.fillStyle(m.mid, 1); g.fillRect(5, 17 + bob, 2, 3);
   g.fillStyle(m.lo, 1);  g.fillRect(4, 19 + bob, 2, 5);
 
-  // Rump
+  g.layer('body');
   g.fillStyle(b.mid, 1); g.fillRect(7, 16 + bob, 5, 10); g.fillRect(6, 18 + bob, 1, 8);
   g.fillStyle(b.hi, 1);  g.fillRect(7, 14 + bob, 5, 3);  g.fillRect(6, 16 + bob, 1, 2);
 
@@ -821,10 +832,11 @@ function drawFoal(g, coat, bob, legLift) {
     g.fillRect(22, 17 + bob, 5, 5);
   }
 
-  // Neck (short and upright)
+  g.layer('neck');
   g.fillStyle(b.mid, 1); g.fillRect(29, 9 + bob, 5, 8);
   g.fillStyle(b.hi, 1);  g.fillRect(30, 9 + bob, 2, 8);
 
+  g.layer('head');
   // Head — disproportionately large (key foal feature)
   g.fillStyle(b.mid, 1); g.fillRect(30, 2 + bob, 10, 9);
   g.fillStyle(b.hi, 1);  g.fillRect(30, 2 + bob, 10, 2);
@@ -838,7 +850,7 @@ function drawFoal(g, coat, bob, legLift) {
   g.fillStyle(coat.eye, 1);  g.fillRect(32, 4 + bob, 3, 3);
   g.fillStyle(WHITE, 0.8);   g.fillRect(32, 4 + bob, 1, 1);
 
-  // Mane (fluffy and upright — young horses have bristly manes)
+  g.layer('mane');
   g.fillStyle(m.mid, 1); g.fillRect(29, 2 + bob, 2, 4);
   g.fillStyle(m.lo, 1);  g.fillRect(28, 5 + bob, 2, 5);
   g.fillStyle(m.mid, 1); g.fillRect(27, 9 + bob, 2, 4);
@@ -863,7 +875,9 @@ export function buildFoalTextures(scene, baseKey, coat) {
     });  }
 }
 
-// Builds idle_0, idle_1, walk_0..3, eat_0..1, sleep_0..1 textures under `${baseKey}_...`.
+// Builds idle_0, idle_1, walk_0..3, eat_0..1, sleep_0..1, swish_0..3 under `${baseKey}_...`.
+// swish_* are the idle pose with the tail flicked to alternating sides — a gentle
+// tail-swish animation played at the head-to-tail buddy moment (#187).
 export function buildHorseTextures(scene, baseKey, coat) {
   const frames = [
     { name: 'idle_0', bob: 0, legs: IDLE_LEGS },
@@ -881,11 +895,22 @@ export function buildHorseTextures(scene, baseKey, coat) {
     { name: 'sleep_1', bob: 1, sleep: true }
   );
 
+  // Tail-swish frames (#187): a relaxed swing rooted at the dock — out one side, back
+  // through centre, out the other — so the loop reads as a gentle, continuous swish.
+  TAIL_SWISH_SWAY.forEach((sway, i) =>
+    frames.push({ name: `swish_${i}`, bob: i % 2, legs: IDLE_LEGS, sway }));
+
   for (const f of frames) {
     gen(scene, `${baseKey}_${f.name}`, FRAME_W * ART_SCALE, FRAME_H * ART_SCALE, g0 => {
       const g = scaledGraphics(g0);
       if (f.eat) drawHorseEat(g, coat, f.bob);
       else if (f.sleep) drawHorseSleep(g, coat, f.bob);
-      else drawHorse(g, coat, f.bob, f.legs);
-    });  }
+      else drawHorse(g, coat, f.bob, f.legs, f.sway ?? 0);
+    });
+  }
 }
+
+// Sway (design px) per swish frame: a full side-to-side swing, gentle (the tail is
+// ~4.5px wide, so ±2.4 reads clearly without flinging). Played looping for a short
+// bout at the head-to-tail moment (charm.js _charmTailSwish).
+const TAIL_SWISH_SWAY = [0, 2.4, 0, -2.4];

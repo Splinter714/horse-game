@@ -11,6 +11,7 @@ import { WithCatAI } from './paddock/catAI.js';
 import { WithCreatures } from './paddock/creatures.js';
 import { WithFlock } from './paddock/flock.js';
 import { WithHerd } from './paddock/herd.js';
+import { WithCharm } from './paddock/charm.js';
 import { WithFarmStand } from './paddock/farmStand.js';
 import { WithDayNight } from './paddock/dayNight.js';
 import { WithHorseAI } from './paddock/horseAI.js';
@@ -31,9 +32,9 @@ import { WithInput } from './paddock/input.js';
 import { applyDpr } from './uiUtils.js';
 
 export default class PaddockScene
-  extends WithWorld(WithWildlife(WithCatAI(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithDayNight(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
+  extends WithWorld(WithWildlife(WithCatAI(WithCharm(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithDayNight(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
     WithEffects(WithPersistence(WithRendering(WithWorldObjects(WithCareActions(WithInteraction(WithInput(
-    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene))))))))))))))))))))))) {
+    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene)))))))))))))))))))))))) {
   constructor() {
     super('PaddockScene');
   }

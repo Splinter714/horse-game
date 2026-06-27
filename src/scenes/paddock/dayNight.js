@@ -5,6 +5,7 @@ import Phaser from 'phaser';
 import { EVENTS } from '../../data/events.js';
 import { getSpecies } from '../../data/species/index.js';
 import { playBirdChirp, setMusicMode } from '../../audio/sounds.js';
+import { CHARM } from './constants.js';
 
 // Grooming only ever drops from actions now (#123). A horse gets a touch dirtier
 // each time it lies down to rest, and a bit more for a night passing.
@@ -88,27 +89,39 @@ export const WithDayNight = (Base) => class extends Base {
   }
 
   restAllAnimals() {
-    const stopOne = (a) => {
-      if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
-      if (a.eatTimer)    { a.eatTimer.remove?.() ?? this.time.removeEvent(a.eatTimer); a.eatTimer = null; }
-      if (a._begTimer)   { this.time.removeEvent(a._begTimer); a._begTimer = null; }
-      a._eatPile = null;
-      a.state = 'resting';
-      a.sprite.play(`idle_${a.key}`, true);
-      // Schedule random lay-down moments while sleeping
-      this._scheduleLayDown(a);
-    };
-    for (const h of this.horses) stopOne(h);
+    // The barnyard beds down together (#187, charm.js): horses + other pasture
+    // animals settle (the non-horses drift in to join the herd); the cat sometimes
+    // curls up outside instead of going into the barn.
+    for (const h of this.horses) this._settleAnimalForNight(h);
     for (const a of this.animals) {
       if (a.key.startsWith('chicken')) this.chickenRoost(a);
-      else if (a.key === 'cat')        this.catGoHome(a);
-      else stopOne(a);
+      else if (a.key === 'cat') {
+        if (Math.random() < CHARM.CAT_CURL_CHANCE) this.catCurlUp(a);
+        else this.catGoHome(a);
+      }
+      else this._settleAnimalForNight(a);
     }
     // Send any visiting NPCs away at night
     for (const npc of [...this.npcs]) {
       if (npc.tween) { npc.tween.stop(); npc.tween = null; }
       this._npcLeave(npc);
     }
+  }
+
+  // Stop an animal where it stands and bed it down for the night (the old inline
+  // stopOne). Extracted so the charm night-settle (charm.js _settleAnimalForNight)
+  // can reuse it after walking an animal into the huddle. Also tidies up any
+  // in-progress daytime nap visuals (#187).
+  _restAnimalInPlace(a) {
+    this._endCharmNap?.(a);
+    if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
+    if (a.eatTimer)    { a.eatTimer.remove?.() ?? this.time.removeEvent(a.eatTimer); a.eatTimer = null; }
+    if (a._begTimer)   { this.time.removeEvent(a._begTimer); a._begTimer = null; }
+    a._eatPile = null;
+    a.state = 'resting';
+    a.sprite.play(`idle_${a.key}`, true);
+    // Schedule random lay-down moments while sleeping
+    this._scheduleLayDown(a);
   }
 
   _scheduleLayDown(a) {
@@ -140,7 +153,11 @@ export const WithDayNight = (Base) => class extends Base {
   wakeAllAnimals() {
     for (const h of this.horses) {
       if (h._sleepTimer) { this.time.removeEvent(h._sleepTimer); h._sleepTimer = null; }
-      if (h.state === 'resting') { h.state = 'idle'; this.scheduleWander(h, Phaser.Math.Between(500, 3000)); }
+      // 'settling' = still drifting into the night huddle (#187) — stop that walk too.
+      if (h.state === 'resting' || h.state === 'settling') {
+        if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
+        h.state = 'idle'; this.scheduleWander(h, Phaser.Math.Between(500, 3000));
+      }
     }
     for (const a of this.animals) {
       if (a._sleepTimer) { this.time.removeEvent(a._sleepTimer); a._sleepTimer = null; }
@@ -148,7 +165,14 @@ export const WithDayNight = (Base) => class extends Base {
         if (a.state === 'roosting') this.chickenLeaveCoop(a);
       } else if (a.key === 'cat') {
         if (a.state === 'homing') this.catLeaveHome(a);
-      } else if (a.state === 'resting') {
+        else if (a.state === 'curling' || a.state === 'curled') {
+          // Curled up outside for the night (#187) — un-curl and resume prowling.
+          this._endCharmNap(a);
+          if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
+          a.state = 'idle'; this.scheduleAnimalWander(a, Phaser.Math.Between(500, 2500));
+        }
+      } else if (a.state === 'resting' || a.state === 'settling') {
+        if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
         a.state = 'idle'; this.scheduleAnimalWander(a, Phaser.Math.Between(500, 3000));
       }
     }

@@ -1,6 +1,7 @@
 // Cat species definition. A semi-independent barn cat: it can be petted (love stat)
-// and now feeds ITSELF by hunting fish at the stream when hungry (#163) — the farmer
-// never feeds the cat, so there's no `feed` action and no carrier diet.
+// and tries to fish at the stream when hungry (#163), but never actually catches one
+// (#201) — so fishing is purely cosmetic and doesn't feed it. There's no `feed` action
+// yet, so the cat currently has no food source at all (a real one is follow-up #202).
 
 export const CAT = {
   id: 'cat',
@@ -8,11 +9,13 @@ export const CAT = {
     id: () => `cat-${Math.random().toString(36).slice(2, 9)}`,
     name: 'Mittens', breed: 'Barn Cat', coat: 0, age: 2, sex: 'male',
   },
-  // A hunger need the cat satisfies ITSELF by fishing (#163) — there's no farmer
-  // `feed` action; the catFish behavior restores it. Gentle decay (kid-friendly), and
-  // no offline decay (the cat roster is identity-only, rosters.js), so a returning
-  // player never finds a starved cat. With a need present, happiness eases toward how
-  // fed the cat is (Animal.recomputeHappiness); petting still tops it up and fades (#105).
+  // A hunger need with no food source yet (#201/#202): the cat heads to the stream to
+  // fish when hungry but never catches anything, and there's no farmer `feed` action,
+  // so nothing restores this — it trends low by design until a feed mechanic lands
+  // (#202). Gentle decay (kid-friendly) and no offline decay (the cat roster is
+  // identity-only, rosters.js) keep it from bottoming out instantly / while away. With
+  // a need present, happiness eases toward how fed the cat is (Animal.recomputeHappiness);
+  // petting still tops happiness up and fades (#105), so the cat is loved, not starved.
   needs: {
     hunger: { decay: 0.05, default: 78, label: 'Food', color: 0x63a31d },
   },

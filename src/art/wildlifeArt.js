@@ -10,7 +10,7 @@
 // smooth but the sprite reads crisp (and sharp on HiDPI) rather than fuzzy-edged.
 // First-pass draft look — the owner art-directs the polish in the preview.
 
-import { gen, scaledGraphics, ART_SCALE } from './_frames.js';
+import { gen, scaledGraphics, ART_SCALE, makeLeg } from './_frames.js';
 
 // ── Fish (#183) ──────────────────────────────────────────────────────────────
 // Seen from above through the water: a dark slate silhouette with a faintly lighter
@@ -20,18 +20,18 @@ export const FISH_W = 18, FISH_H = 11;
 const FISH_BODY = 0x35586a, FISH_BACK = 0x223c48, FISH_BELLY = 0x6f97a6;
 
 function drawFish(g, flick) {
-  // tail fin (left) — splays open/closed with the flick to read as a swish
+  g.layer('fin_tail');
   g.fillStyle(FISH_BACK, 1);
   g.fillTriangle(1, 5, 7, 2 + flick, 7, 8 - flick);
-  // body
+  g.layer('body');
   g.fillStyle(FISH_BODY, 1); g.fillEllipse(11, 5, 13, 6);
-  // dorsal fin
+  g.layer('fin_dorsal');
   g.fillStyle(FISH_BACK, 1); g.fillTriangle(8, 2, 12, 2, 10, 0);
-  // darker back
+  g.layer('back');
   g.fillStyle(FISH_BACK, 1); g.fillEllipse(11, 4, 11, 3);
-  // pale belly sheen
+  g.layer('belly');
   g.fillStyle(FISH_BELLY, 0.85); g.fillEllipse(12, 6, 8, 2);
-  // eye
+  g.layer('eye');
   g.fillStyle(0x0a1518, 1); g.fillRect(15, 4, 1, 1);
 }
 
@@ -55,34 +55,39 @@ export const BIRD_W = 16, BIRD_H = 12;
 const BIRD_BODY = 0x6b513a, BIRD_WING = 0x4f3c2b, BIRD_BELLY = 0xc2a47a, BEAK = 0xe0a838;
 
 function drawBirdFly(g, wingsUp) {
-  // tail
+  g.layer('tail');
   g.fillStyle(BIRD_BODY, 1); g.fillTriangle(1, 5, 5, 4, 5, 9);
-  // body
+  g.layer('body');
   g.fillStyle(BIRD_BODY, 1); g.fillEllipse(8, 7, 9, 5);
   g.fillStyle(BIRD_BELLY, 0.9); g.fillEllipse(8, 8, 6, 3);
-  // head + beak
+  g.layer('head');
   g.fillStyle(BIRD_BODY, 1); g.fillCircle(12, 6, 2.3);
+  g.layer('beak');
   g.fillStyle(BEAK, 1); g.fillTriangle(14, 5, 16, 6, 14, 7);
-  g.fillStyle(0x0a0805, 1); g.fillRect(12, 5, 1, 1); // eye
-  // the wing — swept up for the up-stroke, down for the down-stroke
+  g.layer('eye');
+  g.fillStyle(0x0a0805, 1); g.fillRect(12, 5, 1, 1);
+  g.layer('wing');
   g.fillStyle(BIRD_WING, 1);
   if (wingsUp) g.fillTriangle(6, 6, 10, 0, 3, 2);
   else g.fillTriangle(6, 7, 10, 12, 3, 11);
 }
 
 function drawBirdPeck(g, headDown) {
-  // legs
+  g.layer('legs');
   g.fillStyle(BEAK, 1); g.fillRect(6, 9, 1, 2); g.fillRect(9, 9, 1, 2);
-  // tail (cocked up behind)
+  g.layer('tail');
   g.fillStyle(BIRD_BODY, 1); g.fillTriangle(1, 4, 5, 3, 5, 8);
-  // body
+  g.layer('body');
   g.fillStyle(BIRD_BODY, 1); g.fillEllipse(8, 7, 9, 6);
   g.fillStyle(BIRD_BELLY, 0.9); g.fillEllipse(8, 8, 6, 4);
-  g.fillStyle(BIRD_WING, 1); g.fillEllipse(6, 7, 5, 4); // folded wing
-  // head — up (alert) or down (pecking the ground)
+  g.layer('wing');
+  g.fillStyle(BIRD_WING, 1); g.fillEllipse(6, 7, 5, 4);
+  g.layer('head');
   const hy = headDown ? 9 : 4;
   g.fillStyle(BIRD_BODY, 1); g.fillCircle(12, hy, 2.3);
+  g.layer('beak');
   g.fillStyle(BEAK, 1); g.fillTriangle(14, hy, 16, hy + 1, 14, hy + 1);
+  g.layer('eye');
   g.fillStyle(0x0a0805, 1); g.fillRect(12, hy - 1, 1, 1);
 }
 
@@ -136,15 +141,16 @@ function drawRaccoon(g, [l0, l1, l2, l3], bob = 0) {
 }
 
 // ── Detailed raccoon (#181 redraw draft) ──────────────────────────────────────
-// Same proportions/anchors as drawRaccoon, but built the way the cat/chicken are —
-// many small rects, fur shading (dark grizzled back, pale belly, scattered guard-hair
-// flecks), a properly banded bushy tail, a shaped snout + bandit mask, and a broken,
-// fur-tufted silhouette — instead of a few big ovals/triangles. Owner-review draft.
+// Built like the barnyard quadrupeds: makeLeg shin+paw legs, stacked hi/mid/shad body
+// rects, and a rect neck — same construction language as the pig/dog. Character detail
+// (banded tail, guard-hair flecks, bandit mask) stays the same.
+const raccoonLegM = makeLeg({ topY: 13, w: 3, h: 3, hoofColor: 0x17181c, hoofY: 16, hoofW: 4, hoofDX: -1, hoofH: 1 });
+
 function raccoonLeg2(g, x, lift) {
-  g.fillStyle(0x2c2f35, 1); g.fillRect(x, 13 - lift, 2, 4 + lift); // dark furry leg
-  g.fillStyle(0x3d4047, 1); g.fillRect(x, 13 - lift, 1, 2);        // front-edge highlight
-  g.fillStyle(0x17181c, 1); g.fillRect(x - 1, 16, 3, 1);          // paw
-  g.fillStyle(0x2c2f35, 1); g.fillRect(x, 16, 1, 1);              // toe split
+  g.fillStyle(0x2c2f35, 1); g.fillRect(x, 13 - lift, 2, 4 + lift);
+  g.fillStyle(0x3d4047, 1); g.fillRect(x, 13 - lift, 1, 2);
+  g.fillStyle(0x17181c, 1); g.fillRect(x - 1, 16, 3, 1);
+  g.fillStyle(0x2c2f35, 1); g.fillRect(x, 16, 1, 1);
 }
 
 function drawRaccoon2(g, [l0, l1, l2, l3], bob = 0) {
@@ -152,48 +158,62 @@ function drawRaccoon2(g, [l0, l1, l2, l3], bob = 0) {
   const FUR = 0x8d8f94, LO = 0x686b71, HI = 0xb4b6bb, GUARD = 0x4a4d54, DARK = 0x2c2f35,
     MASK = 0x1c1d21, PALE = 0xdedfe1, PALElo = 0xb9bbbf, NOSE = 0x120f0c, EARP = 0xc59a9a, SHINE = 0xf2efe6;
 
-  // ── Ringed bushy tail (left) — stacked bands, bushier toward the rump; outline
-  //    roughed with stray fur so it reads furry, not a smooth oval.
-  g.fillStyle(MASK, 1);   g.fillRect(0, 11 + y, 3, 5);   // dark tip
-  g.fillStyle(PALE, 1);   g.fillRect(2, 10 + y, 2, 6);   // pale ring
-  g.fillStyle(DARK, 1);   g.fillRect(4, 10 + y, 2, 6);   // dark ring
-  g.fillStyle(PALElo, 1); g.fillRect(5, 9 + y, 2, 7);    // pale ring
-  g.fillStyle(FUR, 1);    g.fillRect(6, 9 + y, 3, 7);    // grey, joins the rump
-  g.fillStyle(LO, 1);     g.fillRect(8, 10 + y, 1, 5);   // shade at the join
+  // ── Ringed bushy tail (left) ──
+  g.layer('tail');
+  g.fillStyle(MASK, 1);   g.fillRect(0, 11 + y, 3, 5);
+  g.fillStyle(PALE, 1);   g.fillRect(2, 10 + y, 2, 6);
+  g.fillStyle(DARK, 1);   g.fillRect(4, 10 + y, 2, 6);
+  g.fillStyle(PALElo, 1); g.fillRect(5, 9 + y, 2, 7);
+  g.fillStyle(FUR, 1);    g.fillRect(6, 9 + y, 3, 7);
+  g.fillStyle(LO, 1);     g.fillRect(8, 10 + y, 1, 5);
   g.fillStyle(DARK, 1);   g.fillRect(1, 10 + y, 1, 1); g.fillRect(3, 9 + y, 1, 1); g.fillRect(0, 15 + y, 1, 1);
   g.fillStyle(PALE, 1);   g.fillRect(2, 9 + y, 1, 1);  g.fillRect(4, 16 + y, 1, 1);
 
   // far legs (behind the body)
-  raccoonLeg2(g, 9, l0); raccoonLeg2(g, 18, l2);
+  g.layer('legs_far');
+  raccoonLegM(g, 8, l0, DARK, y); raccoonLegM(g, 17, l2, DARK, y);
 
-  // ── Body ── hunched, grizzled; layered rects with a darker back + pale belly.
-  g.fillStyle(FUR, 1);
-  g.fillRect(7, 10 + y, 13, 5); g.fillRect(8, 8 + y, 11, 2); g.fillRect(9, 7 + y, 7, 1);
-  g.fillRect(6, 11 + y, 2, 3); g.fillRect(18, 9 + y, 3, 4);
-  g.fillStyle(GUARD, 1); // dark guard-hair back + scattered flecks
-  g.fillRect(9, 7 + y, 7, 1); g.fillRect(8, 8 + y, 11, 1);
-  g.fillRect(10, 9 + y, 1, 1); g.fillRect(13, 8 + y, 1, 1); g.fillRect(16, 9 + y, 1, 1); g.fillRect(12, 10 + y, 1, 1);
-  g.fillStyle(LO, 1);  g.fillRect(7, 14 + y, 12, 1);          // belly shadow line
-  g.fillStyle(HI, 1);  g.fillRect(8, 13 + y, 10, 1);          // pale underside
-  g.fillRect(9, 12 + y, 1, 1); g.fillRect(14, 12 + y, 1, 1);  // pale flecks
-  g.fillStyle(FUR, 1); g.fillRect(8, 15 + y, 1, 1); g.fillRect(12, 15 + y, 1, 1); g.fillRect(16, 15 + y, 1, 1); // fur tufts
+  // ── Body ──
+  g.layer('body');
+  g.fillStyle(FUR, 1);   g.fillRect(6, 8 + y, 14, 6);
+  g.fillStyle(HI, 1);    g.fillRect(6, 8 + y, 14, 2);
+  g.fillStyle(LO, 1);    g.fillRect(6, 12 + y, 14, 2);
+  g.fillStyle(FUR, 1);   g.fillRect(5, 10 + y, 1, 3);
+  g.fillStyle(GUARD, 1);
+  g.fillRect(7, 8 + y, 11, 1);
+  g.fillRect(10, 9 + y, 1, 1); g.fillRect(13, 9 + y, 1, 1); g.fillRect(15, 9 + y, 1, 1);
+  g.fillStyle(HI, 1);
+  g.fillRect(9, 13 + y, 1, 1); g.fillRect(13, 13 + y, 1, 1);
+
+  // ── Neck ──
+  g.layer('neck');
+  g.fillStyle(FUR, 1);  g.fillRect(18, 9 + y, 3, 4);
+  g.fillStyle(HI, 1);   g.fillRect(18, 9 + y, 3, 1);
+  g.fillStyle(LO, 1);   g.fillRect(18, 12 + y, 3, 1);
 
   // near legs (over the body)
-  raccoonLeg2(g, 11, l1); raccoonLeg2(g, 20, l3);
+  g.layer('legs_near');
+  raccoonLegM(g, 10, l1, 0x3d4047, y); raccoonLegM(g, 19, l3, 0x3d4047, y);
 
-  // ── Head + stepped snout ──
+  // ── Head ──
+  g.layer('head');
   g.fillStyle(FUR, 1);  g.fillRect(19, 6 + y, 5, 6); g.fillRect(20, 5 + y, 3, 1);
   g.fillStyle(HI, 1);   g.fillRect(20, 6 + y, 3, 1);
+
+  // ── Snout ──
+  g.layer('snout');
   g.fillStyle(PALElo, 1); g.fillRect(24, 8 + y, 2, 2); g.fillRect(23, 9 + y, 3, 2);
   g.fillStyle(PALE, 1);   g.fillRect(23, 10 + y, 2, 1);
   g.fillStyle(NOSE, 1);   g.fillRect(25, 8 + y, 1, 1); g.fillRect(24, 9 + y, 1, 1);
 
-  // ── Ears (rects, pale inner, dark tips) ──
+  // ── Ears ──
+  g.layer('ears');
   g.fillStyle(FUR, 1);   g.fillRect(19, 4 + y, 2, 2); g.fillRect(18, 5 + y, 1, 1); g.fillRect(22, 4 + y, 2, 2); g.fillRect(24, 5 + y, 1, 1);
   g.fillStyle(EARP, 1);  g.fillRect(19, 5 + y, 1, 1); g.fillRect(23, 5 + y, 1, 1);
   g.fillStyle(GUARD, 1); g.fillRect(19, 4 + y, 1, 1); g.fillRect(23, 4 + y, 1, 1);
 
-  // ── Bandit mask: pale brow, dark band wrapping the cheeks, bright eyes ──
+  // ── Bandit mask ──
+  g.layer('mask');
   g.fillStyle(PALE, 1); g.fillRect(19, 6 + y, 6, 1);
   g.fillStyle(MASK, 1); g.fillRect(20, 7 + y, 5, 2); g.fillRect(19, 8 + y, 1, 1); g.fillRect(24, 7 + y, 1, 1);
   g.fillStyle(SHINE, 1); g.fillRect(21, 7 + y, 1, 1); g.fillRect(23, 7 + y, 1, 1);
@@ -287,12 +307,16 @@ export function buildWildlifeTextures(scene) {
 // against the crisp super-sampled versions. Not used in-world. Remove once the look is
 // settled (these draw fns are the same — only the 1× vs ART_SCALE grid differs).
 export function buildWildlifeOldTextures(scene) {
-  gen(scene, 'fishOld_0', FISH_W, FISH_H, (g) => drawFish(g, 0));
-  gen(scene, 'fishOld_1', FISH_W, FISH_H, (g) => drawFish(g, 1));
-  gen(scene, 'birdOld_fly_0', BIRD_W, BIRD_H, (g) => drawBirdFly(g, true));
-  gen(scene, 'birdOld_fly_1', BIRD_W, BIRD_H, (g) => drawBirdFly(g, false));
-  gen(scene, 'birdOld_peck_0', BIRD_W, BIRD_H, (g) => drawBirdPeck(g, false));
-  gen(scene, 'birdOld_peck_1', BIRD_W, BIRD_H, (g) => drawBirdPeck(g, true));
+  // These "Old" textures draw at 1× (no scaledGraphics wrapper) so the art-preview
+  // can A/B crisp vs super-sampled. The draw fns have g.layer() calls for the dissect
+  // tool, but raw Phaser Graphics has no .layer() — shim a no-op so they don't throw.
+  const L = (g) => (g.layer ??= () => {}, g);
+  gen(scene, 'fishOld_0', FISH_W, FISH_H, (g) => drawFish(L(g), 0));
+  gen(scene, 'fishOld_1', FISH_W, FISH_H, (g) => drawFish(L(g), 1));
+  gen(scene, 'birdOld_fly_0', BIRD_W, BIRD_H, (g) => drawBirdFly(L(g), true));
+  gen(scene, 'birdOld_fly_1', BIRD_W, BIRD_H, (g) => drawBirdFly(L(g), false));
+  gen(scene, 'birdOld_peck_0', BIRD_W, BIRD_H, (g) => drawBirdPeck(L(g), false));
+  gen(scene, 'birdOld_peck_1', BIRD_W, BIRD_H, (g) => drawBirdPeck(L(g), true));
   RACCOON_FRAMES.forEach((f) => {
     gen(scene, `raccoon5_${f.name}`, RACC_W * ART_SCALE, RACC_H * ART_SCALE,
       (g) => drawRaccoon2(scaledGraphics(g), f.legs, f.bob));

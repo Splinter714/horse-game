@@ -120,6 +120,11 @@ the `horseAI`/`creatures` mixins — behaviors only wire condition → primitive
     `behaviors.js`.
   - Register it in `species/index.js`; add a persistence entry to `data/rosters.js`;
     add its texture builder to `art/index.js` (+ an art file under `src/art/`).
+  - **Dissect tags**: sprinkle `g.layer('name')` calls before each logical part in
+    the draw function (legs, tail, body, neck, head, ears, eye, snout/muzzle, etc.).
+    These are no-ops in production — only the dev dissect tool consumes them — but
+    without them the dissect overlay shows everything in one unlabelled bucket. Every
+    existing animal art file has them; new ones must too.
   - Direct care is data: declare `actions` (feed/water/pet) and optional `produces`.
     Spawn behaviour is capability-driven: `grazes` wires the food/water goal tick,
     `pecks`/`roosts` the flock hooks. The generic dispatch picks it all up — no

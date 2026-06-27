@@ -32,13 +32,16 @@ function drawCow(g, bob, [lhf, lhn, lff, lfn], look) {
   const SPOT = (look?.spots || DEFAULT_LOOK.spots).mid;
   const { hi, mid, shad, legFar, legNear } = coat;
 
+  g.layer('legs');
   cowLegSpotted(g, 6,  lhf, legFar,  bob, true,  SPOT); cowLegSpotted(g, 33, lff, legFar,  bob, false, SPOT);
   cowLegSpotted(g, 11, lhn, legNear, bob, false, SPOT); cowLegSpotted(g, 37, lfn, legNear, bob, true,  SPOT);
 
+  g.layer('tail');
   // Tail with tuft
   g.fillStyle(0xb09080, 1); g.fillRect(3, 18+bob, 2, 8);
   g.fillStyle(0x3a3030, 1); g.fillRect(2, 25+bob, 3, 5);
 
+  g.layer('udder');
   // Udder — a touch narrower and shifted back toward the rump
   g.fillStyle(0xf4b4b4, 1); g.fillRect(11, 28+bob, 13, 5);
   g.fillStyle(0xe89898, 1); g.fillRect(11, 31+bob, 13, 2);
@@ -47,18 +50,21 @@ function drawCow(g, bob, [lhf, lhn, lff, lfn], look) {
   // the rear leg), so they read as centred rather than skewed toward the rump.
   g.fillRect(16, 33+bob, 2, 2); g.fillRect(19, 33+bob, 2, 2); g.fillRect(22, 33+bob, 2, 2);
 
+  g.layer('body');
   // Body — taller/deeper barrel
   g.fillStyle(mid, 1); g.fillRect(5, 12+bob, 38, 18);
   g.fillStyle(hi, 1); g.fillRect(5, 12+bob, 38, 3);
   g.fillStyle(shad, 1); g.fillRect(5, 27+bob, 38, 3);
   g.fillStyle(mid, 1); g.fillRect(4, 14+bob, 1, 12); // rump curve
 
+  g.layer('spots');
   // Holstein patches
   g.fillStyle(SPOT, 1);
   g.fillRect(6,  13+bob, 12, 12);
   g.fillRect(31, 14+bob, 9,  11);
   g.fillRect(20, 19+bob, 6,  8);
 
+  g.layer('neck');
   // Neck — a tapering wedge that rises from the shoulder up to the head, clearly
   // thinner than the barrel so it reads as a neck rather than more body.
   g.fillStyle(mid, 1);
@@ -70,6 +76,7 @@ function drawCow(g, bob, [lhf, lhn, lff, lfn], look) {
   g.fillStyle(shad, 1);            // throat/dewlap shade tucking up to the jaw
   g.fillRect(39, 25+bob, 5, 2); g.fillRect(43, 23+bob, 4, 2); g.fillRect(46, 21+bob, 4, 2);
 
+  g.layer('head');
   // Head — long, lowered, forward-facing face set out at the end of the neck
   g.fillStyle(mid, 1); g.fillRect(47, 9+bob, 9, 14);
   g.fillStyle(hi, 1); g.fillRect(47, 9+bob, 9, 2);    // poll highlight
@@ -77,19 +84,23 @@ function drawCow(g, bob, [lhf, lhn, lff, lfn], look) {
   // Holstein face patch across the poll/brow
   g.fillStyle(SPOT, 1); g.fillRect(47, 9+bob, 8, 4);
 
+  g.layer('muzzle');
   // Muzzle — soft tan/pink snout
   g.fillStyle(0xf4c4a8, 1); g.fillRect(50, 16+bob, 6, 7);
   g.fillStyle(0xe0a888, 1); g.fillRect(50, 16+bob, 6, 1);   // muzzle top edge
   g.fillStyle(0xc88870, 1); g.fillRect(52, 19+bob, 1, 2); g.fillRect(54, 19+bob, 1, 2); // nostrils
 
+  g.layer('horns');
   // Horns — small pair rising from the dark poll
   g.fillStyle(0xe8d8a0, 1); g.fillRect(48, 6+bob, 2, 3); g.fillRect(52, 6+bob, 2, 3);
   g.fillStyle(0xd8c488, 1); g.fillRect(48, 6+bob, 2, 1); g.fillRect(52, 6+bob, 2, 1);
 
+  g.layer('ear');
   // Ear — set back at the side of the head
   g.fillStyle(mid, 1); g.fillRect(45, 10+bob, 3, 3);
   g.fillStyle(0xf4b0a0, 1); g.fillRect(45, 11+bob, 2, 2);
 
+  g.layer('eye');
   // Eye — on the cheek just below the patch
   g.fillStyle(0x1a0e00, 1); g.fillRect(50, 14+bob, 2, 2);
   g.fillStyle(0xffffff, 0.85); g.fillRect(50, 14+bob, 1, 1);

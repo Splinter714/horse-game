@@ -70,6 +70,10 @@ export const WithHerd = (Base) => class extends Base {
   _faceHeadToTail(h, buddy) {
     if (!buddy.sprite.active) return;
     h.sprite.setFlipX(!buddy.sprite.flipX);
+    // Mutual fly-swatting: both horses swish their tails (baked swish frames, no
+    // body tilt) for a short bout (#187, charm.js).
+    this._charmTailSwish(h);
+    this._charmTailSwish(buddy);
   }
 
   // Keep idle horses from collapsing into one overlapping blob: any two standing

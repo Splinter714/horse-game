@@ -58,7 +58,9 @@ export const PIG = {
   // horseAI.js): she walks to dropped food she'll eat (apples/carrots — NOT hay,
   // per her diet), drinks at the trough/stream, and nibbles grass — the same
   // primitives the horses and cow use, now species-generic.
-  capabilities: { saddleable: false, rideable: false, leadable: false, laysEggs: false, milkable: false, grazes: true },
+  // `sunbathes` adds the occasional daytime flop-nap when she finishes a wander
+  // (#187 charm — an onSettle hook, like the horse roll / chicken peck).
+  capabilities: { saddleable: false, rideable: false, leadable: false, laysEggs: false, milkable: false, grazes: true, sunbathes: true },
 
   // Paddock "feel" knobs read by the scene movement primitives (creatures.js).
   // Pigs are brisk little foragers — quicker, shorter strolls than the placid cow.

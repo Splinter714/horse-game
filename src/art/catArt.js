@@ -31,10 +31,12 @@ function drawCat(g, bob, [lhf, lhn, lff, lfn], tailTip = 0, tailHigh = false, lo
   const EYE = (look?.eyes || DEFAULT_LOOK.eyes).color;
   // Legs — far pair shadow tone, near pair base; white "socks". Cats step quietly:
   // legs barely lift and the body never bobs, so the gait reads as a smooth creep.
+  g.layer('legs');
   catLeg(g, 5,  lhf, WHITE.lo,  bob); catLeg(g, 15, lff, WHITE.lo,  bob);
   catLeg(g, 7,  lhn, WHITE.mid, bob); catLeg(g, 17, lfn, WHITE.mid, bob);
 
-  // ── Tail ── nearly straight, no dog-like curl. Two distinct poses: `tailHigh`
+  // ── Tail ──
+  g.layer('tail');
   // stands it upright (alert); otherwise it angles up-AND-BACK on a diagonal (a tilt,
   // not just lowered). Only the tip twitches, by tailTip.
   if (tailHigh) {
@@ -56,16 +58,19 @@ function drawCat(g, bob, [lhf, lhn, lff, lfn], tailTip = 0, tailHigh = false, lo
     g.fillStyle(BLACK.mid, 1);  g.fillRect(3, 9+bob, 2, 1); g.fillRect(6, 12+bob, 3, 1);  // rings
   }
 
+  g.layer('haunch');
   // ── Haunch ── rounded rear thigh, orange patch
   g.fillStyle(WHITE.mid, 1);  g.fillCircle(7, 13+bob, 4);
   g.fillStyle(ORANGE.mid, 1); g.fillCircle(7, 13+bob, 4);
   g.fillStyle(ORANGE.lo, 1);  g.fillCircle(7, 15+bob, 3);
 
+  g.layer('body');
   // ── Body ── white base, low and sleek with a gentle arched back
   g.fillStyle(WHITE.mid, 1); g.fillRect(5, 10+bob, 13, 6); g.fillRect(6, 8+bob, 9, 2);
   g.fillStyle(WHITE.hi, 1);  g.fillRect(6, 8+bob, 9, 1);   g.fillRect(5, 10+bob, 13, 1);
   g.fillStyle(WHITE.lo, 1);  g.fillRect(5, 15+bob, 13, 1);
 
+  g.layer('patches');
   // Calico patches — blotchy, irregular edges (not clean blocks). Orange over the
   // rump, a black saddle over the shoulders, then white notches carved back in and a
   // couple of stray flecks so the borders look organic.
@@ -90,14 +95,17 @@ function drawCat(g, bob, [lhf, lhn, lff, lfn], tailTip = 0, tailHigh = false, lo
   g.fillStyle(BLACK.mid, 1);  g.fillRect(8, 12+bob, 1, 1);    // spot on the orange
   g.fillStyle(ORANGE.mid, 1); g.fillRect(16, 13+bob, 1, 1);   // ginger fleck on the shoulder
 
+  g.layer('neck');
   // ── Neck/shoulder ── blends body into head (white chest)
   g.fillStyle(WHITE.mid, 1); g.fillRect(15, 9+bob, 4, 6);
   g.fillStyle(WHITE.hi, 1);  g.fillRect(15, 14+bob, 4, 1); // chest
 
+  g.layer('head');
   // ── Head ── small, round, FLAT-faced (no protruding snout — the dog cue), with
   // sharp triangular ears set wide. The front of the face is vertical at x21.
   g.fillStyle(WHITE.mid, 1); g.fillRect(15, 5+bob, 7, 5);  // round skull, flat front
   g.fillStyle(WHITE.hi, 1);  g.fillRect(16, 5+bob, 5, 1);  // brow highlight
+  g.layer('ears');
   // Sharp triangular ears, tapering to a point (calico: one orange, one black)
   g.fillStyle(ORANGE.mid, 1);
   g.fillRect(14, 4+bob, 3, 1); g.fillRect(14, 3+bob, 2, 1); g.fillRect(14, 2+bob, 1, 1);
@@ -106,10 +114,12 @@ function drawCat(g, bob, [lhf, lhn, lff, lfn], tailTip = 0, tailHigh = false, lo
   g.fillStyle(EAR, 1); g.fillRect(15, 3+bob, 1, 1); g.fillRect(20, 3+bob, 1, 1);
   // Orange crown patch (calico face is asymmetric)
   g.fillStyle(ORANGE.mid, 1); g.fillRect(15, 5+bob, 3, 2);
+  g.layer('eyes');
   // Big eyes, set high and forward
   g.fillStyle(EYE, 1);   g.fillRect(16, 6+bob, 2, 2); g.fillRect(19, 6+bob, 2, 2);
   g.fillStyle(PUPIL, 1); g.fillRect(17, 6+bob, 1, 2); g.fillRect(20, 6+bob, 1, 2);
   g.fillStyle(0xffffff, 0.9); g.fillRect(16, 6+bob, 1, 1); g.fillRect(19, 6+bob, 1, 1);
+  g.layer('nose');
   // Tiny nose + mouth right at the flat face (minimal muzzle)
   g.fillStyle(NOSE, 1);     g.fillRect(20, 9+bob, 1, 1);
   g.fillStyle(BLACK.lo, 1); g.fillRect(19, 9+bob, 1, 1);

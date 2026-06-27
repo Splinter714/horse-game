@@ -21,6 +21,7 @@ core orchestrator.
 | Creatures | `paddock/creatures.js` (`WithCreatures`) | species-neutral spawn + shared wander/movement primitives, foals, horse spawn |
 | Flock | `paddock/flock.js` (`WithFlock`) | chicken flock driver, follow/gather/peck, egg laying + collection |
 | Herd | `paddock/herd.js` (`WithHerd`) | horse need-driven wander, herd separation/pairing, rolling, greeting |
+| Charm | `paddock/charm.js` (`WithCharm`) | cross-animal charm "aww" moments (#187): dog↔sheep herding (`dogGoHerd`/`_sheepBunch`), chicken scatter (`chickenScatterFrom`), pig sunbathe nap (`_maybePigNap`/`_charmNap`), night settle-together (`_settleAnimalForNight`) + cat curl-up (`catCurlUp`), head-to-tail tail-swish (`_charmTailSwish`, baked `swish_*` frames). Cosmetic only |
 | Farm stand | `paddock/farmStand.js` (`WithFarmStand`) | stand build + NPC customers |
 | Day/night | `paddock/dayNight.js` (`WithDayNight`) | phase response, rest/wake, roosting, birds |
 | Horse AI | `paddock/horseAI.js` (`WithHorseAI`) | horse eat/drink seeking + gate-aware pathing |

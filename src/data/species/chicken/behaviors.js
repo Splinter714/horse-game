@@ -6,6 +6,16 @@
 // Note: egg laying (eggLayTick, a 45s timer) and roosting are scheduler-driven, not
 // per-tick decisions, so they stay in the scene mixins and are not behaviors here.
 
+// A passing dog spooks the flock (#187): the nearest chicken bolts a short way off.
+// Highest priority so it interrupts following/gathering — but purely cosmetic (it
+// just relocates the bird, no stat effect). ctx.dogDist is Infinity when no dog is
+// around; scatterDist is the proximity that triggers a scatter.
+export const fleeDog = {
+  id: 'fleeDog',
+  test: (ctx) => ctx.dogDist < ctx.scatterDist,
+  run: (scene, a) => scene.chickenScatterFrom(a),
+};
+
 // Dropped seed on the ground always wins. ctx.nearestSeed is the pile this chicken
 // can actually reach (seed inside the pasture needs the gate open), or null.
 export const seekSeed = {

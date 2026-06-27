@@ -2,21 +2,18 @@
 // decision (catFish.test) lives in data (src/data/species/cat/behaviors.js); this
 // mixin holds the context snapshot it reads and the `run` primitive it triggers.
 //
-// A hungry cat has no farmer food, so it feeds itself: it pads to the nearest stream
-// bank, crouches, and pounces at the water — sometimes catching a fish (restoring
-// hunger, with a little catch flourish), sometimes missing (just a splash) — then
-// resumes its prowl. Reuses the shared movement primitive (moveCreatureTo) and the
-// stream's fish art/ripple from WithWildlife (_fishRipple, the `fish_0` texture).
+// A hungry cat pads to the nearest stream bank, crouches, and pounces at the water —
+// but it NEVER actually catches anything: each pounce is just a splash and a ripple,
+// so no fish is ever harmed (#201). Fishing is now purely a charming attempt; it does
+// NOT feed the cat. Fishing was the cat's only food source, so until a real feeding
+// mechanic lands (follow-up #202) the cat has nothing to restore its hunger — it'll
+// sit low and the cat keeps trying at the stream by design. Reuses the shared movement
+// primitive (moveCreatureTo) and the stream's ripple from WithWildlife (_fishRipple).
 
 import Phaser from 'phaser';
-import { S } from './constants.js';
-import { ART_SCALE } from '../../art/_frames.js';
-import { EVENTS } from '../../data/events.js';
 import { playDrink } from '../../audio/sounds.js';
 
 const EDGE_OFFSET = 46;  // stand this far down the field normal from the water centreline
-const CATCH_CHANCE = 0.7; // odds a pounce lands a fish (misses add charm)
-const CATCH_RESTORE = 38; // hunger restored by a caught fish
 
 export const WithCatAI = (Base) => class extends Base {
   // Context snapshot for the cat's behavior `test`s (dispatched from behaviors.js).
@@ -71,8 +68,9 @@ export const WithCatAI = (Base) => class extends Base {
     return true;
   }
 
-  // One watch-then-pounce cycle. On a hit: catch a fish and finish; on a miss: a
-  // splash and (if any tries remain) line up another pounce, else give up for now.
+  // One watch-then-pounce cycle. The cat always comes up empty (#201): a splash and a
+  // ripple, never a caught fish — so nothing is ever harmed and fishing doesn't feed
+  // the cat. If pounces remain it lines up another, else it gives up for now.
   _catFishAttempt(a, spot, tries) {
     if (a.state !== 'fishing' || !a.sprite.active) return;
     if (tries <= 0) { this._catFishDone(a); return; }
@@ -87,35 +85,11 @@ export const WithCatAI = (Base) => class extends Base {
         targets: a.sprite, x: px, y: py, duration: 170, yoyo: true, ease: 'Quad.easeOut',
         onComplete: () => {
           if (a.state !== 'fishing' || !a.sprite.active) return;
-          if (Math.random() < CATCH_CHANCE) {
-            this._catCatchFish(a, bx, by);
-            this._catFishDone(a);
-          } else {
-            this._fishRipple(bx, by); // missed — just a ring on the water
-            this._catFishAttempt(a, spot, tries - 1);
-          }
+          this._fishRipple(bx, by);                 // always comes up empty — just a ring
+          this._catFishAttempt(a, spot, tries - 1);
         },
       });
     });
-  }
-
-  // A successful catch: restore the cat's hunger, ripple the water, and flip a little
-  // fish up from the surface toward the cat before it vanishes, with a happy heart.
-  _catCatchFish(a, bx, by) {
-    const cat = a.model;
-    if (cat?.stats) {
-      cat.stats.hunger = Math.min(100, (cat.stats.hunger ?? 0) + CATCH_RESTORE);
-      this.game.events.emit(EVENTS.STATS_CHANGED);
-    }
-    this._fishRipple(bx, by);
-    const fish = this.add.image(bx, by, 'fish_0') // fish_0 is super-sampled → show at S/ART_SCALE
-      .setScale(S / ART_SCALE).setDepth(a.sprite.depth + 1).setAlpha(0.95).setFlipX(a.sprite.x < bx);
-    this.tweens.add({
-      targets: fish, x: a.sprite.x, y: a.sprite.y - 16, angle: 220,
-      duration: 420, ease: 'Sine.easeOut',
-      onComplete: () => this.tweens.add({ targets: fish, alpha: 0, duration: 220, onComplete: () => fish.destroy() }),
-    });
-    this.showHeart?.(a.sprite);
   }
 
   // Back to the prowl: stand up and schedule the next wander (which will send the cat
