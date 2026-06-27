@@ -25,18 +25,18 @@ export const FISH_W = 18, FISH_H = 11;
 const FISH_BODY = 0x35586a, FISH_BACK = 0x223c48, FISH_BELLY = 0x6f97a6;
 
 function drawFish(g, flick) {
-  // tail fin (left) — splays open/closed with the flick to read as a swish
+  g.layer('fin_tail');
   g.fillStyle(FISH_BACK, 1);
   g.fillTriangle(1, 5, 7, 2 + flick, 7, 8 - flick);
-  // body
+  g.layer('body');
   g.fillStyle(FISH_BODY, 1); g.fillEllipse(11, 5, 13, 6);
-  // dorsal fin
+  g.layer('fin_dorsal');
   g.fillStyle(FISH_BACK, 1); g.fillTriangle(8, 2, 12, 2, 10, 0);
-  // darker back
+  g.layer('back');
   g.fillStyle(FISH_BACK, 1); g.fillEllipse(11, 4, 11, 3);
-  // pale belly sheen
+  g.layer('belly');
   g.fillStyle(FISH_BELLY, 0.85); g.fillEllipse(12, 6, 8, 2);
-  // eye
+  g.layer('eye');
   g.fillStyle(0x0a1518, 1); g.fillRect(15, 4, 1, 1);
 }
 
@@ -62,34 +62,39 @@ export const BIRD_W = 16, BIRD_H = 12;
 const BIRD_BODY = 0x6b513a, BIRD_WING = 0x4f3c2b, BIRD_BELLY = 0xc2a47a, BEAK = 0xe0a838;
 
 function drawBirdFly(g, wingsUp) {
-  // tail
+  g.layer('tail');
   g.fillStyle(BIRD_BODY, 1); g.fillTriangle(1, 5, 5, 4, 5, 9);
-  // body
+  g.layer('body');
   g.fillStyle(BIRD_BODY, 1); g.fillEllipse(8, 7, 9, 5);
   g.fillStyle(BIRD_BELLY, 0.9); g.fillEllipse(8, 8, 6, 3);
-  // head + beak
+  g.layer('head');
   g.fillStyle(BIRD_BODY, 1); g.fillCircle(12, 6, 2.3);
+  g.layer('beak');
   g.fillStyle(BEAK, 1); g.fillTriangle(14, 5, 16, 6, 14, 7);
-  g.fillStyle(0x0a0805, 1); g.fillRect(12, 5, 1, 1); // eye
-  // the wing — swept up for the up-stroke, down for the down-stroke
+  g.layer('eye');
+  g.fillStyle(0x0a0805, 1); g.fillRect(12, 5, 1, 1);
+  g.layer('wing');
   g.fillStyle(BIRD_WING, 1);
   if (wingsUp) g.fillTriangle(6, 6, 10, 0, 3, 2);
   else g.fillTriangle(6, 7, 10, 12, 3, 11);
 }
 
 function drawBirdPeck(g, headDown) {
-  // legs
+  g.layer('legs');
   g.fillStyle(BEAK, 1); g.fillRect(6, 9, 1, 2); g.fillRect(9, 9, 1, 2);
-  // tail (cocked up behind)
+  g.layer('tail');
   g.fillStyle(BIRD_BODY, 1); g.fillTriangle(1, 4, 5, 3, 5, 8);
-  // body
+  g.layer('body');
   g.fillStyle(BIRD_BODY, 1); g.fillEllipse(8, 7, 9, 6);
   g.fillStyle(BIRD_BELLY, 0.9); g.fillEllipse(8, 8, 6, 4);
-  g.fillStyle(BIRD_WING, 1); g.fillEllipse(6, 7, 5, 4); // folded wing
-  // head — up (alert) or down (pecking the ground)
+  g.layer('wing');
+  g.fillStyle(BIRD_WING, 1); g.fillEllipse(6, 7, 5, 4);
+  g.layer('head');
   const hy = headDown ? 9 : 4;
   g.fillStyle(BIRD_BODY, 1); g.fillCircle(12, hy, 2.3);
+  g.layer('beak');
   g.fillStyle(BEAK, 1); g.fillTriangle(14, hy, 16, hy + 1, 14, hy + 1);
+  g.layer('eye');
   g.fillStyle(0x0a0805, 1); g.fillRect(12, hy - 1, 1, 1);
 }
 

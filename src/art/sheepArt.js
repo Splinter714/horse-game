@@ -30,12 +30,14 @@ function drawSheep(g, bob, [lhf, lhn, lff, lfn], look) {
   // Built per-draw so the hoof tone follows the chosen skin palette.
   const sheepLeg = makeLeg({ topY: 20, w: 4, h: 8, hoofColor: SKIN_DKR, hoofY: 28, hoofW: 4, hoofDX: 0 });
 
+  g.layer('legs');
   sheepLeg(g, 6,  lhf, SKIN, bob);    sheepLeg(g, 26, lff, SKIN, bob);
   sheepLeg(g, 10, lhn, SKIN_DK, bob); sheepLeg(g, 30, lfn, SKIN_DK, bob);
 
-  // Tail stub
+  g.layer('tail');
   g.fillStyle(WOOL_LIT, 1); g.fillRect(3, 16 + bob, 3, 4);
 
+  g.layer('wool');
   // --- Wool body: built row-by-row from a rounded silhouette so the sides and
   // bottom curve smoothly instead of stepping. Each row is [y, xLeft, xRight]. ---
   const rows = [
@@ -75,6 +77,7 @@ function drawSheep(g, bob, [lhf, lhn, lff, lfn], look) {
   band(WOOL_SHAD, 21, 1.5, 0.7);       // transition
   band(WOOL_SHAD, 22, 1.5);            // underside shadow
 
+  g.layer('face');
   // --- Grey face: a square block with the corners notched for a soft look ---
   g.fillStyle(SKIN, 1);
   g.fillRect(31, 11 + bob, 8, 10);   // core
@@ -82,16 +85,19 @@ function drawSheep(g, bob, [lhf, lhn, lff, lfn], look) {
   g.fillRect(39, 13 + bob, 1, 6);    // right cheek
   g.fillStyle(SKIN_LIT, 1); g.fillRect(31, 11 + bob, 8, 2); // forehead band
 
+  g.layer('snout');
   // Snout — small square muzzle, same grey family, corner shaved.
   g.fillStyle(SKIN_DK, 1);
   g.fillRect(37, 16 + bob, 3, 3);
   g.fillRect(37, 19 + bob, 2, 1);
   g.fillStyle(SKIN_DKR, 1); g.fillRect(38, 18 + bob, 1, 1);
 
+  g.layer('ear');
   // Floppy ear behind the cheek.
   g.fillStyle(SKIN_DK, 1); g.fillRect(29, 12 + bob, 2, 5);
   g.fillStyle(SKIN, 1);    g.fillRect(29, 13 + bob, 1, 3);
 
+  g.layer('eye');
   // Amber slit-pupil eye.
   g.fillStyle(0xf0c080, 1); g.fillRect(33, 14 + bob, 2, 2);
   g.fillStyle(0x1a0800, 1); g.fillRect(33, 14 + bob, 1, 2);
