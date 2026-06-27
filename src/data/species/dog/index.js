@@ -28,7 +28,10 @@ export const DOG = {
   ],
   traits: { personality: 'loyal' },
   optionalAttrs: [],
-  capabilities: { saddleable: false, rideable: false, leadable: false, laysEggs: false },
+  // `herds` wires the dog's goal-tick at spawn (creatures.js) to the behavior
+  // dispatcher — its one charm behavior for now: occasionally nosing the sheep flock
+  // into a bunch (#187). A fuller "dog job" (companion-follow, real herding) is #186.
+  capabilities: { saddleable: false, rideable: false, leadable: false, laysEggs: false, herds: true },
 
   // Paddock "feel" knobs read by the scene movement primitives (creatures.js). A dog
   // is restless and quick — short pauses, brisk trots — unlike the cat's slow prowl.
@@ -52,4 +55,9 @@ export const DOG = {
   // Info-panel presentation: animated portrait (idle frames), an italic personality
   // line, no stat bars or action buttons (identity-only) — same shape as the cat.
   panel: { portrait: 'animated', traitLine: 'personality', fixedAttrs: false },
+
+  // AI priority list (#187). The dog's only goal-driven behavior so far: occasionally
+  // amble over and bunch up the sheep (dogHerdSheep, in ./behaviors.js; dispatched via
+  // BEHAVIORS.dog in ../index.js). Otherwise it falls through to its brisk wander.
+  behaviors: ['dogHerdSheep'],
 };

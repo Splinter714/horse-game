@@ -8,6 +8,7 @@ import { chooseBehavior } from '../index.js';
 const BASE = {
   nearestSeed: null, luring: false, anticipating: false, gateOpen: false,
   playerDist: Infinity, hungryFollowDist: 200,
+  dogDist: Infinity, scatterDist: 96, // #187: no dog around by default
 };
 
 describe('chicken chooseBehavior', () => {
@@ -43,5 +44,18 @@ describe('chicken chooseBehavior', () => {
   it('held seeds win over a hungry near-follow', () => {
     const c = { ...BASE, luring: true, anticipating: true, playerDist: 50 };
     expect(chooseBehavior('chicken', c)).toBe('followForSeed');
+  });
+
+  it('a dog trotting close → fleeDog (#187)', () => {
+    expect(chooseBehavior('chicken', { ...BASE, dogDist: 60 })).toBe('fleeDog');
+  });
+
+  it('a dog at a comfortable distance → no scatter', () => {
+    expect(chooseBehavior('chicken', { ...BASE, dogDist: 200 })).toBe(null);
+  });
+
+  it('fleeing the dog wins over everything (highest priority)', () => {
+    const c = { ...BASE, dogDist: 50, nearestSeed: { x: 1, y: 2 }, luring: true, anticipating: true, playerDist: 30 };
+    expect(chooseBehavior('chicken', c)).toBe('fleeDog');
   });
 });

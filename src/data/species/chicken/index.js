@@ -66,5 +66,5 @@ export const CHICKEN = {
   // AI priority list walked per-tick by the dispatcher (modules: ./behaviors.js).
   // Note: egg laying (eggLayTick, 45s timer) and roosting are scheduler-driven, not
   // per-tick decisions, so they stay in the scene mixins and are NOT listed here.
-  behaviors: ['seekSeed', 'followForSeed', 'followWhenHungry', 'gatherAtBin'],
+  behaviors: ['fleeDog', 'seekSeed', 'followForSeed', 'followWhenHungry', 'gatherAtBin'],
 };

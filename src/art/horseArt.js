@@ -326,7 +326,10 @@ function leg(g, x, lift, tone, hoof, legMark, sockTone = SOCK, feather, points, 
 // soft sheen ribbon down the front. This is the FIRST tail design from the shelved
 // art revamp (the clean version built for this horse's scale, before it got bulkier).
 // `white` draws it in the pinto colour for a two-tone tail (#144).
-function drawTailFrom(g, m, x0, y0, bob, white = false) {
+// `sway` swings the hank sideways for a tail-swish animation (#187): a horizontal
+// lean rooted at the dock that grows toward the tip (sw(d) below), so the dock stays
+// put and the bottom of the tail flicks. 0 for the normal resting tail.
+function drawTailFrom(g, m, x0, y0, bob, white = false, sway = 0) {
   const lo = white ? WHITE : m.lo, mid = white ? WHITE : m.mid, hi = white ? WHITE : m.hi;
   // Silhouette as [dy, xLeft-offset, width] control points — same hank shape as the
   // flat version, but filled row-by-row so the colour can flow smoothly.
@@ -335,9 +338,10 @@ function drawTailFrom(g, m, x0, y0, bob, white = false) {
   const xlAt = (d) => yAt(prof.map((p) => [p[0], p[1]]), d);
   const wAt  = (d) => yAt(prof.map((p) => [p[0], p[2]]), d);
   const total = 28;
+  const sw = (d) => sway * (d / total); // 0 at the dock → full sway at the tip
   g.layer('tail.body');
   for (let d = 0; d < total; d += 0.5) {
-    const xl = x0 + xlAt(d), w = wAt(d);
+    const xl = x0 + xlAt(d) + sw(d), w = wAt(d);
     const fy = d / total;                              // 0 root … 1 tip
     for (let x = xl; x < xl + w; x += 0.5) {
       const tx = w > 0 ? (x - xl) / w : 0;             // 0 back edge … 1 front edge
@@ -361,7 +365,7 @@ function drawTailFrom(g, m, x0, y0, bob, white = false) {
       [5,  1, 7, 1.0], [9,  1, 10, 1.3], [13, 1, 11, 1.4], [17, 1, 8, 1.0], [21, 1, 5, 0.7],
     ];
     for (const [dd, side, len, splay] of locks) {
-      const xl = x0 + xlAt(dd), w = wAt(dd);
+      const xl = x0 + xlAt(dd) + sw(dd), w = wAt(dd);
       const root = side < 0 ? xl : xl + w - 0.5;
       for (let i = 0; i < len; i += 0.5) {
         const f = i / len;
@@ -373,7 +377,7 @@ function drawTailFrom(g, m, x0, y0, bob, white = false) {
     }
     // frayed tip — a few wispy points fanning off the bottom of the hank
     g.layer('tail.tip');
-    const tx0 = x0 + xlAt(25);
+    const tx0 = x0 + xlAt(25) + sw(25);
     for (const [dx, len] of [[-1, 5], [0.5, 7], [2, 6], [3.5, 4]]) {
       for (let i = 0; i < len; i += 0.5) {
         const f = i / len;
@@ -385,7 +389,7 @@ function drawTailFrom(g, m, x0, y0, bob, white = false) {
     g.layer('tail.sheen');
     g.fillStyle(hi, 0.42);
     for (const [frac, dy0, len] of [[0.18, 4, 14], [0.3, 8, 10], [0.45, 12, 7]]) {
-      for (let i = 0; i < len; i += 0.5) { const d = dy0 + i, xl = x0 + xlAt(d), w = wAt(d); g.fillRect(xl + w * frac, y0 + d + bob, 0.5, 0.5); }
+      for (let i = 0; i < len; i += 0.5) { const d = dy0 + i, xl = x0 + xlAt(d) + sw(d), w = wAt(d); g.fillRect(xl + w * frac, y0 + d + bob, 0.5, 0.5); }
     }
   }
 }
@@ -460,7 +464,7 @@ function drawMane(g, coat, bob) {
   }
 }
 
-function drawHorse(g, coat, bob, legLift) {
+function drawHorse(g, coat, bob, legLift, sway = 0) {
   const b = coat.body;
   const m = coat.mane;
   const mk = coat.markings || {};
@@ -480,7 +484,7 @@ function drawHorse(g, coat, bob, legLift) {
   legDark(g, 13, legLift[1], mk, lm.hindNear); legDark(g, 44, legLift[3], mk, lm.foreNear);
 
   // --- tail (flowing hank, anchored at the rump dock) ---
-  drawTailFrom(g, m, 6, 20, bob);
+  drawTailFrom(g, m, 6, 20, bob, false, sway);
 
   // --- rump + body (3-tone bands) ---
   g.layer('body');
@@ -550,7 +554,9 @@ function drawHorse(g, coat, bob, legLift) {
   if (mk.pinto && mk.pintoMane) {
     g.layer('tail.tip');
     g.fillStyle(WHITE, 1);
-    g.fillRect(2.5, 34 + bob, 4.5, 7); g.fillRect(3.5, 41 + bob, 3, 6); // lower tail + tip
+    // Offset with the tail sway (sw(d) at d≈14/21 of the 28-long hank) so the
+    // two-tone tip stays on the swished tail (#187).
+    g.fillRect(2.5 + sway * 0.5, 34 + bob, 4.5, 7); g.fillRect(3.5 + sway * 0.75, 41 + bob, 3, 6);
   }
 }
 
@@ -871,7 +877,9 @@ export function buildFoalTextures(scene, baseKey, coat) {
   }
 }
 
-// Builds idle_0, idle_1, walk_0..3, eat_0..1, sleep_0..1 textures under `${baseKey}_...`.
+// Builds idle_0, idle_1, walk_0..3, eat_0..1, sleep_0..1, swish_0..3 under `${baseKey}_...`.
+// swish_* are the idle pose with the tail flicked to alternating sides — a gentle
+// tail-swish animation played at the head-to-tail buddy moment (#187).
 export function buildHorseTextures(scene, baseKey, coat) {
   const frames = [
     { name: 'idle_0', bob: 0, legs: IDLE_LEGS },
@@ -889,15 +897,25 @@ export function buildHorseTextures(scene, baseKey, coat) {
     { name: 'sleep_1', bob: 1, sleep: true }
   );
 
+  // Tail-swish frames (#187): a relaxed swing rooted at the dock — out one side, back
+  // through centre, out the other — so the loop reads as a gentle, continuous swish.
+  TAIL_SWISH_SWAY.forEach((sway, i) =>
+    frames.push({ name: `swish_${i}`, bob: i % 2, legs: IDLE_LEGS, sway }));
+
   for (const f of frames) {
     gen(scene, `${baseKey}_${f.name}`, FRAME_W * ART_SCALE, FRAME_H * ART_SCALE, g0 => {
       const g = scaledGraphics(g0);
       if (f.eat) drawHorseEat(g, coat, f.bob);
       else if (f.sleep) drawHorseSleep(g, coat, f.bob);
-      else drawHorse(g, coat, f.bob, f.legs);
+      else drawHorse(g, coat, f.bob, f.legs, f.sway ?? 0);
     });
     blurEdgesSplit(scene, `${baseKey}_${f.name}`, BLUR);
   }
 }
+
+// Sway (design px) per swish frame: a full side-to-side swing, gentle (the tail is
+// ~4.5px wide, so ±2.4 reads clearly without flinging). Played looping for a short
+// bout at the head-to-tail moment (charm.js _charmTailSwish).
+const TAIL_SWISH_SWAY = [0, 2.4, 0, -2.4];
 
 const BLUR = { radius: 0.7, strength: 0.5, feather: 1, internalBlur: 0.7, internalStrength: 0.5, colorThresh: 80 };
