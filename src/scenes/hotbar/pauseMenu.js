@@ -3,7 +3,7 @@
 // it while the world is frozen (#159). Freezes/*un*freezes the gameplay scenes.
 // Extracted from the monolithic HotbarScene (issue #167).
 
-import { toggleMute, isMuted, setVolume, getAudioSettings } from '../../audio/sounds.js';
+import { toggleMute, isMuted, setVolume, getAudioSettings, playNicker } from '../../audio/sounds.js';
 import { saveUiSettings, resetAllHorses, loadDevSettings, saveDevSettings } from '../../data/save.js';
 import { EVENTS } from '../../data/events.js';
 import { growHitArea, logicalW, logicalH, dprOf } from '../uiUtils.js';
@@ -258,7 +258,7 @@ export const WithPauseMenu = (Base) => class extends Base {
       { label: '🐴 Horse nicker',        fire: (p) => {
         const h = idleHorse(p); if (!h) return;
         p._shake?.(h.sprite);
-        import('../../audio/sounds.js').then(({ playNicker }) => playNicker());
+        playNicker();
       }},
     ];
   }
