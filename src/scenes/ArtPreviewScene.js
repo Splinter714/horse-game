@@ -59,6 +59,8 @@ const TARGET_H = 200;       // tallest family member's on-screen height (logical
 const PAD = 24;             // gap between family cells
 const INNER_GAP = 14;       // gap between members within a family
 const TOP = 56;             // y where the grid starts (below the title)
+const PANEL_W = 312;        // width reserved on the right for the docked dev blur panel
+                            // (dev only) so the gallery never lays a sprite under it.
 
 export default class ArtPreviewScene extends Phaser.Scene {
   constructor() {
@@ -170,6 +172,11 @@ export default class ArtPreviewScene extends Phaser.Scene {
     });
     this.input.on('pointerup', () => { this._dragY = null; this._pressedSprite = null; });
 
+    // Dock the dev blur panel as a right-hand sidebar (not a floating overlay): the
+    // gallery reserves this width so no sprite sits under the panel, which is what made
+    // clicks fall through to dissect. Zero in production (no panel).
+    this._reservedRight = import.meta.env.DEV ? PANEL_W : 0;
+
     this.layout();
     this.scale.on('resize', this.layout, this);
 
@@ -182,11 +189,11 @@ export default class ArtPreviewScene extends Phaser.Scene {
   }
 
   // ── Global animal-blur slider panel (dev, #193) ──────────────────────────────
-  // Injects an HTML overlay with 6 range sliders (silhouette: radius/strength/feather;
-  // inner seams: radius/strength/color-thresh) seeded from the shared ANIMAL_BLUR. On
-  // every change it re-blurs EVERY animal in the gallery live, so the one global look can
-  // be art-directed here. 'Bake' copies the chosen values as the ANIMAL_BLUR const line
-  // (clipboard + console) to paste into src/art/_frames.js.
+  // A docked right-hand sidebar (the gallery reserves PANEL_W for it) with 6 range sliders
+  // (silhouette: radius/strength/feather; inner seams: radius/strength/color-thresh) seeded
+  // from the shared ANIMAL_BLUR. On every change it re-blurs EVERY animal in the gallery
+  // live, so the one global look can be art-directed here. 'Bake' copies the chosen values
+  // as the ANIMAL_BLUR const line (clipboard + console) to paste into src/art/_frames.js.
   _buildBlurPanel() {
     const p = { ...ANIMAL_BLUR };   // seed from the live shared blur (single source of truth)
 
@@ -201,23 +208,24 @@ export default class ArtPreviewScene extends Phaser.Scene {
       { key: 'colorThresh',      label: 'color thresh', min: 5,   max: 80,  step: 5    },
     ];
 
+    // Docked as a solid right-hand sidebar (full height) rather than a floating box, so
+    // it reads as a separate region beside the gallery instead of sitting over the art.
+    // The gallery reserves PANEL_W for it, so nothing dissectable is ever behind it.
     const panel = document.createElement('div');
     panel.style.cssText = [
-      'position:fixed;bottom:16px;right:16px',
-      'background:rgba(255,255,255,0.94)',
-      'border-radius:10px;padding:14px 18px 16px',
+      `position:fixed;top:0;right:0;bottom:0;width:${PANEL_W - 12}px`,
+      'background:rgba(248,250,245,0.98)',
+      'border-left:1px solid rgba(0,0,0,0.12)',
+      'padding:14px 16px;overflow-y:auto;box-sizing:border-box',
       'font-family:system-ui,sans-serif;font-size:13px;color:#1a2010',
-      'box-shadow:0 2px 16px rgba(0,0,0,0.22)',
-      'z-index:9999;min-width:310px;line-height:1.6',
+      'box-shadow:-2px 0 16px rgba(0,0,0,0.18)',
+      'z-index:9999;line-height:1.6',
     ].join(';');
 
-    // Draggable title bar (the ⠿ grip hints it) so the panel can be moved off whichever
-    // animal is being tuned.
     const title = document.createElement('div');
-    title.style.cssText = 'font-weight:700;font-size:14px;margin-bottom:6px;cursor:move;user-select:none;display:flex;align-items:center;gap:6px';
-    title.innerHTML = '<span style="opacity:.4">⠿</span>🎨 Animal blur — all (ANIMAL_BLUR)';
+    title.style.cssText = 'font-weight:700;font-size:14px;margin-bottom:6px;user-select:none';
+    title.textContent = '🎨 Animal blur — all (ANIMAL_BLUR)';
     panel.appendChild(title);
-    this._makePanelDraggable(panel, title);
 
     for (const row of SLIDERS) {
       if (row.section) {
@@ -271,37 +279,15 @@ export default class ArtPreviewScene extends Phaser.Scene {
 
     document.body.appendChild(panel);
 
-    // Keep panel interactions (clicks, slider drags) from falling through to the Phaser
-    // canvas — which would dissect/customise the animal behind the panel and scroll the
-    // gallery. See swallowDomInput for why pointer-only stopping wasn't enough.
+    // Defense-in-depth: the gallery already reserves this column so no sprite sits behind
+    // the panel, but also stop the panel's own input from reaching Phaser (which listens on
+    // window) in case anything overlaps the edge. See swallowDomInput.
     swallowDomInput(panel);
 
     // Pause every sprite so blur tweaks read on still frames.
     for (const fam of this._families) for (const m of fam.members) m.sprite.stop();
 
     return panel;
-  }
-
-  // Drag the blur panel by its title bar. Switches from the default bottom/right anchoring
-  // to absolute left/top on first grab, and clamps to the top-left so it can't be lost.
-  _makePanelDraggable(panel, handle) {
-    let drag = null;
-    handle.addEventListener('pointerdown', (e) => {
-      const r = panel.getBoundingClientRect();
-      panel.style.left = `${r.left}px`; panel.style.top = `${r.top}px`;
-      panel.style.right = 'auto';       panel.style.bottom = 'auto';
-      drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
-      handle.setPointerCapture(e.pointerId);
-      handle.style.cursor = 'grabbing';
-    });
-    handle.addEventListener('pointermove', (e) => {
-      if (!drag) return;
-      panel.style.left = `${Math.max(0, e.clientX - drag.dx)}px`;
-      panel.style.top  = `${Math.max(0, e.clientY - drag.dy)}px`;
-    });
-    const end = () => { drag = null; handle.style.cursor = 'move'; };
-    handle.addEventListener('pointerup', end);
-    handle.addEventListener('pointercancel', end);
   }
 
   // Coalesce rapid slider input to one re-blur per animation frame — re-blurring every
@@ -387,19 +373,20 @@ export default class ArtPreviewScene extends Phaser.Scene {
   // the max scroll. Re-run on every resize (orientation, Safari toolbar).
   layout() {
     const sw = logicalW(this), sh = logicalH(this);
+    const gw = sw - (this._reservedRight || 0);   // gallery width, minus the docked panel
 
     this._bg.clear();
     this._bg.fillStyle(0x82c24e, 1).fillRect(0, 0, sw, sh);   // grass green
 
     this._title.setPosition(14, 12);
-    this._back.setPosition(sw - 12, 12);
-    this._scrollHint.setPosition(sw / 2, sh - 8);
+    this._back.setPosition(gw - 12, 12);                      // just left of the panel
+    this._scrollHint.setPosition(gw / 2, sh - 8);
 
     const cellW = Math.max(...this._families.map((f) => f.famW), 60) + PAD;
     const cellH = TARGET_H + 44;
-    const cols = Math.max(1, Math.floor((sw - PAD) / cellW));
+    const cols = Math.max(1, Math.floor((gw - PAD) / cellW));
     const gridW = cols * cellW;
-    const x0 = Math.round((sw - gridW) / 2) + cellW / 2;   // first column centre
+    const x0 = Math.round((gw - gridW) / 2) + cellW / 2;   // first column centre
 
     let bottom = TOP;
     this._families.forEach((f, i) => {
