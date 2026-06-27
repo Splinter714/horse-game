@@ -249,8 +249,7 @@ export const WithWildlife = (Base) => class extends Base {
   }
 
   _maybeSpawnHorsePerch() {
-    const horses = Object.values(this.registry.get('allHorses') ?? {});
-    const calm = horses.filter((h) =>
+    const calm = (this.horses ?? []).filter((h) =>
       h.sprite?.active && !h.wanderTween &&
       (h.state === 'idle' || h.state === 'grazing' ||
        h.state === 'eating' || h.state === 'drinking')
