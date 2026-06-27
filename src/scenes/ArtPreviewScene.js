@@ -168,15 +168,14 @@ export default class ArtPreviewScene extends Phaser.Scene {
     });
     this.input.on('pointerup', () => { this._dragY = null; this._pressedSprite = null; });
 
-    // The dissect overlay docks as a LEFT sidebar (dev). It fires `dissectDockChanged` with
+    // The dissect overlay docks as a RIGHT sidebar (dev). It fires `dissectDockChanged` with
     // its width on open / 0 on close; reserve matching gallery space so it never covers a
     // card. (Bare event name — a dev-only DOM event, decoupled from src/dev/dissectOverlay.)
-    this._reservedLeft = 0;
     this._reservedRight = 0;
     this._onDissectDock = (e) => {
       const w = e.detail?.width || 0;
-      if (w === this._reservedLeft) return;
-      this._reservedLeft = w;
+      if (w === this._reservedRight) return;
+      this._reservedRight = w;
       this.layout();
     };
     window.addEventListener('dissectDockChanged', this._onDissectDock);
@@ -250,23 +249,20 @@ export default class ArtPreviewScene extends Phaser.Scene {
   // the max scroll. Re-run on every resize (orientation, Safari toolbar).
   layout() {
     const sw = logicalW(this), sh = logicalH(this);
-    // Gallery region sits between the (on-demand) left dissect dock and the right blur panel.
-    const glx = this._reservedLeft || 0;
-    const grx = sw - (this._reservedRight || 0);
-    const gw = grx - glx;
+    const gw = sw - (this._reservedRight || 0);   // gallery width, minus the right dissect dock
 
     this._bg.clear();
     this._bg.fillStyle(0x82c24e, 1).fillRect(0, 0, sw, sh);   // grass green
 
-    this._title.setPosition(glx + 14, 12);
-    this._back.setPosition(grx - 12, 12);                     // just left of the blur panel
-    this._scrollHint.setPosition((glx + grx) / 2, sh - 8);
+    this._title.setPosition(14, 12);
+    this._back.setPosition(gw - 12, 12);                     // just left of the dissect dock
+    this._scrollHint.setPosition(gw / 2, sh - 8);
 
     const cellW = Math.max(...this._families.map((f) => f.famW), 60) + PAD;
     const cellH = TARGET_H + 44;
     const cols = Math.max(1, Math.floor((gw - PAD) / cellW));
     const gridW = cols * cellW;
-    const x0 = glx + Math.round((gw - gridW) / 2) + cellW / 2;   // first column centre
+    const x0 = Math.round((gw - gridW) / 2) + cellW / 2;   // first column centre
 
     let bottom = TOP;
     this._families.forEach((f, i) => {

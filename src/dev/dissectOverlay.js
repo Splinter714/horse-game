@@ -2,16 +2,16 @@
 // - globalThis.__dissect.show(key) opens the overlay for any texture key
 // - Click a panel to drill into its sub-parts (▸ suffix = drillable)
 // - Click the key/part segments in the header to navigate back up
-// - Docked as a fixed LEFT sidebar; panels stack vertically and scroll; × to close
+// - Docked as a fixed RIGHT sidebar; panels stack vertically and scroll; × to close
 // - Re-renders automatically on every 'artLayersUpdated' event (hot-reload)
 // Activated from ArtPreviewScene animal clicks, or with ?dissect=horse&part=mane.
 
 import { swallowDomInput } from './swallowDomInput.js';
 
-// Docked as a fixed left sidebar (#193). It fires a `dissectDockChanged` window event with
+// Docked as a fixed right sidebar (#193). It fires a `dissectDockChanged` window event with
 // its width on open and 0 on close; ArtPreviewScene listens to reserve matching gallery
 // space so the dock never covers the cards. (Outside the gallery — e.g. ?dissect= on the
-// real game — nothing listens and it just docks over the left edge.)
+// real game — nothing listens and it just docks over the right edge.)
 const DOCK_W = 300;
 const fireDock = (width) => window.dispatchEvent(new CustomEvent('dissectDockChanged', { detail: { width } }));
 
@@ -35,12 +35,12 @@ export function setupDissectOverlay() {
   const params = new URLSearchParams(location.search);
   MAX_SCALE = Number(params.get('scale') || 3);
 
-  // ── outer wrapper: docked LEFT sidebar, full height ───────────────────────
+  // ── outer wrapper: docked RIGHT sidebar, full height ──────────────────────
   wrap = document.createElement('div');
   Object.assign(wrap.style, {
-    position: 'fixed', top: '0', left: '0', bottom: '0', width: DOCK_W + 'px', zIndex: '9999',
+    position: 'fixed', top: '0', right: '0', bottom: '0', width: DOCK_W + 'px', zIndex: '9999',
     fontFamily: 'monospace', fontSize: '12px', background: '#1e2026',
-    boxShadow: '2px 0 16px rgba(0,0,0,0.5)',
+    boxShadow: '-2px 0 16px rgba(0,0,0,0.5)',
     display: 'flex', flexDirection: 'column',
   });
 
@@ -51,17 +51,16 @@ export function setupDissectOverlay() {
     userSelect: 'none', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: '0',
   });
 
-  // × at the LEFT of the header (the dock is on the left, away from the Art-Preview
-  // "Back to Farm" button). A wide hit target so it's easy to land on.
+  breadcrumbEl = document.createElement('span');
+  breadcrumbEl.style.flex = '1';
+  headerRow.appendChild(breadcrumbEl);
+
+  // × at the top-right of the dock. A wide hit target so it's easy to land on.
   const closeBtn = document.createElement('span');
   closeBtn.textContent = '×';
   Object.assign(closeBtn.style, { cursor: 'pointer', opacity: '0.6', padding: '0 7px', fontSize: '16px', flexShrink: '0' });
   closeBtn.addEventListener('click', () => { state.key = null; state.crumb = []; idle(); });
   headerRow.appendChild(closeBtn);
-
-  breadcrumbEl = document.createElement('span');
-  breadcrumbEl.style.flex = '1';
-  headerRow.appendChild(breadcrumbEl);
 
   // ── panels column (stack vertically, scroll vertically) ───────────────────
   panelsEl = document.createElement('div');
