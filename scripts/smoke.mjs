@@ -63,7 +63,7 @@ try {
       // Cross-animal charm behaviors (#187): dog↔sheep, chicken scatter, pig nap,
       // night settle/curl, head-to-tail swat.
       'dogGoHerd', '_sheepBunch', 'chickenScatterFrom', '_maybePigNap', '_charmNap',
-      '_settleAnimalForNight', 'catCurlUp', '_restAnimalInPlace', '_dogContext',
+      '_settleAnimalForNight', 'catCurlUp', '_restAnimalInPlace', '_dogContext', '_charmTailSwish',
       'runBehaviors', '_horseContext', '_chickenContext', '_nearestReachableHay',
       'onPhaseChange', 'depthSort', 'tickDecay',
       // Extracted concern mixins (issue #167): effects / persistence / rendering.

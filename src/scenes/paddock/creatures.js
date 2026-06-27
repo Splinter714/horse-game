@@ -350,6 +350,16 @@ export const WithCreatures = (Base) => class extends Base {
         frames: [{ key: `${key}_sleep_0` }, { key: `${key}_sleep_1` }],
         frameRate: 1, repeat: -1
       });
+      // Tail-swish (#187): the idle pose with the tail swinging side to side, played
+      // for a short bout at the head-to-tail buddy moment (charm.js _charmTailSwish).
+      this.anims.create({
+        key: `swish_${key}`,
+        frames: [
+          { key: `${key}_swish_0` }, { key: `${key}_swish_1` },
+          { key: `${key}_swish_2` }, { key: `${key}_swish_3` },
+        ],
+        frameRate: 5, repeat: -1,
+      });
     }
 
     const shadow = this.add.image(startX, startY, 'shadow')

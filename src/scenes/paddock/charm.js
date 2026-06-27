@@ -179,6 +179,24 @@ export const WithCharm = (Base) => class extends Base {
     });
   }
 
+  // ─── Horses head-to-tail fly-swatting (#187) ────────────────────────────────
+
+  // A real tail-swish on the head-to-tail buddy pose: play the baked swish frames
+  // (the tail swinging side to side — no body tilt) for a short bout, then settle
+  // back to idle. Skipped if the horse has no swish anim (foals) or isn't idle.
+  _charmTailSwish(h) {
+    if (!h?.sprite?.active || h.state !== 'idle') return;
+    if (!this.anims.exists(`swish_${h.key}`)) return;
+    h.sprite.play(`swish_${h.key}`, true);
+    this.time.delayedCall(Phaser.Math.Between(1600, 2600), () => {
+      // Only hand back to idle if nothing else took over (still standing, still idle).
+      if (h.sprite.active && h.state === 'idle' &&
+          h.sprite.anims.currentAnim?.key === `swish_${h.key}`) {
+        h.sprite.play(`idle_${h.key}`, true);
+      }
+    });
+  }
+
   // ─── Night settling: the barnyard beds down together (#187) ─────────────────
 
   // Called per animal from restAllAnimals at nightfall. Horses are the herd centre —
