@@ -245,12 +245,6 @@ export default class ArtPreviewScene extends Phaser.Scene {
 
     document.body.appendChild(panel);
 
-    // Pause the raccoon sprite so tweaks read on a still frame.
-    for (const fam of this._families) {
-      const s = fam.members[0]?.sprite;
-      if (s?.texture?.key?.startsWith('raccoon5')) { s.stop(); break; }
-    }
-
     return panel;
   }
 

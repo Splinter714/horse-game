@@ -20,15 +20,18 @@ function drawPig(g, bob, [lhf, lhn, lff, lfn], look) {
   const b = look?.body || DEFAULT_LOOK.body;
   const { hi, mid, shad, legFar, legNear, tail, ear } = b;
 
+  g.layer('legs');
   pigLeg(g, 5,  lhf, legFar,  bob); pigLeg(g, 19, lff, legFar,  bob);
   pigLeg(g, 8,  lhn, legNear, bob); pigLeg(g, 22, lfn, legNear, bob);
 
+  g.layer('tail');
   // Curly tail (3-pixel curl)
   g.fillStyle(tail, 1);
   g.fillRect(2, 11+bob, 2, 2);
   g.fillRect(1, 13+bob, 2, 2);
   g.fillRect(2, 15+bob, 2, 2);
 
+  g.layer('body');
   // Body (round)
   g.fillStyle(mid, 1); g.fillRect(4, 8+bob, 24, 14);
   g.fillStyle(hi, 1); g.fillRect(4, 8+bob, 24, 4);
@@ -36,6 +39,7 @@ function drawPig(g, bob, [lhf, lhn, lff, lfn], look) {
   g.fillStyle(mid, 1); g.fillRect(3, 10+bob, 1, 8); // rump curve
   g.fillStyle(hi, 1); g.fillRect(3, 10+bob, 1, 2);
 
+  g.layer('head');
   // Head — rounded cheek that blends into the body and tapers to a snout disc
   g.fillStyle(mid, 1);
   g.fillRect(22, 8+bob, 8, 9);    // cheek/jowl mass (overlaps body so it blends)
@@ -49,16 +53,18 @@ function drawPig(g, bob, [lhf, lhn, lff, lfn], look) {
   g.fillRect(22, 8+bob, 8, 1);
   // Jowl / underside shadow (rounds off the lower cheek)
   g.fillStyle(shad, 1); g.fillRect(23, 15+bob, 7, 2);
+  g.layer('snout');
   // Snout disc (protruding, faces right) with nostrils — fixed pink
   g.fillStyle(0xea9a9a, 1); g.fillRect(30, 10+bob, 2, 6);
   g.fillStyle(0xd88888, 1); g.fillRect(30, 10+bob, 2, 1);
   g.fillStyle(0xc05858, 1); g.fillRect(31, 12+bob, 1, 1); g.fillRect(31, 14+bob, 1, 1);
+  g.layer('ear');
   // Floppy ear draping forward over the forehead
   g.fillStyle(ear, 1);
   g.fillRect(25, 4+bob, 4, 4);
   g.fillRect(26, 3+bob, 2, 1);
   g.fillStyle(0xc86868, 1); g.fillRect(26, 5+bob, 2, 3); // inner ear shade (fixed pink)
-  // Eye
+  g.layer('eye');
   g.fillStyle(0x2a1010, 1); g.fillRect(27, 9+bob, 2, 2);
   g.fillStyle(0xffffff, 0.85); g.fillRect(27, 9+bob, 1, 1);
 }

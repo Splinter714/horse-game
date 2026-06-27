@@ -28,27 +28,33 @@ function drawDog(g, bob, [lhf, lhn, lff, lfn], look) {
   const col = look?.collar || DEFAULT_LOOK.collar;
   const { hi, mid, shad, legNear, tailHi, jaw, ear, earShad, snout, snoutShad } = c;
 
+  g.layer('legs');
   dogLeg(g, 5,  lhf, shad,    bob); dogLeg(g, 17, lff, shad,    bob);
   dogLeg(g, 8,  lhn, legNear, bob); dogLeg(g, 20, lfn, legNear, bob);
 
+  g.layer('tail');
   // Tail wagging up
   g.fillStyle(legNear, 1); g.fillRect(2, 7+bob, 2, 7);
   g.fillStyle(tailHi, 1); g.fillRect(1, 7+bob, 1, 5);
 
+  g.layer('body');
   // Body
   g.fillStyle(mid, 1); g.fillRect(4, 10+bob, 20, 10);
   g.fillStyle(hi, 1); g.fillRect(4, 10+bob, 20, 3);
   g.fillStyle(shad, 1); g.fillRect(4, 17+bob, 20, 3);
   g.fillStyle(mid, 1); g.fillRect(3, 12+bob, 1, 6);
 
+  g.layer('neck');
   // Neck — slopes up from the shoulder to the head
   g.fillStyle(mid, 1); g.fillRect(20, 8+bob, 5, 6);
   g.fillStyle(hi, 1); g.fillRect(20, 8+bob, 5, 2);
 
+  g.layer('collar');
   // Collar at the base of the neck
   g.fillStyle(col.mid, 1); g.fillRect(21, 12+bob, 5, 2);
   g.fillStyle(col.shad, 1); g.fillRect(23, 14+bob, 2, 1); // tag
 
+  g.layer('head');
   // Head — domed skull rising above the back, snout poking forward-and-down
   g.fillStyle(mid, 1); g.fillRect(22, 4+bob, 6, 7);  // skull
   g.fillStyle(hi, 1); g.fillRect(22, 4+bob, 6, 2);  // top highlight
@@ -57,9 +63,11 @@ function drawDog(g, bob, [lhf, lhn, lff, lfn], look) {
   g.fillStyle(snout, 1); g.fillRect(25, 8+bob, 3, 4);
   g.fillStyle(snoutShad, 1); g.fillRect(25, 11+bob, 3, 1); // chin shade
   g.fillStyle(0x2a1810, 1); g.fillRect(26, 8+bob, 2, 1);  // nose at the tip
+  g.layer('ear');
   // Floppy ear draping the back of the head
   g.fillStyle(ear, 1); g.fillRect(20, 5+bob, 3, 7);
   g.fillStyle(earShad, 1); g.fillRect(20, 8+bob, 2, 4);
+  g.layer('eye');
   // Eye — small friendly dot
   g.fillStyle(0x2a1808, 1); g.fillRect(24, 7+bob, 1, 2);
   g.fillStyle(0xffffff, 0.7); g.fillRect(24, 7+bob, 1, 1);

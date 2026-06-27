@@ -119,7 +119,8 @@ function render() {
   const part   = state.crumb.length ? state.crumb[state.crumb.length - 1] : null;
 
   const reg = globalThis.__artLayers || {};
-  const key = reg[rawKey] ? rawKey : (reg[`${rawKey}_idle_0`] ? `${rawKey}_idle_0` : null);
+  // Try the bare key, then common first-frame suffixes (idle_0, fly_0, _0)
+  const key = [rawKey, `${rawKey}_idle_0`, `${rawKey}_fly_0`, `${rawKey}_0`].find(k => reg[k]) ?? null;
   if (!key) { breadcrumbEl.textContent = `no layers for "${rawKey}"`; panelsEl.innerHTML = ''; return; }
 
   const data = reg[key];

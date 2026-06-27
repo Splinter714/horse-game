@@ -16,6 +16,10 @@ import { ART_SCALE } from '../../art/_frames.js';
 // flight and fish ignore the player.
 const FLEE_DIST = 200;
 
+// World-px above horse sprite.y (origin bottom) to reach the back/withers.
+// FRAME_H=54, scale=2 → top of horse ≈ 108px up; back sits at ~64px up.
+const PERCH_Y = -64;
+
 // Display scale for the wildlife sprites: their textures are super-sampled on the
 // ART_SCALE grid (wildlifeArt.js), so they show at S/ART_SCALE — same on-screen size
 // as before, but crisp edges (matches the horse/sheep pipeline).
@@ -41,6 +45,7 @@ export const WithWildlife = (Base) => class extends Base {
     this._scheduleFish(Phaser.Math.Between(3000, 8000));
     this._scheduleBirdVisit(Phaser.Math.Between(5000, 12000));
     this._scheduleRaccoonVisit(Phaser.Math.Between(8000, 20000));
+    this._scheduleHorsePerch(Phaser.Math.Between(20000, 45000));
   }
 
   // Per-frame upkeep for the active ground critters: keep them depth-sorted against
@@ -50,6 +55,30 @@ export const WithWildlife = (Base) => class extends Base {
     const px = this.player.sprite.x, py = this.player.sprite.y;
     for (const c of this._wildCritters) {
       if (!c.sprite.active) continue;
+
+      // Horse-perched birds: track the host's position; flush only once perched.
+      if (c.perchHost) {
+        const horse = c.perchHost;
+        const hostCalm = horse.sprite?.active &&
+          (horse.state === 'idle' || horse.state === 'grazing' ||
+           horse.state === 'eating' || horse.state === 'drinking' ||
+           horse.state === 'wandering'); // tolerate wander during descent
+        if (!hostCalm || (c.state === 'perched' && horse.state === 'wandering')) {
+          c.perchHost = null;
+          this._birdTakeOff(c);
+          continue;
+        }
+        // Keep depth just above the horse.
+        c.sprite.setDepth(horse.sprite.y + 1);
+        // Follow the horse by applying the position delta each frame.
+        if (c._lastHostX !== undefined && c.state === 'perched') {
+          c.sprite.x += horse.sprite.x - c._lastHostX;
+          c.sprite.y += horse.sprite.y - c._lastHostY;
+        }
+        c._lastHostX = horse.sprite.x;
+        c._lastHostY = horse.sprite.y;
+      }
+
       if (c.ground) c.sprite.setDepth(c.sprite.y);
       if (c.ground && !c.fleeing && Phaser.Math.Distance.Between(px, py, c.sprite.x, c.sprite.y) < FLEE_DIST) {
         if (c.kind === 'bird') this._birdTakeOff(c);
@@ -207,6 +236,84 @@ export const WithWildlife = (Base) => class extends Base {
     });
   }
 
+  // ─── Horse-back perch (#192) ────────────────────────────────────────────────
+  // Occasionally a bird flies in and lands on a calm horse's back — a cozy oxpecker
+  // moment. The bird tracks the host sprite frame-by-frame and flushes the instant
+  // the horse starts moving or the player draws near.
+
+  // (PERCH_Y is defined as a module constant below — static getters on anonymous
+  //  mixin classes are not reachable by the class name at call sites.)
+
+  _scheduleHorsePerch(delay) {
+    this.time.delayedCall(delay, () => {
+      if (!this._sleeping && this._phase !== 'Night') this._maybeSpawnHorsePerch();
+      // A treat — infrequent so it stays charming.
+      this._scheduleHorsePerch(Phaser.Math.Between(30000, 70000));
+    });
+  }
+
+  _maybeSpawnHorsePerch() {
+    const calm = (this.horses ?? []).filter((h) =>
+      h.sprite?.active && !h.wanderTween &&
+      (h.state === 'idle' || h.state === 'grazing' ||
+       h.state === 'eating' || h.state === 'drinking')
+    );
+    if (!calm.length) return;
+
+    // Prefer a horse that's visible in the camera so the event is seen.
+    const view = this.cameras.main.worldView;
+    const onScreen = calm.filter((h) =>
+      h.sprite.x >= view.x - 80 && h.sprite.x <= view.x + view.width + 80 &&
+      h.sprite.y >= view.y - 80 && h.sprite.y <= view.y + view.height + 300
+    );
+    const pool = onScreen.length ? onScreen : calm;
+    this._spawnHorsePerch(pool[Phaser.Math.Between(0, pool.length - 1)]);
+  }
+
+  _spawnHorsePerch(horse) {
+    const hx = horse.sprite.x, hy = horse.sprite.y;
+    const tx = hx + Phaser.Math.Between(-8, 8);
+    const ty = hy + PERCH_Y;
+
+    // Enter from off the left or right edge of the camera view, angled down toward
+    // the horse's back — same approach as the ground-perch swoop, not straight down.
+    const view = this.cameras.main.worldView;
+    const fromLeft = Math.random() < 0.5;
+    const startX = fromLeft ? view.x - 40 : view.x + view.width + 40;
+    const startY = ty - Phaser.Math.Between(80, 160);
+
+    const sprite = this.add.sprite(startX, startY, 'bird_fly_0')
+      .setOrigin(0.5, 1).setScale(WILD_SCALE).setDepth(hy + 1)
+      .setFlipX(startX > tx).play('bird_fly');
+
+    const c = { sprite, kind: 'bird', ground: false, state: 'descending',
+                tween: null, fleeing: false, perchHost: horse,
+                _lastHostX: hx, _lastHostY: hy };
+    this._wildCritters.push(c);
+
+    c.tween = this.tweens.add({
+      targets: sprite, x: tx, y: ty,
+      duration: Phaser.Math.Between(1200, 1800), ease: 'Sine.easeIn',
+      onComplete: () => {
+        if (!sprite.active || c.fleeing) return;
+        c.state = 'perched';
+        sprite.play('bird_peck');
+        this._horsePerchHop(c, Phaser.Math.Between(5, 9));
+      },
+    });
+  }
+
+  _horsePerchHop(c, n) {
+    if (!c.sprite.active || c.fleeing || c.state !== 'perched') return;
+    if (n <= 0) { this._birdTakeOff(c); return; }
+    if (Math.random() < 0.3) c.sprite.setFlipX(!c.sprite.flipX);
+    c.tween = this.tweens.add({
+      targets: c.sprite, y: c.sprite.y - 5, duration: 120, yoyo: true, ease: 'Quad.easeOut',
+      onComplete: () =>
+        this.time.delayedCall(Phaser.Math.Between(600, 1800), () => this._horsePerchHop(c, n - 1)),
+    });
+  }
+
   // ─── Raccoon (#181) ──────────────────────────────────────────────────────────
   // A raccoon scurries in from a side and ambles between the buildings/props (the
   // barn, coop, nests, gardens, feed sources, stand) — rummaging at each for a beat —
@@ -217,7 +324,7 @@ export const WithWildlife = (Base) => class extends Base {
     this.time.delayedCall(delay, () => {
       // Active at dusk/night; an occasional daytime cameo.
       const nocturnal = this._phase === 'Evening' || this._phase === 'Night';
-      if (!this._sleeping && (nocturnal || Math.random() < 0.15) && !this._raccoonOut) {
+      if (!this._sleeping && (nocturnal || Math.random() < 0.15)) {
         this._spawnRaccoon();
       }
       this._scheduleRaccoonVisit(nocturnal ? Phaser.Math.Between(12000, 28000) : Phaser.Math.Between(30000, 60000));
@@ -232,7 +339,6 @@ export const WithWildlife = (Base) => class extends Base {
       .setOrigin(0.5, 1).setScale(WILD_SCALE).setDepth(y).setFlipX(!fromLeft).play('raccoon_run');
     const c = { sprite, kind: 'raccoon', ground: true, state: 'darting', tween: null, fleeing: false };
     this._wildCritters.push(c);
-    this._raccoonOut = true;
     // First dash brings it on-screen, then it potters between a few spots.
     const inX = fromLeft ? Phaser.Math.Between(200, 500) : WORLD_W - Phaser.Math.Between(200, 500);
     this._raccoonDartTo(c, inX, y, () => this._raccoonDart(c, Phaser.Math.Between(2, 4)));
@@ -314,7 +420,6 @@ export const WithWildlife = (Base) => class extends Base {
     if (c.tween) { c.tween.stop(); c.tween = null; }
     const toLeft = c.sprite.x < WORLD_W / 2;
     this._raccoonDartTo(c, toLeft ? -40 : WORLD_W + 40, c.sprite.y, () => {
-      this._raccoonOut = false;
       this._despawnCritter(c);
     });
   }

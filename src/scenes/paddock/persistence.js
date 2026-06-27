@@ -33,16 +33,18 @@ export const WithPersistence = (Base) => class extends Base {
     this.decayAccum += delta;
     if (this.decayAccum >= 1000) {
       const secs = this.decayAccum / 1000;
-      // Decay every horse in the pasture (not just the player's) so the whole
-      // herd gets hungry/thirsty over time and the feeding loop stays live.
-      // Only the player's horse is persisted (see tickAutosave); companions
-      // decay in-memory for the session.
-      const allHorses = this.registry.get('allHorses');
-      for (const h of this.horses) allHorses[h.key]?.applyDecay(secs, false);
-      // Chickens/cat have no survival needs, but applyDecay eases their happiness
-      // back toward its resting baseline so a pet's cheer fades over time (#104/#105).
-      for (const a of this.animals) a.model?.applyDecay(secs, false);
       this.decayAccum = 0;
+      if (!window.__devFreezeDecay) {
+        // Decay every horse in the pasture (not just the player's) so the whole
+        // herd gets hungry/thirsty over time and the feeding loop stays live.
+        // Only the player's horse is persisted (see tickAutosave); companions
+        // decay in-memory for the session.
+        const allHorses = this.registry.get('allHorses');
+        for (const h of this.horses) allHorses[h.key]?.applyDecay(secs, false);
+        // Chickens/cat have no survival needs, but applyDecay eases their happiness
+        // back toward its resting baseline so a pet's cheer fades over time (#104/#105).
+        for (const a of this.animals) a.model?.applyDecay(secs, false);
+      }
       this.game.events.emit(EVENTS.STATS_CHANGED);
     }
   }
