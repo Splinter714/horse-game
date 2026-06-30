@@ -114,7 +114,7 @@ export const WithPauseMenu = (Base) => class extends Base {
       ['Ambient', 'ambient'],
       ['Effects', 'effects'],
     ];
-    const devH   = 38 + rowH * 6;  // TEMP dev-tools: heading + hint + 6 rows
+    const devH   = 38 + rowH * 7;  // TEMP dev-tools: heading + hint + 7 rows
     // 3 action/toggle rows: mute, control-prompts, Customize Character.
     const panelH = 56 + rowH * 3 + sliders.length * sliderH + 8 + devH;
     const px = Math.round((sw - panelW) / 2);
@@ -257,6 +257,10 @@ export const WithPauseMenu = (Base) => class extends Base {
       { label: '🐦 Bird perch (ground)', fire: (p) => p._spawnPerch?.() },
       { label: '🦝 Raccoon visit',       fire: (p) => p._spawnRaccoon?.() },
       { label: '🐟 Fish surface',        fire: (p) => p._spawnFish?.() },
+      { label: '🐱 Cat goes fishing',    fire: (p) => {
+        const cat = p.animals?.find((a) => a.key === 'cat' && a.sprite?.active);
+        if (cat && cat.state !== 'fishing') p.catGoFish?.(cat);
+      }},
       { label: '🐴 Horse rolls in dirt', fire: (p) => {
         const h = idleHorse(p); if (!h) return;
         const horse = p.registry.get('allHorses')?.[h.key];
