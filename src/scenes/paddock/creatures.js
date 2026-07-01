@@ -164,6 +164,16 @@ export const WithCreatures = (Base) => class extends Base {
           frameRate: hasEat ? eatFps : 2, repeat: -1,
         });
       }
+      // Pig wallow (#197): only registered when the species actually has dedicated
+      // wallow_0/1 frames (currently just the pig) — no missing-anim warning for
+      // everything else, no per-species workaround needed.
+      if (this.textures.exists(`${key}_wallow_0`)) {
+        this.anims.create({
+          key: `wallow_${key}`,
+          frames: [{ key: `${key}_wallow_0` }, { key: `${key}_wallow_1` }],
+          frameRate: 4, repeat: -1,
+        });
+      }
     }
 
     const shadow = this.add.image(startX, startY, 'shadow')

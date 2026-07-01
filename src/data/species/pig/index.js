@@ -88,6 +88,9 @@ export const PIG = {
   // AI priority list, highest first — the pig reuses the horse behavior modules
   // (registered as BEHAVIORS.pig in ../index.js) via the generic dispatcher. She
   // seeks dropped food she'll eat, drinks at the trough/stream, and grazes the
-  // grass, but she does NOT beg the player (no `begPlayer`).
-  behaviors: ['seekFood', 'seekWater', 'seekStream', 'graze'],
+  // grass, but she does NOT beg the player (no `begPlayer`). `wallow` (#197, her
+  // own module — see ./behaviors.js) is appended last: a low-priority charm behavior
+  // that never overrides feeding/drinking, so a content pig occasionally flops for
+  // a mud-roll once she has nothing more pressing to do.
+  behaviors: ['seekFood', 'seekWater', 'seekStream', 'graze', 'wallow'],
 };
