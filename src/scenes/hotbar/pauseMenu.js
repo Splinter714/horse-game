@@ -271,6 +271,11 @@ export const WithPauseMenu = (Base) => class extends Base {
         p._shake?.(h.sprite);
         playNicker();
       }},
+      { label: '🐷 Pig wallow in mud',   fire: (p) => {
+        const pig = p.animals?.find((a) => a.key === 'pig' && a.sprite?.active && a.state === 'idle');
+        if (pig) p.pigGoWallow?.(pig);
+      }},
+      { label: '🐔 Chicken lays egg',    fire: (p) => p.eggLayTick?.() },
     ];
   }
 
