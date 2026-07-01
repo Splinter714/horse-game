@@ -12,7 +12,7 @@ export const CARRIER_DEFS = {
   // animal that eats it, #136), so the basket's cap is just a safety ceiling, not a
   // limit you should hit. Kept finite (not Infinity) so it never trips serialization
   // or UI maths — but high enough that the demand always fits (and you can hoard eggs).
-  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'egg'] },
+  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'fish', 'egg'] },
   bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'milk'] },
 };
 
@@ -33,6 +33,10 @@ export const CONTENT_DEFS = {
   apple:  { label: 'Apples',  icon: 'iconBasketApple',  action: 'feed',  ground: 'applePile',  feeds: ['horse', 'cow', 'pig'] },
   carrot: { label: 'Carrots', icon: 'iconBasketCarrot', action: 'feed',  ground: 'carrotPile', feeds: ['horse', 'cow', 'pig'] },
   seed:   { label: 'Seed',    icon: 'iconBasketSeed',   action: 'feed',  ground: 'seedPile',   feeds: ['chicken'] },
+  // Fish feeds only the cat (#202) — gathered from the fishing barrel by the stream
+  // and dropped like any other food; the cat's `seekFood` behavior walks to a
+  // dropped fish pile the same way a pig walks to dropped apples/carrots.
+  fish:   { label: 'Fish',    icon: 'iconBasketFish',   action: 'feed',  ground: 'fishPile',   feeds: ['cat'] },
   egg:    { label: 'Eggs',    icon: 'iconBasketEgg',    action: 'egg' },
   water:  { label: 'Water',   icon: 'iconBucketWater',  action: 'water' },
   // Milk is produced by milking a well-cared-for cow into an empty bucket, then

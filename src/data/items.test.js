@@ -9,7 +9,7 @@ describe('carrier definitions', () => {
     // Basket cap is intentionally large (effectively unlimited): a gather only pulls
     // what's needed (#136), so the cap is just a safety ceiling, not a play limit.
     expect(CARRIER_DEFS.basket.capacity).toBeGreaterThanOrEqual(99);
-    expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'egg']);
+    expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'fish', 'egg']);
     expect(CARRIER_DEFS.bucket.capacity).toBe(1);
     expect(CARRIER_DEFS.bucket.accepts).toEqual(['water', 'milk']); // milk added with the cow (#cow)
   });

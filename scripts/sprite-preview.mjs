@@ -37,7 +37,7 @@ try {
   const dataUrl = await page.evaluate(({ keys, SCALE }) => {
     const game = window.__game;
     // Preferred frame order; anything unknown falls to the end, alphabetically.
-    const ORDER = ['idle_0','idle_1','walk_0','walk_1','walk_2','walk_3','eat_0','eat_1','wallow_0','wallow_1','lay_0','lay_1','sleep_0','sleep_1'];
+    const ORDER = ['idle_0','idle_1','walk_0','walk_1','walk_2','walk_3','eat_0','eat_1','wallow_0','wallow_1','lay_0','lay_1','sleep_0','sleep_1','nap_0','nap_1','pounce_0'];
     const rank = (s) => { const i = ORDER.indexOf(s); return i < 0 ? 100 : i; };
 
     const rows = keys.map((key) => {
