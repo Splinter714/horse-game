@@ -93,6 +93,52 @@ function drawChickenEat(g, peckDepth, coat = CHICKEN_COATS[0]) {
   g.fillStyle(0xffffff, 0.8); g.fillRect(12, hy + 1, 1, 1);
 }
 
+// Nest-settle pose (#196): squatted low onto the nest before laying — legs tucked
+// out of sight, body dropped and slightly widened (settling its weight down), tail
+// lifted a touch. `settle` 0 = just dropping in, 1 = fully settled (a gentle two-
+// frame squat so it doesn't read as a static idle while the egg timer runs).
+function drawChickenLay(g, settle, coat = CHICKEN_COATS[0]) {
+  const { body, bodyHi, bodyLo, wing, wingLo, tail, tailDark } = coat;
+  const dy = settle; // sinks 1px lower once fully settled
+
+  g.layer('legs');
+  // Tucked under the body — just the feet peeking out.
+  g.fillStyle(0xb89820, 1);
+  g.fillRect(3, 19+dy, 4, 1); g.fillRect(9, 19+dy, 4, 1);
+
+  g.layer('tail');
+  // Lifted slightly (weight settling back and down onto the nest).
+  g.fillStyle(tail, 1);     g.fillRect(1, 8+dy, 3, 5);
+  g.fillStyle(tailDark, 1); g.fillRect(1, 11+dy, 2, 4);
+
+  g.layer('body');
+  // Body lower and a touch wider — squatted flat onto the nest.
+  g.fillStyle(body, 1);   g.fillRect(2, 12+dy, 13, 7);
+  g.fillStyle(bodyHi, 1); g.fillRect(2, 12+dy, 13, 2);
+  g.fillStyle(bodyLo, 1); g.fillRect(2, 17+dy, 13, 2);
+  g.layer('wing');
+  g.fillStyle(wing, 1);   g.fillRect(3, 13+dy, 10, 4);
+  g.fillStyle(wingLo, 1); g.fillRect(3, 15+dy, 10, 2);
+
+  g.layer('neck');
+  g.fillStyle(body, 1); g.fillRect(11, 9+dy, 4, 5);
+
+  g.layer('head');
+  // Head held steady, level — not pecking, just settled and waiting.
+  g.fillStyle(body, 1);   g.fillRect(10, 4+dy, 6, 6);
+  g.fillStyle(bodyHi, 1); g.fillRect(10, 4+dy, 6, 2);
+  g.layer('comb');
+  g.fillStyle(0xe03030, 1);
+  g.fillRect(11, 2+dy, 2, 3); g.fillRect(13, 3+dy, 2, 2); g.fillRect(10, 3+dy, 2, 2);
+  g.layer('wattle');
+  g.fillStyle(0xe03030, 1); g.fillRect(14, 8+dy, 2, 3);
+  g.layer('beak');
+  g.fillStyle(0xe0c030, 1); g.fillRect(15, 6+dy, 1, 2);
+  g.layer('eye');
+  g.fillStyle(0x1a0800, 1); g.fillRect(12, 6+dy, 2, 2);
+  g.fillStyle(0xffffff, 0.8); g.fillRect(12, 6+dy, 1, 1);
+}
+
 export function buildChickenTextures(scene, key, coat) {
   const phases = [0, 0, 0, 1, 2, 3];
   const bobs   = [0, 1, 0, 1, 0, 1];
@@ -104,4 +150,7 @@ export function buildChickenTextures(scene, key, coat) {
   // Eat (peck) frames: beak at ground / beak lifted
   gen(scene, `${key}_eat_0`, W, H, g0 => drawChickenEat(scaledGraphics(g0), 2, coat));
   gen(scene, `${key}_eat_1`, W, H, g0 => drawChickenEat(scaledGraphics(g0), 0, coat));
+  // Nest-settle (lay) frames: dropping in / fully settled
+  gen(scene, `${key}_lay_0`, W, H, g0 => drawChickenLay(scaledGraphics(g0), 0, coat));
+  gen(scene, `${key}_lay_1`, W, H, g0 => drawChickenLay(scaledGraphics(g0), 1, coat));
 }

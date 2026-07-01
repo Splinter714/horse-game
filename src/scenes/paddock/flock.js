@@ -201,7 +201,9 @@ export const WithFlock = (Base) => class extends Base {
     // from the chicken's obstacle list — it can settle right onto the nest.
     this.moveCreatureTo(a, nest.x, nest.y, () => {
       if (a.state !== 'laying') { nest.occupant = null; return; }
-      a.sprite.play(`idle_${a.key}`, true);
+      // Settle onto the nest (a brief squat) instead of just standing idle while
+      // the egg timer runs (#196), so laying visibly reads as its own beat.
+      a.sprite.play(`lay_${a.key}`, true);
 
       // After a pause, lay the egg
       this.time.delayedCall(2800, () => {
@@ -209,6 +211,7 @@ export const WithFlock = (Base) => class extends Base {
         nest.hasEgg = true;
         nest.occupant = null;
         nest.sprite.setTexture('nestEgg');
+        a.sprite.play(`idle_${a.key}`, true); // back up off the nest before wandering off
         a.state = 'idle';
         this.scheduleCreatureWander(a, Phaser.Math.Between(2000, 5000));
       });
