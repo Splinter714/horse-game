@@ -154,12 +154,14 @@ export const WithPrompts = (Base) => class extends Base {
       return finish();
     }
 
-    // Feed: a carrier holding food. Mirrors useActiveTool's dispatch (#133) — if a
-    // world spot is in reach (a gathering source to keep filling, or the stand to
-    // sell), the prompt names that action; otherwise it's "Drop" at your feet.
+    // Feed: a carrier holding food. Mirrors useActiveTool's dispatch (#133, #204) —
+    // if a world spot is in reach AND the player is facing it (a gathering source
+    // to keep filling, or the stand to sell), the prompt names that action;
+    // otherwise it's "Drop" at your feet, matching placeFood taking over when
+    // facing away from the spot.
     if (item.action === 'feed') {
       const spot = this._nearestUseSpot(item);
-      if (spot) {
+      if (spot && this._facingToward(spot)) {
         useLabel = spot.label.replace(/\s*\(.*\)\s*$/, '');
         this._pushPrompt('use', spot.label);
       } else {

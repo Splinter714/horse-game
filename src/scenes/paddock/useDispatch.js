@@ -34,6 +34,26 @@ export const WithUseDispatch = (Base) => class extends Base {
     return inst && instD <= inst.reachDist ? inst : null;
   }
 
+  // True if the player's facing points toward `spot` rather than away from it
+  // (#204) — the same up/down/left/right → dominant-axis test worldObjects.js
+  // uses to pick which side of the player food lands on. Facing "away" from a
+  // gather source (e.g. backing up to lay a trail of piles next to it) means the
+  // player wants to place, not refill; facing toward/along it means "keep filling"
+  // (#133) still wins.
+  _facingToward(spot) {
+    const { sprite, facing } = this.player;
+    const dx = spot.x - sprite.x, dy = spot.y - sprite.y;
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      if (facing === 'right') return dx >= 0;
+      if (facing === 'left')  return dx <= 0;
+      return true; // facing up/down but spot is more horizontal — don't penalize
+    } else {
+      if (facing === 'down') return dy >= 0;
+      if (facing === 'up')   return dy <= 0;
+      return true; // facing left/right but spot is more vertical — don't penalize
+    }
+  }
+
   // The nearest in-world animal whose daily produce can be harvested (this.animals)
   // within Use reach, or null — any species that declares `produces` (today: the
   // cow's milk). Skips animals tucked away (invisible). Animals are no longer fed or
@@ -106,15 +126,17 @@ export const WithUseDispatch = (Base) => class extends Base {
       return;
     }
 
-    // Feed: a carrier holding food. Acting on an in-reach world spot wins over
-    // dropping at your feet — a gathering source (keep filling rather than place,
-    // #133) or the farm stand (sell sellable produce, #80). Only when you're not
-    // standing at any such spot does Use drop the food where you are. (Hay isn't
-    // sellable and there's no hay source at the stand, so it still drops there.)
+    // Feed: a carrier holding food. An in-reach world spot only wins over dropping
+    // at your feet when the player is actually facing it — that's "stand at a
+    // source and keep filling" (#133) or stocking the farm stand (#80). Facing
+    // away from the spot (e.g. backing away to lay a trail of piles right next to
+    // a gather source, #204) drops food on the ground instead of re-filling.
+    // (Hay isn't sellable and there's no hay source at the stand, so it still
+    // drops there.)
     if (item.action === 'feed') {
       const spot = this._nearestUseSpot(item);
-      if (spot) spot.activate();
-      else      this.placeFood(item);
+      if (spot && this._facingToward(spot)) spot.activate();
+      else                                  this.placeFood(item);
       return;
     }
 
