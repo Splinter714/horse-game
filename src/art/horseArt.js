@@ -856,6 +856,78 @@ function drawFoal(g, coat, bob, legLift) {
   g.fillStyle(m.mid, 1); g.fillRect(27, 9 + bob, 2, 4);
 }
 
+// Foal eating/drinking: head drops to ground level, mirroring drawHorseEat's pose
+// at foal scale/proportions (same layer order, same head-lowered staggered-skull
+// silhouette, just smaller and simpler — no dorsal/pattern overlays, matching the
+// rest of the foal's art which skips those too).
+function drawFoalEat(g, coat, bob) {
+  const b = coat.body;
+  const m = coat.mane;
+  const mk = coat.markings || {};
+
+  g.layer('legs');
+  legFoal(g, 7,  0, b.lo,  0, coat.hoof);
+  legFoal(g, 27, 0, b.lo,  0, coat.hoof);
+  legFoal(g, 11, 0, b.mid, 0, coat.hoof);
+  legFoal(g, 31, 0, b.mid, 0, coat.hoof);
+
+  g.layer('tail');
+  g.fillStyle(m.mid, 1); g.fillRect(5, 16 + bob, 2, 3);
+  g.fillStyle(m.lo, 1);  g.fillRect(4, 19 + bob, 2, 5);
+
+  g.layer('body');
+  g.fillStyle(b.mid, 1); g.fillRect(7, 16 + bob, 5, 10); g.fillRect(6, 18 + bob, 1, 8);
+  g.fillStyle(b.hi, 1);  g.fillRect(7, 14 + bob, 5, 3);  g.fillRect(6, 16 + bob, 1, 2);
+
+  // Body (short and slim, same as standing pose)
+  g.fillStyle(b.mid, 1); g.fillRect(10, 16 + bob, 22, 10); g.fillRect(32, 18 + bob, 1, 6);
+  g.fillStyle(b.hi, 1);  g.fillRect(10, 14 + bob, 22, 3);  g.fillRect(32, 16 + bob, 1, 2);
+  g.fillStyle(b.lo, 1);  g.fillRect(10, 24 + bob, 22, 2);
+
+  if (mk.pinto) {
+    g.fillStyle(WHITE, 1);
+    g.fillRect(12, 15 + bob, 8, 8);
+    g.fillRect(22, 17 + bob, 5, 5);
+  }
+
+  g.layer('neck');
+  // Neck angled downward (head eating from ground)
+  g.fillStyle(b.mid, 1);
+  g.fillRect(29, 14 + bob, 5, 4);   // base
+  g.fillRect(30, 17 + bob, 5, 5);   // middle
+  g.fillRect(31, 21 + bob, 5, 5);   // lower
+  g.fillStyle(b.hi, 1);
+  g.fillRect(30, 14 + bob, 2, 4);
+  g.fillRect(31, 17 + bob, 2, 5);
+  g.fillRect(32, 21 + bob, 2, 4);
+
+  g.layer('head');
+  // Head tilted down — staggered steps so nose angles toward ground
+  const headY = 24 + bob;
+  // Poll / back of head (highest point)
+  g.fillStyle(b.mid, 1); g.fillRect(30, headY, 3, 4);
+  g.fillStyle(b.hi, 1);  g.fillRect(30, headY, 3, 1);
+  // Mid skull (steps down)
+  g.fillStyle(b.mid, 1); g.fillRect(31, headY + 2, 4, 4);
+  g.fillStyle(b.hi, 1);  g.fillRect(31, headY + 2, 4, 1);
+  // Muzzle (lowest — near ground, foal keeps its big-muzzle proportions)
+  g.fillStyle(b.lo, 1);  g.fillRect(33, headY + 5, 5, 4);
+  g.fillStyle(b.mid, 1); g.fillRect(33, headY + 5, 5, 1);
+  // Ear pointing back/up
+  g.fillStyle(b.mid, 1);     g.fillRect(30, headY - 2, 2, 3);
+  g.fillStyle(EAR_PINK, 1);  g.fillRect(31, headY - 1, 1, 2);
+  // Nostril at tip of muzzle
+  g.fillStyle(coat.hoof, 0.6); g.fillRect(37, headY + 8, 1, 1);
+  // Eye on upper part of skull (foals have large eyes even head-down)
+  g.fillStyle(coat.eye, 1);  g.fillRect(31, headY + 1, 2, 2);
+  g.fillStyle(WHITE, 0.8);   g.fillRect(31, headY + 1, 1, 1);
+
+  g.layer('mane');
+  g.fillStyle(m.mid, 1); g.fillRect(29, 14 + bob, 2, 3);
+  g.fillStyle(m.lo, 1);  g.fillRect(28, 17 + bob, 2, 5);
+  g.fillStyle(m.mid, 1); g.fillRect(27, 21 + bob, 2, 4);
+}
+
 export function buildFoalTextures(scene, baseKey, coat) {
   const frames = [
     { name: 'idle_0', bob: 0, legs: FOAL_IDLE_LEGS },
@@ -864,13 +936,16 @@ export function buildFoalTextures(scene, baseKey, coat) {
     { name: 'walk_1', bob: 1, legs: FOAL_WALK_LEGS[1] },
     { name: 'walk_2', bob: 0, legs: FOAL_WALK_LEGS[2] },
     { name: 'walk_3', bob: 1, legs: FOAL_WALK_LEGS[3] },
+    { name: 'eat_0', bob: 0, eat: true },
+    { name: 'eat_1', bob: 1, eat: true },
     { name: 'sleep_0', bob: 0, sleep: true },
     { name: 'sleep_1', bob: 1, sleep: true },
   ];
   for (const f of frames) {
     gen(scene, `${baseKey}_${f.name}`, FOAL_W * ART_SCALE, FOAL_H * ART_SCALE, g0 => {
       const g = scaledGraphics(g0);
-      if (f.sleep) drawFoalSleep(g, coat, f.bob);
+      if (f.eat) drawFoalEat(g, coat, f.bob);
+      else if (f.sleep) drawFoalSleep(g, coat, f.bob);
       else drawFoal(g, coat, f.bob, f.legs);
     });  }
 }
