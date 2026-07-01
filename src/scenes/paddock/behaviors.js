@@ -142,8 +142,12 @@ export const WithBehaviors = (Base) => class extends Base {
 
   _grainBin() { return this.props.sources?.find(s => s.content === 'seed'); }
 
-  // Nearest hay pile this horse can actually reach (hay outside the fence needs the
-  // gate open), or null. Mirrors the old horseTickForHorse scan.
+  // Nearest hay pile this creature can actually reach, or null. Mirrors the old
+  // horseTickForHorse scan. Pasture-roaming grazers (horses/cow/pig/sheep) are
+  // fence-gated: a pile outside the pasture needs the gate open. A creature that
+  // roams the whole world instead (`spawn.roam !== 'pasture'` — the cat, #202) isn't
+  // fenced in at all, so the gate check doesn't apply to it: any dropped pile it can
+  // eat is reachable regardless of the pasture gate.
   _nearestReachableHay(h) {
     if (!this.props.hayPiles?.length) return null;
     const gateOpen = this._gateOpen();
@@ -152,9 +156,13 @@ export const WithBehaviors = (Base) => class extends Base {
     // three, so this is a no-op for them. (A content-less pile is treated as edible
     // for safety, though placeFood always tags one now.)
     const species = this._modelFor(h)?.species ?? 'horse';
+    // The horse itself declares no `spawn` block (it's spawned via buildHorses, not
+    // the generic species-spawn path) — so "not explicitly roam:'world'" is the
+    // pasture-bound default, keeping horses/cow/pig/sheep gated exactly as before.
+    const pastureBound = getSpecies(species).spawn?.roam !== 'world';
     let closest = null, closestDist = Infinity;
     for (const pile of this.props.hayPiles) {
-      if (!this._inPasture(pile.x, pile.y) && !gateOpen) continue;
+      if (pastureBound && !this._inPasture(pile.x, pile.y) && !gateOpen) continue;
       if (pile.content && !speciesEatsContent(species, pile.content)) continue;
       const d = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, pile.x, pile.y);
       if (d < closestDist) { closestDist = d; closest = pile; }

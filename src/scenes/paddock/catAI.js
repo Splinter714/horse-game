@@ -17,7 +17,9 @@ const EDGE_OFFSET = 46;  // stand this far down the field normal from the water 
 
 export const WithCatAI = (Base) => class extends Base {
   // Context snapshot for the cat's behavior `test`s (dispatched from behaviors.js).
-  // Only what catFish needs: how hungry it is, whether a stream is reachable, and
+  // What seekFood needs: how hungry it is + distance to the nearest reachable dropped
+  // fish pile (#202, via the shared _nearestReachableHay lookup — species-generic
+  // despite the filename). What catFish needs: whether a stream is reachable and
   // whether it's night (the cat goes home to sleep then, so it shouldn't fish).
   _catContext(a) {
     const cat = a.model;
@@ -25,8 +27,13 @@ export const WithCatAI = (Base) => class extends Base {
     const streamDist = spot
       ? Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, spot.x, spot.y)
       : Infinity;
+    const pile = this._nearestReachableHay(a);
+    const nearestFishDist = pile
+      ? Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, pile.x, pile.y)
+      : Infinity;
     return {
       hunger: cat?.stats?.hunger ?? 100,
+      nearestFishDist,
       streamDist,
       isNight: !!this.isNight,
     };

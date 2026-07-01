@@ -172,6 +172,14 @@ export function buildIconTextures(scene) {
     g.fillRect(5, 7, 2, 2); g.fillRect(9, 6, 2, 2); g.fillRect(13, 7, 2, 2); g.fillRect(7, 9, 2, 2); g.fillRect(11, 9, 2, 2);
     g.fillStyle(0xe8c050, 1); g.fillRect(6, 5, 1, 1); g.fillRect(10, 4, 1, 1); g.fillRect(14, 5, 1, 1);
   });
+  gen(scene, 'iconBasketFish', 20, 20, (g) => {
+    drawBasketBody(g);
+    g.fillStyle(0x7a9bb0, 1); g.fillEllipse(7, 6, 7, 3.5);
+    g.fillStyle(0x5a7a8c, 1); g.fillTriangle(3, 6, 0, 4, 0, 8);
+    g.fillStyle(0xaecbd9, 1); g.fillEllipse(13, 7, 6, 3);
+    g.fillStyle(0x7a9bb0, 1); g.fillTriangle(17, 7, 20, 5, 20, 9);
+    g.fillStyle(0x1c2530, 1); g.fillRect(9, 6, 1, 1); g.fillRect(15, 6, 1, 1);
+  });
   gen(scene, 'iconBasketEgg', 20, 20, (g) => {
     drawBasketBody(g);
     g.fillStyle(0xfff8e0, 1);

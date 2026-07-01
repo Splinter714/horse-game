@@ -12,4 +12,7 @@ export class Cat extends Animal {
   }
 
   pet() { return this.applyAction('pet'); }
+  // A real food source (#202): the cat eats dropped fish via the shared grazing
+  // primitive (horseGoEat, scenes/paddock/horseAI.js), which calls this generically.
+  feed() { return this.applyAction('feed'); }
 }
