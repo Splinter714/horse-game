@@ -128,6 +128,197 @@ function drawCat(g, bob, [lhf, lhn, lff, lfn], tailTip = 0, tailHigh = false, lo
   g.fillStyle(0xffffff, 0.4);  g.fillRect(21, 9+bob, 1, 1);
 }
 
+// Eating: head drops level with the ground to nose at a dropped fish pile. Legs
+// stay planted (cats don't crouch their whole body to eat, just dip the head/neck),
+// tail lowers and stills — the alert tail-up idle would read as "still on watch",
+// not settled in for a meal. Two frames give a tiny head bob (chew) rather than a
+// static pose, matching the two-frame idle/walk cadence used elsewhere.
+function drawCatEat(g, bob, [lhf, lhn, lff, lfn], dip, look) {
+  const ORANGE = look?.fur || DEFAULT_LOOK.fur;
+  const EYE = (look?.eyes || DEFAULT_LOOK.eyes).color;
+
+  g.layer('legs');
+  catLeg(g, 5,  lhf, WHITE.lo,  bob); catLeg(g, 15, lff, WHITE.lo,  bob);
+  catLeg(g, 7,  lhn, WHITE.mid, bob); catLeg(g, 17, lfn, WHITE.mid, bob);
+
+  g.layer('tail');
+  // Low, relaxed tail — settled in for a meal, not alert.
+  g.fillStyle(ORANGE.mid, 1);
+  g.fillRect(6, 12+bob, 3, 3);
+  g.fillRect(5, 11+bob, 3, 2);
+  g.fillRect(3,  9+bob, 3, 2);
+  g.fillRect(2,  8+bob, 3, 2);
+  g.fillStyle(ORANGE.hi, 1); g.fillRect(3, 9+bob, 1, 2);
+  g.fillStyle(BLACK.mid, 1); g.fillRect(3, 9+bob, 2, 1); g.fillRect(6, 12+bob, 3, 1);
+
+  g.layer('haunch');
+  g.fillStyle(WHITE.mid, 1);  g.fillCircle(7, 13+bob, 4);
+  g.fillStyle(ORANGE.mid, 1); g.fillCircle(7, 13+bob, 4);
+  g.fillStyle(ORANGE.lo, 1);  g.fillCircle(7, 15+bob, 3);
+
+  g.layer('body');
+  g.fillStyle(WHITE.mid, 1); g.fillRect(5, 10+bob, 13, 6); g.fillRect(6, 8+bob, 9, 2);
+  g.fillStyle(WHITE.hi, 1);  g.fillRect(6, 8+bob, 9, 1);   g.fillRect(5, 10+bob, 13, 1);
+  g.fillStyle(WHITE.lo, 1);  g.fillRect(5, 15+bob, 13, 1);
+
+  g.layer('patches');
+  g.fillStyle(ORANGE.mid, 1);
+  g.fillRect(5,  9+bob, 5, 6);
+  g.fillRect(7,  7+bob, 2, 2);
+  g.fillRect(10, 11+bob, 1, 3);
+  g.fillStyle(ORANGE.hi, 1);  g.fillRect(6, 8+bob, 2, 1);
+  g.fillStyle(BLACK.mid, 1);
+  g.fillRect(11, 9+bob, 5, 5);
+  g.fillRect(12, 8+bob, 3, 1);
+  g.fillRect(10, 10+bob, 1, 3);
+  g.fillRect(15, 11+bob, 1, 3);
+  g.fillStyle(BLACK.hi, 1);   g.fillRect(12, 8+bob, 3, 1);
+  g.fillStyle(BLACK.lo, 1);   g.fillRect(12, 13+bob, 3, 1);
+  g.fillStyle(WHITE.mid, 1);
+  g.fillRect(5,  9+bob, 1, 1);
+  g.fillRect(9, 13+bob, 1, 2);
+  g.fillRect(15, 9+bob, 1, 1);
+  g.fillStyle(BLACK.mid, 1);  g.fillRect(8, 12+bob, 1, 1);
+  g.fillStyle(ORANGE.mid, 1); g.fillRect(16, 13+bob, 1, 1);
+
+  g.layer('neck');
+  // Neck stretches forward and DOWN toward the food (dip lowers it further than idle).
+  g.fillStyle(WHITE.mid, 1); g.fillRect(15, 9+dip+bob, 4, 6-dip);
+  g.fillStyle(WHITE.hi, 1);  g.fillRect(15, 14+bob, 4, 1);
+
+  g.layer('head');
+  // Head drops to the pile, tipped down and forward.
+  const hy = 5 + dip;
+  g.fillStyle(WHITE.mid, 1); g.fillRect(15, hy+bob, 7, 5);
+  g.fillStyle(WHITE.hi, 1);  g.fillRect(16, hy+bob, 5, 1);
+  g.layer('ears');
+  g.fillStyle(ORANGE.mid, 1);
+  g.fillRect(14, hy-1+bob, 3, 1); g.fillRect(14, hy-2+bob, 2, 1); g.fillRect(14, hy-3+bob, 1, 1);
+  g.fillStyle(BLACK.mid, 1);
+  g.fillRect(19, hy-1+bob, 3, 1); g.fillRect(20, hy-2+bob, 2, 1); g.fillRect(21, hy-3+bob, 1, 1);
+  g.fillStyle(EAR, 1); g.fillRect(15, hy-2+bob, 1, 1); g.fillRect(20, hy-2+bob, 1, 1);
+  g.fillStyle(ORANGE.mid, 1); g.fillRect(15, hy+bob, 3, 2);
+  g.layer('eyes');
+  // Eyes narrow/half-lidded (focused on the food, not alert) — a thinner strip than idle.
+  g.fillStyle(EYE, 1);   g.fillRect(16, hy+1+bob, 2, 1); g.fillRect(19, hy+1+bob, 2, 1);
+  g.fillStyle(PUPIL, 1); g.fillRect(17, hy+1+bob, 1, 1); g.fillRect(20, hy+1+bob, 1, 1);
+  g.layer('nose');
+  // Nose/mouth right down at pile level — the "eating" tell.
+  g.fillStyle(NOSE, 1);     g.fillRect(20, hy+4+bob, 1, 1);
+  g.fillStyle(BLACK.lo, 1); g.fillRect(19, hy+4+bob, 1, 1);
+  g.fillStyle(0xffffff, 0.7);  g.fillRect(21, hy+3+bob, 1, 1);
+  g.fillStyle(0xffffff, 0.4);  g.fillRect(21, hy+4+bob, 1, 1);
+}
+
+// Napping: a curled-up "loaf" pose — tucked paws, tail wrapped round, eyes shut.
+// Used for the barn go-home fade (#90 catGoHome/catLeaveHome, dayNight.js) so the
+// cat visibly settles in rather than just fading out mid-idle-pose. `breathe` gives
+// a one-pixel torso rise/fall between the two frames (a slow sleeping breath).
+function drawCatNap(g, breathe, look) {
+  const ORANGE = look?.fur || DEFAULT_LOOK.fur;
+  const dy = 6; // drop the whole pose toward the ground, like the horse sleep pose
+
+  g.layer('tail');
+  // Tail curls forward around the tucked paws.
+  g.fillStyle(ORANGE.mid, 1);
+  g.fillRect(3, 14+dy, 3, 3); g.fillRect(6, 15+dy, 4, 2); g.fillRect(10, 13+dy, 2, 3);
+  g.fillStyle(BLACK.mid, 1); g.fillRect(6, 15+dy, 2, 1); g.fillRect(10, 14+dy, 2, 1);
+
+  g.layer('body');
+  // Low, rounded loaf — no legs visible (tucked under), back arches gently.
+  g.fillStyle(WHITE.mid, 1);
+  g.fillRect(5, 9+breathe+dy, 15, 7); g.fillEllipse(12, 9+breathe+dy, 15, 4);
+  g.fillStyle(WHITE.hi, 1); g.fillEllipse(12, 8+breathe+dy, 13, 2);
+  g.fillStyle(WHITE.lo, 1); g.fillRect(5, 15+dy, 15, 1);
+
+  g.layer('patches');
+  g.fillStyle(ORANGE.mid, 1);
+  g.fillRect(5, 10+breathe+dy, 6, 5); g.fillRect(7, 8+breathe+dy, 3, 2);
+  g.fillStyle(BLACK.mid, 1);
+  g.fillRect(13, 9+breathe+dy, 6, 6); g.fillRect(14, 8+breathe+dy, 3, 1);
+  g.fillStyle(WHITE.mid, 1); g.fillRect(11, 11+breathe+dy, 2, 3);
+
+  g.layer('haunch');
+  g.fillStyle(ORANGE.lo, 1); g.fillRect(4, 13+breathe+dy, 3, 2);
+
+  g.layer('head');
+  // Head tucked down onto the paws, eyes shut, ears relaxed to the side.
+  g.fillStyle(WHITE.mid, 1); g.fillRect(17, 10+breathe+dy, 6, 5);
+  g.fillStyle(WHITE.hi, 1);  g.fillRect(18, 10+breathe+dy, 4, 1);
+  g.layer('ears');
+  g.fillStyle(ORANGE.mid, 1); g.fillRect(17, 9+breathe+dy, 2, 1);
+  g.fillStyle(BLACK.mid, 1);  g.fillRect(21, 9+breathe+dy, 2, 1);
+  g.layer('eyes');
+  // Closed eyes: a thin contented line, not the round open dots.
+  g.fillStyle(BLACK.lo, 1); g.fillRect(19, 12+breathe+dy, 2, 1); g.fillRect(21, 12+breathe+dy, 1, 1);
+  g.layer('nose');
+  g.fillStyle(NOSE, 1); g.fillRect(22, 13+breathe+dy, 1, 1);
+}
+
+// Pounce: the fishing catch-attempt lunge (#198, catAI.js `_catFishAttempt`) — body
+// stretched low and long toward the water, front legs reaching out, tail flagged up
+// for balance, ears pinned back in concentration. A single one-shot frame (the scene
+// tweens the sprite forward/back over it, so the *pose* just needs to read as
+// "lunging", not animate internally).
+function drawCatPounce(g, look) {
+  const ORANGE = look?.fur || DEFAULT_LOOK.fur;
+  const EYE = (look?.eyes || DEFAULT_LOOK.eyes).color;
+
+  g.layer('legs');
+  // Hind legs planted/coiled (push-off), fore legs stretched forward reaching.
+  g.fillStyle(WHITE.lo, 1);  g.fillRect(3, 16, 2, 4); g.fillRect(20, 15, 2, 2);
+  g.fillStyle(WHITE.mid, 1); g.fillRect(5, 16, 2, 4); g.fillRect(22, 15, 2, 2);
+  g.fillStyle(0x6a5848, 1);  g.fillRect(2, 19, 4, 1); g.fillRect(21, 16, 4, 1); // paw pads
+
+  g.layer('tail');
+  // Flagged up high for balance mid-lunge.
+  g.fillStyle(ORANGE.mid, 1);
+  g.fillRect(2, 9, 3, 4); g.fillRect(2, 3, 2, 7); g.fillRect(1, 1, 2, 3);
+  g.fillStyle(ORANGE.hi, 1); g.fillRect(2, 4, 1, 5);
+  g.fillStyle(BLACK.mid, 1); g.fillRect(2, 6, 2, 1); g.fillRect(2, 9, 3, 1);
+
+  g.layer('haunch');
+  g.fillStyle(WHITE.mid, 1);  g.fillCircle(6, 12, 4);
+  g.fillStyle(ORANGE.mid, 1); g.fillCircle(6, 12, 4);
+  g.fillStyle(ORANGE.lo, 1);  g.fillCircle(6, 14, 3);
+
+  g.layer('body');
+  // Long, low, stretched-out silhouette — the whole spine flattens toward the water.
+  g.fillStyle(WHITE.mid, 1); g.fillRect(4, 10, 17, 5); g.fillRect(6, 9, 14, 2);
+  g.fillStyle(WHITE.hi, 1);  g.fillRect(6, 9, 14, 1);  g.fillRect(4, 10, 17, 1);
+  g.fillStyle(WHITE.lo, 1);  g.fillRect(4, 14, 17, 1);
+
+  g.layer('patches');
+  g.fillStyle(ORANGE.mid, 1);
+  g.fillRect(4, 9, 5, 5); g.fillRect(6, 7, 2, 2);
+  g.fillStyle(BLACK.mid, 1);
+  g.fillRect(11, 9, 6, 4); g.fillRect(12, 8, 3, 1);
+  g.fillStyle(WHITE.mid, 1); g.fillRect(9, 12, 2, 2);
+
+  g.layer('neck');
+  // Neck stretched forward and low, reaching toward the water.
+  g.fillStyle(WHITE.mid, 1); g.fillRect(18, 9, 5, 5);
+  g.fillStyle(WHITE.hi, 1);  g.fillRect(18, 13, 5, 1);
+
+  g.layer('head');
+  // Head thrust forward and low, level with the stretched neck.
+  g.fillStyle(WHITE.mid, 1); g.fillRect(19, 6, 7, 5);
+  g.fillStyle(WHITE.hi, 1);  g.fillRect(20, 6, 5, 1);
+  g.layer('ears');
+  // Pinned flat back against the skull (concentration), not the alert upright triangles.
+  g.fillStyle(ORANGE.mid, 1); g.fillRect(18, 5, 2, 1);
+  g.fillStyle(BLACK.mid, 1);  g.fillRect(24, 5, 2, 1);
+  g.fillStyle(ORANGE.mid, 1); g.fillRect(19, 6, 3, 2);
+  g.layer('eyes');
+  // Wide, fixed on the target.
+  g.fillStyle(EYE, 1);   g.fillRect(20, 7, 2, 2); g.fillRect(23, 7, 2, 2);
+  g.fillStyle(PUPIL, 1); g.fillRect(21, 7, 1, 2); g.fillRect(24, 7, 1, 2);
+  g.layer('nose');
+  g.fillStyle(NOSE, 1);     g.fillRect(25, 9, 1, 1);
+  g.fillStyle(BLACK.lo, 1); g.fillRect(24, 9, 1, 1);
+  g.fillStyle(0xffffff, 0.7); g.fillRect(26, 8, 1, 1);
+}
+
 export function buildCatTextures(scene, key, look) {
   // Cats pad smoothly — no body bob, almost no leg lift, tail mostly still. Idle
   // holds an alert tail-up pose with a slow tip flick; walking drops to the relaxed
@@ -144,4 +335,32 @@ export function buildCatTextures(scene, key, look) {
     gen(scene, `${key}_${f.name}`, CAT_W * ART_SCALE, CAT_H * ART_SCALE,
       g0 => drawCat(scaledGraphics(g0), f.bob, f.legs, f.tail, f.high, look));
   });
+
+  // Eating (#198): head-down at a dropped fish pile, legs planted. Two frames give
+  // a small head-bob "chew" between mouthfuls.
+  const eatFrames = [
+    { name: 'eat_0', legs: [0, 0, 0, 0], dip: 2 },
+    { name: 'eat_1', legs: [0, 0, 0, 0], dip: 3 },  // dips a touch lower — the bob
+  ];
+  eatFrames.forEach(f => {
+    gen(scene, `${key}_${f.name}`, CAT_W * ART_SCALE, CAT_H * ART_SCALE,
+      g0 => drawCatEat(scaledGraphics(g0), 0, f.legs, f.dip, look));
+  });
+
+  // Napping (#198/#90): curled-up loaf pose for the barn go-home fade. Two frames
+  // give a slow one-pixel breathing rise/fall.
+  const napFrames = [
+    { name: 'nap_0', breathe: 0 },
+    { name: 'nap_1', breathe: 1 },
+  ];
+  napFrames.forEach(f => {
+    gen(scene, `${key}_${f.name}`, CAT_W * ART_SCALE, CAT_H * ART_SCALE,
+      g0 => drawCatNap(scaledGraphics(g0), f.breathe, look));
+  });
+
+  // Pounce (#198): a single one-shot lunge frame for the fishing catch attempt
+  // (catAI.js `_catFishAttempt`) — low, stretched-forward body, ears back, tail
+  // flagged up for balance. Reuses the walk leg-lift shape for a mid-lunge stride.
+  gen(scene, `${key}_pounce_0`, CAT_W * ART_SCALE, CAT_H * ART_SCALE,
+    g0 => drawCatPounce(scaledGraphics(g0), look));
 }

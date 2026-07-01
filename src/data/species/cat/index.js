@@ -55,7 +55,10 @@ export const CAT = {
   // World spawn (#167 B4) — read by creatures.js buildAnimals so adding an animal is
   // data, not a hardcoded spawn. Spawns from the persisted `allCats` roster (rosters.js)
   // so its customizer look + happiness survive reloads; visual params drive the
-  // shadow/animation; one placement.
+  // shadow/animation; one placement. `eatFps` now drives a REAL head-down eat pose
+  // (catArt.js `drawCatEat`, #198) — creatures.js auto-detects the `cat_eat_0` texture
+  // and stops aliasing to idle, so the cat visibly eats when seekFood reaches a
+  // dropped fish pile via the shared horseGoEat primitive (#202).
   spawn: {
     inWorld: true,
     superSampled: true, // drawn on the ART_SCALE grid — display at S/ART_SCALE

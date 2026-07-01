@@ -77,7 +77,10 @@ export const WithCatAI = (Base) => class extends Base {
 
   // One watch-then-pounce cycle. The cat always comes up empty (#201): a splash and a
   // ripple, never a caught fish — so nothing is ever harmed and fishing doesn't feed
-  // the cat. If pounces remain it lines up another, else it gives up for now.
+  // the cat. If pounces remain it lines up another, else it gives up for now. The
+  // lunge itself now plays a real crouch→pounce pose (#198, catArt.js drawCatPounce)
+  // instead of the plain idle "watching" frame, so the catch attempt reads as an
+  // actual pounce, not a static crouch that just slides forward and back.
   _catFishAttempt(a, spot, tries) {
     if (a.state !== 'fishing' || !a.sprite.active) return;
     if (tries <= 0) { this._catFishDone(a); return; }
@@ -87,12 +90,22 @@ export const WithCatAI = (Base) => class extends Base {
       const [bx, by] = spot.bank;
       // Pounce: a quick lunge toward the water and back.
       const px = a.sprite.x - spot.nrm[0] * 16, py = a.sprite.y - spot.nrm[1] * 16;
+      // One-shot pose swap (not a Phaser anim — a single frame is enough to read as
+      // "lunging" for the short tween below). Stop the running idle anim first, or
+      // its next tick would immediately overwrite the texture we just set. Falls
+      // back to whatever's already playing (the idle crouch) if a species has no
+      // pounce frame.
+      if (this.textures.exists(`${a.key}_pounce_0`)) {
+        a.sprite.anims.stop();
+        a.sprite.setTexture(`${a.key}_pounce_0`);
+      }
       playDrink(); // splash
       this.tweens.add({
         targets: a.sprite, x: px, y: py, duration: 170, yoyo: true, ease: 'Quad.easeOut',
         onComplete: () => {
           if (a.state !== 'fishing' || !a.sprite.active) return;
           this._fishRipple(bx, by);                 // always comes up empty — just a ring
+          a.sprite.play(`idle_${a.key}`, true);      // back to the crouch-and-watch pose
           this._catFishAttempt(a, spot, tries - 1);
         },
       });

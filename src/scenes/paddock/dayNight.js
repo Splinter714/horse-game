@@ -247,7 +247,9 @@ export const WithDayNight = (Base) => class extends Base {
 
   // Nightfall: the cat heads home to the barn to sleep (#90), pathing there
   // around obstacles, then slipping inside (fade up + out of view) like the
-  // chickens roost in the coop.
+  // chickens roost in the coop. Curls into its nap pose (#198, catArt.js
+  // drawCatNap) for the fade if the species has one — a species without a nap
+  // pose falls back to idle, so this stays safe for any future world-roamer.
   catGoHome(a) {
     if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
     if (a._sleepTimer) { this.time.removeEvent(a._sleepTimer); a._sleepTimer = null; }
@@ -259,7 +261,8 @@ export const WithDayNight = (Base) => class extends Base {
       if (a.state !== 'homing' || !a.sprite.active) return;
       a.shadow.setVisible(false);
       a.sprite.setFlipX(false);
-      a.sprite.play(`idle_${a.key}`, true);
+      const napKey = `nap_${a.key}`;
+      a.sprite.play(this.anims.exists(napKey) ? napKey : `idle_${a.key}`, true);
       a.wanderTween = this.tweens.add({
         targets: a.sprite, y: ey - 16, alpha: 0, // step up into the barn, fading
         duration: 600, ease: 'Sine.easeIn',

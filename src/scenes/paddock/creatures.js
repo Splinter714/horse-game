@@ -164,6 +164,17 @@ export const WithCreatures = (Base) => class extends Base {
           frameRate: hasEat ? eatFps : 2, repeat: -1,
         });
       }
+      // A curled-up nap pose (#198), for a species that declares one (the cat's
+      // barn go-home fade, dayNight.js catGoHome). Optional — only built if the
+      // species' art has `<key>_nap_0` frames; no-op (and no anim) otherwise, so
+      // this stays a no-op for every species that hasn't drawn one yet.
+      if (this.textures.exists(`${key}_nap_0`)) {
+        this.anims.create({
+          key: `nap_${key}`,
+          frames: [{ key: `${key}_nap_0` }, { key: `${key}_nap_1` }],
+          frameRate: 1, repeat: -1,
+        });
+      }
     }
 
     const shadow = this.add.image(startX, startY, 'shadow')
