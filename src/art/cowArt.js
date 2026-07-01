@@ -6,7 +6,7 @@
 // palettes. An arg-less call falls back to DEFAULT_LOOK (the original Holstein), so
 // BootScene and the art-preview gallery render the cow unchanged.
 
-import { makeLeg, idleWalkLegs, buildFrames } from './_frames.js';
+import { gen, scaledGraphics, ART_SCALE, makeLeg, idleWalkLegs, buildFrames } from './_frames.js';
 
 export const COW_W = 56, COW_H = 40;
 
@@ -106,6 +106,80 @@ function drawCow(g, bob, [lhf, lhn, lff, lfn], look) {
   g.fillStyle(0xffffff, 0.85); g.fillRect(50, 14+bob, 1, 1);
 }
 
+// Cow eating/drinking: head/neck drop down to ground level so the muzzle reaches
+// the grass, body/legs stay planted — mirrors the horse/foal eat pose treatment.
+function drawCowEat(g, bob, look) {
+  const coat = look?.coat || DEFAULT_LOOK.coat;
+  const SPOT = (look?.spots || DEFAULT_LOOK.spots).mid;
+  const { hi, mid, shad, legFar, legNear } = coat;
+
+  g.layer('legs');
+  cowLegSpotted(g, 6,  0, legFar,  bob, true,  SPOT); cowLegSpotted(g, 33, 0, legFar,  bob, false, SPOT);
+  cowLegSpotted(g, 11, 0, legNear, bob, false, SPOT); cowLegSpotted(g, 37, 0, legNear, bob, true,  SPOT);
+
+  g.layer('tail');
+  g.fillStyle(0xb09080, 1); g.fillRect(3, 18+bob, 2, 8);
+  g.fillStyle(0x3a3030, 1); g.fillRect(2, 25+bob, 3, 5);
+
+  g.layer('udder');
+  g.fillStyle(0xf4b4b4, 1); g.fillRect(11, 28+bob, 13, 5);
+  g.fillStyle(0xe89898, 1); g.fillRect(11, 31+bob, 13, 2);
+  g.fillStyle(0xe08080, 1);
+  g.fillRect(16, 33+bob, 2, 2); g.fillRect(19, 33+bob, 2, 2); g.fillRect(22, 33+bob, 2, 2);
+
+  g.layer('body');
+  g.fillStyle(mid, 1); g.fillRect(5, 12+bob, 38, 18);
+  g.fillStyle(hi, 1); g.fillRect(5, 12+bob, 38, 3);
+  g.fillStyle(shad, 1); g.fillRect(5, 27+bob, 38, 3);
+  g.fillStyle(mid, 1); g.fillRect(4, 14+bob, 1, 12); // rump curve
+
+  g.layer('spots');
+  g.fillStyle(SPOT, 1);
+  g.fillRect(6,  13+bob, 12, 12);
+  g.fillRect(31, 14+bob, 9,  11);
+  g.fillRect(20, 19+bob, 6,  8);
+
+  g.layer('neck');
+  // Neck angled down from the shoulder toward the ground (head lowered to graze).
+  g.fillStyle(mid, 1);
+  g.fillRect(39, 16+bob, 5, 12);   // shoulder end
+  g.fillRect(43, 20+bob, 4, 11);   // mid
+  g.fillRect(46, 25+bob, 4, 8);    // head end
+  g.fillStyle(hi, 1);
+  g.fillRect(39, 16+bob, 5, 2); g.fillRect(43, 20+bob, 4, 2); g.fillRect(46, 25+bob, 4, 2);
+  g.fillStyle(shad, 1);
+  g.fillRect(39, 26+bob, 5, 2); g.fillRect(43, 29+bob, 4, 2);
+
+  g.layer('head');
+  // Head lowered — staggered steps down toward the ground, muzzle lowest.
+  const headY = 25 + bob;
+  g.fillStyle(mid, 1); g.fillRect(47, headY, 9, 8);
+  g.fillStyle(hi, 1);  g.fillRect(47, headY, 9, 2);
+  g.fillStyle(SPOT, 1); g.fillRect(47, headY, 8, 3); // Holstein face patch on the lowered poll
+
+  g.layer('muzzle');
+  g.fillStyle(0xf4c4a8, 1); g.fillRect(49, headY + 6, 6, 6);
+  g.fillStyle(0xe0a888, 1); g.fillRect(49, headY + 6, 6, 1);
+  g.fillStyle(0xc88870, 1); g.fillRect(51, headY + 9, 1, 2); g.fillRect(53, headY + 9, 1, 2);
+
+  g.layer('horns');
+  g.fillStyle(0xe8d8a0, 1); g.fillRect(48, headY - 3, 2, 3); g.fillRect(52, headY - 3, 2, 3);
+  g.fillStyle(0xd8c488, 1); g.fillRect(48, headY - 3, 2, 1); g.fillRect(52, headY - 3, 2, 1);
+
+  g.layer('ear');
+  g.fillStyle(mid, 1); g.fillRect(45, headY + 1, 3, 3);
+  g.fillStyle(0xf4b0a0, 1); g.fillRect(45, headY + 2, 2, 2);
+
+  g.layer('eye');
+  g.fillStyle(0x1a0e00, 1); g.fillRect(50, headY + 4, 2, 2);
+  g.fillStyle(0xffffff, 0.85); g.fillRect(50, headY + 4, 1, 1);
+}
+
 export function buildCowTextures(scene, key, look) {
   buildFrames(scene, key, COW_W, COW_H, (g, bob, legs) => drawCow(g, bob, legs, look), idleWalkLegs(3));
+
+  ['eat_0', 'eat_1'].forEach((name, i) => {
+    gen(scene, `${key}_${name}`, COW_W * ART_SCALE, COW_H * ART_SCALE, g0 =>
+      drawCowEat(scaledGraphics(g0), i, look));
+  });
 }
