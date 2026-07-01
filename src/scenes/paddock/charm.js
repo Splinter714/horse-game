@@ -151,6 +151,43 @@ export const WithCharm = (Base) => class extends Base {
     });
   }
 
+  // ─── Pig wallow (#197 — a low-priority AI-list behavior, not an onSettle hook) ──
+
+  // A content, off-cooldown pig flops and rolls in the mud: play the dedicated
+  // wallow frames (pigArt.js) while rocking side to side, kick up a couple of dust
+  // puffs (same shared visual language as the horse roll), then get back up.
+  // Returns true — this always claims the pig once `wallow.test` has fired.
+  pigGoWallow(a) {
+    a.state = 'wallowing';
+    a._lastWallow = this.time.now;
+    if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
+    const sprite = a.sprite;
+
+    sprite.play(`wallow_${a.key}`, true);
+    const baseAngle = sprite.angle;
+    const rock = this.tweens.add({
+      targets: sprite,
+      angle: baseAngle + 6,
+      duration: 220, yoyo: true, repeat: 3, ease: 'Sine.easeInOut',
+    });
+
+    this._dustPuff(sprite.x, sprite.y);
+    this.time.delayedCall(CHARM.WALLOW_MS / 2, () => {
+      if (a.state === 'wallowing') this._dustPuff(sprite.x, sprite.y);
+    });
+
+    this.time.delayedCall(CHARM.WALLOW_MS, () => {
+      rock.stop();
+      sprite.angle = baseAngle;
+      if (a.state === 'wallowing') {
+        sprite.play(`idle_${a.key}`, true);
+        a.state = 'idle';
+        this.scheduleAnimalWander(a, Phaser.Math.Between(1500, 3500));
+      }
+    });
+    return true;
+  }
+
   // ─── Shared nap visuals (pig flop + cat curl) ───────────────────────────────
 
   // Settle a sprite into a cozy nap: a gentle squash (no lying-down art needed) and

@@ -14,6 +14,7 @@ import * as horseBehaviors from './horse/behaviors.js';
 import * as chickenBehaviors from './chicken/behaviors.js';
 import * as catBehaviors from './cat/behaviors.js';
 import * as dogBehaviors from './dog/behaviors.js';
+import * as pigBehaviors from './pig/behaviors.js';
 
 export const SPECIES = {
   horse: HORSE,
@@ -43,7 +44,9 @@ export const BEHAVIORS = {
   // The pig is a grazer like the cow, so she reuses the horse behavior modules too;
   // her `behaviors` list (pig/index.js) picks the subset she runs. Her pickier diet
   // (apples/carrots, no hay) is enforced by the food data, not a separate behavior.
-  pig: indexById(horseBehaviors),
+  // She also gets her own `wallow` module (#197) — a low-priority charm behavior
+  // (mud-roll), layered on top of the reused horse modules.
+  pig: { ...indexById(horseBehaviors), ...indexById(pigBehaviors) },
   // The sheep is a grazer like the cow/pig — reuses the horse behavior modules; her
   // `behaviors` list (sheep/index.js) picks the subset (hay/water/graze, no begging).
   sheep: indexById(horseBehaviors),

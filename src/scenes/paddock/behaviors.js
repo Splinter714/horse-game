@@ -84,6 +84,12 @@ export const WithBehaviors = (Base) => class extends Base {
       begHunger: BEG.HUNGER,
       begNoticeDist: BEG.NOTICE_DIST,
       begThrottleMs: BEG.THROTTLE_MS,
+      // Pig wallow (#197): purely cosmetic, so it just needs daytime + a per-pig
+      // cooldown — shared via ctx like the begging tuning above.
+      isNight: !!this.isNight,
+      lastWallow: h._lastWallow ?? null,
+      wallowChance: CHARM.WALLOW_CHANCE,
+      wallowCooldown: CHARM.WALLOW_COOLDOWN,
     };
   }
 

@@ -103,6 +103,14 @@ export const CHARM = {
   // Pig sunbathe flop (an onSettle nap, like the horse roll / chicken peck).
   PIG_NAP_CHANCE: 0.22, // odds a pig naps when it finishes a wander (daytime only)
   NAP_MS: [4000, 7000], // how long a sunbathe / curl-up lasts
+  // Pig wallow (#197): an occasional charm behavior in the AI priority list — a
+  // content, not-hungry-or-thirsty pig sometimes flops and rolls in a muddy spot,
+  // like the horse roll but its own dedicated art + its own low-priority behavior
+  // module (rather than an onSettle hook) so it competes with (but never overrides)
+  // seekFood/seekWater/graze.
+  WALLOW_CHANCE:   0.18,  // odds a wallow-eligible pig wallows on a given AI tick
+  WALLOW_COOLDOWN: 20000, // min ms between wallows (keeps it occasional)
+  WALLOW_MS: 1800,        // how long the flop/roll lasts
   // Night settling: non-horse pasture animals drift in to bed down with the herd;
   // the dog beds down near the barn; the cat curls by a companion or the barn.
   CLUSTER_CHANCE: 0.7,  // odds an animal drifts to the night huddle (else rests put)
