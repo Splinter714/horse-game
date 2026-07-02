@@ -113,6 +113,15 @@ export const WithWorld = (Base) => class extends Base {
     // readers that just ask "is there water?" — kept in sync by _setTroughLevel (#103).
     this.props.trough = { x: tx, y: ty, sprite: troughSprite, level: 0, filled: false };
 
+    // Trash can (#191) — a dented metal bin the ambient raccoon rummages in at
+    // night. Purely a charming prop: no stock, no gathering, no economy. Placed in
+    // the open farm band near the farm stand (the "house/stand" area) so the
+    // nocturnal mischief happens somewhere the player passes.
+    const trashX = 1470, trashY = 720;
+    const trashSprite = this.add.image(trashX, trashY, 'trashCan')
+      .setScale(S).setDepth(trashY).setOrigin(0.5, 1);
+    this.props.trashCan = { x: trashX, y: trashY, sprite: trashSprite, spill: null, open: false };
+
     // Spinning wheel (#233) — the crafting station that spins a basket of raw wool
     // into yarn (worth more at the stand). Placed on the farm band near the stand so
     // the shear → spin → sell loop is close together. `craft` names the conversion
@@ -380,6 +389,13 @@ export const WithWorld = (Base) => class extends Base {
     // a nest to lay. Other creatures still treat nests as solid.
     for (const n of this.props.nests) {
       this.obstacles.push({ x: n.x - 18, y: n.y - 12, w: 36, h: 24, isNest: true, home: 'chicken' });
+    }
+
+    // Trash can (#191) — solid drum footprint. Sprite 32×46 at S=2 (origin 0.5,1);
+    // the drum body is the lower ~38px of the art → ~48×56 solid, bottom at y.
+    if (this.props.trashCan) {
+      const t = this.props.trashCan;
+      this.obstacles.push({ x: t.x - 24, y: t.y - 56, w: 48, h: 56, isTrashCan: true });
     }
 
     // Gathering source obstacles — solid base centered on x, bottom at y.

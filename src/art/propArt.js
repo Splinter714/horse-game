@@ -4,6 +4,11 @@
 
 import { gen } from './_frames.js';
 
+// Raw Phaser Graphics has no `.layer()` — only the dissect capture recorder does.
+// Shim a no-op so prop draw fns can carry dissect tags (per CLAUDE.md) without
+// throwing in the real texture build.
+const withLayer = (g) => (g.layer ??= () => {}, g);
+
 export function buildPropTextures(scene) {
   // --- hay bale ---
   // A baled block of straw: chamfered corners, packed straw striations, a sunlit
@@ -379,5 +384,99 @@ export function buildPropTextures(scene) {
     g.fillStyle(water, 1); g.fillEllipse(13, 6, 14, 5);
     g.fillStyle(waterHi, 0.85); g.fillEllipse(10, 5, 5, 1.6); // sunlit ripple
     g.fillStyle(waterHi, 0.6); g.fillEllipse(16, 6, 3, 1);
+  });
+
+  // --- Trash can (#191) ---------------------------------------------------
+  // A dented galvanized-metal bin the raccoon rummages in: a tapered drum with
+  // vertical ribs, two side handles, and a domed lid. Origin bottom-centre (set by
+  // the placer). Two states — `trashCan` (lid on, tidy) and `trashCanOpen` (lid
+  // tipped off beside it with rubbish poking out) — swapped as the raccoon works.
+  const trashDrum = (g, y0) => {
+    const metal = 0x9aa0a6, metalHi = 0xc3c8cc, metalLo = 0x6b7076, rib = 0x7f858b, dent = 0x5c6167;
+    // ground shadow
+    g.layer('shadow');
+    g.fillStyle(0x000000, 0.14); g.fillEllipse(16, 43, 30, 6);
+    // drum body — slightly tapered (wider at the rim), rounded foot
+    g.layer('body');
+    g.fillStyle(metalLo, 1); g.fillEllipse(16, 41, 26, 7);   // foot
+    g.fillStyle(metal, 1);   g.fillRect(4, y0, 24, 41 - y0);  // sides
+    g.fillStyle(metal, 1);   g.fillEllipse(16, 41, 24, 6);    // rounded base
+    // vertical ribs / corrugations
+    g.layer('ribs');
+    g.fillStyle(metalHi, 1); g.fillRect(6, y0 + 2, 1, 36); g.fillRect(11, y0 + 2, 1, 36);
+    g.fillStyle(rib, 1);     g.fillRect(9, y0 + 2, 1, 36); g.fillRect(20, y0 + 2, 1, 36);
+    g.fillStyle(metalHi, 1); g.fillRect(23, y0 + 2, 1, 36);
+    g.fillStyle(metalLo, 1); g.fillRect(4, y0, 1, 41 - y0); g.fillRect(27, y0, 1, 41 - y0); // shaded edges
+    // a couple of dents for character
+    g.layer('dents');
+    g.fillStyle(dent, 0.8); g.fillEllipse(13, y0 + 18, 4, 3); g.fillEllipse(22, y0 + 28, 3, 2);
+    // two riveted side handles
+    g.layer('handles');
+    g.fillStyle(metalLo, 1); g.fillRect(2, y0 + 8, 3, 2); g.fillRect(27, y0 + 8, 3, 2);
+    g.fillStyle(metalHi, 1); g.fillRect(2, y0 + 8, 1, 1); g.fillRect(29, y0 + 8, 1, 1);
+  };
+
+  gen(scene, 'trashCan', 32, 46, (g0) => {
+    const g = withLayer(g0);
+    const metal = 0x9aa0a6, metalHi = 0xc3c8cc, metalLo = 0x6b7076;
+    trashDrum(g, 8);
+    // domed lid seated on top, with a knob handle
+    g.layer('lid');
+    g.fillStyle(metalLo, 1); g.fillEllipse(16, 8, 30, 8);   // lid underside/rim
+    g.fillStyle(metal, 1);   g.fillEllipse(16, 6, 28, 7);   // lid dome
+    g.fillStyle(metalHi, 1); g.fillEllipse(14, 5, 16, 3);   // sunlit top
+    g.fillStyle(metalLo, 1); g.fillRect(15, 1, 2, 3);       // knob stem
+    g.fillStyle(metal, 1);   g.fillEllipse(16, 1, 6, 3);    // knob
+    g.fillStyle(metalHi, 1); g.fillEllipse(15, 0, 3, 1.5);
+  });
+
+  gen(scene, 'trashCanOpen', 32, 46, (g0) => {
+    const g = withLayer(g0);
+    const metal = 0x9aa0a6, metalHi = 0xc3c8cc, metalLo = 0x6b7076;
+    const dark = 0x2a2d30, banana = 0xe6c33a, paper = 0xe8e4d6, apple = 0xb84040;
+    trashDrum(g, 8);
+    // open mouth — dark interior at the rim
+    g.layer('mouth');
+    g.fillStyle(metalLo, 1); g.fillEllipse(16, 8, 28, 8);
+    g.fillStyle(dark, 1);    g.fillEllipse(16, 8, 22, 6);
+    // rubbish poking out of the open top
+    g.layer('rubbish');
+    g.fillStyle(banana, 1); g.fillTriangle(10, 8, 6, 2, 13, 6);   // banana peel
+    g.fillStyle(paper, 1);  g.fillRect(15, 2, 5, 5);              // crumpled paper
+    g.fillStyle(0xd2cebd, 1); g.fillRect(16, 3, 3, 3);
+    g.fillStyle(apple, 1);  g.fillCircle(22, 6, 2.5);             // apple core
+    g.fillStyle(0x6a3d1a, 1); g.fillRect(22, 2, 1, 2);
+    // the tipped-off lid leaning against the base on the left
+    g.layer('lid');
+    g.fillStyle(metalLo, 1); g.fillEllipse(3, 40, 12, 20);
+    g.fillStyle(metal, 1);   g.fillEllipse(3, 40, 9, 17);
+    g.fillStyle(metalHi, 1); g.fillEllipse(2, 38, 3, 8);
+    g.fillStyle(metalLo, 1); g.fillRect(0, 39, 2, 3);            // knob (on its side)
+  });
+
+  // A small scatter of spilled rubbish the raccoon strews on the ground while it
+  // rummages (cleared when it tidies off). Origin centre.
+  gen(scene, 'trashSpill', 24, 12, (g0) => {
+    const g = withLayer(g0);
+    g.layer('spill');
+    g.fillStyle(0x000000, 0.08); g.fillEllipse(12, 10, 22, 3);
+    g.fillStyle(0xe8e4d6, 1); g.fillRect(3, 5, 5, 4);            // paper wad
+    g.fillStyle(0xd2cebd, 1); g.fillRect(4, 6, 2, 2);
+    g.fillStyle(0xe6c33a, 1); g.fillTriangle(11, 9, 9, 3, 15, 7); // banana peel
+    g.fillStyle(0xb84040, 1); g.fillCircle(18, 7, 2.5);          // apple core
+    g.fillStyle(0x6a3d1a, 1); g.fillRect(18, 3, 1, 3);
+    g.fillStyle(0x5a7a3a, 1); g.fillRect(20, 8, 3, 2);           // a bit of green scrap
+  });
+
+  // A little morsel the raccoon clutches while it scurries off with its "loot"
+  // (cosmetic theft #191 — it takes nothing real). A rosy apple with a leaf; small
+  // enough to read as held-in-paws. Origin centre.
+  gen(scene, 'raccoonLoot', 10, 10, (g0) => {
+    const g = withLayer(g0);
+    g.layer('loot');
+    g.fillStyle(0xd64545, 1); g.fillCircle(5, 6, 4);
+    g.fillStyle(0xe87a7a, 1); g.fillCircle(3, 4, 1.4);          // highlight
+    g.fillStyle(0x6a3d1a, 1); g.fillRect(5, 1, 1, 3);           // stem
+    g.fillStyle(0x3b8a1c, 1); g.fillTriangle(6, 2, 9, 1, 8, 4); // leaf
   });
 }

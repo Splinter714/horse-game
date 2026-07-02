@@ -7,6 +7,7 @@ import {
 import { INTERACT_DIST } from './paddock/constants.js';
 import { WithWorld } from './paddock/world.js';
 import { WithWildlife } from './paddock/wildlife.js';
+import { WithRaccoon } from './paddock/raccoon.js';
 import { WithCatAI } from './paddock/catAI.js';
 import { WithCreatures } from './paddock/creatures.js';
 import { WithFlock } from './paddock/flock.js';
@@ -32,9 +33,9 @@ import { WithInput } from './paddock/input.js';
 import { applyDpr } from './uiUtils.js';
 
 export default class PaddockScene
-  extends WithWorld(WithWildlife(WithCatAI(WithCharm(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithDayNight(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
+  extends WithWorld(WithWildlife(WithRaccoon(WithCatAI(WithCharm(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithDayNight(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
     WithEffects(WithPersistence(WithRendering(WithWorldObjects(WithCareActions(WithInteraction(WithInput(
-    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene)))))))))))))))))))))))) {
+    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene))))))))))))))))))))))))) {
   constructor() {
     super('PaddockScene');
   }
@@ -54,7 +55,7 @@ export default class PaddockScene
     this.promptsOn = loadUiSettings().showPrompts;
 
     // World interactables
-    this.props = { trough: null, hayPiles: [], seedPiles: [], nests: [], sources: [], barn: null };
+    this.props = { trough: null, hayPiles: [], seedPiles: [], nests: [], sources: [], barn: null, trashCan: null };
     this.inventory = {};
     this.money = 0;
     this.farmStand = null;
