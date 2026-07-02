@@ -77,13 +77,13 @@ export const WithWorld = (Base) => class extends Base {
     this.add.image(240, 280, 'house').setScale(S).setDepth(279).setOrigin(0.5, 1);
     this.props.house = { x: 240, y: 250 };
 
-    // Barn (#241) — the horses' building (stalls + tack room). A separate, distinct
-    // structure from the house: purely a world prop for now (visual + collision);
-    // its in-world cutaway interior is #35. NO home-base semantics live here.
-    // Placed on the open farm band between the house and the pasture gate.
-    const barnX = 520, barnY = 740;
-    this.add.image(barnX, barnY, 'barn').setScale(S).setDepth(barnY).setOrigin(0.5, 1);
-    this.props.barn = { x: barnX, y: barnY - 30 };
+    // Barn (#241 + #35) — the horses' building, now a WALK-IN structure with an
+    // in-world cutaway interior (stalls + tack room). Built in the barn concern mixin
+    // (paddock/barn.js): it lays down the interior floor/stalls under the world, the
+    // front-façade overlay that fades out when you step inside, the collision walls
+    // with a south doorway, and loads persisted stall assignments. NO home-base
+    // semantics live here (those anchor on the HOUSE). `this.props.barn` is set there.
+    this.buildBarn(); // origin at the south doorway; places props.barn
 
     // Fence line near the house
     for (let i = 0; i < 6; i++) {
@@ -377,9 +377,9 @@ export const WithWorld = (Base) => class extends Base {
     this.obstacles = [
       // House walls (#241) (origin 0.5,1 at 240,280; sprite 84×66 at S=2 → 168×132; walls ~lower 90px)
       { x: 162, y: 192, w: 156, h: 88 },
-      // Barn walls (#241) — the separate horse barn (sprite origin 0.5,1 at 520,740;
-      // 96×72 at S=2 → 192×144; solid lower ~100px of the building → y 640..740).
-      { x: 424, y: 640, w: 192, h: 100 },
+      // Barn walls (#35) — the walk-in barn's perimeter with a south doorway gap.
+      // Registered as this.barnObstacles by buildBarn (paddock/barn.js); spread in here.
+      ...(this.barnObstacles || []),
       // Coop (origin 0.5,1 at 930,400; sprite 64×52 at S=2 → 128×104).
       // home:'chicken' → the coop is the chickens' home, so it's excluded from
       // their personal obstacle list (they're allowed to walk in). See _obstaclesFor.

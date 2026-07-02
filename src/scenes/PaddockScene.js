@@ -7,6 +7,7 @@ import {
 import { INTERACT_DIST } from './paddock/constants.js';
 import { WEATHER } from '../data/weather.js';
 import { WithWorld } from './paddock/world.js';
+import { WithBarn } from './paddock/barn.js';
 import { WithWildlife } from './paddock/wildlife.js';
 import { WithRaccoon } from './paddock/raccoon.js';
 import { WithAmbientEvents } from './paddock/ambientEvents.js';
@@ -37,9 +38,9 @@ import { WithInput } from './paddock/input.js';
 import { applyDpr } from './uiUtils.js';
 
 export default class PaddockScene
-  extends WithWorld(WithWildlife(WithRaccoon(WithAmbientEvents(WithCatAI(WithCharm(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithShop(WithDayNight(WithWeather(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
+  extends WithWorld(WithBarn(WithWildlife(WithRaccoon(WithAmbientEvents(WithCatAI(WithCharm(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithShop(WithDayNight(WithWeather(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
     WithEffects(WithPersistence(WithRendering(WithWorldObjects(WithCareActions(WithInteraction(WithInput(
-    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene)))))))))))))))))))))))))))) {
+    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene))))))))))))))))))))))))))))) {
   constructor() {
     super('PaddockScene');
   }
@@ -75,6 +76,7 @@ export default class PaddockScene
     this.buildWorld();
     this.buildObstacles();
     this.buildHorses();
+    this._barnReseat(); // seat any horses saved into barn stalls (#35)
     this.buildAnimals();
     this.buildPlayer();
     this.buildFarmStand();
@@ -196,6 +198,7 @@ export default class PaddockScene
     this._syncActionButtons();
     this.separateHorses();
     this.depthSort();
+    this.updateBarnCutaway(delta); // fade the barn façade when the player steps inside (#35)
     this.updateWildlife();
     this.tickRegrowth();      // regrow shorn fleece once its timer completes (#233)
     this.tickDecay(delta);

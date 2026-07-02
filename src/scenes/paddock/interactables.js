@@ -152,11 +152,16 @@ export const WithInteractables = (Base) => class extends Base {
       }];
     };
 
-    this.interactables = [gate, house, shop, trough, sources, nests, farmStand, spinningWheel];
-    // Split by input: gate/house/shop are bare-hand "interact" targets (tap/click/E);
+    // Barn (#35) — bare-hand interact targets: one "assign horse" per stall + a
+    // passive tack-room hint. Built by the barn mixin (paddock/barn.js). Ignores the
+    // held item (assignment is a bare-hand interaction).
+    const barn = () => this._barnInteractables?.() ?? [];
+
+    this.interactables = [gate, house, shop, barn, trough, sources, nests, farmStand, spinningWheel];
+    // Split by input: gate/house/shop/barn are bare-hand "interact" targets (tap/click/E);
     // the rest require a carried tool/carrier and are triggered by Use (the
     // on-screen button / F / controller). See useActiveTool + handleTap.
-    this.interactWorld = [gate, house, shop];
+    this.interactWorld = [gate, house, shop, barn];
     this.toolWorld     = [trough, sources, nests, farmStand, spinningWheel];
   }
 
