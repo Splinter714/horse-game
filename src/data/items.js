@@ -12,7 +12,7 @@ export const CARRIER_DEFS = {
   // animal that eats it, #136), so the basket's cap is just a safety ceiling, not a
   // limit you should hit. Kept finite (not Infinity) so it never trips serialization
   // or UI maths — but high enough that the demand always fits (and you can hoard eggs).
-  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'egg'] },
+  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'egg', 'wool', 'yarn'] },
   bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'catWater', 'milk'] },
 };
 
@@ -48,6 +48,13 @@ export const CONTENT_DEFS = {
   // Milk is produced by milking a well-cared-for cow into an empty bucket, then
   // sold at the farm stand (action 'sell', like eggs — see STAND_DEFS).
   milk:   { label: 'Milk',    icon: 'iconBucketMilk',   action: 'sell' },
+  // Wool is sheared from a sheep into a basket (like eggs — a solid), then either
+  // sold raw at the farm stand OR spun into yarn at the spinning wheel (#233).
+  // `craftsTo` names the processed content the spinning wheel converts it into.
+  wool:   { label: 'Wool',    icon: 'iconBasketWool',   action: 'sell', craftsTo: 'yarn' },
+  // Yarn is the processed form of wool — spun 1:1 at the spinning wheel — worth more
+  // at the stand than raw wool (the payoff for the extra crafting step, #233).
+  yarn:   { label: 'Yarn',    icon: 'iconBasketYarn',   action: 'sell' },
 };
 
 // How many of a food to gather in one fill-up (#136): one unit per live animal that

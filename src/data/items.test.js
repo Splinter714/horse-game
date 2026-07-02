@@ -9,7 +9,8 @@ describe('carrier definitions', () => {
     // Basket cap is intentionally large (effectively unlimited): a gather only pulls
     // what's needed (#136), so the cap is just a safety ceiling, not a play limit.
     expect(CARRIER_DEFS.basket.capacity).toBeGreaterThanOrEqual(99);
-    expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'catFood', 'egg']);
+    // wool/yarn added with shearing (#233) — solids, so they ride in the basket.
+    expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'catFood', 'egg', 'wool', 'yarn']);
     expect(CARRIER_DEFS.bucket.capacity).toBe(1);
     expect(CARRIER_DEFS.bucket.accepts).toEqual(['water', 'catWater', 'milk']); // milk added with the cow (#cow)
   });
@@ -32,6 +33,11 @@ describe('content definitions', () => {
     // even though its action is 'water', not 'feed'.
     expect(CONTENT_DEFS.catWater.action).toBe('water');
     expect(CONTENT_DEFS.catWater.feeds).toEqual(['cat']);
+    // Wool and yarn are sellable produce (#233); wool also spins INTO yarn (craftsTo).
+    expect(CONTENT_DEFS.wool.action).toBe('sell');
+    expect(CONTENT_DEFS.wool.craftsTo).toBe('yarn');
+    expect(CONTENT_DEFS.yarn.action).toBe('sell');
+    expect(CONTENT_DEFS.yarn.craftsTo).toBeUndefined(); // yarn is the end product
   });
 
   it('every feed-action content lists the species that eat it; egg/plain-water don\'t', () => {

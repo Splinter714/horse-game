@@ -29,11 +29,27 @@ export const SHEEP = {
 
   // Care actions. Feed and water are applied by the grazing/drinking AI (she walks to
   // dropped hay and to the trough/stream) — not by direct carrier use. Pet is the
-  // Interact action. No daily produce (no `produces`) — wool shearing is a future idea.
+  // Interact action.
   actions: {
     feed:  { stat: 'hunger',    amount: 35, care: 'fed',     label: 'Feed',  sound: 'eat',   icon: 'iconFeed'  },
     water: { stat: 'thirst',    amount: 40, care: 'watered', label: 'Water', sound: 'drink', icon: 'iconWater' },
     pet:   { stat: 'happiness', amount: 7,  care: 'loved',   label: 'Love',  sound: 'chime', icon: 'iconHeart' },
+  },
+
+  // Produce (#233): shearing yields raw wool into a BASKET (a solid, like eggs —
+  // `carrier: 'basket'`, unlike the cow's milk-into-a-bucket). Unlike the cow's
+  // once-a-DAY milk gated on daily care, wool is on a REGROWTH TIMER — `mode:
+  // 'cooldown'` means she can be sheared again once `cooldownMs` has elapsed. Between
+  // shearing and regrowth she shows a shorn look (see art `look.shorn`). The generic
+  // Animal model reads this for canProduce/markProduced/isShorn; the generic care
+  // dispatch reads verb/sound/icon/carrier to label the Use prompt, play the harvest
+  // sound, and float the icon — all data, no sheep code. `readyAtStart` lets a fresh
+  // sheep be sheared right away so the mechanic is easy to try. Raw wool sells at the
+  // stand, or spins into yarn at the spinning wheel (items.js `craftsTo`).
+  produces: {
+    content: 'wool', mode: 'cooldown', cooldownMs: 6 * 60 * 1000,
+    carrier: 'basket', readyAtStart: true,
+    verb: 'Shear', sound: 'brush', icon: 'iconBasketWool',
   },
 
   // Track these care flags each day; missing any (yesterday) makes her wake neglected.

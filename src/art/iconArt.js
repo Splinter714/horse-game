@@ -185,6 +185,27 @@ export function buildIconTextures(scene) {
     g.fillEllipse(7, 7, 5, 6); g.fillEllipse(13, 7, 5, 6); g.fillEllipse(10, 5, 5, 6);
     g.fillStyle(0xfffdf5, 1); g.fillEllipse(6, 5, 2, 2); g.fillEllipse(12, 5, 2, 2);
   });
+  // Basket of raw wool — soft cream fleece clumps mounded above the rim (#233).
+  gen(scene, 'iconBasketWool', 20, 20, (g) => {
+    drawBasketBody(g);
+    g.fillStyle(0xf0ece8, 1);
+    g.fillCircle(7, 7, 3.4); g.fillCircle(13, 7, 3.4); g.fillCircle(10, 5, 3.6);
+    g.fillStyle(0xfbf9f6, 1); g.fillCircle(6, 5.5, 1.3); g.fillCircle(11, 4, 1.3); // fluffy highlights
+    g.fillStyle(0xddd8d2, 1); g.fillCircle(9, 8, 1.1); g.fillCircle(13, 8, 1.1);   // soft shade
+  });
+  // Basket of yarn — two wound balls of yarn (the processed form), warmer toned so
+  // it reads distinct from raw wool at a glance (#233).
+  gen(scene, 'iconBasketYarn', 20, 20, (g) => {
+    drawBasketBody(g);
+    const ball = (cx, cy, r, c, hi) => {
+      g.fillStyle(c, 1); g.fillCircle(cx, cy, r);
+      g.fillStyle(hi, 1);                 // wound strands crossing the ball
+      g.fillRect(cx - r, cy - 1, r * 2, 1); g.fillRect(cx - 1, cy - r, 1, r * 2);
+      g.fillRect(cx - r + 1, cy - r + 1, r * 2 - 2, 0.8);
+    };
+    ball(7, 7, 3.6, 0xd88a6a, 0xe8a888);   // terracotta ball
+    ball(13, 6, 3.4, 0x6f9bb8, 0x94bcd6);  // dusty-blue ball
+  });
 
   // Empty bucket — a metal pail tilted slightly forward so you see down into it.
   // The open mouth is a dark interior oval, so "empty" reads at a glance vs. the
@@ -269,6 +290,27 @@ export function buildIconTextures(scene) {
     g.fillStyle(0x5fa6d6, 1); g.fillRect(8, 2, 4, 2);
     g.fillStyle(0x5fa6d6, 1); g.fillRect(6, 12, 8, 3);
     g.fillStyle(0x9ae0f8, 1); g.fillRect(6, 12, 8, 1);
+  });
+
+  // Wool bundle — the saleable raw fleece on the farm-stand counter and the float
+  // icon when stocking wool (#233). A rounded cream clump tied with a band.
+  gen(scene, 'iconWool', 20, 20, (g) => {
+    g.fillStyle(0xf0ece8, 1);
+    g.fillCircle(7, 9, 4); g.fillCircle(13, 9, 4); g.fillCircle(10, 7, 4.5); g.fillCircle(10, 11, 4);
+    g.fillStyle(0xfbf9f6, 1); g.fillCircle(7, 6, 1.6); g.fillCircle(12, 5.5, 1.4); // top highlights
+    g.fillStyle(0xddd8d2, 1); g.fillCircle(8, 12, 1.4); g.fillCircle(13, 12, 1.4); // underside shade
+    g.fillStyle(0xc4bdb5, 1); g.fillRect(5, 13, 10, 1);                            // tie band
+  });
+
+  // Ball of yarn — the processed product on the counter / stock float (#233). One
+  // wound ball with a trailing strand, warmer toned than raw wool.
+  gen(scene, 'iconYarn', 20, 20, (g) => {
+    g.fillStyle(0xd88a6a, 1); g.fillCircle(10, 10, 6);        // ball
+    g.fillStyle(0xe8a888, 1);                                 // wound strands
+    g.fillRect(4, 9, 12, 1.2); g.fillRect(9, 4, 1.2, 12);
+    g.fillRect(5, 6, 10, 1); g.fillRect(5, 13, 10, 1);
+    g.fillStyle(0xc06f52, 1); g.fillEllipse(10, 10, 12, 3);   // rounding shade
+    g.fillStyle(0xd88a6a, 1); g.fillRect(15, 12, 3, 1); g.fillRect(17, 12, 1, 4); // trailing strand
   });
 
   // --- hand icon (20 × 20) ---

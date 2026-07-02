@@ -75,14 +75,27 @@ export class Animal {
     for (const k of species.dailyCare?.track ?? []) this.caredToday[k] = false;
     this.neglected = false;
 
-    // ── Daily produce (e.g. the cow's milk). `readyToProduce` is set each morning
-    //    from whether yesterday's required care was met; `producedToday` flips once
-    //    she's been milked. Both persist so the once-a-day gate survives a reload. ─
+    // ── Produce (e.g. the cow's milk, the sheep's wool). Two modes:
+    //    • daily (default): `readyToProduce` is set each morning from whether
+    //      yesterday's required care was met; `producedToday` flips once harvested.
+    //    • cooldown (`produces.mode === 'cooldown'`, e.g. shearing wool): readiness
+    //      is a regrowth TIMER — `lastProducedAt` stamps the harvest, and the animal
+    //      is ready again once `produces.cooldownMs` has elapsed. Independent of the
+    //      daily-care cycle. `lastProducedAt === 0` means never harvested → ready
+    //      immediately when `readyAtStart`.
+    //    All fields persist so the gate (and regrowth timer) survive a reload. ──────
     if (species.produces) {
-      // `readyAtStart` lets a fresh animal be harvestable on day one (the cow is
-      // milkable immediately) without first living a well-cared-for day.
-      this.readyToProduce = data.readyToProduce ?? !!species.produces.readyAtStart;
-      this.producedToday  = data.producedToday ?? false;
+      if (species.produces.mode === 'cooldown') {
+        // A never-sheared animal starts ready (readyAtStart) with no timestamp; once
+        // sheared, lastProducedAt drives the regrowth countdown.
+        this.lastProducedAt = data.lastProducedAt ??
+          (species.produces.readyAtStart ? 0 : Date.now());
+      } else {
+        // `readyAtStart` lets a fresh animal be harvestable on day one (the cow is
+        // milkable immediately) without first living a well-cared-for day.
+        this.readyToProduce = data.readyToProduce ?? !!species.produces.readyAtStart;
+        this.producedToday  = data.producedToday ?? false;
+      }
     }
   }
 
@@ -146,13 +159,49 @@ export class Animal {
     const req = this._spec.dailyCare?.requiredForContentment ?? [];
     const metCare = req.length ? req.every((k) => this.caredToday[k]) : true;
     this.neglected = req.length ? !metCare : false;
-    // A producing animal (the cow) becomes ready to give milk only if she was well
-    // cared for the day that just ended, and hasn't been milked yet today.
-    if (this._spec.produces) {
+    // A daily-produce animal (the cow) becomes ready to give milk only if she was
+    // well cared for the day that just ended, and hasn't been milked yet today.
+    // Cooldown produce (wool) is timer-driven, not tied to the day roll — skip it.
+    if (this._spec.produces && this._spec.produces.mode !== 'cooldown') {
       this.readyToProduce = metCare;
       this.producedToday  = false;
     }
     for (const k of Object.keys(this.caredToday)) this.caredToday[k] = false;
+  }
+
+  // ── Produce readiness (generic, both modes) ────────────────────────────────
+  // True if the animal's produce can be harvested right now. Daily mode reads the
+  // once-a-day gate; cooldown mode (wool) reads the regrowth timer against `now`.
+  canProduce(now = Date.now()) {
+    const prod = this._spec.produces;
+    if (!prod) return false;
+    if (prod.mode === 'cooldown') {
+      return (now - (this.lastProducedAt || 0)) >= prod.cooldownMs;
+    }
+    return !!this.readyToProduce && !this.producedToday;
+  }
+
+  // Record a harvest. Daily mode flips the once-a-day flag; cooldown mode stamps the
+  // regrowth clock so `canProduce` counts down from `now`.
+  markProduced(now = Date.now()) {
+    const prod = this._spec.produces;
+    if (!prod) return;
+    if (prod.mode === 'cooldown') this.lastProducedAt = now;
+    else this.producedToday = true;
+  }
+
+  // Fraction of the regrowth timer elapsed (0 = just harvested, 1 = fully regrown),
+  // for cooldown produce. Drives the "shorn" visual: shorn while below 1, regrown at
+  // 1. Always 1 for daily/non-producing species (never looks shorn).
+  regrowthProgress(now = Date.now()) {
+    const prod = this._spec.produces;
+    if (!prod || prod.mode !== 'cooldown' || !this.lastProducedAt) return 1;
+    return Math.min(1, (now - this.lastProducedAt) / prod.cooldownMs);
+  }
+
+  // True while a cooldown-produce animal is visibly shorn (wool not yet regrown).
+  isShorn(now = Date.now()) {
+    return this.regrowthProgress(now) < 1;
   }
 
   // Friendly mood label from happiness, using the species' threshold table.
@@ -183,8 +232,12 @@ export class Animal {
     }
     if (Object.keys(this.stats).length) out.stats = { ...this.stats };
     if (this._spec.produces) {
-      out.readyToProduce = this.readyToProduce;
-      out.producedToday  = this.producedToday;
+      if (this._spec.produces.mode === 'cooldown') {
+        out.lastProducedAt = this.lastProducedAt;
+      } else {
+        out.readyToProduce = this.readyToProduce;
+        out.producedToday  = this.producedToday;
+      }
     }
     return out;
   }

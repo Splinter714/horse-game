@@ -87,6 +87,10 @@ export const WithCreatures = (Base) => class extends Base {
         const sizeMult = sp.scale ?? 1;
         a.sprite.setScale(baseScale * sizeMult);
         a.shadow.setScale(S * sp.shadowScale * sizeMult);
+        // Seed the shorn-visual tracker so tickRegrowth (#233) only re-skins on an
+        // actual change: BootScene already built the sprite in its current fleece
+        // state, so record that as the shown state (false for non-producing species).
+        a._shownShorn = a.model?.isShorn?.() ?? false;
         this._applySpawnCapabilities(a, spec);
       });
     }
