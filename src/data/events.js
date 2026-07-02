@@ -12,6 +12,11 @@ export const EVENTS = {
   // Day/night phase changed: payload { isNight, phase }.
   PHASE_CHANGE: 'phase-change',
 
+  // Weather state changed (#188): payload { weather } where weather is 'sun' | 'rain'.
+  // Emitted by DayNightScene's weather state machine; PaddockScene reacts (dirt rate,
+  // wildlife hiding, trough rain-fill) and the UI shows a 'today's weather' indicator.
+  WEATHER_CHANGE: 'weather-change',
+
   // Player triggered sleep (PaddockScene → DayNightScene).
   SLEEP: 'sleep',
   // Sleep fade finished (DayNightScene → PaddockScene).

@@ -7,6 +7,7 @@
 import Phaser from 'phaser';
 import { BOUNDS, PASTURE_BOUNDS, S, GATE_X, GATE_GAP_X0, GATE_GAP_X1 } from './constants.js';
 import { ART_SCALE } from '../../art/_frames.js';
+import { HORSE_POSTURE_IDS } from '../../art/horseArt.js';
 import { SPECIES } from '../../data/species/index.js';
 import { ROSTER_SPECIES } from '../../data/save.js';
 import { Animal } from '../../data/Animal.js';
@@ -394,6 +395,27 @@ export const WithCreatures = (Base) => class extends Base {
         ],
         frameRate: 5, repeat: -1,
       });
+      // Legs-up roll (#70): the real self-grooming roll — on its back, legs waving —
+      // played by _rollInDirt in place of the old squash/scale tween. Loops for the
+      // roll's duration, then the horse pops back up to idle.
+      this.anims.create({
+        key: `roll_${key}`,
+        frames: [
+          { key: `${key}_roll_0` }, { key: `${key}_roll_1` },
+          { key: `${key}_roll_2` }, { key: `${key}_roll_3` },
+        ],
+        frameRate: 5, repeat: -1,
+      });
+      // Body-language posture idles (#69): mood-specific idle poses (pinned ears when
+      // neglected, drooped head + floppy ears when content). _applyPosture picks the
+      // right one per-horse from the pure horsePosture() selector each frame.
+      for (const id of HORSE_POSTURE_IDS) {
+        this.anims.create({
+          key: `idle_${id}_${key}`,
+          frames: [{ key: `${key}_idle_${id}_0` }, { key: `${key}_idle_${id}_1` }],
+          frameRate: 2, repeat: -1,
+        });
+      }
     }
 
     const shadow = this.add.image(startX, startY, 'shadow')

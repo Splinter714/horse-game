@@ -6,6 +6,7 @@ import { EVENTS } from '../../data/events.js';
 import { getSpecies } from '../../data/species/index.js';
 import { playBirdChirp, setMusicMode } from '../../audio/sounds.js';
 import { CHARM } from './constants.js';
+import { dirtMultiplier } from '../../data/weather.js';
 
 // Grooming only ever drops from actions now (#123). A horse gets a touch dirtier
 // each time it lies down to rest, and a bit more for a night passing.
@@ -17,11 +18,13 @@ export const WithDayNight = (Base) => class extends Base {
 
   // Knock a horse's grooming down by `amount` (clamped at 0) and refresh anything
   // watching. No-op for non-horses (they have no grooming stat). Used for the
-  // action-based dirtying — lying down and a night passing (#123).
+  // action-based dirtying — lying down and a night passing (#123). Rain dirties
+  // horses faster, so the amount is scaled by the current weather (#188).
   _dirtyHorse(key, amount) {
     const horse = this.registry.get('allHorses')?.[key];
     if (horse?.stats?.grooming === undefined) return;
-    horse.stats.grooming = Math.max(0, horse.stats.grooming - amount);
+    const scaled = amount * dirtMultiplier(this._weather);
+    horse.stats.grooming = Math.max(0, horse.stats.grooming - scaled);
     this.game.events.emit(EVENTS.STATS_CHANGED);
   }
 

@@ -26,7 +26,9 @@ const WILD_SCALE = S / ART_SCALE; // same on-screen size as the other wildlife s
 export const WithRaccoon = (Base) => class extends Base {
   _scheduleRaccoonVisit(delay) {
     this.time.delayedCall(delay, () => {
-      if (shouldRaccoonSpawn({ phase: this._phase, sleeping: this._sleeping, roll: Math.random() })) {
+      // Rain sends the raccoon to cover too (#188) — it only comes out in fair weather.
+      if (this._weatherAllowsWildlife() &&
+          shouldRaccoonSpawn({ phase: this._phase, sleeping: this._sleeping, roll: Math.random() })) {
         this._spawnRaccoon();
       }
       this._scheduleRaccoonVisit(raccoonVisitDelay(this._phase, Phaser.Math.Between));
