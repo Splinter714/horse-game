@@ -118,32 +118,33 @@ export function buildWorldTextures(scene) {
   });
 
   // --- gate closed (blocks passage) ---
-  gen(scene, 'gateClosed', 56, 48, (g) => {
+  // Slimmed to match the fence's vertical thickness (#117): a thin two-rail gate
+  // rather than a chunky 48px slab you appear to stand *on* when nudged south.
+  gen(scene, 'gateClosed', 56, 24, (g) => {
     // Posts on left and right
-    g.fillStyle(0x8a5828, 1); g.fillRect(0, 0, 4, 48); g.fillRect(52, 0, 4, 48);
-    // Horizontal cross-beams
-    g.fillStyle(0xa8743a, 1); g.fillRect(0, 8, 56, 2);
-    g.fillStyle(0xc8924c, 1); g.fillRect(0, 12, 56, 2);
-    g.fillStyle(0xa8743a, 1); g.fillRect(0, 24, 56, 2);
-    g.fillStyle(0xc8924c, 1); g.fillRect(0, 28, 56, 2);
-    g.fillStyle(0xa8743a, 1); g.fillRect(0, 40, 56, 2);
+    g.fillStyle(0x8a5828, 1); g.fillRect(0, 0, 4, 24); g.fillRect(52, 0, 4, 24);
+    // Horizontal cross-beams (two rails, echoing the fence)
+    g.fillStyle(0xa8743a, 1); g.fillRect(0, 5, 56, 2);
+    g.fillStyle(0xc8924c, 1); g.fillRect(0, 8, 56, 2);
+    g.fillStyle(0xa8743a, 1); g.fillRect(0, 15, 56, 2);
+    g.fillStyle(0xc8924c, 1); g.fillRect(0, 18, 56, 2);
     // Vertical slats
     g.fillStyle(0xa8743a, 1);
-    for (let x = 8; x < 52; x += 6) g.fillRect(x, 2, 3, 44);
+    for (let x = 8; x < 52; x += 6) g.fillRect(x, 3, 3, 18);
     g.fillStyle(0xc8924c, 1);
-    for (let x = 10; x < 52; x += 6) g.fillRect(x, 4, 1, 40);
+    for (let x = 10; x < 52; x += 6) g.fillRect(x, 5, 1, 14);
     // Gate latch pin
-    g.fillStyle(0x6a5030, 1); g.fillCircle(28, 24, 2);
+    g.fillStyle(0x6a5030, 1); g.fillCircle(28, 12, 2);
   });
 
   // --- gate open (swung to the right side) ---
-  gen(scene, 'gateOpen', 56, 48, (g) => {
+  gen(scene, 'gateOpen', 56, 24, (g) => {
     // Left post only (right post would have the swung gate against it)
-    g.fillStyle(0x8a5828, 1); g.fillRect(0, 0, 4, 48);
+    g.fillStyle(0x8a5828, 1); g.fillRect(0, 0, 4, 24);
     // Right post open
-    g.fillStyle(0x8a5828, 1); g.fillRect(52, 0, 4, 48);
+    g.fillStyle(0x8a5828, 1); g.fillRect(52, 0, 4, 24);
     // Open passage marked with lighter ground
-    g.fillStyle(0x9ad060, 0.5); g.fillRect(4, 20, 48, 8);
+    g.fillStyle(0x9ad060, 0.5); g.fillRect(4, 9, 48, 6);
   });
 
   // --- water trough (empty = dry dark interior) ---
