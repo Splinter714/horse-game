@@ -63,6 +63,12 @@ export const WithWorldObjects = (Base) => class extends Base {
     // Seed feeds chickens (seedPiles); everything else feeds horses (hayPiles).
     if (CONTENT_DEFS[content]?.feeds?.includes('chicken')) this.props.seedPiles.push(pile);
     else                                                   this.props.hayPiles.push(pile);
+
+    // Generic post-drop hook: a concern mixin can react to a food pile landing
+    // (e.g. bunny food attracting a wild bunny to the roster — paddock/bunny.js
+    // `onFoodPlaced`). Species-neutral — the hook decides what, if anything, a given
+    // content attracts, so this shared file names no species.
+    this.onFoodPlaced?.(content, spot.x, spot.y);
   }
 
   // ─── Trough ────────────────────────────────────────────────────────────────

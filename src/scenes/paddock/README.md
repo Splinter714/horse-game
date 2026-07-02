@@ -29,6 +29,7 @@ core orchestrator.
 | Weather | `paddock/weather.js` (`WithWeather`) | reacts to `WEATHER_CHANGE` (#188): `onWeatherChange` sets `this._weather`, shoos wildlife into cover on rain (`_clearWildlifeForRain`), and runs the partial rain trough-fill (`_startRainTroughFill`). State machine + rain tint/particles/indicator live in `DayNightScene`; pure rules in `data/weather.js` |
 | Horse AI | `paddock/horseAI.js` (`WithHorseAI`) | horse eat/drink seeking + gate-aware pathing |
 | Cat AI | `paddock/catAI.js` (`WithCatAI`) | cat fishing — `_catContext`, `_nearestStreamSpot`, `catGoFish` (hungry cat hunts fish at the stream, #163) |
+| Bunny attraction | `paddock/bunny.js` (`WithBunny`) | `onFoodPlaced`/`attractBunny` (#224): a dropped bunny-food pile lures a wild bunny into the roster (cap 4, one per coat), spawning it via the generic `_spawnWorldIndividual`. Pure cap/coat logic (`nextBunny`) + the `_bunnyContext` snapshot live in `data/species/bunny` / `behaviors.js` |
 | Behavior registry | `paddock/behaviors.js` (`WithBehaviors`) | data-driven AI dispatch (`runBehaviors`) |
 | Riding | `paddock/riding.js` (`WithRiding`) | riding, saddle, leading |
 | Player core | `paddock/player.js` (`WithPlayer`) | `buildPlayer` (sprite/camera/input bindings), `handleTap`, `_isDoubleTap` |

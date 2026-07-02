@@ -9,10 +9,12 @@ describe('carrier definitions', () => {
     // Basket cap is intentionally large (effectively unlimited): a gather only pulls
     // what's needed (#136), so the cap is just a safety ceiling, not a play limit.
     expect(CARRIER_DEFS.basket.capacity).toBeGreaterThanOrEqual(99);
-    // wool/yarn added with shearing (#233) — solids, so they ride in the basket.
-    expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'catFood', 'egg', 'wool', 'yarn']);
+    // wool/yarn added with shearing (#233) — solids, so they ride in the basket;
+    // bunnyFood added with bunnies (#224).
+    expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'egg', 'wool', 'yarn']);
     expect(CARRIER_DEFS.bucket.capacity).toBe(1);
-    expect(CARRIER_DEFS.bucket.accepts).toEqual(['water', 'catWater', 'milk']); // milk added with the cow (#cow)
+    // milk added with the cow (#cow); bunnyWater with bunnies (#224).
+    expect(CARRIER_DEFS.bucket.accepts).toEqual(['water', 'catWater', 'bunnyWater', 'milk']);
   });
 
   it('every content a basket accepts has a content definition', () => {
@@ -33,6 +35,11 @@ describe('content definitions', () => {
     // even though its action is 'water', not 'feed'.
     expect(CONTENT_DEFS.catWater.action).toBe('water');
     expect(CONTENT_DEFS.catWater.feeds).toEqual(['cat']);
+    // Bunny food/water (#224): bunnyFood feeds the bunny (and attracts it); bunnyWater
+    // is its per-species dropped drink, same shape as catWater.
+    expect(CONTENT_DEFS.bunnyFood.feeds).toEqual(['bunny']);
+    expect(CONTENT_DEFS.bunnyWater.action).toBe('water');
+    expect(CONTENT_DEFS.bunnyWater.feeds).toEqual(['bunny']);
     // Wool and yarn are sellable produce (#233); wool also spins INTO yarn (craftsTo).
     expect(CONTENT_DEFS.wool.action).toBe('sell');
     expect(CONTENT_DEFS.wool.craftsTo).toBe('yarn');
@@ -42,7 +49,7 @@ describe('content definitions', () => {
 
   it('every feed-action content lists the species that eat it; egg/plain-water don\'t', () => {
     for (const [key, def] of Object.entries(CONTENT_DEFS)) {
-      if (def.action === 'feed' || key === 'catWater') expect(Array.isArray(def.feeds)).toBe(true);
+      if (def.action === 'feed' || key === 'catWater' || key === 'bunnyWater') expect(Array.isArray(def.feeds)).toBe(true);
       else expect(def.feeds).toBeUndefined(); // plain water/egg aren't tied to a diet
     }
   });

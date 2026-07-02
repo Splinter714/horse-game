@@ -55,9 +55,16 @@ export function makeRoster({ storageKey, Model, defaultRoster, offlineDecay = fa
     const roster = defaultRoster();
     const saved = readSaved();
     const all = {};
-    for (const key of Object.keys(roster)) {
+    // Union of default keys and saved keys: default individuals AND any member the
+    // player added at runtime that isn't a fresh-game default (e.g. an attracted
+    // bunny, #224 — its roster starts empty and grows in play). Defaults first so
+    // their order is stable; saved-only keys follow. Restoring saved-only keys is
+    // what lets a runtime-added animal survive a reload.
+    const keys = [...Object.keys(roster), ...Object.keys(saved).filter((k) => !(k in roster))];
+    for (const key of keys) {
       // Merge roster defaults UNDER saved data so older saves inherit any newly
-      // added identity field (e.g. `sex`, #113) while saved values still win.
+      // added identity field (e.g. `sex`, #113) while saved values still win. A
+      // saved-only key has no default to merge under — just the saved data.
       const model = new Model({ ...roster[key], ...saved[key] });
       if (offlineDecay) {
         const elapsedSeconds = Math.max(0, (Date.now() - model.lastSeen) / 1000);
