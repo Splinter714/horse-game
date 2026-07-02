@@ -17,10 +17,15 @@ export const EVENTS = {
   // wildlife hiding, trough rain-fill) and the UI shows a 'today's weather' indicator.
   WEATHER_CHANGE: 'weather-change',
 
-  // Player triggered sleep (PaddockScene → DayNightScene).
+  // Player triggered sleep (PaddockScene / HouseInteriorScene → DayNightScene).
   SLEEP: 'sleep',
   // Sleep fade finished (DayNightScene → PaddockScene).
   SLEEP_DONE: 'sleep-done',
+
+  // Player walked into / out of the house interior (#56). ENTER pauses the world
+  // scenes and launches HouseInteriorScene; EXIT tears it down and resumes them.
+  ENTER_HOUSE: 'enter-house',
+  EXIT_HOUSE: 'exit-house',
 
   // An animal's stats changed and any open UI should refresh.
   STATS_CHANGED: 'stats-changed',
