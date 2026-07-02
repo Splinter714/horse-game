@@ -167,6 +167,11 @@ export const STAND_DEFS = {
   // the value — the payoff for the extra crafting step (#233).
   wool:   { price: 7,  tex: 'iconWool',   scale: 0.9, emoji: '🧶', floatIcon: 'iconWool' },
   yarn:   { price: 15, tex: 'iconYarn',   scale: 0.9, emoji: '🧶', floatIcon: 'iconYarn' },
+  // Crops (#242): sold at the stand like eggs/produce. Prices are a first-pass balance
+  // lever to tune at playtest. Strawberries fetch a bit more (fruit → future jam), wheat
+  // a bit less (bulk grain → future flour / pig feed).
+  strawberry: { price: 6, tex: 'iconStrawberry', scale: 0.9, emoji: '🍓', floatIcon: 'iconStrawberry' },
+  wheat:      { price: 4, tex: 'iconWheat',       scale: 0.9, emoji: '🌾', floatIcon: 'iconWheat' },
 };
 export const STAND_TYPES = Object.keys(STAND_DEFS);
 

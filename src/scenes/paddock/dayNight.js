@@ -89,6 +89,10 @@ export const WithDayNight = (Base) => class extends Base {
     for (const a of this.animals) {
       if (a.model && getSpecies(a.model.species).dailyCare) a.model.rollNewDay();
     }
+    // Crops grow a stage each day/night cycle (#242): a night passing (sleeping) is what
+    // advances the garden — no real-time timers. Runs after the first-morning skip so a
+    // fresh game doesn't jump the plot forward before the player has planted anything.
+    this.advanceGarden?.();
   }
 
   restAllAnimals() {
