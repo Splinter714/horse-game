@@ -11,6 +11,11 @@
 // running animations just show the new art with no rebuild.
 export function gen(scene, key, w, h, drawFn) {
   const g = scene.make.graphics({ x: 0, y: 0, add: false });
+  // Dissect-tag no-op: a real Phaser Graphics has no `.layer()`, so any world/prop
+  // art that carries `g.layer('name')` dissect tags (e.g. worldArt's house/barn)
+  // would crash. Provide a no-op here (the DEV dissect capture below re-runs the
+  // draw fn through the recorder, which is where layer tags actually get read).
+  if (typeof g.layer !== 'function') g.layer = () => {};
   drawFn(g);
   if (scene.textures.exists(key)) {
     const src = scene.textures.get(key).getSourceImage();
