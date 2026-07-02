@@ -350,6 +350,63 @@ export function buildWorldTextures(scene) {
     g.fillRect(13, 47, 4, 1); g.fillRect(10, 49, 4, 1); g.fillRect(8, 51, 4, 1);
   });
 
+  // --- doghouse (48 × 42) — decorative yard prop (#237) ---
+  // A classic peaked-roof kennel: a wooden gable house with a round arched
+  // doorway, a little name-board over the door, a food bowl beside it, and a
+  // gnawed bone on the grass — all to read as "a dog lives here." Decorative
+  // only; the dog actually using it is deferred to #186. Dissect tags (g.layer)
+  // per logical part for the dev dissect tool.
+  gen(scene, 'doghouse', 48, 42, (g) => {
+    const wall = 0xc08a4e, wallDark = 0x9a6a34, plank = 0x84592a;
+    const roofDark = 0x6a3a1c, roofMid = 0x9a5024, roofHi = 0xc07a40;
+    const dark = 0x241408, board = 0x6e4326, bowl = 0xc94a3a, bowlDark = 0x9a3428;
+    const bone = 0xeadfc4, food = 0x8a5a2e;
+
+    // Body box (the kennel walls)
+    g.layer('body');
+    g.fillStyle(wall, 1);     g.fillRect(8, 18, 30, 22);
+    g.fillStyle(wallDark, 1); g.fillRect(8, 18, 30, 3);   // eave shadow
+    g.fillStyle(wallDark, 1); g.fillRect(8, 36, 30, 4);   // ground shadow
+    g.fillStyle(plank, 1);                                // vertical plank seams
+    for (let x = 13; x < 38; x += 5) g.fillRect(x, 21, 1, 15);
+    g.fillStyle(plank, 1); g.fillRect(8, 18, 2, 22); g.fillRect(36, 18, 2, 22);
+
+    // Arched doorway (rounded top)
+    g.layer('door');
+    g.fillStyle(board, 1); g.fillRect(16, 24, 14, 16);    // frame
+    g.fillStyle(dark, 1);
+    g.fillRect(18, 27, 10, 13);                           // opening body
+    g.fillTriangle(18, 27, 23, 22, 28, 27);               // arched top
+    g.fillStyle(dark, 1); g.fillCircle(23, 27, 5);        // round out the arch
+
+    // Name-board over the door
+    g.layer('sign');
+    g.fillStyle(board, 1);   g.fillRect(17, 19, 12, 4);
+    g.fillStyle(0xe8c34a, 1); g.fillRect(19, 20, 8, 1);   // little brass plate
+
+    // Gable roof
+    g.layer('roof');
+    g.fillStyle(roofDark, 1); g.fillTriangle(3, 20, 23, 4, 43, 20);
+    g.fillStyle(roofMid, 1);  g.fillTriangle(6, 20, 23, 7, 40, 20);
+    g.fillStyle(roofHi, 1);                               // left-slope highlight streaks
+    g.fillRect(11, 15, 2, 3); g.fillRect(15, 12, 2, 3); g.fillRect(19, 9, 2, 3);
+    g.fillStyle(board, 1); g.fillRect(3, 19, 40, 2);      // eave board
+    g.fillStyle(roofDark, 1); g.fillRect(22, 4, 2, 4);    // ridge cap
+
+    // Food bowl beside the door
+    g.layer('bowl');
+    g.fillStyle(bowlDark, 1); g.fillEllipse(41, 38, 12, 6);
+    g.fillStyle(bowl, 1);     g.fillEllipse(41, 37, 11, 5);
+    g.fillStyle(food, 1);     g.fillEllipse(41, 36, 7, 3);
+
+    // Gnawed bone on the grass
+    g.layer('bone');
+    g.fillStyle(bone, 1);
+    g.fillRect(3, 37, 8, 2);
+    g.fillCircle(3, 37, 1); g.fillCircle(3, 39, 1);
+    g.fillCircle(11, 37, 1); g.fillCircle(11, 39, 1);
+  });
+
   // --- nest (18 × 12) — woven straw ring ---
   gen(scene, 'nest', 18, 12, (g) => {
     // Outer straw ring
