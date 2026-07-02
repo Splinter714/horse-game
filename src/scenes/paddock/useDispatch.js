@@ -110,6 +110,31 @@ export const WithUseDispatch = (Base) => class extends Base {
     if (bin) this.showIcon('iconBasketCompost', bin.sprite ?? bin);
   }
 
+  // ── Trash can (#284) ────────────────────────────────────────────────────────
+
+  // Empty the ACTIVE carrier's whole load into the trash can — a discard, not a
+  // stock/sell. Generic over any carrier content (food/water/eggs/wool): whatever the
+  // carrier holds is dropped to zero in one Use. The interactable already gates on the
+  // carrier being non-empty, so this is a no-op otherwise. Flips the lid off for a beat
+  // (reusing the raccoon's open/tidy sprite states), plays a soft scatter, and floats
+  // the discarded content's icon over the bin as feedback.
+  emptyIntoTrash() {
+    const item = this.getActiveItem();
+    if (!item || item.type !== 'carrier' || item.count <= 0) return;
+    const hot = this.scene.get('HotbarScene');
+    const dumped = hot?.emptyActiveCarrier?.() ?? 0;
+    if (dumped <= 0) return;
+    playGather('compost'); // soft dry scatter — tossing the load into the bin
+    const can = this.props.trashCan;
+    if (can?.sprite?.active) {
+      can.sprite.setTexture('trashCanOpen');
+      this.showIcon(CONTENT_DEFS[item.content].icon, can.sprite);
+      this.time.delayedCall(450, () => {
+        if (!can.open && can.sprite?.active) can.sprite.setTexture('trashCan');
+      });
+    }
+  }
+
   // Resolve what Use does with `item` on a nearby harvestable animal, or null. Only
   // produce harvesting is a direct interaction now: the right EMPTY carrier on a
   // producing animal → harvest `produces` when ready (the cow's milk into a bucket,

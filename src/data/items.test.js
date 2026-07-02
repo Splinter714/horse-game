@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { CARRIER_DEFS, CONTENT_DEFS, CARRIER_GROUPS, CARRIER_MEMBERS, ALL_ITEMS, ITEM_MAP, ITEMS, foodDemand,
-  SCOOPER, scoopAmount, scooperHasLoad, dumpScooper } from './items.js';
+  SCOOPER, scoopAmount, scooperHasLoad, dumpScooper, emptyCarrier } from './items.js';
 
 describe('carrier definitions', () => {
   it('baskets hold solids, buckets hold liquids', () => {
@@ -182,5 +182,33 @@ describe('scooper + compost (#232)', () => {
     ({ load, compost } = dumpScooper(load, compost));
     expect(load).toBe(0);
     expect(compost).toBe(3);
+  });
+});
+
+// Emptying a carrier into the trash can (#284) — discard the whole load in one Use,
+// generic over any content. The pure emptyCarrier helper is the discard contract.
+describe('emptyCarrier (trash-can discard, #284)', () => {
+  it('discards the whole load and reverts the carrier to empty', () => {
+    expect(emptyCarrier({ content: 'egg', count: 5 }))
+      .toEqual({ state: { content: null, count: 0 }, discarded: 5 });
+    // works the same for any content — no per-type special-casing
+    expect(emptyCarrier({ content: 'water', count: 1 }))
+      .toEqual({ state: { content: null, count: 0 }, discarded: 1 });
+    expect(emptyCarrier({ content: 'wool', count: 12 }))
+      .toEqual({ state: { content: null, count: 0 }, discarded: 12 });
+  });
+
+  it('is a no-op for an already-empty carrier (nothing discarded)', () => {
+    expect(emptyCarrier({ content: null, count: 0 }))
+      .toEqual({ state: { content: null, count: 0 }, discarded: 0 });
+    // tolerant of a missing/undefined state
+    expect(emptyCarrier(undefined))
+      .toEqual({ state: { content: null, count: 0 }, discarded: 0 });
+  });
+
+  it('never leaves stale content behind after a discard', () => {
+    const { state } = emptyCarrier({ content: 'hay', count: 3 });
+    expect(state.content).toBeNull();
+    expect(state.count).toBe(0);
   });
 });

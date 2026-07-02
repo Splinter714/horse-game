@@ -3,7 +3,7 @@
 // (#75) and their fly-out picker, and the getActiveItem public API the rest of the
 // game reads. Extracted from the monolithic HotbarScene (issue #167).
 
-import { ITEM_MAP, CARRIER_DEFS, CONTENT_DEFS, SCOOPER, dumpScooper } from '../../data/items.js';
+import { ITEM_MAP, CARRIER_DEFS, CONTENT_DEFS, SCOOPER, dumpScooper, emptyCarrier } from '../../data/items.js';
 import { saveGameState } from '../../data/save.js';
 import { FLYOUT_CLOSE_MS } from './constants.js';
 
@@ -125,6 +125,23 @@ export const WithCarriers = (Base) => class extends Base {
     this._saveCarriers();
     this._buildHotbar();
     return used;
+  }
+
+  // Discard the active carrier's whole load in one go (trash can, #284). Reverts it
+  // to empty regardless of content/count and returns how many units were tossed
+  // (0 for an already-empty carrier). Generic — no per-content special-casing.
+  emptyActiveCarrier() {
+    const key = this._resolveKey(this.hotbar[this.activeSlot]);
+    const st  = key ? this.carriers[key] : null;
+    if (!st) return 0;
+    const { state, discarded } = emptyCarrier(st);
+    if (discarded <= 0) return 0;
+    st.content = state.content;
+    st.count   = state.count;
+    this._closeFlyout();
+    this._saveCarriers();
+    this._buildHotbar();
+    return discarded;
   }
 
   // Convert the active carrier's whole load from one content to another in place
