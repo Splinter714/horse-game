@@ -113,6 +113,16 @@ export const WithWorld = (Base) => class extends Base {
     // readers that just ask "is there water?" — kept in sync by _setTroughLevel (#103).
     this.props.trough = { x: tx, y: ty, sprite: troughSprite, level: 0, filled: false };
 
+    // Spinning wheel (#233) — the crafting station that spins a basket of raw wool
+    // into yarn (worth more at the stand). Placed on the farm band near the stand so
+    // the shear → spin → sell loop is close together. `craft` names the conversion
+    // the useDispatch spin action reads (wool → yarn), so it stays data-driven.
+    const swx = 1430, swy = 720;
+    const spinSprite = this.add.image(swx, swy, 'spinningWheel')
+      .setScale(S).setDepth(swy).setOrigin(0.5, 1);
+    this.props.spinningWheel = { x: swx, y: swy, sprite: spinSprite, craft: { from: 'wool', to: 'yarn' } };
+    // (Its solid footprint is added to this.obstacles below, once that array exists.)
+
     // Gathering sources (issue #63) — static, infinite props the player fills
     // their carriers at. Each holds one content type. Placed across the open
     // farm band (north of the pasture) so the gather→carry→use loop has room.
@@ -336,6 +346,10 @@ export const WithWorld = (Base) => class extends Base {
       ...centredBox(this.props.trough, 176, 44, { isTrough: true }),
       // Fence line (6 segments at y=320, origin 0,0.5; 96×48 each → x=300..876)
       { x: 300, y: 300, w: 576, h: 40 },
+      // Spinning wheel (#233) — solid footprint (origin 0.5,1 at swx,swy; ~52×20 body).
+      ...(this.props.spinningWheel
+        ? [{ x: this.props.spinningWheel.x - 26, y: this.props.spinningWheel.y - 20, w: 52, h: 20 }]
+        : []),
     ];
 
     // ── Solid pasture fence ── (perimeter walls with a single gap at the gate)

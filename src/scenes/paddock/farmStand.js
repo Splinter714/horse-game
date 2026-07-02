@@ -3,6 +3,8 @@
 
 import Phaser from 'phaser';
 import { EVENTS } from '../../data/events.js';
+import { CONTENT_DEFS } from '../../data/items.js';
+import { playGather } from '../../audio/sounds.js';
 import { WORLD_W, PLAYER_SPEED, PLAYER_BOUNDS, S, STAND_DEFS, STAND_TYPES } from './constants.js';
 
 export const WithFarmStand = (Base) => class extends Base {
@@ -87,6 +89,28 @@ export const WithFarmStand = (Base) => class extends Base {
     this._refreshStand();
 
     const icon = this.add.image(this.farmStand.x, this.farmStand.y - 60, STAND_DEFS[type].floatIcon)
+      .setScale(1.8).setDepth(10000);
+    this.tweens.add({
+      targets: icon, y: icon.y - 40, alpha: 0,
+      duration: 900, ease: 'Sine.easeOut',
+      onComplete: () => icon.destroy(),
+    });
+  }
+
+  // ─── Spinning wheel — crafting (#233) ──────────────────────────────────────
+
+  // Spin the active carrier's raw wool into yarn (1:1) at the spinning wheel. Reads
+  // the wheel prop's `craft` block (from → to) so it's data-driven, not wool-specific.
+  // No-op unless the carrier holds the craftable input. Floats the output icon as
+  // feedback, mirroring stockStand's stock-float.
+  spinWool() {
+    const w = this.props.spinningWheel;
+    if (!w) return;
+    const { from, to } = w.craft;
+    const n = this.scene.get('HotbarScene')?.convertActiveCarrier(from, to) ?? 0;
+    if (n <= 0) return;
+    playGather(to); // a soft whirr/click as the wheel turns
+    const icon = this.add.image(w.x, w.y - 40, CONTENT_DEFS[to].icon)
       .setScale(1.8).setDepth(10000);
     this.tweens.add({
       targets: icon, y: icon.y - 40, alpha: 0,

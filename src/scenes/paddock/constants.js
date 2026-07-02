@@ -128,9 +128,13 @@ export const STINK_AT       = 33;
 // a counter texture (with its own scale), an emoji for the count badge, and the
 // floating icon shown when the player stocks it.
 export const STAND_DEFS = {
-  egg:    { price: 5, tex: 'egg',        scale: S,   emoji: '🥚', floatIcon: 'iconEgg' },
-  apple:  { price: 4, tex: 'iconApple',  scale: 0.9, emoji: '🍎', floatIcon: 'iconApple' },
-  carrot: { price: 3, tex: 'iconCarrot', scale: 0.9, emoji: '🥕', floatIcon: 'iconCarrot' },
-  milk:   { price: 8, tex: 'iconMilk',   scale: 0.9, emoji: '🥛', floatIcon: 'iconMilk' },
+  egg:    { price: 5,  tex: 'egg',        scale: S,   emoji: '🥚', floatIcon: 'iconEgg' },
+  apple:  { price: 4,  tex: 'iconApple',  scale: 0.9, emoji: '🍎', floatIcon: 'iconApple' },
+  carrot: { price: 3,  tex: 'iconCarrot', scale: 0.9, emoji: '🥕', floatIcon: 'iconCarrot' },
+  milk:   { price: 8,  tex: 'iconMilk',   scale: 0.9, emoji: '🥛', floatIcon: 'iconMilk' },
+  // Raw wool sells cheap; spinning it into yarn at the spinning wheel roughly doubles
+  // the value — the payoff for the extra crafting step (#233).
+  wool:   { price: 7,  tex: 'iconWool',   scale: 0.9, emoji: '🧶', floatIcon: 'iconWool' },
+  yarn:   { price: 15, tex: 'iconYarn',   scale: 0.9, emoji: '🧶', floatIcon: 'iconYarn' },
 };
 export const STAND_TYPES = Object.keys(STAND_DEFS);
