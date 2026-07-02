@@ -10,9 +10,10 @@
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { resolveDevServerUrl } from './dev-server-url.mjs';
 
-const OUT_DIR = fileURLToPath(new URL('../public/icons/', import.meta.url));
+const OUT_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'icons');
 mkdirSync(OUT_DIR, { recursive: true });
 
 // Background matches the page's own background (index.html) so the icon reads
@@ -59,7 +60,7 @@ for (const { name, size, pad } of SIZES) {
   }, { size, pad, BG });
 
   const buf = Buffer.from(dataUrl.split(',')[1], 'base64');
-  await import('node:fs/promises').then(fs => fs.writeFile(OUT_DIR + name, buf));
+  await import('node:fs/promises').then(fs => fs.writeFile(join(OUT_DIR, name), buf));
   console.log('wrote', name, `${size}x${size}`);
 }
 
