@@ -94,6 +94,14 @@ export const HERD = {
   STAND_GAP:   28,   // how far fore/aft of the buddy to pull up
   SEP_MIN:     28,   // idle horses closer than this gently drift apart
   SEP_PUSH:   0.6,   // max px/frame a horse is nudged to separate (a slow drift)
+  // Cosmetic herd bonds (#31): each horse has a favoured companion (bondKey,
+  // assigned at buildHorses). When a content horse has drifted away from its
+  // bonded buddy it occasionally ambles back over to linger head-to-tail. Purely
+  // charm — NO stat/care effect. Lowest AI priority (below every need + graze), so
+  // it never interrupts feeding/watering/begging.
+  BOND_LINGER_GAP: 120,   // only amble back when the buddy is farther than this
+  BOND_CHANCE:     0.5,   // per-eligible-tick odds a horse drifts back to its buddy
+  BOND_COOLDOWN:   14000, // min ms between a horse re-launching a bond amble
 };
 
 // ── Cross-animal charm behaviors (#187) ─────────────────────────────────────

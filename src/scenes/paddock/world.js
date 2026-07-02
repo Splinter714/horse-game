@@ -173,6 +173,7 @@ export const WithWorld = (Base) => class extends Base {
     // pet eats/drinks from directly (not gather sources). The player keeps them stocked.
     this.buildCatBowls();
     this.buildBunnyBowls();
+    this.buildDoghouse(); // #237 decorative yard prop; sets this.doghouseObstacles
 
     // Scenery stream cutting across the top-right corner of the world.
     this.buildStream();
@@ -387,7 +388,7 @@ export const WithWorld = (Base) => class extends Base {
       { x: 162, y: 192, w: 156, h: 88 },
       // Barn walls (#35) — the walk-in barn's perimeter with a south doorway gap.
       // Registered as this.barnObstacles by buildBarn (paddock/barn.js); spread in here.
-      ...(this.barnObstacles || []),
+      ...(this.barnObstacles || []), ...(this.doghouseObstacles || []), // + doghouse #237
       // Coop (origin 0.5,1 at 930,400; sprite 64×52 at S=2 → 128×104).
       // home:'chicken' → the coop is the chickens' home, so it's excluded from
       // their personal obstacle list (they're allowed to walk in). See _obstaclesFor.

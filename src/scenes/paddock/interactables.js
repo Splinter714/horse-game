@@ -195,6 +195,30 @@ export const WithInteractables = (Base) => class extends Base {
       }];
     };
 
+    // Trash can (#284) — dump the ACTIVE carrier's whole load in one Use, discarding
+    // it (unwanted food/water/eggs/wool). Generic: works for any carrier content, no
+    // per-content special-casing. Only prompts when the held carrier actually holds
+    // something; shows a passive hint otherwise so the bin is discoverable. Nothing is
+    // recoverable — it's a discard, not a stock/sell.
+    const trashCan = (item) => {
+      const t = this.props.trashCan;
+      if (!t) return [];
+      const holdingLoad = item?.type === 'carrier' && item.count > 0;
+      const contentLabel = holdingLoad ? CONTENT_DEFS[item.content]?.label ?? 'contents' : null;
+      return [{
+        x: t.x, y: t.y - 40, tapRadius: 130, reachDist: 110, promptOffsetY: 30,
+        canAct: holdingLoad,
+        label: holdingLoad
+          ? `Empty ${contentLabel} (${item.count}) in trash`
+          : 'Trash can  •  hold a full basket or bucket to dump it',
+        approach: (world) => {
+          const refX = world ? world.x : this.player.sprite.x;
+          return { x: t.x + (refX < t.x ? -1 : 1) * 60, y: t.y + 4 };
+        },
+        activate: () => this.emptyIntoTrash(),
+      }];
+    };
+
     // Barn (#35) — bare-hand interact targets: one "assign horse" per stall + a
     // passive tack-room hint. Built by the barn mixin (paddock/barn.js). Ignores the
     // held item (assignment is a bare-hand interaction).
@@ -207,12 +231,12 @@ export const WithInteractables = (Base) => class extends Base {
     const gardenPlant   = gardenDescs.plant;
     const gardenHarvest = gardenDescs.harvest;
 
-    this.interactables = [gate, house, shop, barn, gardenPlant, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, sources, nests, farmStand, spinningWheel, compostBin, gardenHarvest];
+    this.interactables = [gate, house, shop, barn, gardenPlant, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, sources, nests, farmStand, spinningWheel, compostBin, trashCan, gardenHarvest];
     // Split by input: gate/house/shop/barn/garden-plant are bare-hand "interact" targets
     // (tap/click/E); the rest require a carried tool/carrier and are triggered by Use (the
     // on-screen button / F / controller). See useActiveTool + handleTap.
     this.interactWorld = [gate, house, shop, barn, gardenPlant];
-    this.toolWorld     = [trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, sources, nests, farmStand, spinningWheel, compostBin, gardenHarvest];
+    this.toolWorld     = [trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, sources, nests, farmStand, spinningWheel, compostBin, trashCan, gardenHarvest];
   }
 
   // Nearest activatable instance to (x, y) within each instance's own radius

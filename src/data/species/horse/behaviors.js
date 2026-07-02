@@ -82,3 +82,23 @@ export const graze = {
   test: (ctx) => ctx.hunger < GRAZE_HUNGER,
   run: (scene, h) => scene.horseGraze(h),
 };
+
+// Cosmetic herd bond (#31): a content horse that's drifted away from its favoured
+// companion occasionally ambles back over to linger head-to-tail with it — little
+// friend-clusters forming across the pasture. PURELY charm: no stat/care effect,
+// and the LOWEST-priority behavior (after graze), so any real need — food, water,
+// begging — always wins first; a horse only seeks its buddy once it's content and
+// otherwise idle. Fires only when: the horse is happy enough (bondHappy), it has a
+// living bonded buddy that has wandered beyond bondLingerGap (already alongside →
+// nothing to do, let the gentle idle-separation breathe), the per-horse cooldown
+// has elapsed, and a random roll hits (keeps it an occasional beat, not constant).
+export const seekBuddy = {
+  id: 'seekBuddy',
+  test: (ctx) =>
+    ctx.happiness >= ctx.bondHappy &&
+    ctx.buddyDist > ctx.bondLingerGap &&
+    ctx.buddyDist < Infinity &&
+    (ctx.lastBond == null || ctx.now - ctx.lastBond > ctx.bondCooldown) &&
+    Math.random() < ctx.bondChance,
+  run: (scene, h) => scene.horseGoToBuddy(h),
+};

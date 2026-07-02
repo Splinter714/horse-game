@@ -65,6 +65,66 @@ export const WithHerd = (Base) => class extends Base {
     return best;
   }
 
+  // ── Cosmetic herd bonds (#31) ──────────────────────────────────────────────
+  // Each horse has a favoured companion — a `bondKey` pointing at another horse.
+  // Bonded horses amble back to linger head-to-tail whenever they've drifted apart
+  // (the seekBuddy behavior, horse/behaviors.js), forming little friend-clusters.
+  // PURELY charm: NO stat/care effect whatsoever, and lowest AI priority so any
+  // real need always wins first.
+  //
+  // Bonds are assigned once, after buildHorses, by pairing the roster in order:
+  // (h1↔h2), (h3↔h4), (h5↔h6) become mutual best friends, and the odd horse out
+  // (h7) latches one-way onto the first horse — so nobody is friendless. Derived
+  // purely from the fixed roster order, so it's stable across reloads with no
+  // persistence needed.
+  assignHerdBonds() {
+    const roster = this.horses;
+    if (roster.length < 2) return;
+    for (let i = 0; i + 1 < roster.length; i += 2) {
+      roster[i].bondKey     = roster[i + 1].key;
+      roster[i + 1].bondKey = roster[i].key;
+    }
+    if (roster.length % 2 === 1) {
+      roster[roster.length - 1].bondKey = roster[0].key; // odd one out → first horse
+    }
+  }
+
+  // The living sprite of a horse's favoured companion, or null (no bond set, or the
+  // buddy's sprite is gone). Read by the seekBuddy context (behaviors.js).
+  _bondedBuddy(h) {
+    if (!h.bondKey) return null;
+    const buddy = this.horses.find(o => o.key === h.bondKey);
+    return buddy && buddy.sprite.active ? buddy : null;
+  }
+
+  // seekBuddy's run: amble over and pull up head-to-tail alongside the bonded buddy,
+  // reusing the shared movement primitive (moveCreatureTo) and the existing
+  // _faceHeadToTail pose — the same nose-to-tail "fly-swatting" beat the need-driven
+  // pairing uses. Returns true to claim the horse (buddy present + drifted apart is
+  // already gated by seekBuddy.test); records the time so the per-horse cooldown
+  // keeps it an occasional beat, not constant. Cosmetic only — touches no stats.
+  horseGoToBuddy(h) {
+    const buddy = this._bondedBuddy(h);
+    if (!buddy || h.state !== 'idle') return false;
+    h._lastBond = this.time.now;
+    const aft = Math.random() < 0.5 ? -1 : 1;
+    const b = h.homeBounds ?? PASTURE_BOUNDS;
+    const tx = Phaser.Math.Clamp(buddy.sprite.x + Phaser.Math.Between(-14, 14), b.minX, b.maxX);
+    const ty = Phaser.Math.Clamp(
+      buddy.sprite.y + aft * Phaser.Math.Between(HERD.STAND_GAP, HERD.STAND_GAP + 10),
+      b.minY, b.maxY);
+    h.state = 'wandering';
+    if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
+    this.moveCreatureTo(h, tx, ty, () => {
+      if (!h.sprite.active) return;
+      h.sprite.play(`idle_${h.key}`, true);
+      h.state = 'idle';
+      this._faceHeadToTail(h, buddy);
+      this.scheduleCreatureWander(h, Phaser.Math.Between(h.wanderMin ?? 4000, h.wanderMax ?? 10000));
+    });
+    return true;
+  }
+
   // Arrived alongside a buddy → turn to face the opposite way so the two stand
   // nose-to-tail. Bail quietly if the buddy wandered off while we were walking up.
   _faceHeadToTail(h, buddy) {

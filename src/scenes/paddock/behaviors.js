@@ -14,7 +14,7 @@
 import Phaser from 'phaser';
 import { getSpecies, BEHAVIORS } from '../../data/species/index.js';
 import { speciesEatsContent } from '../../data/items.js';
-import { BEG, CHICKEN_HUNGRY_FOLLOW_DIST, CHARM } from './constants.js';
+import { BEG, CHICKEN_HUNGRY_FOLLOW_DIST, CHARM, HERD } from './constants.js';
 
 export const WithBehaviors = (Base) => class extends Base {
   // Walk the agent's species behavior list; return true if a behavior claimed it
@@ -69,9 +69,18 @@ export const WithBehaviors = (Base) => class extends Base {
       ? Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, this.player.sprite.x, this.player.sprite.y)
       : Infinity;
 
+    // Cosmetic herd bond (#31): distance to this horse's favoured companion (its
+    // bondKey buddy), Infinity when it has none / the buddy's gone. The seekBuddy
+    // behavior uses it to amble back over once they've drifted apart.
+    const buddy = this._bondedBuddy(h);
+    const buddyDist = buddy
+      ? Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, buddy.sprite.x, buddy.sprite.y)
+      : Infinity;
+
     return {
       hunger: horse.stats.hunger,
       thirst: horse.stats.thirst,
+      happiness: horse.stats.happiness,
       temperament: horse.temperament,
       nearestHayDist,
       troughDist,
@@ -91,6 +100,13 @@ export const WithBehaviors = (Base) => class extends Base {
       lastWallow: h._lastWallow ?? null,
       wallowChance: CHARM.WALLOW_CHANCE,
       wallowCooldown: CHARM.WALLOW_COOLDOWN,
+      // Herd bond (#31) tuning + state, shared with the seekBuddy behavior.
+      buddyDist,
+      bondHappy: HERD.HAPPY_AT,
+      bondLingerGap: HERD.BOND_LINGER_GAP,
+      bondChance: HERD.BOND_CHANCE,
+      bondCooldown: HERD.BOND_COOLDOWN,
+      lastBond: h._lastBond ?? null,
     };
   }
 
