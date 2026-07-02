@@ -50,7 +50,9 @@ export const BEHAVIORS = {
   // The sheep is a grazer like the cow/pig — reuses the horse behavior modules; her
   // `behaviors` list (sheep/index.js) picks the subset (hay/water/graze, no begging).
   sheep: indexById(horseBehaviors),
-  // The cat hunts fish at the stream when hungry (#163) — its own one-behavior module.
+  // The cat feeds/waters itself at its own dropped piles (seekFood/seekWater, #202
+  // refinement) and falls back to fishing at the stream when hungry (#163) — its
+  // own species-specific behavior module (no reuse of the horse modules).
   cat: indexById(catBehaviors),
   // The dog occasionally noses the sheep flock into a bunch (#187 charm) — its own
   // one-behavior module. A fuller "dog job" (companion-follow / real herding) is #186.

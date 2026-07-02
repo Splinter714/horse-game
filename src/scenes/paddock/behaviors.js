@@ -154,7 +154,13 @@ export const WithBehaviors = (Base) => class extends Base {
   // roams the whole world instead (`spawn.roam !== 'pasture'` — the cat, #202) isn't
   // fenced in at all, so the gate check doesn't apply to it: any dropped pile it can
   // eat is reachable regardless of the pasture gate.
-  _nearestReachableHay(h) {
+  //
+  // `contentFilter`, if given, further restricts which pile contents count — the cat
+  // has two distinct diets dropped into the same pile list (`catFood` for hunger,
+  // `catWater` for thirst, #202 refinement), so seekFood/seekWater each pass a
+  // filter to find "the nearest pile of *my* content" rather than just any edible
+  // pile. Defaults to accepting anything the species eats (the original behavior).
+  _nearestReachableHay(h, contentFilter = null) {
     if (!this.props.hayPiles?.length) return null;
     const gateOpen = this._gateOpen();
     // Respect the grazer's diet: a pig walks past hay it won't eat but still goes
@@ -170,6 +176,7 @@ export const WithBehaviors = (Base) => class extends Base {
     for (const pile of this.props.hayPiles) {
       if (pastureBound && !this._inPasture(pile.x, pile.y) && !gateOpen) continue;
       if (pile.content && !speciesEatsContent(species, pile.content)) continue;
+      if (contentFilter && pile.content !== contentFilter) continue;
       const d = Phaser.Math.Distance.Between(h.sprite.x, h.sprite.y, pile.x, pile.y);
       if (d < closestDist) { closestDist = d; closest = pile; }
     }
