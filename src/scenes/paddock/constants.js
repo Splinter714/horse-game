@@ -129,6 +129,22 @@ export const CHARM = {
   CAT_CURL_CHANCE: 0.5, // odds the cat curls outside instead of going into the house
 };
 
+// Dog companion charm (#186): the farm dog trots alongside the player with slack —
+// it hangs back at a comfortable trailing distance and only catches up when the
+// player moves off, then sits/lies down near them when the player stands idle. A
+// self-contained per-frame follow (updateDogCompanion), autonomous like a loose dog
+// rather than a led horse. Purely cosmetic — no stats, no care effect.
+export const DOG_COMPANION = {
+  GAP:        56,   // preferred trailing distance behind the player
+  SLACK:      34,   // rest once within this of the follow slot (keeps the rope loose)
+  CATCH_UP:   120,  // beyond this from the slot the dog breaks into a run to keep up
+  LEASH:      520,  // farther than this (e.g. player crossed the fence) → teleport-catch is NOT used; the dog just paths as far as it can
+  SPEED:      230,  // px/s trot — a touch quicker than the player so it can close a gap
+  RUN_MULT:   1.6,  // multiplier on SPEED when catching up from beyond CATCH_UP
+  SIT_IDLE_MS: 1400, // player must stand still this long before the dog sits down
+  SIT_NEAR:   90,   // dog only sits if it's already this close to its slot (else it keeps closing first)
+};
+
 // Cleanliness (issue #26): below DUST_CLEAN_AT grooming the dust overlay starts
 // to show, ramping to DUST_MAX_ALPHA opacity at grooming 0. Below STINK_AT a
 // very dirty horse also gets wavering "stink" lines above its back.
