@@ -1,5 +1,5 @@
-// Procedural pixel-art for the environment's fixed structures: grass tiles, barn,
-// fence, gate, trough, coop, nests/eggs, farm stand, and the NPC customer. All
+// Procedural pixel-art for the environment's fixed structures: grass tiles, house,
+// barn, fence, gate, trough, coop, nests/eggs, farm stand, and the NPC customer. All
 // generated into textures so the game runs with zero external image files.
 //
 // `buildWorldTextures` is the single entry point BootScene calls; it builds the
@@ -28,18 +28,85 @@ export function buildWorldTextures(scene) {
     g.fillRect(8, 12, 2, 3); g.fillRect(20, 28, 2, 3);
   });
 
-  // --- barn ---
-  gen(scene, 'barn', 84, 66, (g) => {
+  // --- house (the player's home base, #56 builds its interior) ---
+  // FIRST-PASS ART, owner-art-directed (#241): a cozy cottage — plaster walls,
+  // a warm shingled gable roof, a chimney, a front door, and two shuttered
+  // windows. Deliberately reads as a *dwelling* (not a barn) so the barn below
+  // can be the clearly-agricultural building. Same 84×66 footprint the old barn
+  // used, so world placement/collision are unchanged. Dissect tags (g.layer)
+  // per part for the dev dissect tool.
+  gen(scene, 'house', 84, 66, (g) => {
+    g.layer('roof');
+    g.fillStyle(0x6a4a2a, 1); g.fillTriangle(0, 24, 42, 0, 84, 24);   // roof underside/shadow
+    g.fillStyle(0x8a5a34, 1); g.fillTriangle(4, 23, 42, 3, 80, 23);   // roof face
+    g.fillStyle(0xa9743c, 1);                                          // shingle highlight rows
+    g.fillRect(10, 18, 64, 1); g.fillRect(16, 13, 52, 1); g.fillRect(24, 8, 36, 1);
+    g.layer('chimney');
+    g.fillStyle(0x8a4030, 1); g.fillRect(58, 4, 9, 16);
+    g.fillStyle(0x6a2e22, 1); g.fillRect(57, 3, 11, 3);               // chimney cap
+    g.layer('wall');
+    g.fillStyle(0xe4d2a8, 1); g.fillRect(10, 24, 64, 40);            // plaster wall
+    g.fillStyle(0xd0bc90, 1); g.fillRect(10, 24, 64, 3);            // eave shadow
+    g.fillStyle(0xc8b284, 1); g.fillRect(10, 60, 64, 4);            // ground shadow
+    g.fillStyle(0x9a7a4a, 1); g.fillRect(10, 24, 3, 40); g.fillRect(71, 24, 3, 40); // corner posts
+    g.layer('door');
+    g.fillStyle(0x6a4324, 1); g.fillRect(36, 42, 14, 22);           // door
+    g.fillStyle(0x8a5a30, 1); g.fillRect(38, 44, 10, 20);          // door panel
+    g.fillStyle(0x3a2410, 1); g.fillRect(40, 44, 1, 20); g.fillRect(45, 44, 1, 20); // planks
+    g.fillStyle(0xf0d060, 1); g.fillCircle(46, 54, 1);             // knob
+    g.layer('window');
+    for (const wx of [17, 55]) {
+      g.fillStyle(0x6a4324, 1); g.fillRect(wx - 1, 33, 14, 12);    // window frame
+      g.fillStyle(0xbfe4f0, 1); g.fillRect(wx, 34, 12, 10);        // glass
+      g.fillStyle(0x6a4324, 1); g.fillRect(wx + 5, 34, 2, 10); g.fillRect(wx, 38, 12, 2); // muntins
+      g.fillStyle(0xa04030, 1); g.fillRect(wx - 3, 33, 2, 12); g.fillRect(wx + 13, 33, 2, 12); // shutters
+    }
+  });
+
+  // --- barn (horse barn; its interior/cutaway is #35) ---
+  // FIRST-PASS ART, owner-art-directed (#241): a classic gambrel-roofed red barn
+  // with big central hay doors, a hayloft door + pulley up top, and a cupola.
+  // This is the horses' building — the animals/home-base semantics stay on the
+  // HOUSE above. 96×72 footprint (a touch larger than the house, as barns are).
+  // Dissect tags per part.
+  gen(scene, 'barn', 96, 72, (g) => {
+    g.layer('roof');
+    // Gambrel (barn) roof: steep lower slopes + shallow upper slopes.
     g.fillStyle(0x7a2a1c, 1);
-    g.fillTriangle(2, 20, 42, 2, 82, 20);
-    g.fillStyle(0xb6432e, 1); g.fillRect(8, 20, 68, 44);
-    g.fillStyle(0xc8543c, 1); g.fillRect(8, 20, 68, 6);
-    g.fillStyle(0x5a2418, 1); g.fillRect(34, 40, 18, 24);
-    g.fillStyle(0x7a2a1c, 1); g.fillRect(42, 40, 2, 24);
-    g.fillStyle(0xf0d890, 1); g.fillRect(16, 30, 12, 10); g.fillRect(56, 30, 12, 10);
-    g.fillStyle(0x7a2a1c, 1);
-    g.fillRect(21, 30, 2, 10); g.fillRect(16, 34, 12, 2);
-    g.fillRect(61, 30, 2, 10); g.fillRect(56, 34, 12, 2);
+    g.fillTriangle(4, 30, 48, 6, 92, 30);                            // roof underside/shadow
+    g.fillStyle(0x9a3826, 1);
+    g.fillPoints([{ x: 8, y: 30 }, { x: 22, y: 16 }, { x: 74, y: 16 }, { x: 88, y: 30 }]); // lower slopes
+    g.fillStyle(0xb6432e, 1);
+    g.fillPoints([{ x: 22, y: 16 }, { x: 48, y: 6 }, { x: 74, y: 16 }]); // upper cap
+    g.fillStyle(0xc8543c, 1); g.fillRect(8, 29, 80, 2);              // eave trim highlight
+    g.layer('cupola');
+    g.fillStyle(0x9a3826, 1); g.fillRect(44, 0, 8, 8);              // cupola box
+    g.fillStyle(0x5a2418, 1); g.fillTriangle(42, 2, 48, -3, 54, 2); // cupola cap
+    g.fillStyle(0xf0d890, 1); g.fillRect(46, 3, 4, 4);             // cupola vent
+    g.layer('wall');
+    g.fillStyle(0xb6432e, 1); g.fillRect(10, 30, 76, 40);          // barn wall
+    g.fillStyle(0xc8543c, 1); g.fillRect(10, 30, 76, 5);          // top-lit band
+    g.fillStyle(0x8a2e1e, 1); g.fillRect(10, 66, 76, 4);         // ground shadow
+    g.fillStyle(0x7a2a1c, 1); g.fillRect(10, 30, 3, 40); g.fillRect(83, 30, 3, 40); // corner posts
+    g.layer('loft');
+    g.fillStyle(0x5a2418, 1); g.fillRect(42, 20, 12, 12);         // hayloft door
+    g.fillStyle(0xd8b060, 1); g.fillRect(44, 22, 8, 8);          // straw glow behind loft
+    g.fillStyle(0x3a1810, 1); g.fillRect(48, 14, 2, 8);         // pulley arm
+    g.fillStyle(0x3a1810, 1); g.fillCircle(49, 14, 2);         // pulley wheel
+    g.layer('doors');
+    // Big central double doors with white X-braces (the classic barn look).
+    g.fillStyle(0x8a5a2e, 1); g.fillRect(34, 40, 28, 30);        // door frame/wood
+    g.fillStyle(0x6a4420, 1); g.fillRect(47, 40, 2, 30);       // door split
+    g.fillStyle(0xe8dcc0, 1);                                    // white cross-braces
+    g.fillRect(36, 41, 10, 2); g.fillRect(50, 41, 10, 2);      // top rails
+    g.fillRect(36, 67, 10, 2); g.fillRect(50, 67, 10, 2);      // bottom rails
+    g.fillTriangle(36, 42, 45, 67, 46, 67); g.fillTriangle(45, 42, 36, 67, 37, 67); // left X
+    g.fillTriangle(50, 42, 59, 67, 60, 67); g.fillTriangle(59, 42, 50, 67, 51, 67); // right X
+    g.layer('window');
+    for (const wx of [18, 70]) {
+      g.fillStyle(0xf0d890, 1); g.fillRect(wx, 40, 10, 10);      // lit window
+      g.fillStyle(0x7a2a1c, 1); g.fillRect(wx + 4, 40, 2, 10); g.fillRect(wx, 44, 10, 2); // muntins
+    }
   });
 
   // --- fence segment (tileable horizontally, 48 wide) ---

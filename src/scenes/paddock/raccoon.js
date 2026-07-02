@@ -147,6 +147,7 @@ export const WithRaccoon = (Base) => class extends Base {
   // trash can is flagged `trash` so it triggers the richer rummage animation.
   _raccoonPropTargets() {
     const p = this.props, out = [];
+    if (p.house) out.push({ x: p.house.x + 40, y: p.house.y + 80 });
     if (p.barn) out.push({ x: p.barn.x + 40, y: p.barn.y + 80 });
     if (p.coop) out.push({ x: p.coop.x, y: p.coop.y + 48 });
     if (p.trashCan) out.push({ x: p.trashCan.x - 34, y: p.trashCan.y + 8, trash: true }); // beside the can

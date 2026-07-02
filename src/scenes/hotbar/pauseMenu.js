@@ -202,7 +202,7 @@ export const WithPauseMenu = (Base) => class extends Base {
       (v) => (v === 'preview' ? 'Art preview' : v ? 'Horse editor' : 'Farm'));
     dy += rowH;
     this._addCycleRow(rowX, dy, rowW, rowH, '📍 Start at',
-      ['Barn', 'Pasture', 'Gate', 'Farm stand', 'Coop'],
+      ['House', 'Barn', 'Pasture', 'Gate', 'Farm stand', 'Coop'],
       () => loadDevSettings().startLocation,
       (v) => saveDevSettings({ startLocation: v }));
     dy += rowH;

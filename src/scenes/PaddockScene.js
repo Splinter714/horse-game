@@ -57,7 +57,7 @@ export default class PaddockScene
     this.promptsOn = loadUiSettings().showPrompts;
 
     // World interactables
-    this.props = { trough: null, hayPiles: [], seedPiles: [], nests: [], sources: [], barn: null, trashCan: null };
+    this.props = { trough: null, hayPiles: [], seedPiles: [], nests: [], sources: [], house: null, barn: null, trashCan: null };
     this.inventory = {};
     this.money = 0;
     this.farmStand = null;
@@ -242,16 +242,16 @@ export default class PaddockScene
 
     // E (keyboard) and A (gamepad) both trigger the interact action. Tools are
     // no longer used here — they go through useActiveTool (Use button / F /
-    // controller). So this whole pass is interact-only: gate/barn, mounting a
+    // controller). So this whole pass is interact-only: gate/house, mounting a
     // saddled horse, and petting/opening animals.
     const useJust = eJust || aJust;
 
     // No animal is the proximity target unless _petPreferenceProximity claims one
     // below. Cleared each frame so the Info input (C / Y) can't fire on a stale
-    // animal when a gate/barn/mount prompt is showing instead.
+    // animal when a gate/house/mount prompt is showing instead.
     this._proxAnimal = null;
 
-    // Bare-hand world interactables — gate, barn.
+    // Bare-hand world interactables — gate, house.
     if (this._proximityInteractable(item, useJust)) return;
 
     // A saddled horse close by → Mount (an interact, not a tool). Checked before

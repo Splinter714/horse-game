@@ -1,4 +1,4 @@
-// World building (ground, barn, coop, fence, gathering sources) and the obstacle/
+// World building (ground, house, barn, coop, fence, gathering sources) and the obstacle/
 // collision helpers. Applied as a functional mixin so `this` is the scene.
 
 import Phaser from 'phaser';
@@ -12,17 +12,17 @@ export const WithWorld = (Base) => class extends Base {
   // a darker worn edge first, then a lighter trodden centre on top.
   //
   // Two separate networks:
-  //  • the FARM path — barn → a central junction → the pasture gate, with a branch
+  //  • the FARM path — house → a central junction → the pasture gate, with a branch
   //    up to the stream where you fill buckets;
   //  • a DISCONNECTED path the customers take in from off the east edge to the
   //    farm stand (not joined to the farm's paths).
   buildPath() {
     const g = this.add.graphics().setDepth(-95);
-    const fromBarn = [[235, 322], [470, 500], [700, 610], [900, 700]];   // barn → junction
+    const fromHouse = [[235, 322], [470, 500], [700, 610], [900, 700]];   // house → junction
     const toGate   = [[900, 700], [935, 800], [960, 895]];               // junction → pasture gate
     const toStream = [[900, 700], [1180, 560], [1420, 440], [1610, 372]]; // junction → stream bank
     const toStand  = [[1955, 742], [1800, 772], [1640, 794], [1560, 802]]; // off east edge → farm stand
-    const routes = [fromBarn, toGate, toStream, toStand];
+    const routes = [fromHouse, toGate, toStream, toStand];
     const stamp = (radius, color, alpha) => {
       g.fillStyle(color, alpha);
       for (const pts of routes) {
@@ -45,7 +45,7 @@ export const WithWorld = (Base) => class extends Base {
     this.add.tileSprite(0, 0, WORLD_W, WORLD_H, 'grass')
       .setOrigin(0, 0).setTileScale(S, S).setDepth(-100);
 
-    this.buildPath(); // worn path linking barn ↔ farm stand ↔ gate (#85)
+    this.buildPath(); // worn path linking house ↔ farm stand ↔ gate (#85)
 
     [
       [160, 300], [480, 200], [800, 450], [1100, 300], [1400, 180],
@@ -70,11 +70,22 @@ export const WithWorld = (Base) => class extends Base {
         .setScale(S).setDepth(y);
     });
 
-    // Barn — interactive: walk up and sleep until morning
-    this.add.image(240, 280, 'barn').setScale(S).setDepth(279).setOrigin(0.5, 1);
-    this.props.barn = { x: 240, y: 250 };
+    // House (#241) — the player's home base, NW corner. Interactive: walk up and
+    // sleep until morning. This is the old "barn" object rebranded (#241 split);
+    // home-base semantics (cat home, night huddle, sleep, player spawn) all anchor
+    // here. Its interior is built in #56.
+    this.add.image(240, 280, 'house').setScale(S).setDepth(279).setOrigin(0.5, 1);
+    this.props.house = { x: 240, y: 250 };
 
-    // Fence line near barn
+    // Barn (#241) — the horses' building (stalls + tack room). A separate, distinct
+    // structure from the house: purely a world prop for now (visual + collision);
+    // its in-world cutaway interior is #35. NO home-base semantics live here.
+    // Placed on the open farm band between the house and the pasture gate.
+    const barnX = 520, barnY = 740;
+    this.add.image(barnX, barnY, 'barn').setScale(S).setDepth(barnY).setOrigin(0.5, 1);
+    this.props.barn = { x: barnX, y: barnY - 30 };
+
+    // Fence line near the house
     for (let i = 0; i < 6; i++) {
       this.add.image(300 + i * 96, 320, 'fence').setScale(S).setDepth(320).setOrigin(0, 0.5);
     }
@@ -275,7 +286,7 @@ export const WithWorld = (Base) => class extends Base {
       { x: 1120, y: 470, content: 'seed',   tex: 'grainBin',     label: 'Grain Bin',     reach: 95,  ob: { w: 66,  h: 40 } },
       { x: 1100, y: 850, content: 'water',  tex: 'well',         label: 'Well',          reach: 95,  ob: { w: 52,  h: 22 } },
       // Cat food + water bowls — a matching two-bowl set tucked just south of the
-      // barn (the cat's usual haunt), replacing the old fish/Fishing Barrel concept
+      // house (the cat's home / usual haunt), replacing the old fish/Fishing Barrel concept
       // (#202 refinement: a real feeding/thirst mechanic, no more fish). The player
       // gathers cat food/water into a carrier here and drops a pile the same way as
       // any other food; the cat's seekFood/seekWater behaviors walk to the nearest
@@ -344,8 +355,11 @@ export const WithWorld = (Base) => class extends Base {
     // Rects in world space {x, y, w, h} — top-left origin.
     // Sized to the solid/wall area of each prop (not full sprite bounds).
     this.obstacles = [
-      // Barn walls (origin 0.5,1 at 240,280; sprite 84×66 at S=2 → 168×132; walls ~lower 90px)
+      // House walls (#241) (origin 0.5,1 at 240,280; sprite 84×66 at S=2 → 168×132; walls ~lower 90px)
       { x: 162, y: 192, w: 156, h: 88 },
+      // Barn walls (#241) — the separate horse barn (sprite origin 0.5,1 at 520,740;
+      // 96×72 at S=2 → 192×144; solid lower ~100px of the building → y 640..740).
+      { x: 424, y: 640, w: 192, h: 100 },
       // Coop (origin 0.5,1 at 930,400; sprite 64×52 at S=2 → 128×104).
       // home:'chicken' → the coop is the chickens' home, so it's excluded from
       // their personal obstacle list (they're allowed to walk in). See _obstaclesFor.

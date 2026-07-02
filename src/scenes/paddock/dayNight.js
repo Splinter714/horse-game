@@ -94,7 +94,7 @@ export const WithDayNight = (Base) => class extends Base {
   restAllAnimals() {
     // The barnyard beds down together (#187, charm.js): horses + other pasture
     // animals settle (the non-horses drift in to join the herd); the cat sometimes
-    // curls up outside instead of going into the barn.
+    // curls up outside instead of going into the house.
     for (const h of this.horses) this._settleAnimalForNight(h);
     for (const a of this.animals) {
       if (a.key.startsWith('chicken')) this.chickenRoost(a);
@@ -241,14 +241,16 @@ export const WithDayNight = (Base) => class extends Base {
     });
   }
 
-  // The barn front-centre, just south of the barn's collision box so it's a
-  // reachable spot (the box covers the building itself). Used as the cat's home.
-  _barnEntry() {
-    const barn = this.props.barn;
-    return { x: barn.x, y: barn.y + 44 }; // ≈ (240, 294), clear of the barn walls
+  // The house front-centre, just south of the house's collision box so it's a
+  // reachable spot (the box covers the building itself). Used as the home-base
+  // anchor: the cat's home, the yard-roamer night huddle, the dog bed-down (#241
+  // moved these off the old "barn" — now the HOUSE — onto props.house).
+  _houseEntry() {
+    const house = this.props.house;
+    return { x: house.x, y: house.y + 44 }; // ≈ (240, 294), clear of the house walls
   }
 
-  // Nightfall: the cat heads home to the barn to sleep (#90), pathing there
+  // Nightfall: the cat heads home to the house to sleep (#90), pathing there
   // around obstacles, then slipping inside (fade up + out of view) like the
   // chickens roost in the coop. Curls into its nap pose (#198, catArt.js
   // drawCatNap) for the fade if the species has one — a species without a nap
@@ -259,7 +261,7 @@ export const WithDayNight = (Base) => class extends Base {
     a._eatPile = null;
     a.state = 'homing';
 
-    const { x: ex, y: ey } = this._barnEntry();
+    const { x: ex, y: ey } = this._houseEntry();
     this.moveCreatureTo(a, ex, ey, () => {
       if (a.state !== 'homing' || !a.sprite.active) return;
       a.shadow.setVisible(false);
@@ -267,7 +269,7 @@ export const WithDayNight = (Base) => class extends Base {
       const napKey = `nap_${a.key}`;
       a.sprite.play(this.anims.exists(napKey) ? napKey : `idle_${a.key}`, true);
       a.wanderTween = this.tweens.add({
-        targets: a.sprite, y: ey - 16, alpha: 0, // step up into the barn, fading
+        targets: a.sprite, y: ey - 16, alpha: 0, // step up into the house, fading
         duration: 600, ease: 'Sine.easeIn',
         onComplete: () => {
           a.wanderTween = null;
@@ -277,10 +279,10 @@ export const WithDayNight = (Base) => class extends Base {
     });
   }
 
-  // Morning: the cat re-emerges from the barn and resumes prowling.
+  // Morning: the cat re-emerges from the house and resumes prowling.
   catLeaveHome(a) {
     if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
-    const { x: ex, y: ey } = this._barnEntry();
+    const { x: ex, y: ey } = this._houseEntry();
     a.state = 'leaving';
     a.sprite.setPosition(ex, ey - 16).setAlpha(0).setVisible(true);
     a.shadow.setPosition(ex, ey).setVisible(true);
