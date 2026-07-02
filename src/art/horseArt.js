@@ -560,6 +560,125 @@ function drawHorse(g, coat, bob, legLift, sway = 0) {
   }
 }
 
+// A single up-pointing leg for the legs-up roll pose (#70). Drawn from a hip/shoulder
+// root at (x, rootY) reaching UP by `len`, angled by `kick` (design px the hoof swings
+// sideways from vertical). Uses the coat body ramp + a hoof cap, with the same
+// front-light / back-shadow cylinder shading the standing leg has, so an on-its-back
+// leg reads like the same limb — just inverted. `near` legs are lit; far legs sink.
+function rollLegUp(g, x, rootY, len, kick, body, near, hoof) {
+  const w = 3.2;
+  const base = near ? lerpColor(body.mid, body.hi, 0.28) : body.lo;
+  for (let i = 0; i < len; i += 0.5) {
+    const f = i / len;                         // 0 root … 1 hoof (top)
+    const cx = x + kick * f;                   // swing sideways toward the hoof
+    const lx = cx - w / 2;
+    const y = rootY - i;                        // grows upward
+    const core = lerpColor(base, near ? body.mid : body.lo, 0.15);
+    g.fillStyle(core, 1); g.fillRect(lx, y, w, 0.5);
+    g.fillStyle(lerpColor(core, 0x000000, near ? 0.13 : 0.09), 1); g.fillRect(lx, y, w * 0.26, 0.5);
+    if (near) { g.fillStyle(lerpColor(core, 0xfff2d8, 0.08), 1); g.fillRect(lx + w * 0.72, y, w * 0.2, 0.5); }
+  }
+  // hoof cap at the top (skyward)
+  const hy = rootY - len - 1.5, hx = x + kick - (w + 1) / 2;
+  const hTone = near ? hoof : lerpColor(hoof, 0x000000, 0.2);
+  g.fillStyle(hTone, 1); g.fillRect(hx, hy, w + 1, 2);
+  g.fillStyle(lerpColor(hTone, 0xffffff, 0.18), 1); g.fillRect(hx + 0.6, hy + 0.3, 1, 0.6);
+}
+
+// Horse rolling in the dirt (#70): lying on its BACK, spine on the ground, belly up,
+// all four legs waving in the air — the real self-grooming roll (lower → onto back
+// with legs up → kick → get up). `phase` drives the leg motion across the frame set:
+//   0 = settling onto the back (legs just coming up)
+//   1 = full legs-up, hooves splayed out
+//   2 = kicking (legs swing the other way)
+// The body is a rounded barrel lying low; the head/neck curl back on the ground to the
+// right. `dy` seats the pose on the ground like the sleep frame does.
+function drawHorseRoll(g, coat, bob, phase) {
+  const b = coat.body;
+  const m = coat.mane;
+  const mk = coat.markings || {};
+  const dy = 14; // sits low on the ground (spine down)
+  const yo = bob + dy;
+
+  // Leg kick pattern per phase: [hindFar, hindNear, foreFar, foreNear] sideways swing.
+  // Phase 0 legs barely up (short), 1 fully up & splayed, 2 kicked toward the head.
+  const KICK = [
+    { len: 7,  hind: -1.5, fore: 1.5 },   // coming up
+    { len: 12, hind: -3,   fore: 3   },   // full splay out
+    { len: 11, hind: 2.5,  fore: -2.5 },  // kick the other way
+  ][phase] || { len: 10, hind: -2, fore: 2 };
+
+  // --- legs waving up (drawn first, behind the belly that rises over them) ---
+  g.layer('legs');
+  // Hind pair roots near the rump (left), fore pair near the chest (right). Root Y is
+  // the top of the belly barrel so the legs sprout from the underside now facing up.
+  const legRootY = 24 + yo;
+  rollLegUp(g, 15, legRootY, KICK.len - 1, KICK.hind, b, false, coat.hoof); // hind far
+  rollLegUp(g, 40, legRootY, KICK.len - 1, KICK.fore, b, false, coat.hoof); // fore far
+  rollLegUp(g, 18, legRootY, KICK.len,     KICK.hind, b, true,  coat.hoof); // hind near
+  rollLegUp(g, 37, legRootY, KICK.len,     KICK.fore, b, true,  coat.hoof); // fore near
+
+  // --- tail, flopped out to the left along the ground ---
+  g.layer('tail');
+  g.fillStyle(m.mid, 1); g.fillRect(6, 26 + yo, 3, 2);
+  g.fillStyle(m.lo, 1);  g.fillRect(3, 27 + yo, 4, 3);
+  g.fillStyle(m.mid, 1); g.fillRect(1, 29 + yo, 3, 2);
+
+  // --- body: a low rounded barrel, belly-up. Belly (light) on top, spine (shadow)
+  // tucked at the ground line. ---
+  g.layer('body');
+  g.fillStyle(b.mid, 1);
+  g.fillRect(10, 24 + yo, 38, 10);    // main barrel
+  g.fillRect(9,  26 + yo, 1, 6);      // rounded left (rump) edge
+  g.fillRect(48, 26 + yo, 1, 6);      // rounded right (chest) edge
+  g.fillStyle(b.hi, 1);
+  g.fillRect(10, 23 + yo, 38, 3);     // belly-up highlight (now the topline)
+  g.fillStyle(b.lo, 1);
+  g.fillRect(10, 32 + yo, 38, 2);     // spine/ground shadow underneath
+  // rounded-barrel shading, flipped: sheen high on the exposed belly
+  g.fillStyle(HILITE, 0.10); g.fillRect(12, 23.5 + yo, 34, 1.25);
+  g.fillStyle(SHADE, 0.10);  g.fillRect(11, 32.5 + yo, 36, 1.25);
+
+  drawDorsal(g, coat, yo);
+  bodyPatterns(g, coat, yo);
+  darkMarkings(g, coat, yo);
+
+  // --- neck + head curled back onto the ground to the right (nose up as it rolls) ---
+  g.layer('neck');
+  g.fillStyle(b.mid, 1);
+  g.fillRect(46, 22 + yo, 8, 8);      // neck base rising from the chest
+  g.fillRect(50, 20 + yo, 6, 6);
+  g.fillStyle(b.hi, 1);
+  g.fillRect(46, 22 + yo, 3, 8);
+
+  g.layer('head');
+  const headY = 16 + yo;
+  g.fillStyle(b.mid, 1); g.fillRect(52, headY, 10, 8);   // skull tilted up
+  g.fillStyle(b.hi, 1);  g.fillRect(52, headY, 10, 2);
+  g.fillStyle(b.lo, 1);  g.fillRect(58, headY + 4, 5, 4); // muzzle up/right
+  // ears (both up, alert-ish — a rolling horse flicks its ears)
+  g.fillStyle(b.mid, 1);    g.fillRect(52, headY - 3, 2, 4);
+  g.fillStyle(EAR_PINK, 1); g.fillRect(52, headY - 2, 1, 2);
+  g.fillStyle(b.mid, 1);    g.fillRect(55, headY - 3, 2, 4);
+  g.fillStyle(EAR_PINK, 1); g.fillRect(55, headY - 2, 1, 2);
+  // nostril
+  g.fillStyle(coat.hoof, 0.6); g.fillRect(61, headY + 6, 1, 1);
+  // eye — half-closed contented roll (a short dark slit + a glint)
+  g.fillStyle(coat.eye, 1);  g.fillRect(54, headY + 2, 2, 1.5);
+  g.fillStyle(HILITE, 0.7);  g.fillRect(54.25, headY + 2.25, 0.5, 0.5);
+
+  g.layer('mane');
+  // mane spilling off the crest, hanging back toward the ground.
+  g.fillStyle(m.mid, 1); g.fillRect(46, 20 + yo, 3, 4);
+  g.fillStyle(m.lo, 1);  g.fillRect(48, 18 + yo, 3, 4);
+  g.fillStyle(m.mid, 1); g.fillRect(50, 17 + yo, 3, 3);
+  if (mk.pinto && mk.pintoMane) {
+    g.fillStyle(WHITE, 1);
+    g.fillRect(46, 20 + yo, 3, 4);
+    g.fillRect(3, 27 + yo, 4, 3); // tail tip
+  }
+}
+
 // Horse sleeping: laid out on side, head and neck relaxed.
 // `dy` drops the whole pose toward the bottom of the frame so the resting
 // horse sits on the ground at the sprite anchor instead of hovering above it.
@@ -975,15 +1094,28 @@ export function buildHorseTextures(scene, baseKey, coat) {
   TAIL_SWISH_SWAY.forEach((sway, i) =>
     frames.push({ name: `swish_${i}`, bob: i % 2, legs: IDLE_LEGS, sway }));
 
+  // Legs-up roll frames (#70): the real self-grooming roll — on its back with legs
+  // waving. Played by _rollInDirt in place of the old squash/scale tween. The cycle
+  // (settle → full splay → kick → back to splay) loops for the roll's duration, then
+  // the horse pops back up to idle. `roll` is the phase index into drawHorseRoll.
+  ROLL_PHASES.forEach((phase, i) =>
+    frames.push({ name: `roll_${i}`, bob: i % 2, roll: phase }));
+
   for (const f of frames) {
     gen(scene, `${baseKey}_${f.name}`, FRAME_W * ART_SCALE, FRAME_H * ART_SCALE, g0 => {
       const g = scaledGraphics(g0);
       if (f.eat) drawHorseEat(g, coat, f.bob);
       else if (f.sleep) drawHorseSleep(g, coat, f.bob);
+      else if (f.roll !== undefined) drawHorseRoll(g, coat, f.bob, f.roll);
       else drawHorse(g, coat, f.bob, f.legs, f.sway ?? 0);
     });
   }
 }
+
+// Roll phase sequence (#70): settle onto the back → full legs-up splay → kick →
+// back through the splay, so the loop reads as a continuous rock-and-kick while the
+// horse is down. See drawHorseRoll for the per-phase leg motion.
+const ROLL_PHASES = [0, 1, 2, 1];
 
 // Sway (design px) per swish frame: a full side-to-side swing, gentle (the tail is
 // ~4.5px wide, so ±2.4 reads clearly without flinging). Played looping for a short

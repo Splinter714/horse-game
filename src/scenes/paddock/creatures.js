@@ -394,6 +394,17 @@ export const WithCreatures = (Base) => class extends Base {
         ],
         frameRate: 5, repeat: -1,
       });
+      // Legs-up roll (#70): the real self-grooming roll — on its back, legs waving —
+      // played by _rollInDirt in place of the old squash/scale tween. Loops for the
+      // roll's duration, then the horse pops back up to idle.
+      this.anims.create({
+        key: `roll_${key}`,
+        frames: [
+          { key: `${key}_roll_0` }, { key: `${key}_roll_1` },
+          { key: `${key}_roll_2` }, { key: `${key}_roll_3` },
+        ],
+        frameRate: 5, repeat: -1,
+      });
     }
 
     const shadow = this.add.image(startX, startY, 'shadow')

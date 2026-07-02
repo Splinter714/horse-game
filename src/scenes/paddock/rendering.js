@@ -81,10 +81,11 @@ export const WithRendering = (Base) => class extends Base {
         const groom = allHorses[h.key]?.stats.grooming ?? 100;
         const dirt  = Phaser.Math.Clamp((DUST_CLEAN_AT - groom) / DUST_CLEAN_AT, 0, 1);
         // The dust/stink overlays are the STANDING horse shape, so they'd float
-        // awkwardly over the on-its-side sleep/roll pose. Hide them whenever that
-        // lying-down frame is showing — i.e. while rolling and while asleep at
-        // night (#102). They reappear (darker, if the roll dirtied it) on standing.
-        const lying = h.sprite.anims?.currentAnim?.key === `sleep_${h.key}`;
+        // awkwardly over the lying-down sleep/roll poses. Hide them whenever a
+        // lying-down frame is showing — asleep at night (#102) or mid-roll on its
+        // back (#70). They reappear (darker, if the roll dirtied it) on standing.
+        const animKey = h.sprite.anims?.currentAnim?.key;
+        const lying = animKey === `sleep_${h.key}` || animKey === `roll_${h.key}`;
         // The body art bobs 1 design-pixel (= S world px) on the odd idle/walk
         // frames; mirror that here so the dust splotches and stink lines bounce
         // *with* the horse instead of floating over the breathing body.

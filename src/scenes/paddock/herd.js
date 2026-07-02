@@ -151,15 +151,11 @@ export const WithHerd = (Base) => class extends Base {
     if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
     const sprite = h.sprite;
 
-    // Lie down (reusing the existing sleep / lying-down frames) and rock side to
-    // side as if rolling, kicking up dust, then get back up. (issue #26 tweak)
-    sprite.play(`sleep_${h.key}`, true);
-    const baseAngle = sprite.angle;
-    const rock = this.tweens.add({
-      targets: sprite,
-      angle: baseAngle + 8,
-      duration: 240, yoyo: true, repeat: 4, ease: 'Sine.easeInOut',
-    });
+    // Play the real legs-up roll animation (#70): the horse lowers onto its back,
+    // waves its legs and kicks, kicking up dust, then gets back up. The dedicated
+    // `roll_${key}` frames replace the old faked squash/scale-rock tween. The dust
+    // puffs and the grooming decrement (below) are unchanged.
+    sprite.play(`roll_${h.key}`, true);
 
     // Dust thrown up across the roll.
     this._dustPuff(sprite.x, sprite.y);
@@ -168,8 +164,6 @@ export const WithHerd = (Base) => class extends Base {
 
     // Get back up.
     this.time.delayedCall(1300, () => {
-      rock.stop();
-      sprite.angle = baseAngle;
       if (h.state === 'rolling') {
         sprite.play(`idle_${h.key}`, true);
         h.state = 'idle';
