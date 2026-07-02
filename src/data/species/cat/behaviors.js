@@ -7,29 +7,44 @@
 //                       when it claims the cat so the dispatcher stops (else falls to
 //                       wander).
 //
-// `seekFood` is checked first (registered ahead of `catFish` in cat/index.js
-// `behaviors`): a hungry cat prefers walking to real dropped food over the cosmetic
-// fishing loop. Only when no fish pile is reachable does it fall back to fishing at
-// the stream — which still never actually catches anything (#201), so it's a
-// fallback distraction, not a food source.
+// `seekFood`/`seekWater` are checked first (registered ahead of `catFish` in
+// cat/index.js `behaviors`): a hungry or thirsty cat prefers walking to real dropped
+// food/water over the cosmetic fishing loop. Only when neither is reachable does it
+// fall back to fishing at the stream — which still never actually catches anything
+// (#201), so it's a fallback distraction, not a food/water source.
 
-const HUNGER_SEEK = 90;  // eat a dropped fish pile while hunger is below this
-const FISH_RANGE  = 900; // …and the nearest reachable pile is within this many px
+const HUNGER_SEEK = 90;  // eat a dropped cat-food pile while hunger is below this
+const THIRST_SEEK = 90;  // drink a dropped cat-water pile while thirst is below this
+const BOWL_RANGE  = 900; // …and the nearest reachable pile is within this many px
 const HUNGER_HUNT = 55;  // below this hunger, a daytime cat heads to the stream to try fishing
 
-// Hungry → walk to the nearest reachable dropped fish pile and eat, via the shared
-// grazing primitive (horseGoEat/_nearestReachableHay — species-generic despite the
-// filename, gated by speciesEatsContent so the cat only ever walks to fish, #202).
+// Hungry → walk to the nearest reachable dropped cat-food pile and eat, via the
+// shared grazing primitive (horseGoEat/_nearestReachableHay — species-generic
+// despite the filename, gated by speciesEatsContent so the cat only ever walks to
+// its own food, #202).
 export const seekFood = {
   id: 'seekFood',
-  test: (ctx) => ctx.hunger < HUNGER_SEEK && ctx.nearestFishDist < FISH_RANGE,
+  test: (ctx) => ctx.hunger < HUNGER_SEEK && ctx.nearestFoodDist < BOWL_RANGE,
   run: (scene, a) => {
-    const pile = scene._nearestReachableHay(a);
+    const pile = scene._nearestReachableHay(a, 'catFood');
     return pile ? scene.horseGoEat(a, pile) : false;
   },
 };
 
-// Hungry with no fish out → walk to the nearest stream bank and try to fish. NB the
+// Thirsty → walk to the nearest reachable dropped cat-water pile and drink, via the
+// same shared grazing primitive — horseGoEat now applies whichever action the pile's
+// content maps to (CONTENT_DEFS.catWater.action === 'water'), so this restores
+// thirst instead of hunger (#202 thirst mechanic).
+export const seekWater = {
+  id: 'seekWater',
+  test: (ctx) => ctx.thirst < THIRST_SEEK && ctx.nearestWaterDist < BOWL_RANGE,
+  run: (scene, a) => {
+    const pile = scene._nearestReachableHay(a, 'catWater');
+    return pile ? scene.horseGoEat(a, pile) : false;
+  },
+};
+
+// Hungry with no food out → walk to the nearest stream bank and try to fish. NB the
 // cat never actually catches a fish (#201), so fishing doesn't restore hunger — this
 // is just a charming fallback loop while it waits for real food. `streamDist` is
 // Infinity only when no stream is reachable at all (there always is one), so the gate

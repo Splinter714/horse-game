@@ -255,11 +255,14 @@ export const WithWorld = (Base) => class extends Base {
       { x: 1660, y: 560, content: 'apple',  tex: 'appleTree',    label: 'Apple Tree',    reach: 90,  ob: { w: 44,  h: 26 } },
       { x: 1120, y: 470, content: 'seed',   tex: 'grainBin',     label: 'Grain Bin',     reach: 95,  ob: { w: 66,  h: 40 } },
       { x: 1100, y: 850, content: 'water',  tex: 'well',         label: 'Well',          reach: 95,  ob: { w: 52,  h: 22 } },
-      // Fishing barrel — a barrel of fish by the stream bank, the cat's food source
-      // (#202). Placed near the path's stream branch (toStream ends ~1610,372) but
-      // clear of the water itself, so it reads as "caught fish, ready to drop for
-      // the cat" rather than a second stream-gather spot.
-      { x: 1540, y: 430, content: 'fish',   tex: 'fishBarrel',   label: 'Fishing Barrel', reach: 95, ob: { w: 40, h: 34 } },
+      // Cat food + water bowls — a matching two-bowl set tucked just south of the
+      // barn (the cat's usual haunt), replacing the old fish/Fishing Barrel concept
+      // (#202 refinement: a real feeding/thirst mechanic, no more fish). The player
+      // gathers cat food/water into a carrier here and drops a pile the same way as
+      // any other food; the cat's seekFood/seekWater behaviors walk to the nearest
+      // dropped pile and eat/drink via the shared grazing primitive.
+      { x: 165,  y: 420, content: 'catFood',  tex: 'catFoodBowl',  label: 'Food Bowl',  reach: 90, ob: { w: 26, h: 16 } },
+      { x: 205,  y: 420, content: 'catWater', tex: 'catWaterBowl', label: 'Water Bowl', reach: 90, ob: { w: 26, h: 16 } },
     ];
     for (const d of defs) {
       const sprite = this.add.image(d.x, d.y, d.tex)

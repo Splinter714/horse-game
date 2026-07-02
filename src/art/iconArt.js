@@ -172,13 +172,12 @@ export function buildIconTextures(scene) {
     g.fillRect(5, 7, 2, 2); g.fillRect(9, 6, 2, 2); g.fillRect(13, 7, 2, 2); g.fillRect(7, 9, 2, 2); g.fillRect(11, 9, 2, 2);
     g.fillStyle(0xe8c050, 1); g.fillRect(6, 5, 1, 1); g.fillRect(10, 4, 1, 1); g.fillRect(14, 5, 1, 1);
   });
-  gen(scene, 'iconBasketFish', 20, 20, (g) => {
+  gen(scene, 'iconBasketCatFood', 20, 20, (g) => {
     drawBasketBody(g);
-    g.fillStyle(0x7a9bb0, 1); g.fillEllipse(7, 6, 7, 3.5);
-    g.fillStyle(0x5a7a8c, 1); g.fillTriangle(3, 6, 0, 4, 0, 8);
-    g.fillStyle(0xaecbd9, 1); g.fillEllipse(13, 7, 6, 3);
-    g.fillStyle(0x7a9bb0, 1); g.fillTriangle(17, 7, 20, 5, 20, 9);
-    g.fillStyle(0x1c2530, 1); g.fillRect(9, 6, 1, 1); g.fillRect(15, 6, 1, 1);
+    g.fillStyle(0xb9793a, 1); g.fillRoundedRect(4, 4, 12, 7, 2); // kibble mounded above rim
+    g.fillStyle(0x8f5a26, 1); g.fillRect(4, 7, 12, 1); g.fillRect(4, 9, 12, 1);
+    g.fillStyle(0xd6a25e, 1);
+    g.fillCircle(6, 5, 1); g.fillCircle(10, 4, 1); g.fillCircle(14, 5, 1); g.fillCircle(8, 7, 1);
   });
   gen(scene, 'iconBasketEgg', 20, 20, (g) => {
     drawBasketBody(g);
@@ -219,6 +218,22 @@ export function buildIconTextures(scene) {
     g.fillEllipse(10, 17, 11, 4.4); // rounded bottom bulge (matches the tilted top)
     g.fillStyle(0xb8c0d0, 1); g.fillEllipse(10, 8, 14, 5); // rim
     // Water filling the mouth oval, with a brighter glint near-left
+    g.fillStyle(0x5fa6d6, 1); g.fillEllipse(10, 8, 10.5, 3.4);
+    g.fillStyle(0x9ae0f8, 1); g.fillEllipse(8.4, 7.4, 4.6, 1.6);
+    g.fillStyle(0xb8c0d0, 1); g.fillRect(5, 10, 1, 6);
+    g.fillStyle(0x7a8396, 1); g.fillEllipse(10, 18.4, 8.6, 2.2);
+  });
+  // Cat water bucket — same tilted pail as iconBucketWater, distinguished only by
+  // context (the cat's water bowl); visually identical water fill is intentional,
+  // it's still literally a bucket of water (#202 refinement).
+  gen(scene, 'iconBucketCatWater', 20, 20, (g) => {
+    g.fillStyle(0x6f7889, 1);
+    g.fillRect(3, 4, 1, 3); g.fillRect(16, 4, 1, 3);
+    g.fillRect(4, 2, 12, 1); g.fillRect(3, 3, 2, 1); g.fillRect(15, 3, 2, 1);
+    g.fillStyle(0x9aa3b6, 1);
+    g.fillTriangle(3, 8, 17, 8, 15, 17); g.fillTriangle(3, 8, 15, 17, 5, 17);
+    g.fillEllipse(10, 17, 11, 4.4);
+    g.fillStyle(0xb8c0d0, 1); g.fillEllipse(10, 8, 14, 5);
     g.fillStyle(0x5fa6d6, 1); g.fillEllipse(10, 8, 10.5, 3.4);
     g.fillStyle(0x9ae0f8, 1); g.fillEllipse(8.4, 7.4, 4.6, 1.6);
     g.fillStyle(0xb8c0d0, 1); g.fillRect(5, 10, 1, 6);

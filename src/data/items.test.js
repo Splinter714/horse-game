@@ -9,9 +9,9 @@ describe('carrier definitions', () => {
     // Basket cap is intentionally large (effectively unlimited): a gather only pulls
     // what's needed (#136), so the cap is just a safety ceiling, not a play limit.
     expect(CARRIER_DEFS.basket.capacity).toBeGreaterThanOrEqual(99);
-    expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'fish', 'egg']);
+    expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'catFood', 'egg']);
     expect(CARRIER_DEFS.bucket.capacity).toBe(1);
-    expect(CARRIER_DEFS.bucket.accepts).toEqual(['water', 'milk']); // milk added with the cow (#cow)
+    expect(CARRIER_DEFS.bucket.accepts).toEqual(['water', 'catWater', 'milk']); // milk added with the cow (#cow)
   });
 
   it('every content a basket accepts has a content definition', () => {
@@ -26,12 +26,18 @@ describe('content definitions', () => {
     expect(CONTENT_DEFS.water.action).toBe('water');
     expect(CONTENT_DEFS.egg.action).toBe('egg');
     expect(CONTENT_DEFS.seed.feeds).toEqual(['chicken']);
+    expect(CONTENT_DEFS.catFood.feeds).toEqual(['cat']);
+    // catWater is a per-species dropped drink (the cat's water bowl, #202
+    // refinement) — unlike the trough's plain `water`, it carries a `feeds` list
+    // even though its action is 'water', not 'feed'.
+    expect(CONTENT_DEFS.catWater.action).toBe('water');
+    expect(CONTENT_DEFS.catWater.feeds).toEqual(['cat']);
   });
 
-  it('every feed content lists the species that eat it', () => {
+  it('every feed-action content lists the species that eat it; egg/plain-water don\'t', () => {
     for (const [key, def] of Object.entries(CONTENT_DEFS)) {
-      if (def.action === 'feed') expect(Array.isArray(def.feeds)).toBe(true);
-      else expect(def.feeds).toBeUndefined(); // water/egg aren't food
+      if (def.action === 'feed' || key === 'catWater') expect(Array.isArray(def.feeds)).toBe(true);
+      else expect(def.feeds).toBeUndefined(); // plain water/egg aren't tied to a diet
     }
   });
 });

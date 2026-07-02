@@ -4,11 +4,11 @@
 //
 // A hungry cat pads to the nearest stream bank, crouches, and pounces at the water —
 // but it NEVER actually catches anything: each pounce is just a splash and a ripple,
-// so no fish is ever harmed (#201). Fishing is now purely a charming attempt; it does
-// NOT feed the cat. Fishing was the cat's only food source, so until a real feeding
-// mechanic lands (follow-up #202) the cat has nothing to restore its hunger — it'll
-// sit low and the cat keeps trying at the stream by design. Reuses the shared movement
-// primitive (moveCreatureTo) and the stream's ripple from WithWildlife (_fishRipple).
+// so no fish is ever harmed (#201). Fishing is purely a charming attempt; it does NOT
+// feed the cat. The cat's real hunger/thirst sources are the dropped cat-food/
+// cat-water piles from its food/water bowls (#202 refinement) — fishing is just a
+// fallback distraction when nothing's out. Reuses the shared movement primitive
+// (moveCreatureTo) and the stream's ripple from WithWildlife (_fishRipple).
 
 import Phaser from 'phaser';
 import { playDrink } from '../../audio/sounds.js';
@@ -18,22 +18,31 @@ const EDGE_OFFSET = 46;  // stand this far down the field normal from the water 
 export const WithCatAI = (Base) => class extends Base {
   // Context snapshot for the cat's behavior `test`s (dispatched from behaviors.js).
   // What seekFood needs: how hungry it is + distance to the nearest reachable dropped
-  // fish pile (#202, via the shared _nearestReachableHay lookup — species-generic
-  // despite the filename). What catFish needs: whether a stream is reachable and
-  // whether it's night (the cat goes home to sleep then, so it shouldn't fish).
+  // cat-food pile. What seekWater needs: how thirsty it is + distance to the nearest
+  // reachable dropped cat-water pile. Both via the shared _nearestReachableHay lookup
+  // (species-generic despite the filename), filtered to each content so the cat
+  // doesn't confuse its food bowl's pile for its water bowl's (#202 refinement). What
+  // catFish needs: whether a stream is reachable and whether it's night (the cat goes
+  // home to sleep then, so it shouldn't fish).
   _catContext(a) {
     const cat = a.model;
     const spot = this._nearestStreamSpot(a);
     const streamDist = spot
       ? Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, spot.x, spot.y)
       : Infinity;
-    const pile = this._nearestReachableHay(a);
-    const nearestFishDist = pile
-      ? Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, pile.x, pile.y)
+    const foodPile = this._nearestReachableHay(a, 'catFood');
+    const nearestFoodDist = foodPile
+      ? Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, foodPile.x, foodPile.y)
+      : Infinity;
+    const waterPile = this._nearestReachableHay(a, 'catWater');
+    const nearestWaterDist = waterPile
+      ? Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, waterPile.x, waterPile.y)
       : Infinity;
     return {
       hunger: cat?.stats?.hunger ?? 100,
-      nearestFishDist,
+      thirst: cat?.stats?.thirst ?? 100,
+      nearestFoodDist,
+      nearestWaterDist,
       streamDist,
       isNight: !!this.isNight,
     };
