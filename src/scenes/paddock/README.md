@@ -24,7 +24,8 @@ core orchestrator.
 | Herd | `paddock/herd.js` (`WithHerd`) | horse need-driven wander, herd separation/pairing, rolling, greeting |
 | Charm | `paddock/charm.js` (`WithCharm`) | cross-animal charm "aww" moments (#187): dog↔sheep herding (`dogGoHerd`/`_sheepBunch`), chicken scatter (`chickenScatterFrom`), pig sunbathe nap (`_maybePigNap`/`_charmNap`), night settle-together (`_settleAnimalForNight`) + cat curl-up (`catCurlUp`), head-to-tail tail-swish (`_charmTailSwish`, baked `swish_*` frames). Cosmetic only |
 | Farm stand | `paddock/farmStand.js` (`WithFarmStand`) | stand build + NPC customers |
-| Day/night | `paddock/dayNight.js` (`WithDayNight`) | phase response, rest/wake, roosting, birds |
+| Day/night | `paddock/dayNight.js` (`WithDayNight`) | phase response, rest/wake, roosting, birds; `_dirtyHorse` scales dirt by weather (#188) |
+| Weather | `paddock/weather.js` (`WithWeather`) | reacts to `WEATHER_CHANGE` (#188): `onWeatherChange` sets `this._weather`, shoos wildlife into cover on rain (`_clearWildlifeForRain`), and runs the partial rain trough-fill (`_startRainTroughFill`). State machine + rain tint/particles/indicator live in `DayNightScene`; pure rules in `data/weather.js` |
 | Horse AI | `paddock/horseAI.js` (`WithHorseAI`) | horse eat/drink seeking + gate-aware pathing |
 | Cat AI | `paddock/catAI.js` (`WithCatAI`) | cat fishing — `_catContext`, `_nearestStreamSpot`, `catGoFish` (hungry cat hunts fish at the stream, #163) |
 | Behavior registry | `paddock/behaviors.js` (`WithBehaviors`) | data-driven AI dispatch (`runBehaviors`) |

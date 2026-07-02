@@ -5,6 +5,7 @@ import {
   playHoofbeat, startWind, stopWind, startMusic, stopMusic,
 } from '../audio/sounds.js';
 import { INTERACT_DIST } from './paddock/constants.js';
+import { WEATHER } from '../data/weather.js';
 import { WithWorld } from './paddock/world.js';
 import { WithWildlife } from './paddock/wildlife.js';
 import { WithRaccoon } from './paddock/raccoon.js';
@@ -15,6 +16,7 @@ import { WithHerd } from './paddock/herd.js';
 import { WithCharm } from './paddock/charm.js';
 import { WithFarmStand } from './paddock/farmStand.js';
 import { WithDayNight } from './paddock/dayNight.js';
+import { WithWeather } from './paddock/weather.js';
 import { WithHorseAI } from './paddock/horseAI.js';
 import { WithBehaviors } from './paddock/behaviors.js';
 import { WithRiding } from './paddock/riding.js';
@@ -33,9 +35,9 @@ import { WithInput } from './paddock/input.js';
 import { applyDpr } from './uiUtils.js';
 
 export default class PaddockScene
-  extends WithWorld(WithWildlife(WithRaccoon(WithCatAI(WithCharm(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithDayNight(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
+  extends WithWorld(WithWildlife(WithRaccoon(WithCatAI(WithCharm(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithDayNight(WithWeather(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
     WithEffects(WithPersistence(WithRendering(WithWorldObjects(WithCareActions(WithInteraction(WithInput(
-    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene))))))))))))))))))))))))) {
+    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene)))))))))))))))))))))))))) {
   constructor() {
     super('PaddockScene');
   }
@@ -84,12 +86,15 @@ export default class PaddockScene
     this._scheduleNextCustomer();
 
     this.isNight = false;
+    this._weather = WEATHER.SUN; // updated by onWeatherChange (#188)
     this._sleeping = false;
     this.game.events.on(EVENTS.PHASE_CHANGE,    this.onPhaseChange,   this);
+    this.game.events.on(EVENTS.WEATHER_CHANGE,  this.onWeatherChange, this);
     this.game.events.on(EVENTS.SLEEP_DONE,      this._onSleepDone,    this);
     this.game.events.on(EVENTS.PROMPTS_CHANGED, this._onPromptsChanged, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.game.events.off(EVENTS.PHASE_CHANGE,    this.onPhaseChange,   this);
+      this.game.events.off(EVENTS.WEATHER_CHANGE,  this.onWeatherChange, this);
       this.game.events.off(EVENTS.SLEEP_DONE,      this._onSleepDone,    this);
       this.game.events.off(EVENTS.PROMPTS_CHANGED, this._onPromptsChanged, this);
       stopWind();
