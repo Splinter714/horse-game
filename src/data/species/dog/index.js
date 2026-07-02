@@ -28,6 +28,15 @@ export const DOG = {
   ],
   traits: { personality: 'loyal' },
   optionalAttrs: [],
+  // Personality & preferences (#88 v1) — a farm dog's own vocabulary.
+  personality: {
+    pools: {
+      activity: ['fetching sticks', 'running the fields', 'napping on the porch', 'exploring', 'herding the flock'],
+      food: ['kibble', 'a meaty bone', 'leftover scraps'],
+      treat: ['a chew stick', 'a belly rub', 'a game of fetch'],
+      affinities: ['loves water', 'enjoys company', 'loves sunshine', 'loves a good nap', 'loves a long walk'],
+    },
+  },
   // `herds` wires the dog's goal-tick at spawn (creatures.js) to the behavior
   // dispatcher — its one charm behavior for now: occasionally nosing the sheep flock
   // into a bunch (#187). A fuller "dog job" (companion-follow, real herding) is #186.
