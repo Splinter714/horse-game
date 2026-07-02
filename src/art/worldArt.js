@@ -231,6 +231,46 @@ export function buildWorldTextures(scene) {
     g.fillRect(8, 34, 4, 10); g.fillRect(60, 34, 4, 10);
   });
 
+  // --- Spinning wheel (32 × 40) — the crafting station that spins wool into yarn
+  // (#233). Origin (0.5, 1). A classic wheel-on-a-stand: a big spoked wheel on the
+  // left, a slanted treadle base, and a small spindle/bobbin of yarn on the right. ---
+  gen(scene, 'spinningWheel', 32, 40, (g) => {
+    const WOOD   = 0x8a5a2c, WOOD_D = 0x6a4420, WOOD_L = 0xa8763c;
+    const IRON   = 0x555055;
+    const YARN   = 0xd88a6a, YARN_L = 0xe8a888;
+    // Stand base (slanted foot rail)
+    g.fillStyle(WOOD_D, 1); g.fillRect(4, 36, 24, 3);
+    g.fillStyle(WOOD, 1);   g.fillRect(6, 33, 4, 4); g.fillRect(22, 33, 4, 4);
+    // Wheel hub post
+    g.fillStyle(WOOD, 1); g.fillRect(9, 14, 3, 20);
+    g.fillStyle(WOOD_L, 1); g.fillRect(9, 14, 1, 20);
+    // The big wheel — rim + hub + spokes
+    const cx = 10, cy = 15, R = 9;
+    g.fillStyle(WOOD, 1);   g.fillCircle(cx, cy, R);
+    g.fillStyle(0x000000, 0);                                  // (no fill — carve rim)
+    g.fillStyle(WOOD_D, 1); g.fillCircle(cx, cy, R - 2);       // inner cut
+    g.fillStyle(WOOD, 1);   g.fillCircle(cx, cy, R - 3);       // re-fill center (spokes drawn over)
+    g.fillStyle(WOOD_L, 1);                                    // spokes
+    g.fillRect(cx - 0.5, cy - R + 2, 1, R * 2 - 4);            // vertical
+    g.fillRect(cx - R + 2, cy - 0.5, R * 2 - 4, 1);            // horizontal
+    g.fillRect(cx - R + 3, cy - R + 3, R * 2 - 6, 1);          // diagonal-ish
+    g.fillStyle(IRON, 1);   g.fillCircle(cx, cy, 2);           // iron hub
+    g.fillStyle(WOOD_D, 1); g.fillCircle(cx, cy, R); g.fillCircle(cx, cy, R - 1); // rim ring (outline)
+    g.fillStyle(WOOD, 1);   g.fillCircle(cx, cy, R - 2);       // restore face inside rim
+    // redraw spokes + hub crisply on top of the restored face
+    g.fillStyle(WOOD_L, 1);
+    g.fillRect(cx - 0.5, cy - R + 2, 1, R * 2 - 4);
+    g.fillRect(cx - R + 2, cy - 0.5, R * 2 - 4, 1);
+    g.fillStyle(IRON, 1); g.fillCircle(cx, cy, 2);
+    // Spindle arm reaching right to the bobbin
+    g.fillStyle(WOOD, 1); g.fillRect(19, 12, 9, 2);
+    g.fillStyle(IRON, 1); g.fillRect(24, 8, 2, 8);             // upright post for the flyer
+    // Bobbin of yarn on the spindle
+    g.fillStyle(YARN, 1);   g.fillEllipse(25, 12, 6, 5);
+    g.fillStyle(YARN_L, 1); g.fillEllipse(24, 11, 3, 2);
+    g.fillStyle(YARN, 1);   g.fillRect(23, 11, 4, 1);
+  });
+
   // --- NPC customer sprite (16 × 24, same layout as player) ---
   const NPC_SKIN  = 0xf0c080;
   const NPC_HAIR  = 0x5a3a20;

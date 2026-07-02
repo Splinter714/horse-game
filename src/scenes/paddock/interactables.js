@@ -98,6 +98,29 @@ export const WithInteractables = (Base) => class extends Base {
         }));
     };
 
+    // Spinning wheel (#233) — spin a basket of raw wool into yarn. Only offers the
+    // action when the held carrier actually holds the craftable input (wool); shows a
+    // passive hint otherwise so the station is discoverable. Data-driven off the
+    // prop's `craft` block (from → to), so it's not sheep- or wool-specific.
+    const spinningWheel = (item) => {
+      const w = this.props.spinningWheel;
+      if (!w) return [];
+      const { from, to } = w.craft;
+      const holdingInput = item?.type === 'carrier' && item.content === from && item.count > 0;
+      return [{
+        x: w.x, y: w.y, tapRadius: 130, reachDist: 110, promptOffsetY: 90,
+        canAct: holdingInput,
+        label: holdingInput
+          ? `Spin ${CONTENT_DEFS[from].label} → ${CONTENT_DEFS[to].label}  (basket: ${item.count})`
+          : `Spinning Wheel  •  bring a basket of ${CONTENT_DEFS[from].label} to spin`,
+        approach: (world) => {
+          const refX = world ? world.x : this.player.sprite.x;
+          return { x: w.x + (refX < w.x ? -1 : 1) * 70, y: w.y + 10 };
+        },
+        activate: () => this.spinWool(),
+      }];
+    };
+
     const farmStand = (item) => {
       const s = this.farmStand;
       const type = item?.content;
@@ -114,12 +137,12 @@ export const WithInteractables = (Base) => class extends Base {
       }];
     };
 
-    this.interactables = [gate, barn, trough, sources, nests, farmStand];
+    this.interactables = [gate, barn, trough, sources, nests, farmStand, spinningWheel];
     // Split by input: gate/barn are bare-hand "interact" targets (tap/click/E);
     // the rest require a carried tool/carrier and are triggered by Use (the
     // on-screen button / F / controller). See useActiveTool + handleTap.
     this.interactWorld = [gate, barn];
-    this.toolWorld     = [trough, sources, nests, farmStand];
+    this.toolWorld     = [trough, sources, nests, farmStand, spinningWheel];
   }
 
   // Nearest activatable instance to (x, y) within each instance's own radius

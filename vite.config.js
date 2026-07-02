@@ -41,8 +41,8 @@ export default defineConfig(({ command }) => ({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Horse Care',
-        short_name: 'Horse Care',
+        name: 'Villa Cura',
+        short_name: 'Villa Cura',
         description: 'A cozy pixel-art horse care game',
         theme_color: '#1c2330',
         background_color: '#1c2330',

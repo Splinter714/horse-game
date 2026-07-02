@@ -84,6 +84,25 @@ export const WithCarriers = (Base) => class extends Base {
     return used;
   }
 
+  // Convert the active carrier's whole load from one content to another in place
+  // (crafting, #233: wool → yarn at the spinning wheel). No-op unless it currently
+  // holds `from` and the carrier accepts `to`. Count is preserved (1:1 spin). Returns
+  // how many units were converted (0 if it didn't apply).
+  convertActiveCarrier(from, to) {
+    const key  = this._resolveKey(this.hotbar[this.activeSlot]);
+    const item = key ? ITEM_MAP[key] : null;
+    if (!item || item.type !== 'carrier') return 0;
+    const st = this.carriers[key];
+    if (!st || st.count <= 0 || st.content !== from) return 0;
+    if (!CARRIER_DEFS[item.carrier].accepts.includes(to)) return 0;
+    const n = st.count;
+    st.content = to;
+    this._closeFlyout();
+    this._saveCarriers();
+    this._buildHotbar();
+    return n;
+  }
+
   // Step the active member of a carrier group by `dir` (default forward), wrapping.
   _cycleMember(groupKey, dir = 1) {
     const group = ITEM_MAP[groupKey];

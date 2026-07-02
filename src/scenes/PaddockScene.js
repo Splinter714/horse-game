@@ -183,6 +183,7 @@ export default class PaddockScene
     this.separateHorses();
     this.depthSort();
     this.updateWildlife();
+    this.tickRegrowth();      // regrow shorn fleece once its timer completes (#233)
     this.tickDecay(delta);
     this.tickAutosave(delta);
   }

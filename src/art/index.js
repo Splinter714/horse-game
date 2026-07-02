@@ -71,10 +71,14 @@ function chickenCoatIndex(c) {
 }
 
 // Build every individual in a roster from its saved `look` (swatch keys → ramps).
+// A cooldown-produce animal (a sheep sheared before this reload) whose fleece hasn't
+// regrown yet is built in its shorn state, so the trimmed look survives a reload
+// (#233). `isShorn()` is a no-op (false) for non-producing species.
 function buildRosterLooks(scene, registryKey, speciesId, build) {
   const all = scene.registry.get(registryKey) || {};
   for (const [key, model] of Object.entries(all)) {
-    build(scene, key, model.look ? lookFromKeys(speciesId, model.look) : undefined);
+    const look = model.look ? lookFromKeys(speciesId, model.look) : {};
+    build(scene, key, { ...look, shorn: model.isShorn?.() ?? false });
   }
 }
 
