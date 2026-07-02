@@ -205,6 +205,26 @@ export const WithWorldObjects = (Base) => class extends Base {
     bowl.sprite.setTexture(bowl.filled ? bowl.tex : `${bowl.tex}Empty`);
   }
 
+  // ─── Doghouse (#237) ─────────────────────────────────────────────────────
+
+  // A decorative kennel in the yard near the house — the dog is a yard companion,
+  // so its home-to-be sits between the house and the coop, doorway facing south
+  // toward the player. Purely scenery: the dog actually using it (sleeping in it /
+  // going home at night, like the cat/chickens) is deferred to #186. Registers a
+  // solid footprint (this.doghouseObstacles) that _buildObstacles spreads into
+  // this.obstacles, mirroring the barn.
+  //
+  // FIRST-PASS PLACEMENT at (410, 470) — flagged for the owner to redirect in the
+  // live preview if a different yard corner reads better.
+  buildDoghouse() {
+    const x = 410, y = 470;
+    this.props.doghouse = { x, y };
+    this.add.image(x, y, 'doghouse').setScale(S).setDepth(y).setOrigin(0.5, 1);
+    // Sprite 48×42 at S (origin 0.5,1); solid kennel body ≈ local x8–38, y18–40 →
+    // world (378,422) size 60×44. Inset a touch so the player can brush right up to it.
+    this.doghouseObstacles = [{ x: x - 30 + 2, y: y - 48 + 2, w: 60 - 4, h: 44 - 4 }];
+  }
+
   // ─── Gate ────────────────────────────────────────────────────────────────
 
   toggleGate() {
