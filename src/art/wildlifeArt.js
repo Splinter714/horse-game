@@ -11,6 +11,7 @@
 // First-pass draft look — the owner art-directs the polish in the preview.
 
 import { gen, scaledGraphics, ART_SCALE, makeLeg } from './_frames.js';
+import { BIRD_TYPES } from '../data/wildlife.js';
 
 // ── Fish (#183) ──────────────────────────────────────────────────────────────
 // Seen from above through the water: a dark slate silhouette with a faintly lighter
@@ -48,51 +49,79 @@ export function buildFishTextures(scene) {
   });
 }
 
-// ── Bird (#182) ──────────────────────────────────────────────────────────────
+// ── Bird (#182 / variety #220) ─────────────────────────────────────────────────
 // Two looks: a flying pose (wings up/down for a flap) and a perched pose (head up vs
-// down for a peck). A little brown songbird with a pale belly and a stubby beak.
+// down for a peck). ONE sprite driven by a data palette (data/wildlife.js BIRD_TYPES):
+// each type swaps the body/wing/belly/beak colors and can toggle a couple of purely
+// cosmetic silhouette tweaks (a head crest, a longer forked tail). No per-type behavior.
 export const BIRD_W = 16, BIRD_H = 12;
-const BIRD_BODY = 0x6b513a, BIRD_WING = 0x4f3c2b, BIRD_BELLY = 0xc2a47a, BEAK = 0xe0a838;
+// The original little brown songbird's palette — the default when no type is passed.
+const DEFAULT_BIRD = { body: 0x6b513a, wing: 0x4f3c2b, belly: 0xc2a47a, beak: 0xe0a838 };
+const EYE_DEFAULT = 0x0a0805;
 
-function drawBirdFly(g, wingsUp) {
+function drawBirdFly(g, wingsUp, t = DEFAULT_BIRD) {
+  const eye = t.eye ?? EYE_DEFAULT;
   g.layer('tail');
-  g.fillStyle(BIRD_BODY, 1); g.fillTriangle(1, 5, 5, 4, 5, 9);
+  g.fillStyle(t.body, 1);
+  if (t.longTail) { g.fillTriangle(0, 3, 5, 4, 5, 7); g.fillTriangle(0, 11, 5, 6, 5, 9); } // longer forked tail
+  else g.fillTriangle(1, 5, 5, 4, 5, 9);
   g.layer('body');
-  g.fillStyle(BIRD_BODY, 1); g.fillEllipse(8, 7, 9, 5);
-  g.fillStyle(BIRD_BELLY, 0.9); g.fillEllipse(8, 8, 6, 3);
+  g.fillStyle(t.body, 1); g.fillEllipse(8, 7, 9, 5);
+  g.fillStyle(t.belly, 0.9); g.fillEllipse(8, 8, 6, 3);
+  g.layer('crest');
+  if (t.crest) { g.fillStyle(t.body, 1); g.fillTriangle(11, 4, 13, 1, 14, 5); } // raised head-tuft
   g.layer('head');
-  g.fillStyle(BIRD_BODY, 1); g.fillCircle(12, 6, 2.3);
+  g.fillStyle(t.body, 1); g.fillCircle(12, 6, 2.3);
   g.layer('beak');
-  g.fillStyle(BEAK, 1); g.fillTriangle(14, 5, 16, 6, 14, 7);
+  g.fillStyle(t.beak, 1); g.fillTriangle(14, 5, 16, 6, 14, 7);
   g.layer('eye');
-  g.fillStyle(0x0a0805, 1); g.fillRect(12, 5, 1, 1);
+  g.fillStyle(eye, 1); g.fillRect(12, 5, 1, 1);
   g.layer('wing');
-  g.fillStyle(BIRD_WING, 1);
+  g.fillStyle(t.wing, 1);
   if (wingsUp) g.fillTriangle(6, 6, 10, 0, 3, 2);
   else g.fillTriangle(6, 7, 10, 12, 3, 11);
 }
 
-function drawBirdPeck(g, headDown) {
+function drawBirdPeck(g, headDown, t = DEFAULT_BIRD) {
+  const eye = t.eye ?? EYE_DEFAULT;
   g.layer('legs');
-  g.fillStyle(BEAK, 1); g.fillRect(6, 9, 1, 2); g.fillRect(9, 9, 1, 2);
+  g.fillStyle(t.beak, 1); g.fillRect(6, 9, 1, 2); g.fillRect(9, 9, 1, 2);
   g.layer('tail');
-  g.fillStyle(BIRD_BODY, 1); g.fillTriangle(1, 4, 5, 3, 5, 8);
+  g.fillStyle(t.body, 1);
+  if (t.longTail) { g.fillTriangle(0, 2, 5, 3, 5, 6); g.fillTriangle(0, 10, 5, 5, 5, 8); }
+  else g.fillTriangle(1, 4, 5, 3, 5, 8);
   g.layer('body');
-  g.fillStyle(BIRD_BODY, 1); g.fillEllipse(8, 7, 9, 6);
-  g.fillStyle(BIRD_BELLY, 0.9); g.fillEllipse(8, 8, 6, 4);
+  g.fillStyle(t.body, 1); g.fillEllipse(8, 7, 9, 6);
+  g.fillStyle(t.belly, 0.9); g.fillEllipse(8, 8, 6, 4);
   g.layer('wing');
-  g.fillStyle(BIRD_WING, 1); g.fillEllipse(6, 7, 5, 4);
+  g.fillStyle(t.wing, 1); g.fillEllipse(6, 7, 5, 4);
   g.layer('head');
   const hy = headDown ? 9 : 4;
-  g.fillStyle(BIRD_BODY, 1); g.fillCircle(12, hy, 2.3);
+  g.layer('crest');
+  if (t.crest) { g.fillStyle(t.body, 1); g.fillTriangle(11, hy - 2, 13, hy - 5, 14, hy - 1); }
+  g.layer('head');
+  g.fillStyle(t.body, 1); g.fillCircle(12, hy, 2.3);
   g.layer('beak');
-  g.fillStyle(BEAK, 1); g.fillTriangle(14, hy, 16, hy + 1, 14, hy + 1);
+  g.fillStyle(t.beak, 1); g.fillTriangle(14, hy, 16, hy + 1, 14, hy + 1);
   g.layer('eye');
-  g.fillStyle(0x0a0805, 1); g.fillRect(12, hy - 1, 1, 1);
+  g.fillStyle(eye, 1); g.fillRect(12, hy - 1, 1, 1);
 }
+
+// Texture/animation key helpers so the spawner and art builder agree on names.
+export const birdTexKey = (id, pose, frame) => `bird_${id}_${pose}_${frame}`;
+export const birdAnimKey = (id, pose) => `bird_${id}_${pose}`;
 
 export function buildBirdTextures(scene) {
   const W = BIRD_W * ART_SCALE, H = BIRD_H * ART_SCALE;
+  // Build a full 4-frame texture set per bird type (data-driven variety, #220).
+  for (const t of BIRD_TYPES) {
+    gen(scene, birdTexKey(t.id, 'fly', 0), W, H, (g) => drawBirdFly(scaledGraphics(g), true, t));
+    gen(scene, birdTexKey(t.id, 'fly', 1), W, H, (g) => drawBirdFly(scaledGraphics(g), false, t));
+    gen(scene, birdTexKey(t.id, 'peck', 0), W, H, (g) => drawBirdPeck(scaledGraphics(g), false, t));
+    gen(scene, birdTexKey(t.id, 'peck', 1), W, H, (g) => drawBirdPeck(scaledGraphics(g), true, t));
+  }
+  // Back-compat aliases: the original un-prefixed keys map to the default sparrow, so
+  // any code/tests that still reference `bird_fly_0` keep working.
   gen(scene, 'bird_fly_0', W, H, (g) => drawBirdFly(scaledGraphics(g), true));
   gen(scene, 'bird_fly_1', W, H, (g) => drawBirdFly(scaledGraphics(g), false));
   gen(scene, 'bird_peck_0', W, H, (g) => drawBirdPeck(scaledGraphics(g), false));

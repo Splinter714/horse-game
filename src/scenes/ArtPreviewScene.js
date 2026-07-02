@@ -3,6 +3,7 @@ import { applyDpr, logicalW, logicalH, dprOf } from './uiUtils.js';
 import { saveDevSettings } from '../data/save.js';
 import { CUSTOMIZE } from '../data/customize.js';
 import { DEMO_FOALS } from '../data/demoFoals.js';
+import { BIRD_TYPES } from '../data/wildlife.js';
 
 // ── Art preview (dev tool) ───────────────────────────────────────────────────
 // A standalone gallery for art-directing the creatures. Boots straight into a
@@ -47,7 +48,9 @@ const FAMILIES = [
   // normal play. Each family normalizes to the same on-screen height, so the only
   // difference you see is edge crispness. TEMP: drop the (old 1×) rows once decided.
   { label: 'Raccoon',            members: [{ key: 'raccoon5' }] },
-  { label: 'Bird (new 4×)',     members: [{ key: 'bird' }] },
+  // One row per bird type (visual variety, #220) so each palette/silhouette can be
+  // eyeballed. Keys are `bird_<id>` (the per-type texture prefix from wildlifeArt.js).
+  ...BIRD_TYPES.map((t) => ({ label: `Bird — ${t.name}`, members: [{ key: `bird_${t.id}` }] })),
   { label: 'Bird (old 1×)',     members: [{ key: 'birdOld' }] },
   { label: 'Fish (new 4×)',     members: [{ key: 'fish' }] },
   { label: 'Fish (old 1×)',     members: [{ key: 'fishOld' }] },
