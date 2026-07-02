@@ -11,6 +11,7 @@
 import Phaser from 'phaser';
 import { S, WORLD_W, BOUNDS } from './constants.js';
 import { ART_SCALE } from '../../art/_frames.js';
+import { wildlifeActiveInWeather } from '../../data/weather.js';
 
 // How close the player can get before a ground critter bolts (skittish). Birds in
 // flight and fish ignore the player.
@@ -87,6 +88,24 @@ export const WithWildlife = (Base) => class extends Base {
     }
   }
 
+  // Rain gate (#188): ambient wildlife stays hidden while it's raining and returns
+  // when it's fair. `this._weather` is set by the weather event; treat undefined
+  // (before the first weather roll) as fair.
+  _weatherAllowsWildlife() {
+    return wildlifeActiveInWeather(this._weather ?? 'sun');
+  }
+
+  // Rain just started (called from onWeatherChange): send any critters currently
+  // out for cover. Birds in flight/perched fly off; ground raccoons scurry away.
+  // Fish are fire-and-forget tweens that fade on their own, so they need no help.
+  _clearWildlifeForRain() {
+    for (const c of [...(this._wildCritters ?? [])]) {
+      if (!c.sprite?.active) continue;
+      if (c.kind === 'bird') { c.perchHost = null; this._birdTakeOff(c); }
+      else this._raccoonScurryOff?.(c);
+    }
+  }
+
   // Drop a critter: stop its tween, fade it out, remove it from the active list.
   _despawnCritter(c) {
     const i = this._wildCritters.indexOf(c);
@@ -102,8 +121,9 @@ export const WithWildlife = (Base) => class extends Base {
 
   _scheduleFish(delay) {
     this.time.delayedCall(delay, () => {
-      // Fish keep to the daylit phases (the water's too dark to read at night).
-      if (!this._sleeping && this._phase !== 'Night' && this.streamPath?.length) {
+      // Fish keep to the daylit phases (the water's too dark to read at night) and
+      // stay down in the rain (#188).
+      if (!this._sleeping && this._phase !== 'Night' && this._weatherAllowsWildlife() && this.streamPath?.length) {
         this._spawnFish();
         if (Math.random() < 0.25) this.time.delayedCall(Phaser.Math.Between(300, 900), () => this._spawnFish());
       }
@@ -147,7 +167,7 @@ export const WithWildlife = (Base) => class extends Base {
 
   _scheduleBirdVisit(delay) {
     this.time.delayedCall(delay, () => {
-      if (!this._sleeping && this._phase !== 'Night') {
+      if (!this._sleeping && this._phase !== 'Night' && this._weatherAllowsWildlife()) {
         if (Math.random() < 0.55) this._spawnFlyby();
         else this._spawnPerch();
       }
@@ -246,7 +266,7 @@ export const WithWildlife = (Base) => class extends Base {
 
   _scheduleHorsePerch(delay) {
     this.time.delayedCall(delay, () => {
-      if (!this._sleeping && this._phase !== 'Night') this._maybeSpawnHorsePerch();
+      if (!this._sleeping && this._phase !== 'Night' && this._weatherAllowsWildlife()) this._maybeSpawnHorsePerch();
       // A treat — infrequent so it stays charming.
       this._scheduleHorsePerch(Phaser.Math.Between(30000, 70000));
     });
