@@ -5,7 +5,7 @@
 // loading state, wiring keyboard/pointer/event listeners, and shutdown cleanup.
 
 import Phaser from 'phaser';
-import { loadGameState, loadUiSettings } from '../data/save.js';
+import { loadGameState, loadUiSettings, saveGameState } from '../data/save.js';
 import { EVENTS } from '../data/events.js';
 import { applyDpr } from './uiUtils.js';
 import { NUM_SLOTS } from './hotbar/constants.js';
@@ -30,7 +30,9 @@ export default class HotbarScene
     this.activeSlot  = 0;
     this.invOpen     = false;
     this.pauseOpen   = false;
-    this._money      = 0;
+    // Money persists across sessions (#29). Load the saved balance and broadcast it
+    // so the world (PaddockScene) starts from the same figure the HUD shows.
+    this._money      = saved.money ?? 0;
     this._slots      = [];
     this._invNodes   = [];
     this._flyoutNodes = []; // carrier-group fly-out picker (#75)
@@ -96,9 +98,23 @@ export default class HotbarScene
     };
     this.scale.on('resize', this._onResize, this);
 
-    // Update money label in-place — no full rebuild needed
-    this._onMoney  = v => { this._money = v; this._updateStatusLabels(); };
+    // Update money label in-place — no full rebuild needed — and persist the new
+    // balance so gold survives a reload (#29). HotbarScene is the single writer of
+    // the money field in gameState, so every earn/spend that emits MONEY_CHANGED saves.
+    this._onMoney  = v => {
+      this._money = v;
+      this._updateStatusLabels();
+      saveGameState({
+        hotbar: this.hotbar, inventory: this.inventory,
+        carriers: this.carriers, activeCarrier: this.activeCarrier,
+        money: this._money,
+      });
+    };
     this.game.events.on(EVENTS.MONEY_CHANGED,  this._onMoney);
+
+    // Publish the loaded balance so PaddockScene (and any other listener) syncs to
+    // the persisted figure on boot, then show it in the HUD immediately.
+    this.game.events.emit(EVENTS.MONEY_CHANGED, this._money);
 
     // Show/hide the on-screen action buttons as the player switches input devices.
     this._onInputMode = mode => {

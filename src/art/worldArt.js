@@ -344,6 +344,44 @@ export function buildWorldTextures(scene) {
     g.fillRect(8, 34, 4, 10); g.fillRect(60, 34, 4, 10);
   });
 
+  // --- Shop / market stall (72 × 48) — where the player SPENDS gold on feed (#29).
+  // Deliberately distinct from the red farm stand: a blue-striped canopy over a
+  // crate-stacked counter so the two economy stations read apart at a glance.
+  // Origin (0.5, 1), same footprint style as the farm stand. ---
+  gen(scene, 'shopStall', 72, 48, (g) => {
+    g.layer('poles');
+    // Canopy poles
+    g.fillStyle(0x6a4a28, 1);
+    g.fillRect(4, 10, 4, 38); g.fillRect(64, 10, 4, 38);
+    g.layer('canopy');
+    // Blue-and-cream striped awning
+    for (let x = 0; x < 72; x += 12) {
+      g.fillStyle(x % 24 === 0 ? 0x3a72b0 : 0xeae4d2, 1);
+      g.fillRect(x, 4, 12, 14);
+    }
+    // Scalloped edge
+    for (let x = 0; x < 72; x += 12) {
+      g.fillStyle(x % 24 === 0 ? 0x3a72b0 : 0xeae4d2, 1);
+      g.fillEllipse(x + 6, 18, 10, 6);
+    }
+    g.layer('counter');
+    // Counter top
+    g.fillStyle(0x9a6430, 1); g.fillRect(4, 24, 64, 12);
+    g.fillStyle(0xb87c3c, 1); g.fillRect(4, 24, 64, 4);
+    g.fillStyle(0x805020, 1); g.fillRect(4, 32, 64, 4);
+    g.layer('goods');
+    // Stacked goods crates on the counter (a produce shop)
+    g.fillStyle(0x7a5228, 1); g.fillRect(12, 16, 14, 10); g.fillRect(46, 16, 14, 10);
+    g.fillStyle(0x9a6c38, 1); g.fillRect(12, 16, 14, 3); g.fillRect(46, 16, 14, 3);
+    // A few round produce items poking out of the crates
+    g.fillStyle(0xd85040, 1); g.fillCircle(16, 16, 2); g.fillCircle(22, 16, 2);
+    g.fillStyle(0xe0902c, 1); g.fillCircle(50, 16, 2); g.fillCircle(56, 16, 2);
+    g.layer('legs');
+    // Legs
+    g.fillStyle(0x6a4a28, 1);
+    g.fillRect(8, 36, 4, 12); g.fillRect(60, 36, 4, 12);
+  });
+
   // --- Spinning wheel (32 × 40) — the crafting station that spins wool into yarn
   // (#233). Origin (0.5, 1). A classic wheel-on-a-stand: a big spoked wheel on the
   // left, a slanted treadle base, and a small spindle/bobbin of yarn on the right. ---

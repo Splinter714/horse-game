@@ -153,6 +153,16 @@ export const WithWorld = (Base) => class extends Base {
     };
     // (Its solid footprint is added to this.obstacles below, once that array exists.)
 
+    // Shop / market stall (#29) — where the player SPENDS gold on feed. Placed in the
+    // open farm band a little west of the farm stand (the SELL station at 1600,780) so
+    // the two halves of the economy sit near each other but read as distinct stalls.
+    const shopX = 1240, shopY = 800;
+    const shopSprite = this.add.image(shopX, shopY, 'shopStall')
+      .setScale(S).setDepth(shopY).setOrigin(0.5, 1);
+    this.props.shop = { x: shopX, y: shopY, sprite: shopSprite };
+    // Solid counter footprint the player bumps into (mirrors the farm stand's), added
+    // to this.obstacles once that array exists — see the obstacle list below.
+
     // Gathering sources (issue #63) — static, infinite props the player fills
     // their carriers at. Each holds one content type. Placed across the open
     // farm band (north of the pasture) so the gather→carry→use loop has room.
@@ -382,6 +392,11 @@ export const WithWorld = (Base) => class extends Base {
       // Spinning wheel (#233) — solid footprint (origin 0.5,1 at swx,swy; ~52×20 body).
       ...(this.props.spinningWheel
         ? [{ x: this.props.spinningWheel.x - 26, y: this.props.spinningWheel.y - 20, w: 52, h: 20 }]
+        : []),
+      // Shop stall (#29) — solid counter (origin 0.5,1; 72×48 at S=2, counter body
+      // ~x4–68 y24–36 → ~128 wide, ~48 tall base at shopY). Mirrors the farm stand.
+      ...(this.props.shop
+        ? [{ x: this.props.shop.x - 64, y: this.props.shop.y - 48, w: 128, h: 48, isShop: true }]
         : []),
     ];
 
