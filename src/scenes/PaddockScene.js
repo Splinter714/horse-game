@@ -18,8 +18,10 @@ import { WithCreatures } from './paddock/creatures.js';
 import { WithFlock } from './paddock/flock.js';
 import { WithHerd } from './paddock/herd.js';
 import { WithCharm } from './paddock/charm.js';
+import { WithCompanion } from './paddock/companion.js';
 import { WithFarmStand } from './paddock/farmStand.js';
 import { WithShop } from './paddock/shop.js';
+import { WithGarden } from './paddock/garden.js';
 import { WithDayNight } from './paddock/dayNight.js';
 import { WithWeather } from './paddock/weather.js';
 import { WithHorseAI } from './paddock/horseAI.js';
@@ -40,9 +42,9 @@ import { WithInput } from './paddock/input.js';
 import { applyDpr } from './uiUtils.js';
 
 export default class PaddockScene
-  extends WithWorld(WithBarn(WithBunny(WithHouseEntry(WithWildlife(WithRaccoon(WithAmbientEvents(WithCatAI(WithCharm(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithShop(WithDayNight(WithWeather(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
+  extends WithWorld(WithBarn(WithBunny(WithHouseEntry(WithWildlife(WithRaccoon(WithAmbientEvents(WithCatAI(WithCompanion(WithCharm(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithShop(WithGarden(WithDayNight(WithWeather(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
     WithEffects(WithPersistence(WithRendering(WithWorldObjects(WithCareActions(WithInteraction(WithInput(
-    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene))))))))))))))))))))))))))))))) {
+    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene))))))))))))))))))))))))))))))))) {
   constructor() {
     super('PaddockScene');
   }
@@ -84,6 +86,7 @@ export default class PaddockScene
     this.buildAnimals();
     this.buildPlayer();
     this.buildFarmStand();
+    this.buildGarden(); // crop garden plot (#242) — before interactables (they read it)
     this.buildInteractables();
     this.buildWildlife(); // ambient fish/birds/raccoon (needs the stream path + player)
     this.startAmbientEvents(); // unified data-driven ambient rotation (#253)
@@ -201,6 +204,7 @@ export default class PaddockScene
     this.movePlayer(delta);
     this.updateLeading(delta);
     this.updateFoals(delta);
+    this.updateDogCompanion(delta); // dog trots alongside the player, sits when idle (#186)
     this.checkProximity();
     this.checkToolProximity();
     this._renderPrompts();

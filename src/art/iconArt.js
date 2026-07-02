@@ -59,6 +59,25 @@ export function buildIconTextures(scene) {
     g.fillStyle(0x3b8a1c, 1);
     g.fillRect(9, 3, 1, 5); g.fillRect(7, 4, 1, 4); g.fillRect(11, 4, 1, 4);
   });
+  gen(scene, 'iconStrawberry', 20, 20, (g) => { // strawberry (#242)
+    g.fillStyle(0xe23b4a, 1); // red body, tapering to a point
+    g.fillTriangle(10, 18, 4, 8, 16, 8);
+    g.fillStyle(0xf06070, 1); g.fillTriangle(8, 12, 6, 8, 10, 8); // lit facet
+    g.fillStyle(0xffe08a, 1); // seed flecks
+    g.fillRect(8, 10, 1, 1); g.fillRect(11, 11, 1, 1); g.fillRect(9, 13, 1, 1); g.fillRect(12, 9, 1, 1); g.fillRect(7, 12, 1, 1);
+    g.fillStyle(0x3b8a1c, 1); // green calyx / leaves on top
+    g.fillTriangle(10, 8, 5, 5, 9, 6); g.fillTriangle(10, 8, 15, 5, 11, 6); g.fillRect(9, 3, 2, 3);
+  });
+  gen(scene, 'iconWheat', 20, 20, (g) => { // wheat sheaf (#242)
+    g.fillStyle(0xcaa63a, 1); g.fillRect(9, 8, 2, 9); // stalk
+    g.fillStyle(0xe8c94e, 1); // grain head — staggered kernels up the top
+    for (let i = 0; i < 4; i++) {
+      const y = 3 + i * 2.5;
+      g.fillEllipse(7, y + 1, 3, 2.4); g.fillEllipse(13, y + 1, 3, 2.4); g.fillEllipse(10, y, 3, 2.4);
+    }
+    g.fillStyle(0xf5e07a, 1); g.fillEllipse(10, 3, 2, 2); // sunlit tip
+    g.fillStyle(0xa9862b, 1); g.fillRect(6, 14, 8, 1); // bind
+  });
   gen(scene, 'iconTreat', 20, 20, (g) => { // sugar cube with sparkle
     g.fillStyle(0xf5ecd0, 1); g.fillRoundedRect(4, 7, 12, 10, 2);
     g.fillStyle(0xe8d8a8, 1);
@@ -169,6 +188,20 @@ export function buildIconTextures(scene) {
     g.fillStyle(0xf07830, 1);
     g.fillTriangle(6, 9, 4, 3, 8, 3); g.fillTriangle(11, 9, 9, 3, 13, 3); g.fillTriangle(15, 8, 13, 4, 16, 4);
     g.fillStyle(0x3b8a1c, 1); g.fillRect(5, 1, 1, 3); g.fillRect(10, 1, 1, 3); g.fillRect(14, 2, 1, 3);
+  });
+  gen(scene, 'iconBasketStrawberry', 20, 20, (g) => {
+    drawBasketBody(g);
+    g.fillStyle(0xe23b4a, 1);
+    g.fillTriangle(6, 10, 4, 4, 8, 4); g.fillTriangle(11, 10, 9, 4, 13, 4); g.fillTriangle(15, 9, 13, 5, 17, 5);
+    g.fillStyle(0xffe08a, 1); g.fillRect(6, 6, 1, 1); g.fillRect(11, 6, 1, 1); g.fillRect(15, 7, 1, 1);
+    g.fillStyle(0x3b8a1c, 1); g.fillRect(5, 3, 2, 1); g.fillRect(10, 3, 2, 1); g.fillRect(14, 4, 2, 1);
+  });
+  gen(scene, 'iconBasketWheat', 20, 20, (g) => {
+    drawBasketBody(g);
+    g.fillStyle(0xe8c94e, 1);
+    g.fillEllipse(6, 6, 3, 5); g.fillEllipse(10, 5, 3, 6); g.fillEllipse(14, 6, 3, 5);
+    g.fillStyle(0xf5e07a, 1); g.fillRect(6, 3, 1, 1); g.fillRect(10, 2, 1, 1); g.fillRect(14, 3, 1, 1);
+    g.fillStyle(0xa9862b, 1); g.fillRect(5, 9, 10, 1); // bind at the rim
   });
   gen(scene, 'iconBasketSeed', 20, 20, (g) => {
     drawBasketBody(g);
