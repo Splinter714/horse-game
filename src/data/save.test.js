@@ -220,6 +220,57 @@ describe('game state (hotbar / carriers)', () => {
   });
 });
 
+describe('money persistence (#29)', () => {
+  it('seeds the starting stake on a fresh save', () => {
+    const gs = save.loadGameState();
+    expect(gs.money).toBe(save.DEFAULT_MONEY);
+    expect(gs.money).toBeGreaterThan(0);
+  });
+
+  it('round-trips a saved balance', () => {
+    save.saveGameState({
+      hotbar: ['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead'],
+      inventory: {}, carriers: {}, activeCarrier: {}, money: 137,
+    });
+    expect(save.loadGameState().money).toBe(137);
+  });
+
+  it('seeds the starting stake for an older save with no money field', () => {
+    globalThis.localStorage.setItem(GAME_STATE_KEY, JSON.stringify({
+      hotbar: ['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead'],
+      inventory: {}, carriers: {},
+    }));
+    expect(save.loadGameState().money).toBe(save.DEFAULT_MONEY);
+  });
+
+  it('preserves a legitimately-zero balance (broke, not missing)', () => {
+    save.saveGameState({
+      hotbar: [], inventory: {}, carriers: {}, activeCarrier: {}, money: 0,
+    });
+    expect(save.loadGameState().money).toBe(0);
+  });
+
+  it('sanitizes a negative or corrupt balance back to the starting stake', () => {
+    globalThis.localStorage.setItem(GAME_STATE_KEY, JSON.stringify({
+      hotbar: ['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead'],
+      inventory: {}, carriers: {}, money: -50,
+    }));
+    expect(save.loadGameState().money).toBe(save.DEFAULT_MONEY);
+    globalThis.localStorage.setItem(GAME_STATE_KEY, JSON.stringify({
+      hotbar: ['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead'],
+      inventory: {}, carriers: {}, money: 'lots',
+    }));
+    expect(save.loadGameState().money).toBe(save.DEFAULT_MONEY);
+  });
+
+  it('floors a fractional saved balance to a whole coin', () => {
+    save.saveGameState({
+      hotbar: [], inventory: {}, carriers: {}, activeCarrier: {}, money: 42.9,
+    });
+    expect(save.loadGameState().money).toBe(42);
+  });
+});
+
 describe('audio settings', () => {
   it('returns unmuted full-volume defaults when nothing is stored', () => {
     const a = save.loadAudioSettings();

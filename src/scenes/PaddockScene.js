@@ -16,6 +16,7 @@ import { WithFlock } from './paddock/flock.js';
 import { WithHerd } from './paddock/herd.js';
 import { WithCharm } from './paddock/charm.js';
 import { WithFarmStand } from './paddock/farmStand.js';
+import { WithShop } from './paddock/shop.js';
 import { WithDayNight } from './paddock/dayNight.js';
 import { WithWeather } from './paddock/weather.js';
 import { WithHorseAI } from './paddock/horseAI.js';
@@ -36,9 +37,9 @@ import { WithInput } from './paddock/input.js';
 import { applyDpr } from './uiUtils.js';
 
 export default class PaddockScene
-  extends WithWorld(WithWildlife(WithRaccoon(WithAmbientEvents(WithCatAI(WithCharm(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithDayNight(WithWeather(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
+  extends WithWorld(WithWildlife(WithRaccoon(WithAmbientEvents(WithCatAI(WithCharm(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithShop(WithDayNight(WithWeather(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
     WithEffects(WithPersistence(WithRendering(WithWorldObjects(WithCareActions(WithInteraction(WithInput(
-    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene))))))))))))))))))))))))))) {
+    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene)))))))))))))))))))))))))))) {
   constructor() {
     super('PaddockScene');
   }
@@ -94,11 +95,17 @@ export default class PaddockScene
     this.game.events.on(EVENTS.WEATHER_CHANGE,  this.onWeatherChange, this);
     this.game.events.on(EVENTS.SLEEP_DONE,      this._onSleepDone,    this);
     this.game.events.on(EVENTS.PROMPTS_CHANGED, this._onPromptsChanged, this);
+    // Keep this.money in sync with the HUD's persisted balance (#29): HotbarScene
+    // loads the saved gold and broadcasts it on boot, and the shop credits/debits
+    // through MONEY_CHANGED too. Guard against echoing our own emit (farmStand sale).
+    this._onMoneyChanged = v => { if (v !== this.money) this.money = v; };
+    this.game.events.on(EVENTS.MONEY_CHANGED,    this._onMoneyChanged, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.game.events.off(EVENTS.PHASE_CHANGE,    this.onPhaseChange,   this);
       this.game.events.off(EVENTS.WEATHER_CHANGE,  this.onWeatherChange, this);
       this.game.events.off(EVENTS.SLEEP_DONE,      this._onSleepDone,    this);
       this.game.events.off(EVENTS.PROMPTS_CHANGED, this._onPromptsChanged, this);
+      this.game.events.off(EVENTS.MONEY_CHANGED,   this._onMoneyChanged, this);
       stopWind();
       stopMusic();
     });

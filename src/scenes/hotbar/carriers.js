@@ -32,6 +32,7 @@ export const WithCarriers = (Base) => class extends Base {
     saveGameState({
       hotbar: this.hotbar, inventory: this.inventory,
       carriers: this.carriers, activeCarrier: this.activeCarrier,
+      money: this._money,
     });
   }
 
