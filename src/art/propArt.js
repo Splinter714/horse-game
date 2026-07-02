@@ -198,30 +198,6 @@ export function buildPropTextures(scene) {
     g.fillStyle(kibble, 1); g.fillEllipse(13, 6, 8, 3);
     g.fillStyle(kibbleHi, 1); g.fillCircle(11, 5, 1.2); g.fillCircle(15, 5, 1.2); g.fillCircle(13, 4, 1.2);
   });
-  gen(scene, 'bunnyFoodPile', 22, 10, (g) => { // a small scatter of green pellets + a carrot bit
-    const base = 0x5c8a3a, hi = 0x74a84c, lo = 0x466b2b;
-    g.fillStyle(0x000000, 0.1); g.fillEllipse(11, 9, 20, 3);
-    g.fillStyle(base, 1); g.fillEllipse(11, 6, 18, 6); // mound of pellets
-    g.fillStyle(hi, 1); g.fillEllipse(9, 5, 10, 3);
-    g.fillStyle(lo, 1); g.fillRect(2, 8, 18, 1);
-    // individual green pellets scattered across the mound
-    g.fillStyle(hi, 1);
-    g.fillCircle(5, 5, 1.3); g.fillCircle(9, 3, 1.3); g.fillCircle(13, 4, 1.3);
-    g.fillCircle(17, 5, 1.1); g.fillCircle(7, 7, 1.1);
-    g.fillStyle(lo, 1);
-    g.fillCircle(11, 6, 1.1); g.fillCircle(15, 7, 1.1); g.fillCircle(4, 7, 1);
-    // a stray carrot chunk in the mix
-    g.fillStyle(0xf07830, 1); g.fillTriangle(14, 6, 19, 4, 19, 7);
-    g.fillStyle(0x3b8a1c, 1); g.fillRect(19, 3, 1, 2);
-  });
-  gen(scene, 'bunnyWaterPile', 22, 10, (g) => { // a small puddle of water dropped on the ground
-    const deep = 0x356f9e, mid = 0x3f7fb5, hi = 0x9ae0f8;
-    g.fillStyle(0x000000, 0.08); g.fillEllipse(11, 9, 20, 3);
-    g.fillStyle(deep, 1); g.fillEllipse(11, 7, 18, 6); // puddle
-    g.fillStyle(mid, 1); g.fillEllipse(11, 6, 13, 4);
-    g.fillStyle(hi, 0.8); g.fillEllipse(8, 5, 5, 1.5); // sunlit ripple
-    g.fillStyle(hi, 0.6); g.fillEllipse(15, 7, 3, 1);
-  });
 
   // Animal dropping (#232) — a small, tasteful cluster of rounded pellets on the
   // ground with a soft shadow. Cozy pixel-art, kept deliberately little and neat so

@@ -26,7 +26,7 @@ const HUNGER_HUNT = 55;  // below this hunger, a daytime cat heads to the stream
 export const seekFood = {
   id: 'seekFood',
   test: (ctx) => ctx.hunger < HUNGER_SEEK && ctx.nearestFoodDist < BOWL_RANGE,
-  run: (scene, a) => scene.catEatFromBowl(a, scene.props.catFoodBowl, 'feed'),
+  run: (scene, a) => scene.petEatFromBowl(a, scene.props.catFoodBowl, 'feed'),
 };
 
 // Thirsty → walk to the stocked water bowl and drink a serving directly from it
@@ -35,7 +35,7 @@ export const seekFood = {
 export const seekWater = {
   id: 'seekWater',
   test: (ctx) => ctx.thirst < THIRST_SEEK && ctx.nearestWaterDist < BOWL_RANGE,
-  run: (scene, a) => scene.catEatFromBowl(a, scene.props.catWaterBowl, 'water'),
+  run: (scene, a) => scene.petEatFromBowl(a, scene.props.catWaterBowl, 'water'),
 };
 
 // Hungry with the food bowl empty → walk to the nearest stream bank and try to fish.

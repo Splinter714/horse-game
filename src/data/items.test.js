@@ -17,9 +17,10 @@ describe('carrier definitions', () => {
     // future crop use, even though the scoop/dump loop uses the scooper's own load.
     expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost']);
     expect(CARRIER_DEFS.bucket.capacity).toBe(1);
-    // milk added with the cow (#cow); bunnyWater with bunnies (#224). catWater removed
-    // with the #202 rework — the cat's water bowl is filled from a plain bucket of water.
-    expect(CARRIER_DEFS.bucket.accepts).toEqual(['water', 'bunnyWater', 'milk']);
+    // milk added with the cow (#cow). catWater removed with the #202 rework, bunnyWater
+    // removed with #283 — pet water bowls (cat's and the bunny's) both fill from a plain
+    // bucket of water; there's no per-species water content anymore.
+    expect(CARRIER_DEFS.bucket.accepts).toEqual(['water', 'milk']);
   });
 
   it('every content a basket accepts has a content definition', () => {
@@ -42,11 +43,12 @@ describe('content definitions', () => {
     expect(CONTENT_DEFS.catFood.ground).toBeUndefined();
     // catWater was removed with the #202 rework — the water bowl fills from plain water.
     expect(CONTENT_DEFS.catWater).toBeUndefined();
-    // Bunny food/water (#224): bunnyFood feeds the bunny (and attracts it); bunnyWater
-    // is its per-species dropped drink.
+    // Bunny food (#224, reworked #283): stocks the bunny's FOOD BOWL (bowl-fill content,
+    // like cat food), never dropped on the ground. bunnyWater was removed with #283 — the
+    // bunny drinks from the shared pet water bowl, filled with plain water.
     expect(CONTENT_DEFS.bunnyFood.feeds).toEqual(['bunny']);
-    expect(CONTENT_DEFS.bunnyWater.action).toBe('water');
-    expect(CONTENT_DEFS.bunnyWater.feeds).toEqual(['bunny']);
+    expect(CONTENT_DEFS.bunnyFood.stocks).toBe('bunnyFood');
+    expect(CONTENT_DEFS.bunnyWater).toBeUndefined();
     // Wool and yarn are sellable produce (#233); wool also spins INTO yarn (craftsTo).
     expect(CONTENT_DEFS.wool.action).toBe('sell');
     expect(CONTENT_DEFS.wool.craftsTo).toBe('yarn');
@@ -56,7 +58,7 @@ describe('content definitions', () => {
 
   it('every feed-action content lists the species that eat it; egg/plain-water don\'t', () => {
     for (const [key, def] of Object.entries(CONTENT_DEFS)) {
-      if (def.action === 'feed' || key === 'bunnyWater') expect(Array.isArray(def.feeds)).toBe(true);
+      if (def.action === 'feed') expect(Array.isArray(def.feeds)).toBe(true);
       else expect(def.feeds).toBeUndefined(); // plain water/egg/sellables aren't tied to a diet
     }
   });

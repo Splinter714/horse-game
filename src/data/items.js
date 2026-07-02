@@ -13,7 +13,7 @@ export const CARRIER_DEFS = {
   // limit you should hit. Kept finite (not Infinity) so it never trips serialization
   // or UI maths — but high enough that the demand always fits (and you can hoard eggs).
   basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost'] },
-  bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'bunnyWater', 'milk'] },
+  bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'milk'] },
 };
 
 // What each content type looks like in a carrier and what using it does.
@@ -45,21 +45,20 @@ export const CONTENT_DEFS = {
   // A separate content type so colour rides the existing basket → farm-stand → sell
   // pipeline unchanged — same 'egg' action, its own icon and sellable stand variant.
   eggBrown: { label: 'Brown Eggs', icon: 'iconBasketEggBrown', action: 'egg' },
-  // Water fills the trough (horses) AND the cat's water bowl (fillCatBowl) — the
-  // Use dispatch picks whichever fillable spot the player is facing. Plain water from
-  // the well/stream; the cat's water bowl needs no special content (#202 rework).
+  // Water fills the trough (horses) AND the pets' water bowls — the cat's and, as of
+  // #283, the bunny's (fillPetBowl). The Use dispatch picks whichever fillable spot the
+  // player is facing / is nearest. Plain water from the well/stream; the pet water bowls
+  // need no special content (#202 rework, #283).
   water:  { label: 'Water',   icon: 'iconBucketWater',  action: 'water' },
-  // Bunny food (#224): gathered from the bunny hutch (a new gathering source) and
-  // dropped as a pile like any other food. Its distinguishing role is ATTRACTION —
-  // dropping a bunny-food pile lures a wild bunny in to join the roster (capped at 4,
-  // paddock/bunny.js `attractBunny`, fired from the generic onFoodPlaced hook). Once
-  // a bunny has joined, the pile also feeds it (`feed`), so bunny food both attracts
-  // and sustains. `feeds: ['bunny']` gates which piles a bunny will walk to eat.
-  bunnyFood:  { label: 'Bunny Food',  icon: 'iconBasketBunnyFood',  action: 'feed',  ground: 'bunnyFoodPile',  feeds: ['bunny'] },
-  // Bunny water (thirst): gathered from the bunny hutch's water dish, dropped as its
-  // own pile, drunk via the same generic grazing primitive wired to the `water`
-  // action — the bunny's thirst source, mirroring the cat's catWater.
-  bunnyWater: { label: 'Bunny Water', icon: 'iconBucketBunnyWater', action: 'water', ground: 'bunnyWaterPile', feeds: ['bunny'] },
+  // Bunny food (#224, reworked #283): gathered from the bunny hutch (a gathering
+  // source) into a basket, then poured into the bunny FOOD BOWL — the bunnies eat from
+  // the bowl directly (like the cat's, #202). It is NOT dropped as a ground pile:
+  // `stocks: 'bunnyFood'` marks it as a bowl-fill content (useDispatch), so Use near the
+  // bowl fills it and there's no drop-on-ground fallback (no `ground` texture). Stocking
+  // the bowl is also what ATTRACTS a wild bunny to join the roster (capped at 4,
+  // paddock/bunny.js `attractBunny`, fired from the bowl's `onFill` hook), so bunny food
+  // both attracts and sustains. `feeds: ['bunny']` keeps the demand/gather maths data-driven.
+  bunnyFood:  { label: 'Bunny Food',  icon: 'iconBasketBunnyFood',  action: 'feed',  stocks: 'bunnyFood',  feeds: ['bunny'] },
   // Milk is produced by milking a well-cared-for cow into an empty bucket, then
   // sold at the farm stand (action 'sell', like eggs — see STAND_DEFS).
   milk:   { label: 'Milk',    icon: 'iconBucketMilk',   action: 'sell' },
