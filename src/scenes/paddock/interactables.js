@@ -77,13 +77,15 @@ export const WithInteractables = (Base) => class extends Base {
       }];
     };
 
-    // Cat bowls (#202 rework) — refill targets, NOT gather sources. The cat eats and
-    // drinks from them directly; the player keeps them stocked. Offer "Fill Food Bowl"
-    // when holding a basket of cat food, "Fill Water Bowl" when holding a bucket of
-    // water — until the bowl is brim-full — mirroring the trough's fill descriptor.
-    const catBowl = (content, propKey, label) => (item) => {
+    // Pet bowls (#202 cat rework, #283 generalized) — refill targets, NOT gather
+    // sources. The pet (cat, bunny) eats/drinks from them directly; the player keeps
+    // them stocked. Offer "Fill Food Bowl" when holding the matching food carrier,
+    // "Fill Water Bowl" when holding a bucket of water — until the bowl is brim-full —
+    // mirroring the trough's fill descriptor. Species-neutral: any bowl in
+    // props.petBowls with a fillContent matching the held carrier gets a fill prompt.
+    const petBowl = (propKey, label) => (item) => {
       const b = this.props[propKey];
-      if (!b || b.level >= BOWL_CAP || item?.content !== content || item.count <= 0) return [];
+      if (!b || b.level >= BOWL_CAP || item?.content !== b.fillContent || item.count <= 0) return [];
       return [{
         x: b.x, y: b.y, tapRadius: 120, reachDist: 100, promptOffsetY: 60,
         canAct: true, label: `Fill ${label}`,
@@ -91,11 +93,13 @@ export const WithInteractables = (Base) => class extends Base {
           const refX = world ? world.x : this.player.sprite.x;
           return { x: b.x + (refX < b.x ? -1 : 1) * 44, y: b.y + 8 };
         },
-        activate: () => this.fillCatBowl(content),
+        activate: () => this.fillPetBowl(b.fillContent),
       }];
     };
-    const catFoodBowl  = catBowl('catFood', 'catFoodBowl',  'Food Bowl');
-    const catWaterBowl = catBowl('water',   'catWaterBowl', 'Water Bowl');
+    const catFoodBowl    = petBowl('catFoodBowl',    'Food Bowl');
+    const catWaterBowl   = petBowl('catWaterBowl',   'Water Bowl');
+    const bunnyFoodBowl  = petBowl('bunnyFoodBowl',  'Bunny Bowl');
+    const bunnyWaterBowl = petBowl('bunnyWaterBowl', 'Bunny Water');
 
     const sources = (item) => {
       if (!item || item.type !== 'carrier') return [];
@@ -227,12 +231,12 @@ export const WithInteractables = (Base) => class extends Base {
     const gardenPlant   = gardenDescs.plant;
     const gardenHarvest = gardenDescs.harvest;
 
-    this.interactables = [gate, house, shop, barn, gardenPlant, trough, catFoodBowl, catWaterBowl, sources, nests, farmStand, spinningWheel, compostBin, trashCan, gardenHarvest];
+    this.interactables = [gate, house, shop, barn, gardenPlant, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, sources, nests, farmStand, spinningWheel, compostBin, trashCan, gardenHarvest];
     // Split by input: gate/house/shop/barn/garden-plant are bare-hand "interact" targets
     // (tap/click/E); the rest require a carried tool/carrier and are triggered by Use (the
     // on-screen button / F / controller). See useActiveTool + handleTap.
     this.interactWorld = [gate, house, shop, barn, gardenPlant];
-    this.toolWorld     = [trough, catFoodBowl, catWaterBowl, sources, nests, farmStand, spinningWheel, compostBin, trashCan, gardenHarvest];
+    this.toolWorld     = [trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, sources, nests, farmStand, spinningWheel, compostBin, trashCan, gardenHarvest];
   }
 
   // Nearest activatable instance to (x, y) within each instance's own radius

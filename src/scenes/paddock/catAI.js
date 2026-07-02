@@ -66,13 +66,16 @@ export const WithCatAI = (Base) => class extends Base {
     return best;
   }
 
-  // run() for seekFood/seekWater (#202 rework): the cat walks up to a stocked bowl
-  // and consumes one serving DIRECTLY from it — head down at the bowl's edge, the
-  // eat/drink pose + sound, then the matching care action (feed → hunger, water →
-  // thirst) and the bowl's level drops by one (empties the dish over several visits).
-  // `action` is 'feed' (food bowl) or 'water' (water bowl). Returns true once it
-  // claims the cat; false if the bowl vanished/emptied before it committed.
-  catEatFromBowl(a, bowl, action) {
+  // run() for a pet's seekFood/seekWater (#202 cat rework, #283 generalized): the pet
+  // walks up to a stocked pet bowl and consumes one serving DIRECTLY from it — head
+  // down at the bowl's edge, the eat/drink pose + sound, then the matching care action
+  // (feed → hunger, water → thirst) and the bowl's level drops by one (empties the
+  // dish over several visits). `action` is 'feed' (food bowl) or 'water' (water bowl);
+  // if omitted it's read off the bowl descriptor (bowls carry their own `action`).
+  // Species-neutral — any pet with a food/water bowl (cat, bunny) reuses this, so the
+  // eat sound keys off the bowl's own `fillContent` rather than a hardcoded 'catFood'.
+  // Returns true once it claims the pet; false if the bowl vanished/emptied first.
+  petEatFromBowl(a, bowl, action = bowl?.action) {
     if (!bowl || !bowlHasFood(bowl.level) || !a.sprite.active) return false;
 
     a.state = 'eating';
@@ -85,25 +88,25 @@ export const WithCatAI = (Base) => class extends Base {
 
     this.moveCreatureTo(a, tx, ty, () => {
       if (a.state !== 'eating' || !a.sprite.active) return;
-      if (!bowlHasFood(bowl.level)) { this._catEatDone(a); return; } // someone/thing emptied it
+      if (!bowlHasFood(bowl.level)) { this._petEatDone(a); return; } // someone/thing emptied it
       a.sprite.setFlipX(!facingRight);
-      a.sprite.play(`eat_${a.key}`, true); // head-down eat/drink pose (catArt drawCatEat)
-      if (action === 'water') playDrink(); else playEat('catFood');
+      a.sprite.play(`eat_${a.key}`, true); // head-down eat/drink pose (per-species eat frames)
+      if (action === 'water') playDrink(); else playEat(bowl.fillContent ?? 'catFood');
 
       a.eatTimer = this.time.delayedCall(1600, () => {
         a.eatTimer = null;
         if (a.state !== 'eating' || !a.sprite.active) return;
         a.model?.applyAction(action);
         this.game.events.emit(EVENTS.STATS_CHANGED);
-        this._setCatBowlLevel(bowl, drainBowlLevel(bowl.level)); // a serving eaten empties the dish a bit
-        this._catEatDone(a);
+        this._setPetBowlLevel(bowl, drainBowlLevel(bowl.level)); // a serving eaten empties the dish a bit
+        this._petEatDone(a);
       });
     });
     return true;
   }
 
-  // Stand up from the bowl and go back to the prowl.
-  _catEatDone(a) {
+  // Stand up from the bowl and go back to the prowl/hop.
+  _petEatDone(a) {
     if (a.eatTimer) { this.time.removeEvent(a.eatTimer); a.eatTimer = null; }
     a._eatBowl = null;
     if (!a.sprite.active) return;

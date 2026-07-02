@@ -1,8 +1,11 @@
-// Bunny attraction (#224) — the scene-coupled half of "put out bunny food, a bunny
-// hops in and joins." The pure cap/coat logic lives in data (data/species/bunny/
-// index.js `nextBunny`, cap = one per coat colour); this mixin listens for a bunny-
-// food pile landing (the generic `onFoodPlaced` hook fired from worldObjects.js
-// placeFood) and, when the roster has room, creates + spawns a new Bunny.
+// Bunny attraction (#224, reworked #283) — the scene-coupled half of "keep the bunny
+// bowl stocked, a bunny hops in and joins." The pure cap/coat logic lives in data
+// (data/species/bunny/index.js `nextBunny`, cap = one per coat colour); this mixin
+// builds the bunny's food + water bowls by the hutch and, when the FOOD BOWL is
+// refilled (the generic pet-bowl `onFill` hook), attracts a new Bunny if the roster
+// has room. #283 replaced the old gather-food-and-drop-a-pile-on-the-ground flow: the
+// player now pours bunny food into a bowl the bunnies eat from directly (like the cat
+// bowls, #202), and it's that refill — not a ground pile — that lures a wild bunny in.
 //
 // A returning player's already-attracted bunnies are restored from the persisted
 // roster on boot (buildAnimals walks the `allBunnies` registry the same as any other
@@ -14,18 +17,27 @@ import { nextBunny, BUNNY_CAP } from '../../data/species/bunny/index.js';
 import { Bunny } from '../../data/species/bunny/model.js';
 
 export const WithBunny = (Base) => class extends Base {
-  // Generic post-food-drop hook (see worldObjects.js placeFood). Only bunny food
-  // attracts; every other content is a no-op here. Species-specific behaviour lives
-  // in this species' own mixin, so the shared placeFood stays species-neutral.
-  onFoodPlaced(content, x, y) {
-    if (content === 'bunnyFood') this.attractBunny(x, y);
+  // Bunny food + water bowls (#283) — the bunny's counterpart to the cat's dishes,
+  // tucked by the hutch in the north yard. Built through the shared pet-bowl primitive
+  // (worldObjects.js _addPetBowl) so fill/consume are the same machinery as the cat's.
+  // The FOOD bowl carries an `onFill` hook: stocking it lures a wild bunny (attractBunny),
+  // so attraction lives on refilling the bowl rather than dropping a pile on the ground.
+  buildBunnyBowls() {
+    this._addPetBowl({
+      x: 545, y: 340, tex: 'bunnyFoodBowl', fillContent: 'bunnyFood', action: 'feed',
+      propKey: 'bunnyFoodBowl', onFill: (bowl) => this.attractBunny(bowl.x, bowl.y),
+    });
+    this._addPetBowl({
+      x: 590, y: 340, tex: 'catWaterBowl', fillContent: 'water', action: 'water',
+      propKey: 'bunnyWaterBowl',
+    });
   }
 
-  // A bunny-food pile landed at (x, y): if the roster isn't already full (one bunny
-  // per coat colour, cap BUNNY_CAP), attract a new bunny. Its coat is chosen randomly
-  // among the colours not yet taken (nextBunny), it's added to the persisted roster,
-  // and it spawns a short hop away from the food so it visibly comes over to it.
-  // Full roster ⇒ nothing happens (the pile still feeds the bunnies already here).
+  // The bunny food bowl was refilled near (x, y): if the roster isn't already full
+  // (one bunny per coat colour, cap BUNNY_CAP), attract a new bunny. Its coat is chosen
+  // randomly among the colours not yet taken (nextBunny), it's added to the persisted
+  // roster, and it spawns a short hop away from the bowl so it visibly comes over to it.
+  // Full roster ⇒ nothing happens (the bowl still feeds the bunnies already here).
   attractBunny(x, y) {
     const all = this.registry.get('allBunnies') ?? {};
     if (Object.keys(all).length >= BUNNY_CAP) return null; // roster full — no new bunny
@@ -41,14 +53,14 @@ export const WithBunny = (Base) => class extends Base {
     all[pick.key] = model;
     this.registry.set('allBunnies', all);
 
-    // Spawn it a little way off from the food so it hops over to eat, entering from
+    // Spawn it a little way off from the bowl so it hops over to eat, entering from
     // the edge of the yard for a "wild bunny wandered in" beat. Clamp into play bounds.
     const from = this._bunnyEntryPoint(x, y);
     const spec = SPECIES.bunny;
     const a = this._spawnWorldIndividual(spec, pick.key, model, { x: from.x, y: from.y });
-    // Nudge it awake toward the food straight away (its seekBunnyFood behavior takes
+    // Nudge it awake toward the bowl straight away (its seekBunnyFood behavior takes
     // over once it's hungry; a fresh bunny starts full, so give it an initial amble
-    // toward the pile so the arrival reads as "drawn in by the food").
+    // toward the dish so the arrival reads as "drawn in by the food").
     this.time.delayedCall(200, () => {
       if (a?.sprite?.active) this.moveCreatureTo(a, x, y + 24, () => {
         if (a.sprite.active) { a.sprite.play(`idle_${a.key}`, true); a.state = 'idle'; }
@@ -62,8 +74,8 @@ export const WithBunny = (Base) => class extends Base {
   }
 
   // Where a freshly-attracted bunny appears: just off the nearest play-area edge from
-  // the food, so it reads as hopping in from outside rather than popping into being on
-  // top of the pile. Falls back to a small offset if bounds are unavailable.
+  // the bowl, so it reads as hopping in from outside rather than popping into being on
+  // top of the dish. Falls back to a small offset if bounds are unavailable.
   _bunnyEntryPoint(x, y) {
     const b = this.player?.homeBounds ?? null;
     // Enter from a random nearby offset (a bunny emerging from the brush), clamped

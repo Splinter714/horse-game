@@ -159,26 +159,19 @@ export const WithBehaviors = (Base) => class extends Base {
     };
   }
 
-  // Context for the bunny's seek behaviors (#224). Mirrors the cat's _catContext: its
-  // hunger/thirst plus the distance to the nearest reachable dropped bunny-food /
-  // bunny-water pile (via the shared _nearestReachableHay lookup, filtered by content
-  // so it doesn't confuse the two). The bunny roams the open world (like the cat), so
-  // reachability isn't fence-gated.
+  // Context for the bunny's seek behaviors (#224, reworked #283). Mirrors the cat's
+  // _catContext exactly: its hunger/thirst plus the distance to the bunny's FOOD/WATER
+  // BOWL — but only when that bowl is actually STOCKED (level > 0); an empty bowl reads
+  // as Infinity (_catBowlDist), so a hungry/thirsty bunny with no food in the dish just
+  // hop-wanders rather than pacing an empty bowl. The bunny eats DIRECTLY from the bowls
+  // now (petEatFromBowl), no more dropped ground piles.
   _bunnyContext(a) {
     const bunny = a.model;
-    const foodPile = this._nearestReachableHay(a, 'bunnyFood');
-    const nearestFoodDist = foodPile
-      ? Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, foodPile.x, foodPile.y)
-      : Infinity;
-    const waterPile = this._nearestReachableHay(a, 'bunnyWater');
-    const nearestWaterDist = waterPile
-      ? Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, waterPile.x, waterPile.y)
-      : Infinity;
     return {
       hunger: bunny?.stats?.hunger ?? 100,
       thirst: bunny?.stats?.thirst ?? 100,
-      nearestFoodDist,
-      nearestWaterDist,
+      nearestFoodDist:  this._catBowlDist(a, this.props.bunnyFoodBowl),
+      nearestWaterDist: this._catBowlDist(a, this.props.bunnyWaterBowl),
       isNight: !!this.isNight,
     };
   }

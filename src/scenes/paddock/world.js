@@ -169,8 +169,10 @@ export const WithWorld = (Base) => class extends Base {
     // farm band (north of the pasture) so the gather→carry→use loop has room.
     this.buildSources();
 
-    // Cat food + water bowls (#202) — fillable dishes the cat eats/drinks from directly.
+    // Pet food + water bowls (#202 cat rework, #283 generalized) — fillable dishes the
+    // pet eats/drinks from directly (not gather sources). The player keeps them stocked.
     this.buildCatBowls();
+    this.buildBunnyBowls();
     this.buildDoghouse(); // #237 decorative yard prop; sets this.doghouseObstacles
 
     // Scenery stream cutting across the top-right corner of the world.
@@ -315,13 +317,11 @@ export const WithWorld = (Base) => class extends Base {
       // it into the food bowl. The bowls themselves are no longer gather sources —
       // they're fillable dishes the cat eats/drinks from directly (buildCatBowls).
       { x: 120,  y: 420, content: 'catFood',  tex: 'kibbleSack',   label: 'Kibble Sack',   reach: 90, ob: { w: 22, h: 20 } },
-      // Bunny hutch (#224) — the attraction/care source for bunnies, tucked in the
-      // north yard by the coop. Gather bunny food here and drop a pile to lure a wild
-      // bunny in (capped at 4, one per coat colour) and to feed those already joined;
-      // a small water dish beside it is the bunny's thirst source. Gather → drop-pile
-      // flow wired to the bunnyFood/bunnyWater content.
+      // Bunny hutch (#224, reworked #283) — gather SOURCE for bunny food, scooped into a
+      // basket then poured into the bunny FOOD BOWL (buildBunnyBowls), which bunnies eat
+      // from directly; stocking it also lures a wild bunny in (capped at 4). No ground
+      // pile (items.js `stocks`). Water bowl fills from a plain bucket, like the cat's.
       { x: 560,  y: 300, content: 'bunnyFood',  tex: 'bunnyHutch',    label: 'Bunny Hutch', reach: 100, ob: { w: 44, h: 30 } },
-      { x: 615,  y: 320, content: 'bunnyWater', tex: 'catWaterBowl',  label: 'Bunny Water', reach: 90,  ob: { w: 26, h: 16 } },
     ];
     for (const d of defs) {
       const sprite = this.add.image(d.x, d.y, d.tex)
