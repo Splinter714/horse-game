@@ -206,7 +206,7 @@ renderer-agnostic.
   explicit go-ahead each time unless durably pre-authorized. When in doubt, ask.
 - **The owner art-directs subjective work.** Bug fixes and concrete-target art (matching
   an established reference pose/style) are fine to do autonomously — that's the
-  yellow/green line in the triage rubric below. Don't autonomously redraw subjective
+  green/red line in the triage rubric below. Don't autonomously redraw subjective
   "does this look right" work with no concrete target; propose it and let the owner
   judge in the live preview.
 
@@ -224,30 +224,11 @@ Claims are reconciled against git: an `in-progress` issue with no matching branc
 or open PR is an abandoned claim and gets swept clear during triage. Claiming at
 *real start* (not at queue time) is what keeps unlaunched issues from getting stuck.
 
-## Issue triage (green / yellow / red)
+## Issue triage (green / yellow / red / blocked)
 
-Open issues carry exactly one `triage:green` / `triage:yellow` / `triage:red` GitHub
-label, so the determination lives on GitHub, not just in chat. The rubric is keyed on
-one question: **"Can this be finished without the owner's input?"**
-
-| Label | Meaning | Action |
-|---|---|---|
-| **green** | Everything needed is known; clear, low-risk, self-contained. | Just do it. |
-| **yellow** | Can be fully finished solo via sensible defaults — never requires owner input mid-work. A big feature is still yellow if it's self-certifiable. | Do it, with strong verification. |
-| **red** | Would need to stop and ask, is blocked on a bigger decision, or is subjective "looks/feels right" polish with no concrete target to self-certify against. | Skip; comment why. |
-
-The sharp distinguishers:
-- Subjective art/audio with **no concrete target → red**; the same kind of work **with**
-  a concrete, verifiable target (e.g. "match the adult horse's existing eat pose at foal
-  scale") **→ yellow/green**, since it can be self-certified against the reference.
-- **Secret/surprise content** (easter eggs, hidden codes) **→ red** — not a design-latitude
-  call, but because an autonomous commit/diff could spoil a surprise the owner wants to
-  reveal personally.
-- For a long/overnight batch: triage the open issues first, work green + yellow in order,
-  skip red (comment what unblocks it), then re-check for newly-opened issues and keep
-  going — don't wait to be asked each round. Verify every change (unit + smoke + a
-  targeted runtime check) before committing; commit per issue. Merging to main,
-  pushing, and closing issues still need an explicit go-ahead (see Gotchas).
+Uses the global green/yellow/red/blocked rubric, GitHub-labels/overnight-batch workflow,
+and `needs-playtest` tracking (see `~/.claude/CLAUDE.md`). In this repo, red is almost
+always art-directed work — the owner eyeballs it live in the preview and redirects.
 
 ## Git hygiene routine
 
