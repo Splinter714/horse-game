@@ -9,6 +9,7 @@ import { WEATHER } from '../data/weather.js';
 import { WithWorld } from './paddock/world.js';
 import { WithWildlife } from './paddock/wildlife.js';
 import { WithRaccoon } from './paddock/raccoon.js';
+import { WithAmbientEvents } from './paddock/ambientEvents.js';
 import { WithCatAI } from './paddock/catAI.js';
 import { WithCreatures } from './paddock/creatures.js';
 import { WithFlock } from './paddock/flock.js';
@@ -35,9 +36,9 @@ import { WithInput } from './paddock/input.js';
 import { applyDpr } from './uiUtils.js';
 
 export default class PaddockScene
-  extends WithWorld(WithWildlife(WithRaccoon(WithCatAI(WithCharm(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithDayNight(WithWeather(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
+  extends WithWorld(WithWildlife(WithRaccoon(WithAmbientEvents(WithCatAI(WithCharm(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithDayNight(WithWeather(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
     WithEffects(WithPersistence(WithRendering(WithWorldObjects(WithCareActions(WithInteraction(WithInput(
-    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene)))))))))))))))))))))))))) {
+    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene))))))))))))))))))))))))))) {
   constructor() {
     super('PaddockScene');
   }
@@ -78,6 +79,7 @@ export default class PaddockScene
     this.buildFarmStand();
     this.buildInteractables();
     this.buildWildlife(); // ambient fish/birds/raccoon (needs the stream path + player)
+    this.startAmbientEvents(); // unified data-driven ambient rotation (#253)
 
     // Periodic AI tick: direct idle horses to food/water
     this.time.addEvent({ delay: 3000, loop: true, callback: this.horseTick, callbackScope: this });
