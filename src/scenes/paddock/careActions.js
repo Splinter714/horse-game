@@ -12,6 +12,8 @@
 
 import { EVENTS } from '../../data/events.js';
 import { getSpecies } from '../../data/species/index.js';
+import { lookFromKeys } from '../../data/customize.js';
+import { reskinAnimal } from '../../art/index.js';
 import { playEat, playDrink, playBrush, playChime, playMilk } from '../../audio/sounds.js';
 
 // Maps a species action's (or produce's) `sound` name (see data/species) to the
@@ -59,19 +61,56 @@ export const WithCareActions = (Base) => class extends Base {
   // needs no bespoke code. (Feeding/watering are no longer direct: animals graze
   // dropped food and drink at the trough/stream via their AI.)
 
-  // Harvest the animal's daily produce (e.g. milk) into the active empty carrier,
-  // gated on it being ready and not already harvested today. Sound/icon come from
-  // the species `produces` def — no per-species code.
+  // Harvest the animal's produce (e.g. milk, wool) into the active empty carrier,
+  // gated on the generic readiness check (daily gate for the cow, regrowth timer for
+  // the sheep, #233). Sound/icon come from the species `produces` def — no per-species
+  // code. A cooldown-produce animal (the sheep) also flips to its shorn look until the
+  // fleece regrows (see _refreshShornLook + the update-loop regrowth check).
   _produceFromAnimal(animal) {
     const model = animal.model;
     const prod = model && getSpecies(model.species).produces;
-    if (!prod || !model.readyToProduce || model.producedToday) return;
+    if (!prod || !model.canProduce?.()) return;
     // Fill the carrier first; only mark it harvested if the produce actually went in.
     const added = this.scene.get('HotbarScene')?.fillActiveCarrier(prod.content, 1) ?? 0;
     if (added <= 0) return;
-    model.producedToday = true;
+    model.markProduced();
     this._saveAnimal(model);
-    SOUND_FNS[prod.sound]?.();        // squirty milk-into-the-pail sound (#cow)
+    SOUND_FNS[prod.sound]?.();        // squirty milk / shear-snip harvest sound
     this.showIcon(prod.icon, animal.sprite);
+    if (prod.mode === 'cooldown') this._refreshShornLook(animal); // shorn until regrown
+  }
+
+  // ─── Shorn / regrowth visual (generic cooldown-produce, #233) ──────────────
+  // Rebuild a cooldown-produce animal's frame textures IN PLACE to match its current
+  // regrowth state — shorn (fleece trimmed) right after a shear, full again once the
+  // regrowth timer elapses. Reads the model's saved customizer `look` (per-part swatch
+  // keys) and threads a `shorn` flag into the art builder, reusing the same in-place
+  // reskin the customizer uses (art re-draws under the same texture key, so the live
+  // sprite updates with no re-spawn). Registry-driven — no species name here.
+  _refreshShornLook(animal) {
+    const model = animal?.model;
+    if (!model) return;
+    const spec = getSpecies(model.species);
+    if (spec.produces?.mode !== 'cooldown') return;
+    const look = model.look ? lookFromKeys(model.species, model.look)
+                            : (lookFromKeys(model.species, undefined) ?? {});
+    reskinAnimal(this, model.species, animal.key, { ...look, shorn: model.isShorn() });
+  }
+
+  // Each tick, regrow any animal whose fleece has grown back since it was sheared
+  // (flip the shorn look off once the regrowth timer completes). Cheap: it only
+  // touches cooldown-produce animals still flagged shorn, and re-skins once at the
+  // moment they cross back to full. Called from the update loop.
+  tickRegrowth() {
+    for (const a of this.animals) {
+      const model = a.model;
+      if (!model?.lastProducedAt) continue;                 // never sheared / not cooldown
+      const spec = getSpecies(model.species);
+      if (spec.produces?.mode !== 'cooldown') continue;
+      const shorn = model.isShorn();
+      if (a._shownShorn === shorn) continue;                // no visual change since last tick
+      a._shownShorn = shorn;
+      this._refreshShornLook(a);
+    }
   }
 };

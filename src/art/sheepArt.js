@@ -22,6 +22,7 @@ const DEFAULT_LOOK = {
 function drawSheep(g, bob, [lhf, lhn, lff, lfn], look) {
   const wool = look?.wool || DEFAULT_LOOK.wool;
   const skin = look?.skin || DEFAULT_LOOK.skin;
+  const shorn = !!look?.shorn;   // freshly sheared → trimmed fleece + shorn stubble (#233)
   const WOOL_LIT = wool.lit, WOOL_MID = wool.mid, WOOL_SHAD = wool.shad;
   const SKIN = skin.mid, SKIN_LIT = skin.lit, SKIN_DK = skin.dk, SKIN_DKR = skin.dkr;
 
@@ -39,29 +40,40 @@ function drawSheep(g, bob, [lhf, lhn, lff, lfn], look) {
   g.layer('wool');
   // --- Wool body: built row-by-row from a rounded silhouette so the sides and
   // bottom curve smoothly instead of stepping. Each row is [y, xLeft, xRight]. ---
-  const rows = [
+  // Shorn (#233): the fleece is clipped close — the silhouette pulls in a couple of
+  // pixels all round and the fluffy top crown is shaved off, so a freshly-sheared ewe
+  // reads noticeably smaller and stubbly (drawn in the wool's SHADOW tone, like
+  // close-cropped stubble) until the fleece regrows.
+  const rows = shorn ? [
+    [12, 6, 32], [13, 5, 33], [14, 5, 33], [15, 5, 33],
+    [16, 5, 33], [17, 5, 32], [18, 6, 32], [19, 7, 31],
+    [20, 8, 31], [21, 10, 31], [22, 12, 29],
+  ] : [
     [ 9,  8, 31], [10,  5, 33], [11,  4, 34], [12,  3, 35],
     [13,  3, 35], [14,  3, 35], [15,  3, 35], [16,  3, 35],
     [17,  3, 34], [18,  4, 34], [19,  5, 33], [20,  7, 33],
     [21,  9, 32], [22, 11, 30],
   ];
   const rowAt = (y) => rows.find((r) => r[0] === y);
-  g.fillStyle(WOOL_LIT, 1);
+  // Close-cropped stubble reads as the wool's darker shade; full fleece is the light tone.
+  g.fillStyle(shorn ? WOOL_SHAD : WOOL_LIT, 1);
   for (const [y, x0, x1] of rows) g.fillRect(x0, y + bob, x1 - x0, 1);
 
-  // Fluffy top — small overlapping nubs of the SAME flat colour, varied height, with
-  // their top corners shaved so the crown reads soft (not a hard block, not bubbly).
-  const nub = (x, y, w, h) => {
-    g.fillRect(x, y + 0.6 + bob, w, h - 0.6);     // body
-    g.fillRect(x + 0.7, y + bob, w - 1.4, 0.6);   // shaved cap
-  };
-  const top = [
-    [6, 8, 4, 3], [8, 6.5, 6, 4], [13, 5.5, 6, 4], [19, 5, 6, 4],
-    [25, 5.5, 6, 4], [30, 7, 5, 3],
-  ];
-  for (const [x, y, w, h] of top) nub(x, y, w, h);
-  const top2 = [[10, 7.5, 4, 2], [16, 7, 4, 2], [22, 7, 4, 2], [27, 7.5, 4, 2]];
-  for (const [x, y, w, h] of top2) g.fillRect(x, y + bob, w, h);
+  if (!shorn) {
+    // Fluffy top — small overlapping nubs of the SAME flat colour, varied height, with
+    // their top corners shaved so the crown reads soft (not a hard block, not bubbly).
+    const nub = (x, y, w, h) => {
+      g.fillRect(x, y + 0.6 + bob, w, h - 0.6);     // body
+      g.fillRect(x + 0.7, y + bob, w - 1.4, 0.6);   // shaved cap
+    };
+    const top = [
+      [6, 8, 4, 3], [8, 6.5, 6, 4], [13, 5.5, 6, 4], [19, 5, 6, 4],
+      [25, 5.5, 6, 4], [30, 7, 5, 3],
+    ];
+    for (const [x, y, w, h] of top) nub(x, y, w, h);
+    const top2 = [[10, 7.5, 4, 2], [16, 7, 4, 2], [22, 7, 4, 2], [27, 7.5, 4, 2]];
+    for (const [x, y, w, h] of top2) g.fillRect(x, y + bob, w, h);
+  }
 
   // Soft form shading: just an underside shadow that deepens toward the belly (no
   // top highlight — it read as a stray horizontal line). Bands follow the silhouette

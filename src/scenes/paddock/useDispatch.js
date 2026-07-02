@@ -73,11 +73,14 @@ export const WithUseDispatch = (Base) => class extends Base {
   }
 
   // Resolve what Use does with `item` on a nearby harvestable animal, or null. Only
-  // produce harvesting is a direct interaction now: an empty bucket on a milkable
-  // animal → harvest `produces` (the cow's milk) when ready. Feeding and watering are
-  // no longer direct — animals graze dropped food and drink at the trough/stream via
-  // their AI. Returns { label, run } so useActiveTool dispatches it and the prompt
-  // pass labels it identically. Adding a milkable animal is pure data.
+  // produce harvesting is a direct interaction now: the right EMPTY carrier on a
+  // producing animal → harvest `produces` when ready (the cow's milk into a bucket,
+  // a sheep's wool into a basket). The carrier kind comes from `produces.carrier`
+  // (default 'bucket'), and readiness from the generic model gate (daily or regrowth-
+  // timer, #233). Feeding and watering are no longer direct — animals graze dropped
+  // food and drink at the trough/stream via their AI. Returns { label, run } so
+  // useActiveTool dispatches it and the prompt pass labels it identically. Adding a
+  // producing animal is pure data.
   _animalUseAction(item) {
     if (!item || item.type !== 'carrier') return null;
     const animal = this._nearestCareAnimal();
@@ -86,9 +89,10 @@ export const WithUseDispatch = (Base) => class extends Base {
     const spec = getSpecies(model.species);
     const who = model?.name ? ` ${model.name}` : '';
 
-    // Empty bucket → harvest, but only when the animal is actually ready to give it.
-    if (item.carrier === 'bucket' && !item.content &&
-        spec.produces && model?.readyToProduce && !model.producedToday) {
+    // Empty carrier of the right kind → harvest, but only when the animal is ready.
+    const wantCarrier = spec.produces?.carrier ?? 'bucket';
+    if (item.carrier === wantCarrier && !item.content &&
+        spec.produces && model?.canProduce?.()) {
       const verb = spec.produces.verb ?? 'Use';
       return { label: `${verb}${who}`, run: () => this._produceFromAnimal(animal) };
     }
