@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig(({ command }) => ({
   // Production (GitHub Pages) is served under /horse-game/, but in dev serve at
@@ -29,5 +30,35 @@ export default defineConfig(({ command }) => ({
   build: {
     outDir: 'dist',
     assetsInlineLimit: 0
-  }
+  },
+  plugins: [
+    // Installable PWA (#37): manifest for the icon/name/splash + standalone launch,
+    // and a generated service worker for offline play. Only active in the production
+    // build (devOptions.enabled defaults to false), so it doesn't interfere with the
+    // dev server / Claude Code preview. Icons are pre-rendered PNGs under
+    // public/icons/ (scripts/gen-pwa-icons.mjs) since the game's actual art is
+    // generated at runtime — a manifest needs static files to point at.
+    VitePWA({
+      registerType: 'autoUpdate',
+      manifest: {
+        name: 'Horse Care',
+        short_name: 'Horse Care',
+        description: 'A cozy pixel-art horse care game',
+        theme_color: '#1c2330',
+        background_color: '#1c2330',
+        display: 'standalone',
+        icons: [
+          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+      },
+      workbox: {
+        // No runtime asset caching needed — sprites/audio are procedurally generated
+        // at runtime, not fetched files. Precaching the built JS/HTML/icon shell is
+        // enough for the whole game to boot and run with no connection.
+        globPatterns: ['**/*.{js,css,html,png,ico,svg}'],
+      },
+    }),
+  ],
 }));
