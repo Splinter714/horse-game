@@ -154,17 +154,34 @@ export const WithInteractables = (Base) => class extends Base {
       }];
     };
 
+    // Compost bin (#232) — the dump spot for the scooper. Only prompts when the
+    // scooper is equipped: "Dump Compost" when it's carrying a load, else a passive
+    // hint. Data-driven off the scooper's reported load (getActiveItem surfaces it).
+    const compostBin = (item) => {
+      const b = this.props.compostBin;
+      if (!b || item?.action !== 'scoop') return [];
+      const load = item.load ?? 0;
+      const canDump = load > 0;
+      return [{
+        x: b.x, y: b.y, tapRadius: 130, reachDist: 120, promptOffsetY: 60,
+        canAct: canDump,
+        label: canDump ? `Dump Compost  (${load})` : 'Compost Bin  •  scoop up droppings to fill',
+        approach: () => ({ x: b.x, y: b.y + 40 }), // walk to just below the bin
+        activate: () => this.dumpCompost(),
+      }];
+    };
+
     // Barn (#35) — bare-hand interact targets: one "assign horse" per stall + a
     // passive tack-room hint. Built by the barn mixin (paddock/barn.js). Ignores the
     // held item (assignment is a bare-hand interaction).
     const barn = () => this._barnInteractables?.() ?? [];
 
-    this.interactables = [gate, house, shop, barn, trough, sources, nests, farmStand, spinningWheel];
+    this.interactables = [gate, house, shop, barn, trough, sources, nests, farmStand, spinningWheel, compostBin];
     // Split by input: gate/house/shop/barn are bare-hand "interact" targets (tap/click/E);
     // the rest require a carried tool/carrier and are triggered by Use (the
     // on-screen button / F / controller). See useActiveTool + handleTap.
     this.interactWorld = [gate, house, shop, barn];
-    this.toolWorld     = [trough, sources, nests, farmStand, spinningWheel];
+    this.toolWorld     = [trough, sources, nests, farmStand, spinningWheel, compostBin];
   }
 
   // Nearest activatable instance to (x, y) within each instance's own radius

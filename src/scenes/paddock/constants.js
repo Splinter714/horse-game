@@ -53,6 +53,12 @@ export const GATE_GAP_X1 = 1020;
 // Global sprite scale.
 export const S = 2;
 
+// ── Animal droppings (#232) ─────────────────────────────────────────────────
+// The most droppings allowed lying in the pasture at once. Cosmetic clutter the
+// player scoops up with the scooper — capped so an ignored pasture never carpets
+// in poop (a gentle chore, not a punishment). No mood/stat effect.
+export const DROPPINGS_CAP = 8;
+
 // ── Horse begging behaviour (horseAI.js) ────────────────────────────────────
 // The main "feel" knobs for hungry horses coming to beg / gathering at the gate.
 // Tweak here rather than hunting through the AI mixin.

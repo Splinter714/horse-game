@@ -172,18 +172,29 @@ describe('game state (hotbar / carriers)', () => {
     expect(gs.activeCarrier).toEqual({ basket: 'basket1', bucket: 'bucket1' });
   });
 
-  it('defaults to a trimmed 5-slot hotbar (#118)', () => {
+  it('defaults to the trimmed hotbar (2 carriers + brush/saddle/lead/scooper, #118/#232)', () => {
     const gs = save.loadGameState();
-    expect(gs.hotbar).toEqual(['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead']);
+    expect(gs.hotbar).toEqual(['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead', 'scooper']);
   });
 
-  it('trims an older 10-slot grouped save down to 5 slots (#118)', () => {
+  it('trims an older 10-slot grouped save down to the current slot count (#118)', () => {
     globalThis.localStorage.setItem(GAME_STATE_KEY, JSON.stringify({
-      hotbar: ['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead', '', '', '', '', ''],
+      hotbar: ['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead', 'scooper', '', '', '', ''],
       inventory: {}, carriers: {},
     }));
     const gs = save.loadGameState();
-    expect(gs.hotbar).toEqual(['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead']);
+    expect(gs.hotbar).toEqual(['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead', 'scooper']);
+  });
+
+  it('appends a newly-added default tool (scooper, #232) to an older grouped save that predates it', () => {
+    // A save written before the scooper existed had five grouped slots; loading it
+    // should surface the scooper without disturbing the player's arrangement.
+    globalThis.localStorage.setItem(GAME_STATE_KEY, JSON.stringify({
+      hotbar: ['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead'],
+      inventory: {}, carriers: {},
+    }));
+    const gs = save.loadGameState();
+    expect(gs.hotbar).toEqual(['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead', 'scooper']);
   });
 
   it('round-trips a saved game state including the active group members (#75)', () => {
@@ -268,6 +279,44 @@ describe('money persistence (#29)', () => {
       hotbar: [], inventory: {}, carriers: {}, activeCarrier: {}, money: 42.9,
     });
     expect(save.loadGameState().money).toBe(42);
+  });
+});
+
+describe('compost + scooper load persistence (#232)', () => {
+  it('defaults both to 0 on a fresh save', () => {
+    const gs = save.loadGameState();
+    expect(gs.scooperLoad).toBe(0);
+    expect(gs.compost).toBe(0);
+  });
+
+  it('round-trips a saved scooper load and compost store', () => {
+    save.saveGameState({
+      hotbar: [], inventory: {}, carriers: {}, activeCarrier: {}, money: 0,
+      scooperLoad: 4, compost: 12,
+    });
+    const gs = save.loadGameState();
+    expect(gs.scooperLoad).toBe(4);
+    expect(gs.compost).toBe(12);
+  });
+
+  it('defaults both to 0 for an older save that predates the feature', () => {
+    globalThis.localStorage.setItem(GAME_STATE_KEY, JSON.stringify({
+      hotbar: ['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead'],
+      inventory: {}, carriers: {}, money: 20,
+    }));
+    const gs = save.loadGameState();
+    expect(gs.scooperLoad).toBe(0);
+    expect(gs.compost).toBe(0);
+  });
+
+  it('sanitizes negative / corrupt / fractional counts', () => {
+    save.saveGameState({
+      hotbar: [], inventory: {}, carriers: {}, activeCarrier: {}, money: 0,
+      scooperLoad: -3, compost: 8.7,
+    });
+    const gs = save.loadGameState();
+    expect(gs.scooperLoad).toBe(0);  // negative → 0
+    expect(gs.compost).toBe(8);      // floored
   });
 });
 

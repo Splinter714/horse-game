@@ -152,6 +152,8 @@ export const WithWorld = (Base) => class extends Base {
       x: swx, y: swy, sprite: spinSprite, spokes, craft: { from: 'wool', to: 'yarn' },
     };
     // (Its solid footprint is added to this.obstacles below, once that array exists.)
+    const binX = 300, binY = 1000; // Compost bin (#232) — DUMP spot for scooped droppings (pasture NW).
+    this.props.compostBin = { x: binX, y: binY, sprite: this.add.image(binX, binY, 'compostBin').setScale(S).setDepth(binY).setOrigin(0.5, 1) };
 
     // Shop / market stall (#29) — where the player SPENDS gold on feed. Placed in the
     // open farm band a little west of the farm stand (the SELL station at 1600,780) so
@@ -405,6 +407,8 @@ export const WithWorld = (Base) => class extends Base {
       ...(this.props.shop
         ? [{ x: this.props.shop.x - 64, y: this.props.shop.y - 48, w: 128, h: 48, isShop: true }]
         : []),
+      // Compost bin (#232) — solid ~80×40 footprint at S=2.
+      ...(this.props.compostBin ? [{ x: this.props.compostBin.x - 40, y: this.props.compostBin.y - 40, w: 80, h: 40 }] : []),
     ];
 
     // ── Solid pasture fence ── (perimeter walls with a single gap at the gate)

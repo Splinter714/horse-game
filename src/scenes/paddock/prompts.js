@@ -171,6 +171,19 @@ export const WithPrompts = (Base) => class extends Base {
       return finish();
     }
 
+    // Scooper (#232): standing near a dropping with room in the scooper → "Scoop".
+    // If the scooper is full or no dropping is in reach, fall through to the world
+    // spots so the compost bin's "Dump Compost" prompt can take over at the bin.
+    if (item.action === 'scoop') {
+      const dropping = this._nearestDropping();
+      if (dropping && (item.load ?? 0) < (item.capacity ?? Infinity)) {
+        useLabel = 'Scoop';
+        this._pushPrompt('use', 'Scoop droppings');
+        return finish();
+      }
+      // else: fall through to _nearestUseSpot (the compost bin descriptor).
+    }
+
     // World-spot tools (fill trough / fill bucket / gather / collect egg / sell):
     // the nearest actionable instance within reach. The descriptor labels already
     // name the content ("Gather Water", "Collect Egg"); strip any "(basket: n)"

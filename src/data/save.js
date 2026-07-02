@@ -109,7 +109,7 @@ const GAME_STATE_KEY = 'horse-game-state-v1';
 // baskets collapse into one "Basket" slot and the buckets into one "Bucket" slot
 // (each a fly-out picker), plus the three tools. Five slots, keys 1–5. Add more as
 // new tools/items arrive. No "hand" slot — interacting is the universal default.
-const DEFAULT_HOTBAR = ['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead'];
+const DEFAULT_HOTBAR = ['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead', 'scooper'];
 
 // Which member of each carrier group is currently active in its grouped slot.
 function defaultActiveCarrier() {
@@ -146,11 +146,19 @@ function sanitizeMoney(v) {
   return Number.isFinite(n) && n >= 0 ? n : DEFAULT_MONEY;
 }
 
+// Coerce a persisted non-negative counter (scooper load, compost store — #232) into
+// a safe integer, defaulting to 0 for a missing/corrupt value.
+function sanitizeCount(v) {
+  const n = Math.floor(Number(v));
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
 export function loadGameState() {
   const fresh = () => ({
     hotbar: [...DEFAULT_HOTBAR], inventory: defaultInventory(),
     carriers: defaultCarriers(), activeCarrier: defaultActiveCarrier(),
     money: DEFAULT_MONEY,
+    scooperLoad: 0, compost: 0,
   });
   try {
     const raw = localStorage.getItem(GAME_STATE_KEY);
@@ -163,7 +171,13 @@ export function loadGameState() {
     const saved = Array.isArray(data.hotbar) ? data.hotbar : [];
     // Keep a grouped layout as-is, else fall to the default; then trim to the
     // current slot count so older 10-slot saves collapse to 5 (#118).
-    const hotbar = (saved.includes('basketGroup') ? saved : [...DEFAULT_HOTBAR]).slice(0, DEFAULT_HOTBAR.length);
+    let hotbar = (saved.includes('basketGroup') ? saved : [...DEFAULT_HOTBAR]).slice(0, DEFAULT_HOTBAR.length);
+    // Ensure any tool added to the default hotbar since the save was written shows
+    // up (e.g. the scooper, #232): append missing default tools so an existing
+    // player gets the new slot without losing their arrangement.
+    for (const key of DEFAULT_HOTBAR) {
+      if (!hotbar.includes(key)) hotbar = [...hotbar, key].slice(0, DEFAULT_HOTBAR.length);
+    }
     return {
       hotbar,
       inventory:     { ...defaultInventory(),     ...(data.inventory ?? {}) },
@@ -172,16 +186,21 @@ export function loadGameState() {
       // Money persists across sessions (#29); an older save with no money field
       // seeds the starting stake so the shop is immediately usable.
       money:         'money' in data ? sanitizeMoney(data.money) : DEFAULT_MONEY,
+      // Compost mechanic (#232): the scooper's current load and the farm's compost
+      // store. Both default to 0 for a save written before the feature existed.
+      scooperLoad:   sanitizeCount(data.scooperLoad),
+      compost:       sanitizeCount(data.compost),
     };
   } catch {
     return fresh();
   }
 }
 
-export function saveGameState({ hotbar, inventory, carriers, activeCarrier, money }) {
+export function saveGameState({ hotbar, inventory, carriers, activeCarrier, money, scooperLoad, compost }) {
   try {
     localStorage.setItem(GAME_STATE_KEY, JSON.stringify({
       hotbar, inventory, carriers, activeCarrier, money: sanitizeMoney(money),
+      scooperLoad: sanitizeCount(scooperLoad), compost: sanitizeCount(compost),
     }));
   } catch {}
 }

@@ -3,7 +3,7 @@
 // (#75) and their fly-out picker, and the getActiveItem public API the rest of the
 // game reads. Extracted from the monolithic HotbarScene (issue #167).
 
-import { ITEM_MAP, CARRIER_DEFS, CONTENT_DEFS } from '../../data/items.js';
+import { ITEM_MAP, CARRIER_DEFS, CONTENT_DEFS, SCOOPER, dumpScooper } from '../../data/items.js';
 import { saveGameState } from '../../data/save.js';
 import { FLYOUT_CLOSE_MS } from './constants.js';
 
@@ -16,7 +16,11 @@ export const WithCarriers = (Base) => class extends Base {
       return this._slotView(ITEM_MAP[m], m);
     }
     if (item.type !== 'carrier') {
-      return { icon: item.icon, label: item.label, count: undefined };
+      // The scooper (#232) shows its scooped-droppings load as a count badge (like a
+      // carrier), so you can see at a glance it's filling up and needs dumping.
+      const count = item.action === 'scoop' && (this._scooperLoad ?? 0) > 0
+        ? this._scooperLoad : undefined;
+      return { icon: item.icon, label: item.label, count };
     }
     const st  = this.carriers[key] ?? { content: null, count: 0 };
     const def = CARRIER_DEFS[item.carrier];
@@ -29,11 +33,49 @@ export const WithCarriers = (Base) => class extends Base {
   }
 
   _saveCarriers() {
+    this._persistGameState();
+  }
+
+  // Single writer of the hotbar/inventory/carriers + money + compost (#232) game
+  // state. Every save path (carrier fills, money changes, scoop/dump) routes here so
+  // no path silently drops a field it doesn't know about.
+  _persistGameState() {
     saveGameState({
       hotbar: this.hotbar, inventory: this.inventory,
       carriers: this.carriers, activeCarrier: this.activeCarrier,
       money: this._money,
+      scooperLoad: this._scooperLoad ?? 0,
+      compost: this._compost ?? 0,
     });
+  }
+
+  // ── Scooper load + compost store (#232) ─────────────────────────────────────
+  // The scooper carries a small load until dumped in the compost bin. These are the
+  // public accessors/mutators the PaddockScene scoop/dump handlers use; each persists
+  // so the load and store survive a reload.
+
+  // Add scooped droppings to the scooper (returns how many were added — 0 when full).
+  addScooperLoad(n = 1) {
+    const cap = SCOOPER.capacity;
+    const added = Math.min(cap - (this._scooperLoad ?? 0), Math.max(0, n));
+    if (added <= 0) return 0;
+    this._scooperLoad = (this._scooperLoad ?? 0) + added;
+    this._persistGameState();
+    this._buildHotbar();
+    return added;
+  }
+
+  // Dump the scooper's whole load into the farm's compost store. Returns the amount
+  // dumped (0 when empty).
+  dumpScooperLoad() {
+    const { load, compost } = dumpScooper(this._scooperLoad ?? 0, this._compost ?? 0);
+    const dumped = (this._scooperLoad ?? 0) - load;
+    if (dumped <= 0) return 0;
+    this._scooperLoad = load;
+    this._compost = compost;
+    this._persistGameState();
+    this._buildHotbar();
+    return dumped;
   }
 
   // ── Carrier groups (#75) ───────────────────────────────────────────────────
@@ -220,6 +262,12 @@ export const WithCarriers = (Base) => class extends Base {
     const key  = this._resolveKey(this.hotbar[this.activeSlot]); // group → active member (#75)
     const item = key ? ITEM_MAP[key] : null;
     if (!item) return null;
+    // The scooper (#232) is a tool that carries a load — surface its current load and
+    // capacity so the Use dispatch/prompt can tell "scoop" (room left) from "full,
+    // go dump" without reaching back into the hotbar scene.
+    if (item.action === 'scoop') {
+      return { ...item, load: this._scooperLoad ?? 0, capacity: SCOOPER.capacity };
+    }
     if (item.type !== 'carrier') return item;
 
     // Resolve a carrier into a usable view: its current content drives the

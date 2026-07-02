@@ -218,6 +218,30 @@ export function buildIconTextures(scene) {
     ball(7, 7, 3.6, 0xd88a6a, 0xe8a888);   // terracotta ball
     ball(13, 6, 3.4, 0x6f9bb8, 0x94bcd6);  // dusty-blue ball
   });
+  // Basket of compost (#232) — dark crumbly earth mounded above the rim, flecked
+  // with a couple of bits of straw so it reads "rich soil / manure" not just dirt.
+  gen(scene, 'iconBasketCompost', 20, 20, (g) => {
+    drawBasketBody(g);
+    g.fillStyle(0x5a4128, 1); g.fillRoundedRect(4, 4, 12, 7, 2); // dark earth mound
+    g.fillStyle(0x6e5233, 1); g.fillEllipse(9, 5, 9, 3);         // lighter crumb top
+    g.fillStyle(0x3e2c19, 1);
+    g.fillCircle(6, 7, 1); g.fillCircle(12, 6, 1); g.fillCircle(10, 9, 1); // clods
+    g.fillStyle(0xc4a43a, 1); g.fillRect(6, 3, 3, 1); g.fillRect(11, 4, 3, 1); // straw flecks
+  });
+
+  // Scooper tool (#232) — a stable rake/scoop on a handle. Reads as the "clean up
+  // droppings" tool at hotbar size: a wooden handle with a fan of tines at the head.
+  gen(scene, 'iconScooper', 20, 20, (g) => {
+    // handle (diagonal)
+    g.fillStyle(0x9a6a3a, 1); g.fillRect(4, 3, 2, 9);
+    g.fillStyle(0xb5854c, 1); g.fillRect(4, 3, 1, 9); // handle highlight
+    // scoop head — a shallow metal basket/rake at the bottom
+    g.fillStyle(0x8b929c, 1); g.fillRoundedRect(2, 11, 12, 4, 1); // head back
+    g.fillStyle(0xaab0ba, 1); g.fillRect(3, 11, 10, 2);            // head highlight
+    // tines fanning down from the head
+    g.fillStyle(0x6f7580, 1);
+    for (let x = 3; x <= 13; x += 2) g.fillRect(x, 14, 1, 4);
+  });
 
   // Empty bucket — a metal pail tilted slightly forward so you see down into it.
   // The open mouth is a dark interior oval, so "empty" reads at a glance vs. the
