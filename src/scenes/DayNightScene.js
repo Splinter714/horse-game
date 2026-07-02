@@ -107,6 +107,19 @@ export default class DayNightScene extends Phaser.Scene {
   // to the top so the black covers everything, then restore the UI on top after.
   doSleep() {
     if (this._sleeping) return;
+
+    // Sleeping from INSIDE the house (#56): this scene is paused, so its tweens/
+    // delayedCalls won't advance and the fade below would never complete. The house
+    // interior runs its OWN local fade for the visual, so here we just jump the clock
+    // to morning synchronously; when the world resumes, the next _applyClock() fires
+    // the Morning phase-change (waking animals) exactly as a normal sleep would.
+    if (this.scene.isPaused()) {
+      this.elapsed = 0;
+      this.currentPhase = -1;
+      this.game.events.emit(EVENTS.SLEEP_DONE);
+      return;
+    }
+
     this._sleeping = true;
     this.scene.bringToTop();
 

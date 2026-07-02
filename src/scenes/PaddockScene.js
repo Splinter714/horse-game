@@ -8,6 +8,7 @@ import { INTERACT_DIST } from './paddock/constants.js';
 import { WEATHER } from '../data/weather.js';
 import { WithWorld } from './paddock/world.js';
 import { WithBarn } from './paddock/barn.js';
+import { WithHouseEntry } from './paddock/houseEntry.js';
 import { WithWildlife } from './paddock/wildlife.js';
 import { WithRaccoon } from './paddock/raccoon.js';
 import { WithAmbientEvents } from './paddock/ambientEvents.js';
@@ -39,9 +40,9 @@ import { WithInput } from './paddock/input.js';
 import { applyDpr } from './uiUtils.js';
 
 export default class PaddockScene
-  extends WithWorld(WithBarn(WithBunny(WithWildlife(WithRaccoon(WithAmbientEvents(WithCatAI(WithCharm(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithShop(WithDayNight(WithWeather(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
+  extends WithWorld(WithBarn(WithBunny(WithHouseEntry(WithWildlife(WithRaccoon(WithAmbientEvents(WithCatAI(WithCharm(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithShop(WithDayNight(WithWeather(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
     WithEffects(WithPersistence(WithRendering(WithWorldObjects(WithCareActions(WithInteraction(WithInput(
-    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene)))))))))))))))))))))))))))))) {
+    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene))))))))))))))))))))))))))))))) {
   constructor() {
     super('PaddockScene');
   }
@@ -103,6 +104,7 @@ export default class PaddockScene
     // through MONEY_CHANGED too. Guard against echoing our own emit (farmStand sale).
     this._onMoneyChanged = v => { if (v !== this.money) this.money = v; };
     this.game.events.on(EVENTS.MONEY_CHANGED,    this._onMoneyChanged, this);
+    this.bindHouseEntry(); // wire EXIT_HOUSE → resume the world (#56)
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.game.events.off(EVENTS.PHASE_CHANGE,    this.onPhaseChange,   this);
       this.game.events.off(EVENTS.WEATHER_CHANGE,  this.onWeatherChange, this);

@@ -138,3 +138,25 @@ export const STAND_DEFS = {
   yarn:   { price: 15, tex: 'iconYarn',   scale: 0.9, emoji: '🧶', floatIcon: 'iconYarn' },
 };
 export const STAND_TYPES = Object.keys(STAND_DEFS);
+
+// ─── House interior (#56) ──────────────────────────────────────────────────
+// The enterable one-room cottage (HouseInteriorScene). The `houseInterior` texture
+// is a 160×120 design-grid floor plan; the scene draws it at HOUSE_INTERIOR.scale so
+// there's real room to walk. Furniture hit-zones are declared in DESIGN-GRID coords
+// (matching worldArt's houseInterior draw) and the scene converts them with the same
+// scale, so art + collision stay in lockstep — retune the art and the zones together.
+export const HOUSE_INTERIOR = {
+  dw: 160, dh: 120,   // design-grid footprint (must match worldArt houseInterior)
+  scale: 4,           // world px per design px (room = 640×480)
+  // Furniture interaction zones, in DESIGN-GRID coords. `stand` is where the player
+  // walks to use it; `label`/`action` drive the prompt + activation in the scene.
+  stations: {
+    bed:     { x: 132, y: 42,  standX: 122, standY: 74, label: 'Sleep',             action: 'sleep' },
+    dresser: { x: 25,  y: 30,  standX: 25,  standY: 66, label: 'Customize Character', action: 'customize' },
+    kitchen: { x: 80,  y: 30,  standX: 80,  standY: 46, label: 'Kitchen  •  cooking coming soon', action: 'kitchen' },
+  },
+  // South doorway: the exit strip. When the player walks onto it they leave the house.
+  exit: { x: 80, y: 116, w: 34 },
+  // Where the player sprite spawns on entering (just inside the doorway).
+  spawn: { x: 80, y: 104 },
+};

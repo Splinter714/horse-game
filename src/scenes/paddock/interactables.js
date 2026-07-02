@@ -43,16 +43,18 @@ export const WithInteractables = (Base) => class extends Base {
       }];
     };
 
-    // House (#241) — the home base you walk up to and sleep in until morning.
-    // (The separate horse barn has no interaction yet; its interior is #35.)
+    // House (#241/#56) — the home base you walk up to and ENTER. Inside is the
+    // enterable interior scene (HouseInteriorScene) with the bed (sleep, #210),
+    // dresser/mirror (customizer, #211) and kitchen (#41). Sleeping now happens at
+    // the bed inside, so the door just takes you in.
     const house = () => {
       const b = this.props.house;
       if (!b) return [];
       return [{
         x: b.x, y: b.y, tapRadius: 130, reachDist: 150, promptOffsetY: 40,
-        canAct: true, label: 'Sleep',
-        approach: () => ({ x: b.x, y: b.y + 95 }), // walk to just below the house
-        activate: () => this.sleep(),
+        canAct: true, label: 'Enter House',
+        approach: () => ({ x: b.x, y: b.y + 95 }), // walk to just below the door
+        activate: () => this.enterHouse(),
       }];
     };
 

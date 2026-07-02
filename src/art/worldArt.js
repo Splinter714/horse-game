@@ -63,6 +63,66 @@ export function buildWorldTextures(scene) {
     }
   });
 
+  // --- house interior (#56) ---
+  // FIRST-PASS DRAFT ART, owner-art-directed. A single cozy one-room cottage interior
+  // rendered as ONE floor-plan texture the HouseInteriorScene lays down as the room. It
+  // carries the three v1 stations — a BED (sleep, #210), a DRESSER + wall MIRROR
+  // (opens the character customizer, #211), and a KITCHEN counter/stove (cooking #41 is
+  // future — the surface is placed but inert) — plus a rug, a doormat by the south
+  // doorway (the way back out), and a warm plank floor. Design grid 160×120 (origin
+  // 0,0, top-left); the scene positions furniture hit-zones from the same coordinates
+  // (see HOUSE_INTERIOR in scenes/paddock/constants.js). Dissect tags per part.
+  const HI_W = 160, HI_H = 120;
+  gen(scene, 'houseInterior', HI_W, HI_H, (g) => {
+    g.layer('floor');
+    g.fillStyle(0xcaa877, 1); g.fillRect(0, 0, HI_W, HI_H);            // warm plank floor
+    g.fillStyle(0xbb9967, 1);                                          // plank seams
+    for (let y = 8; y < HI_H; y += 10) g.fillRect(0, y, HI_W, 1);
+    g.fillStyle(0xd6b985, 1);                                          // lit plank edges
+    for (let y = 9; y < HI_H; y += 10) g.fillRect(0, y, HI_W, 1);
+    g.layer('walls');
+    g.fillStyle(0xe6d7b8, 1); g.fillRect(0, 0, HI_W, 16);             // back (north) wall
+    g.fillStyle(0xd6c39a, 1); g.fillRect(0, 14, HI_W, 2);            // wall base moulding
+    g.fillStyle(0xd0bc90, 1); g.fillRect(0, 0, 4, HI_H); g.fillRect(HI_W - 4, 0, 4, HI_H); // side walls
+    g.layer('rug');
+    g.fillStyle(0x9a5a52, 1); g.fillRect(52, 60, 56, 34);            // hearth rug
+    g.fillStyle(0xb87a6a, 1); g.fillRect(56, 64, 48, 26);
+    g.fillStyle(0x9a5a52, 1); g.fillRect(62, 70, 36, 14);
+    g.layer('bed');
+    // Bed in the NE corner: frame, mattress, blanket, pillow.
+    g.fillStyle(0x6a4a2a, 1); g.fillRect(112, 22, 40, 40);           // bed frame
+    g.fillStyle(0xe8e0d0, 1); g.fillRect(114, 24, 36, 36);          // mattress
+    g.fillStyle(0x5a86b0, 1); g.fillRect(114, 34, 36, 26);         // blanket
+    g.fillStyle(0x6f9ac4, 1); g.fillRect(114, 34, 36, 3);         // blanket fold highlight
+    g.fillStyle(0xffffff, 1); g.fillRect(118, 26, 28, 8);         // pillow
+    g.fillStyle(0x4a2f18, 1); g.fillRect(112, 22, 40, 2); g.fillRect(112, 60, 40, 2); // frame rails
+    g.layer('dresser');
+    // Dresser + wall mirror in the NW corner (the customizer station, #211).
+    g.fillStyle(0x7a5230, 1); g.fillRect(10, 30, 30, 30);           // dresser body
+    g.fillStyle(0x8a6038, 1); g.fillRect(12, 32, 26, 12);         // top drawer
+    g.fillStyle(0x8a6038, 1); g.fillRect(12, 46, 26, 12);         // bottom drawer
+    g.fillStyle(0x3a2410, 1); g.fillRect(12, 32, 26, 1); g.fillRect(12, 46, 26, 1);
+    g.fillStyle(0xf0d060, 1); g.fillCircle(20, 38, 1); g.fillCircle(30, 38, 1); // knobs
+    g.fillStyle(0xf0d060, 1); g.fillCircle(20, 52, 1); g.fillCircle(30, 52, 1);
+    g.layer('mirror');
+    g.fillStyle(0x6a4a2a, 1); g.fillRect(16, 17, 18, 12);          // mirror frame
+    g.fillStyle(0xbfe4f0, 1); g.fillRect(18, 18, 14, 10);        // mirror glass
+    g.fillStyle(0xe8f6fb, 1); g.fillRect(19, 19, 4, 8);         // glass sheen
+    g.layer('kitchen');
+    // Kitchen counter + stove along the back wall, centre (cooking #41 lives here).
+    g.fillStyle(0x8a5a34, 1); g.fillRect(56, 18, 48, 20);         // counter body
+    g.fillStyle(0xc9b48a, 1); g.fillRect(56, 18, 48, 5);        // countertop
+    g.fillStyle(0x5a3f24, 1); g.fillRect(56, 27, 48, 1);       // cabinet line
+    g.fillStyle(0x3a2a1a, 1); g.fillRect(78, 28, 12, 10);      // oven door
+    g.fillStyle(0x6a5030, 1); g.fillRect(80, 30, 8, 2);       // oven handle
+    g.fillStyle(0x4a4a52, 1); g.fillCircle(64, 22, 2); g.fillCircle(72, 22, 2); // stove burners
+    g.fillStyle(0x9a8a5a, 1); g.fillRect(92, 12, 8, 6);       // hanging pot/pan
+    g.layer('doormat');
+    g.fillStyle(0x8a6a44, 1); g.fillRect(66, HI_H - 10, 28, 8);  // doormat (south exit)
+    g.fillStyle(0x9a7a52, 1); g.fillRect(68, HI_H - 9, 24, 2);
+    g.fillStyle(0x6a4a2a, 1); g.fillRect(64, HI_H - 3, 32, 3);   // threshold board
+  });
+
   // --- barn interior + cutaway (#35) ---
   // FIRST-PASS DRAFT ART, owner-art-directed. The barn is now a walk-in building
   // rendered as two stacked textures so it can do an in-world CUTAWAY: when the
