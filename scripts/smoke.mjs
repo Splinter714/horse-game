@@ -68,8 +68,10 @@ try {
       'onPhaseChange', 'depthSort', 'tickDecay',
       // Extracted concern mixins (issue #167): effects / persistence / rendering.
       'showHeart', 'showIcon', '_saveHorses', '_saveAnimal', 'tickAutosave', 'updateSaddles', 'updateFoals',
-      // worldObjects: food drops / trough / gate.
+      // worldObjects: food drops / trough / gate / cat bowls (#202 rework).
       'placeFood', '_freeFoodSpot', 'fillTrough', '_setTroughLevel', 'toggleGate',
+      'buildCatBowls', 'fillCatBowl', '_setCatBowlLevel', '_catBowlFor',
+      'catEatFromBowl', '_catContext', '_catBowlDist',
       // careActions: brush-on-horse + generic produce harvesting (milk).
       'useItemOnHorse', '_produceFromAnimal',
       // interaction: pet/info cluster + info-panel openers.
@@ -161,6 +163,35 @@ try {
       }
     } catch (e) { pigDiet = 'threw: ' + String(e); }
 
+    // #202 rework: the cat eats DIRECTLY from a stocked bowl. Bowls start empty (a
+    // hungry cat with an empty food bowl falls through to fishing); once the food bowl
+    // is stocked, a hungry cat's behavior dispatch must claim it into the 'eating'
+    // state (catEatFromBowl) rather than dropping/gathering. Then draining the bowl to
+    // empty must flip its `filled` flag back off (the sprite swap the player sees).
+    let catBowls = 'no cat';
+    try {
+      const cat = paddock.animals.find((a) => a.model?.species === 'cat');
+      if (cat) {
+        const fb = paddock.props.catFoodBowl, wb = paddock.props.catWaterBowl;
+        const startedEmpty = fb.level === 0 && wb.level === 0 && fb.filled !== true;
+        // Empty food bowl → a hungry cat should NOT be able to seek it (dist=Infinity).
+        cat.model.stats.hunger = 20;
+        const emptyDist = paddock._catBowlDist(cat, fb);
+        // Stock the food bowl and confirm the cat now commits to eating from it.
+        paddock._setCatBowlLevel(fb, 4);
+        const stockedFilled = fb.filled === true && fb.level === 4;
+        cat.state = 'idle';
+        const claimed = paddock.runBehaviors(cat);
+        const eating = claimed && cat.state === 'eating';
+        // Drain to empty → filled flag off again.
+        paddock._setCatBowlLevel(fb, 0);
+        const emptiedOff = fb.filled === false;
+        catBowls = (startedEmpty && emptyDist === Infinity && stockedFilled && eating && emptiedOff)
+          ? 'eats-from-bowl'
+          : `startedEmpty=${startedEmpty},emptyDist=${emptyDist},stockedFilled=${stockedFilled},eating=${eating}(claimed=${claimed},state=${cat.state}),emptiedOff=${emptiedOff}`;
+      }
+    } catch (e) { catBowls = 'threw: ' + String(e); }
+
     // #187 charm behaviors: the night settle/wake cycle must round-trip without
     // throwing (it rewires restAllAnimals/wakeAllAnimals), and the new run primitives
     // must resolve. Probed last (it mutates animal state) and lenient — this proves
@@ -182,6 +213,7 @@ try {
 
     return {
       charm,
+      catBowls,
       cowMilk,
       pigDiet,
       pigCount: Object.keys(g.registry.get('allPigs') ?? {}).length,
@@ -392,6 +424,8 @@ try {
   if (result.cowMilk !== 'milked-once') fail(`cow generic produce path failed (got ${result.cowMilk}) — #167 B3 unified care`);
   // #187 charm behaviors: night settle/wake cycle + charm run primitives must hold.
   if (result.charm !== 'wired') fail(`charm behaviors (#187) failed: ${result.charm}`);
+  // #202 rework: the cat eats directly from a stocked bowl (not dropped piles).
+  if (result.catBowls !== 'eats-from-bowl') fail(`cat bowl feeding (#202) failed: ${result.catBowls}`);
   // The pig: it spawned into the world and eats apples but not hay.
   if (result.pigCount !== 1) fail(`expected 1 pig in roster, got ${result.pigCount}`);
   if (result.pigsInScene !== 1) fail(`expected 1 pig sprite in scene, got ${result.pigsInScene}`);

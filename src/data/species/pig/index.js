@@ -54,6 +54,16 @@ export const PIG = {
 
   traits: {},
   optionalAttrs: [],
+  // Personality & preferences (#88 v1) — a pig's own vocabulary (loves a good
+  // wallow; apples/carrots, no hay). Temperament/affinities use shared defaults.
+  personality: {
+    pools: {
+      activity: ['wallowing in the mud', 'snuffling for snacks', 'napping in the sun', 'exploring', 'rooting around'],
+      food: ['apples', 'carrots', 'veggie scraps'],
+      treat: ['apple slices', 'a juicy carrot', 'a pumpkin'],
+      affinities: ['loves a good wallow', 'enjoys company', 'loves sunshine', 'loves a good nap', 'loves belly rubs'],
+    },
+  },
   // `grazes` opts her into the shared herbivore feeding/drinking AI (creatures.js /
   // horseAI.js): she walks to dropped food she'll eat (apples/carrots — NOT hay,
   // per her diet), drinks at the trough/stream, and nibbles grass — the same

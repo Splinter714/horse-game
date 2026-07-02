@@ -152,8 +152,7 @@ export const WithWorld = (Base) => class extends Base {
       x: swx, y: swy, sprite: spinSprite, spokes, craft: { from: 'wool', to: 'yarn' },
     };
     // (Its solid footprint is added to this.obstacles below, once that array exists.)
-    const binX = 300, binY = 1000; // Compost bin (#232) — DUMP spot for scooped droppings (pasture NW).
-    this.props.compostBin = { x: binX, y: binY, sprite: this.add.image(binX, binY, 'compostBin').setScale(S).setDepth(binY).setOrigin(0.5, 1) };
+    this.props.compostBin = { x: 300, y: 1000, sprite: this.add.image(300, 1000, 'compostBin').setScale(S).setDepth(1000).setOrigin(0.5, 1) }; // Compost bin (#232) — dump spot, pasture NW.
 
     // Shop / market stall (#29) — where the player SPENDS gold on feed. Placed in the
     // open farm band a little west of the farm stand (the SELL station at 1600,780) so
@@ -169,6 +168,10 @@ export const WithWorld = (Base) => class extends Base {
     // their carriers at. Each holds one content type. Placed across the open
     // farm band (north of the pasture) so the gather→carry→use loop has room.
     this.buildSources();
+
+    // Cat food + water bowls (#202 rework) — fillable dishes the cat eats/drinks
+    // from directly (not gather sources). The player keeps them stocked.
+    this.buildCatBowls();
 
     // Scenery stream cutting across the top-right corner of the world.
     this.buildStream();
@@ -307,19 +310,16 @@ export const WithWorld = (Base) => class extends Base {
       { x: 1660, y: 560, content: 'apple',  tex: 'appleTree',    label: 'Apple Tree',    reach: 90,  ob: { w: 44,  h: 26 } },
       { x: 1120, y: 470, content: 'seed',   tex: 'grainBin',     label: 'Grain Bin',     reach: 95,  ob: { w: 66,  h: 40 } },
       { x: 1100, y: 850, content: 'water',  tex: 'well',         label: 'Well',          reach: 95,  ob: { w: 52,  h: 22 } },
-      // Cat food + water bowls — a matching two-bowl set tucked just south of the
-      // house (the cat's home / usual haunt), replacing the old fish/Fishing Barrel concept
-      // (#202 refinement: a real feeding/thirst mechanic, no more fish). The player
-      // gathers cat food/water into a carrier here and drops a pile the same way as
-      // any other food; the cat's seekFood/seekWater behaviors walk to the nearest
-      // dropped pile and eat/drink via the shared grazing primitive.
-      { x: 165,  y: 420, content: 'catFood',  tex: 'catFoodBowl',  label: 'Food Bowl',  reach: 90, ob: { w: 26, h: 16 } },
-      { x: 205,  y: 420, content: 'catWater', tex: 'catWaterBowl', label: 'Water Bowl', reach: 90, ob: { w: 26, h: 16 } },
+      // Kibble sack (#202 rework) — the cat-food SOURCE, by the house. The player
+      // scoops cat food into a basket here (like the grain bin for seed), then pours
+      // it into the food bowl. The bowls themselves are no longer gather sources —
+      // they're fillable dishes the cat eats/drinks from directly (buildCatBowls).
+      { x: 120,  y: 420, content: 'catFood',  tex: 'kibbleSack',   label: 'Kibble Sack',   reach: 90, ob: { w: 22, h: 20 } },
       // Bunny hutch (#224) — the attraction/care source for bunnies, tucked in the
       // north yard by the coop. Gather bunny food here and drop a pile to lure a wild
       // bunny in (capped at 4, one per coat colour) and to feed those already joined;
-      // a small water dish beside it is the bunny's thirst source. Same gather →
-      // drop-pile flow as the cat's bowls, wired to the bunnyFood/bunnyWater content.
+      // a small water dish beside it is the bunny's thirst source. Gather → drop-pile
+      // flow wired to the bunnyFood/bunnyWater content.
       { x: 560,  y: 300, content: 'bunnyFood',  tex: 'bunnyHutch',    label: 'Bunny Hutch', reach: 100, ob: { w: 44, h: 30 } },
       { x: 615,  y: 320, content: 'bunnyWater', tex: 'catWaterBowl',  label: 'Bunny Water', reach: 90,  ob: { w: 26, h: 16 } },
     ];

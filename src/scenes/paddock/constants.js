@@ -45,6 +45,12 @@ export const PASTURE_BOUNDS = { minX: 180, maxX: 1740, minY: 910, maxY: 1450 };
 export const TROUGH_CAP = 9;
 export const TROUGH_PER_BUCKET = 3;
 
+// Cat food + water bowls (#202 rework). Each bowl holds a numeric level 0..BOWL_CAP
+// in "servings": the player refilling it (a scoop of cat food / a pour of water)
+// tops it to BOWL_CAP, and each meal the cat takes lowers it by one. The bowl sprite
+// swaps between its filled and empty texture as the level crosses zero.
+export const BOWL_CAP = 4;
+
 // Gate opening in the top pasture fence (the only gap; gate sits here).
 export const GATE_X = 960;
 export const GATE_GAP_X0 = 900;
@@ -135,6 +141,9 @@ export const STINK_AT       = 33;
 // floating icon shown when the player stocks it.
 export const STAND_DEFS = {
   egg:    { price: 5,  tex: 'egg',        scale: S,   emoji: '🥚', floatIcon: 'iconEgg' },
+  // Brown eggs (#276): brown & gold hens lay these. Same price as white for now —
+  // colour is cosmetic; a price premium/variance is a balance lever to tune at playtest.
+  eggBrown: { price: 5, tex: 'eggBrown',  scale: S,   emoji: '🥚', floatIcon: 'iconEggBrown' },
   apple:  { price: 4,  tex: 'iconApple',  scale: 0.9, emoji: '🍎', floatIcon: 'iconApple' },
   carrot: { price: 3,  tex: 'iconCarrot', scale: 0.9, emoji: '🥕', floatIcon: 'iconCarrot' },
   milk:   { price: 8,  tex: 'iconMilk',   scale: 0.9, emoji: '🥛', floatIcon: 'iconMilk' },

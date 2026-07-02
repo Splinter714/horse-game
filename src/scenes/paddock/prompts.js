@@ -6,6 +6,7 @@
 
 import Phaser from 'phaser';
 import { EVENTS } from '../../data/events.js';
+import { CONTENT_DEFS } from '../../data/items.js';
 import { USE_REACH } from './constants.js';
 import { logicalH, worldUiOffset } from '../uiUtils.js';
 
@@ -150,6 +151,18 @@ export const WithPrompts = (Base) => class extends Base {
         else                             label = 'Brush';
         useLabel = label; // the Use button keeps it about the action (Pet/Info name the animal)
         this._pushPrompt('use', who ? `${label} ${who}` : label);
+      }
+      return finish();
+    }
+
+    // Bowl-stock food (#202 rework): cat food only fills the cat's food bowl — it's
+    // never dropped — so the prompt only ever names the bowl-fill action when in
+    // reach, mirroring useActiveTool's `stocks` branch. No "Drop" fallback.
+    if (CONTENT_DEFS[item.content]?.stocks) {
+      const spot = this._nearestUseSpot(item);
+      if (spot) {
+        useLabel = spot.label.replace(/\s*\(.*\)\s*$/, '');
+        this._pushPrompt('use', spot.label);
       }
       return finish();
     }

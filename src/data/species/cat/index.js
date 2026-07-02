@@ -1,11 +1,11 @@
 // Cat species definition. A semi-independent barn cat: it can be petted (love stat)
-// and, as of #202, actually feeds and waters itself — a hungry cat prefers walking to
-// a dropped cat-food pile (seekFood, ./behaviors.js; gathered by the player from the
-// food bowl, items.js `catFood` content) over its old cosmetic fishing loop (catFish,
-// #163) — which still never catches anything (#201) and is now just a fallback so a
-// hungry cat with nothing out still has somewhere to go. A thirsty cat similarly
-// prefers a dropped cat-water pile (seekWater, gathered from the water bowl, `catWater`
-// content) — a real thirst mechanic mirroring the horses' hunger/thirst pair.
+// and, as of #202, actually feeds and waters itself — a hungry cat walks to its FOOD
+// BOWL and eats straight from it (seekFood, ./behaviors.js), a thirsty cat to its
+// WATER BOWL (seekWater). The player's job is to keep the bowls stocked — scoop cat
+// food from the kibble sack into a basket and pour it into the food bowl, pour a
+// bucket of water into the water bowl (worldObjects.js fillCatBowl). When the food
+// bowl runs empty a hungry cat falls back to its cosmetic fishing loop (catFish, #163)
+// — which still never catches anything (#201), just a distraction until it's refilled.
 
 export const CAT = {
   id: 'cat',
@@ -28,10 +28,9 @@ export const CAT = {
   },
   happiness: { default: 65, baseline: 50, driftRate: 0.004, label: 'Happy', color: 0x1d9e75 },
   // A cat takes a bit more winning over — a slightly smaller bump per pet.
-  // `feed`/`water` (#202) are applied by the shared grazing AI when the cat reaches
-  // a dropped cat-food/cat-water pile (seekFood/seekWater, ./behaviors.js) — same
-  // shape as an herbivore's feed/water actions, sound/icon reused from the
-  // established conventions.
+  // `feed`/`water` (#202) are applied when the cat reaches a stocked bowl and eats/
+  // drinks a serving from it (catEatFromBowl, seekFood/seekWater) — same shape as an
+  // herbivore's feed/water actions, sound/icon reused from the established conventions.
   actions: {
     pet:   { stat: 'happiness', amount: 12, care: 'loved',    label: 'Love',  sound: 'chime', icon: 'iconHeart' },
     feed:  { stat: 'hunger',    amount: 35, care: 'fed',      label: 'Feed',  sound: 'eat',   icon: 'iconFeed'  },
@@ -46,6 +45,15 @@ export const CAT = {
   ],
   traits: { personality: 'curious' },
   optionalAttrs: [],
+  // Personality & preferences (#88 v1) — a cat's own vocabulary (it hunts and naps
+  // rather than grazes). Temperament/affinities fall back to the shared defaults.
+  personality: {
+    pools: {
+      activity: ['chasing things', 'napping in the sun', 'exploring', 'watching birds', 'pouncing on leaves'],
+      food: ['fish', 'kibble', 'a saucer of milk'],
+      treat: ['a fresh fish', 'a warm sunbeam', 'a new box to sit in'],
+    },
+  },
   // `hunts` wires the cat's goal-tick at spawn (creatures.js) to the behavior
   // dispatcher, so a hungry cat runs its `behaviors` list (below) before a plain
   // wander — the same hook `grazes` uses for the herbivores.
@@ -66,7 +74,7 @@ export const CAT = {
   // shadow/animation; one placement. `eatFps` now drives a REAL head-down eat pose
   // (catArt.js `drawCatEat`, #198) — creatures.js auto-detects the `cat_eat_0` texture
   // and stops aliasing to idle, so the cat visibly eats/drinks when seekFood/seekWater
-  // reaches a dropped pile via the shared horseGoEat primitive (#202).
+  // reaches a stocked bowl (catEatFromBowl, #202 rework).
   spawn: {
     inWorld: true,
     superSampled: true, // drawn on the ART_SCALE grid — display at S/ART_SCALE
@@ -78,14 +86,14 @@ export const CAT = {
   // Info-panel presentation: animated portrait (the cat has idle frames), an italic
   // personality line, and a Food + Water + Love bar (the hunger/thirst needs +
   // happiness — InfoPanelScene renders these generically from `needs`, no scene
-  // code needed). No action buttons — the cat feeds/waters itself (dropped piles,
-  // or fishing) and is loved via the Interact pet.
+  // code needed). No action buttons — the cat feeds/waters itself from its bowls
+  // (or fishes) and is loved via the Interact pet.
   panel: { portrait: 'animated', traitLine: 'personality', fixedAttrs: false },
 
-  // AI priority list (#163/#202). A hungry or thirsty cat prefers real food/water:
-  // it walks to the nearest dropped cat-food pile it can reach (seekFood) or
-  // dropped cat-water pile (seekWater) before falling back to its cosmetic
-  // stream-fishing loop (catFish, in ./behaviors.js; dispatched via BEHAVIORS.cat
-  // in ../index.js). Otherwise it falls through to its ordinary slow prowl/wander.
+  // AI priority list (#163/#202). A hungry or thirsty cat heads to its bowl: it walks
+  // to the stocked food bowl and eats from it (seekFood) or the water bowl and drinks
+  // (seekWater) before falling back to its cosmetic stream-fishing loop (catFish, in
+  // ./behaviors.js; dispatched via BEHAVIORS.cat in ../index.js). Otherwise it falls
+  // through to its ordinary slow prowl/wander.
   behaviors: ['seekFood', 'seekWater', 'catFish'],
 };

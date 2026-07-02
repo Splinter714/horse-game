@@ -12,8 +12,8 @@ export const CARRIER_DEFS = {
   // animal that eats it, #136), so the basket's cap is just a safety ceiling, not a
   // limit you should hit. Kept finite (not Infinity) so it never trips serialization
   // or UI maths — but high enough that the demand always fits (and you can hoard eggs).
-  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'egg', 'wool', 'yarn', 'compost'] },
-  bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'catWater', 'bunnyWater', 'milk'] },
+  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost'] },
+  bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'bunnyWater', 'milk'] },
 };
 
 // What each content type looks like in a carrier and what using it does.
@@ -33,18 +33,22 @@ export const CONTENT_DEFS = {
   apple:  { label: 'Apples',  icon: 'iconBasketApple',  action: 'feed',  ground: 'applePile',  feeds: ['horse', 'cow', 'pig'] },
   carrot: { label: 'Carrots', icon: 'iconBasketCarrot', action: 'feed',  ground: 'carrotPile', feeds: ['horse', 'cow', 'pig'] },
   seed:   { label: 'Seed',    icon: 'iconBasketSeed',   action: 'feed',  ground: 'seedPile',   feeds: ['chicken'] },
-  // Cat food feeds only the cat (#202 refinement) — gathered from the food bowl
-  // and dropped like any other food; the cat's `seekFood` behavior walks to a
-  // dropped pile the same way a pig walks to dropped apples/carrots.
-  catFood: { label: 'Cat Food', icon: 'iconBasketCatFood', action: 'feed',  ground: 'catFoodPile', feeds: ['cat'] },
+  // Cat food feeds only the cat (#202 rework) — scooped from the kibble sack into a
+  // basket, then poured into the FOOD BOWL (fillCatBowl), which the cat eats from
+  // directly. It is NOT dropped as a ground pile: `stocks: 'catFood'` marks it as a
+  // bowl-fill content (see useDispatch), so Use near the bowl fills it and there's no
+  // drop-on-ground fallback (no `ground` texture). `feeds` still names the cat so the
+  // basket auto-gathers one serving per cat (#136) and demand maths stay data-driven.
+  catFood: { label: 'Cat Food', icon: 'iconBasketCatFood', action: 'feed', stocks: 'catFood', feeds: ['cat'] },
   egg:    { label: 'Eggs',    icon: 'iconBasketEgg',    action: 'egg' },
+  // Brown eggs (#276): laid by brown & gold hens (see species/chicken/eggColor.js).
+  // A separate content type so colour rides the existing basket → farm-stand → sell
+  // pipeline unchanged — same 'egg' action, its own icon and sellable stand variant.
+  eggBrown: { label: 'Brown Eggs', icon: 'iconBasketEggBrown', action: 'egg' },
+  // Water fills the trough (horses) AND the cat's water bowl (fillCatBowl) — the
+  // Use dispatch picks whichever fillable spot the player is facing. Plain water from
+  // the well/stream; the cat's water bowl needs no special content (#202 rework).
   water:  { label: 'Water',   icon: 'iconBucketWater',  action: 'water' },
-  // Cat water (thirst mechanic): gathered from the water bowl, dropped as its own
-  // pile, and drunk via the same generic grazing primitive as `catFood` — just
-  // wired to the `water` action (thirst) instead of `feed` (hunger). Unlike the
-  // trough's plain `water` (fills a shared object, no `feeds` list), this is a
-  // per-species dropped pile, so it carries a `feeds` list like the foods above.
-  catWater: { label: 'Cat Water', icon: 'iconBucketCatWater', action: 'water', ground: 'catWaterPile', feeds: ['cat'] },
   // Bunny food (#224): gathered from the bunny hutch (a new gathering source) and
   // dropped as a pile like any other food. Its distinguishing role is ATTRACTION —
   // dropping a bunny-food pile lures a wild bunny in to join the roster (capped at 4,

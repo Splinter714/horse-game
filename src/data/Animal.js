@@ -8,6 +8,8 @@
 // and offline decay is capped (OFFLINE_FLOOR) so an animal is never neglected into
 // misery just because the game was closed.
 
+import { assignPersonality } from './personality.js';
+
 export const MAX = 100;
 export const OFFLINE_FLOOR = 30;
 
@@ -58,6 +60,17 @@ export class Animal {
     for (const key of species.optionalAttrs ?? []) {
       if (data[key] !== undefined) this[key] = data[key];
     }
+
+    // ── Personality & preferences profile (#88 v1) — positively-framed traits
+    //    that make each animal an individual (temperament + favorite activity/food/
+    //    treat + affinities). Display-only for now (surfaced in the info panel).
+    //    Stored as `profile` (an OBJECT) so it doesn't collide with the existing
+    //    single-word `traits.personality` string some species declare. A persisted
+    //    `data.profile` wins so it's stable across reloads; otherwise it's assigned
+    //    deterministically from the animal's stable id, so even animals never
+    //    explicitly seeded get the *same* traits every load. Pools are data
+    //    (co-located per species; shared defaults in personality.js).
+    this.profile = data.profile ?? assignPersonality(species, this.id);
 
     // ── Needs (decaying stats) + optional derived happiness ──────────────────
     this.stats = {};
@@ -226,6 +239,10 @@ export class Animal {
     };
     if (this.markings) out.markings = this.markings;
     if (this.look) out.look = this.look;
+    // Persist the assigned personality profile so it's stable across reloads (it
+    // would also re-derive deterministically from the id, but saving it pins it even
+    // if the pools ever change).
+    if (this.profile) out.profile = this.profile;
     for (const key of Object.keys(this._spec.traits ?? {})) out[key] = this[key];
     for (const key of this._spec.optionalAttrs ?? []) {
       if (this[key] !== undefined) out[key] = this[key];

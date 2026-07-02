@@ -185,9 +185,13 @@ renderer-agnostic.
 
 ## Gotchas
 
-- **OneDrive sync:** the repo lives in a OneDrive folder; sync can touch files mid-edit.
-  Prefer the editor tools over long shell `sed` ranges on source files. `vite.config.js`
-  already ignores OneDrive temp/lock files.
+- **Background work stalls when the Mac sleeps.** The repo lives at a plain local path
+  (`~/Code/horse game`), **not** in OneDrive (an old note here wrongly blamed OneDrive for
+  hangs). Background agents, dev servers, and `npm run build` only make progress while the
+  machine is awake — if the lid closes / it sleeps, processes suspend (0% CPU, no output)
+  and watchdogs eventually kill them. For unattended overnight runs, keep it plugged in with
+  sleep disabled (lid-open or `caffeinate`). A hung/0%-CPU build usually means the Mac slept,
+  not a real build failure — retry once awake.
 - Use `EVENTS.*` constants, not bare event strings.
 - The owner can't verify code — lean on `npm test` + `npm run smoke` (extend them when
   you add behavior).

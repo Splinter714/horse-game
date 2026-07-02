@@ -379,10 +379,30 @@ export function buildWorldTextures(scene) {
     g.fillStyle(0xfffdf5, 1); g.fillEllipse(8, 5, 2, 3); // highlight
   });
 
-  // --- egg (collectible on ground, 6 × 8) ---
+  // --- egg (collectible on ground / on the stand counter, 6 × 8) ---
   gen(scene, 'egg', 6, 8, (g) => {
     g.fillStyle(0xfff8e0, 1); g.fillEllipse(3, 4, 6, 8);
     g.fillStyle(0xfffdf5, 1); g.fillEllipse(2, 3, 2, 3);
+  });
+
+  // --- brown egg variant (#276) — laid by brown & gold hens ---
+  gen(scene, 'eggBrown', 6, 8, (g) => {
+    g.fillStyle(0xc48a4c, 1); g.fillEllipse(3, 4, 6, 8);          // warm brown shell
+    g.fillStyle(0xdca868, 1); g.fillEllipse(2, 3, 2, 3);          // highlight
+  });
+
+  // --- nest with a brown egg (#276) ---
+  gen(scene, 'nestEggBrown', 18, 12, (g) => {
+    g.fillStyle(0xb87828, 1); g.fillEllipse(9, 8, 18, 10);
+    g.fillStyle(0xd4a030, 1); g.fillEllipse(9, 7, 16, 8);
+    g.fillStyle(0xc49028, 1); g.fillEllipse(9, 8, 12, 6);
+    g.fillStyle(0x6a3c10, 1); g.fillEllipse(9, 8, 8, 5);
+    g.fillStyle(0xe8b840, 1);
+    g.fillRect(3, 6, 3, 1); g.fillRect(12, 6, 3, 1);
+    g.fillRect(5, 4, 2, 1); g.fillRect(11, 4, 2, 1);
+    // Brown egg sitting in nest
+    g.fillStyle(0xc48a4c, 1); g.fillEllipse(9, 6, 6, 8);
+    g.fillStyle(0xdca868, 1); g.fillEllipse(8, 5, 2, 3); // highlight
   });
 
   // --- farm stand (market table, 72 × 44) ---

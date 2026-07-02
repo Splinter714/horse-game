@@ -181,10 +181,16 @@ export const WithUseDispatch = (Base) => class extends Base {
       return;
     }
 
-    // Feed: a carrier holding food (or a droppable per-species drink like the
-    // cat's water, #202 refinement — anything with a `ground` texture drops as a
-    // pile the same way). An in-reach world spot only wins over dropping at your
-    // feet when the player is actually facing it — that's "stand at a source and
+    // Bowl-stock food (#202 rework): cat food is never dropped on the ground — it
+    // only goes into the cat's FOOD BOWL, which the cat eats from directly. Use fills
+    // the bowl when in reach; otherwise it does nothing (no drop-on-ground fallback).
+    if (CONTENT_DEFS[item.content]?.stocks) {
+      this._nearestUseSpot(item)?.activate();
+      return;
+    }
+
+    // Feed: a carrier holding food. An in-reach world spot only wins over dropping at
+    // your feet when the player is actually facing it — that's "stand at a source and
     // keep filling" (#133) or stocking the farm stand (#80). Facing away from the
     // spot (e.g. backing away to lay a trail of piles right next to a gather
     // source, #204) drops food on the ground instead of re-filling. (Hay isn't
