@@ -4,6 +4,7 @@
 import Phaser from 'phaser';
 import { EVENTS } from '../../data/events.js';
 import { playEat, playDrink } from '../../audio/sounds.js';
+import { CONTENT_DEFS } from '../../data/items.js';
 import { PLAYER_BOUNDS, PASTURE_BOUNDS, GATE_X, GATE_GAP_X0, GATE_GAP_X1, BEG } from './constants.js';
 
 // Hunger restored per grazing mouthful (#86). Deliberately light — grazing keeps a
@@ -172,6 +173,10 @@ export const WithHorseAI = (Base) => class extends Base {
 
   // Returns true if the horse committed to eating, false if it bailed (e.g.
   // another horse already claimed this pile) so the caller can wander instead.
+  // Despite the name, this is the generic "consume a dropped pile" primitive:
+  // it applies whichever care action the pile's content maps to (CONTENT_DEFS
+  // `action`, default 'feed') — e.g. a dropped cat-water pile applies `water`
+  // (thirst) the same way a hay pile applies `feed` (hunger), #202 refinement.
   horseGoEat(h, pile) {
     // Only one grazer (horse or cow) per food pile
     const alreadyEating = this._grazers().some(o => o !== h && o.state === 'eating' && o._eatPile === pile);
@@ -186,17 +191,20 @@ export const WithHorseAI = (Base) => class extends Base {
     const tx = pile.x + (facingRight ? -50 : 50);
     const ty = pile.y;
 
+    const action = CONTENT_DEFS[pile.content]?.action ?? 'feed';
+
     // Pathfind to the hay, around obstacles and through the gate if it's outside.
     this.moveCreatureTo(h, tx, ty, () => {
       if (h.state !== 'eating') return;
       h.sprite.setFlipX(!facingRight);
       h.sprite.play(`eat_${h.key}`, true);
 
-      playEat(pile.content ?? 'hay'); // crunchy for apple/carrot, munchy for hay (#126)
+      if (action === 'water') playDrink();
+      else playEat(pile.content ?? 'hay'); // crunchy for apple/carrot, munchy for hay (#126)
       h.eatTimer = this.time.delayedCall(1800, () => {
         h.eatTimer = null;
         if (h.state !== 'eating') return;
-        this._modelFor(h)?.feed();
+        this._modelFor(h)?.applyAction(action);
         this.game.events.emit(EVENTS.STATS_CHANGED);
         pile.sprite.destroy();
         this.props.hayPiles = this.props.hayPiles.filter(p => p !== pile);

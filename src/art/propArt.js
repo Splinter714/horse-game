@@ -174,19 +174,26 @@ export function buildPropTextures(scene) {
     g.fillStyle(0xff9a5a, 1); g.fillRect(17, 11, 4, 1);
     g.fillStyle(0x3b8a1c, 1); g.fillRect(24, 7, 1, 4); g.fillRect(26, 8, 1, 3);
   });
-  gen(scene, 'fishPile', 26, 12, (g) => { // a couple of fish dropped on the ground (#202)
-    const body = 0x7a9bb0, hi = 0xaecbd9, belly = 0xe6eef2, fin = 0x5a7a8c;
-    // Fish 1
-    g.fillStyle(body, 1); g.fillEllipse(8, 8, 12, 5);
-    g.fillStyle(belly, 1); g.fillEllipse(8, 9, 9, 2.5);
-    g.fillStyle(fin, 1); g.fillTriangle(2, 8, -2, 5, -2, 11);
-    g.fillStyle(hi, 1); g.fillCircle(6, 6, 1.5);
-    g.fillStyle(0x1c2530, 1); g.fillRect(11, 7, 1, 1); // eye
-    // Fish 2 (crossed the other way)
-    g.fillStyle(fin, 1); g.fillEllipse(19, 9, 11, 4.5);
-    g.fillStyle(belly, 1); g.fillEllipse(19, 10, 8, 2);
-    g.fillStyle(body, 1); g.fillTriangle(24, 9, 27, 6, 27, 12);
-    g.fillStyle(0x1c2530, 1); g.fillRect(15, 8, 1, 1); // eye
+  gen(scene, 'catFoodPile', 22, 10, (g) => { // a small kibble mound dropped on the ground
+    const base = 0xb9793a, hi = 0xd6a25e, lo = 0x8f5a26;
+    g.fillStyle(0x000000, 0.1); g.fillEllipse(11, 9, 20, 3);
+    g.fillStyle(base, 1); g.fillEllipse(11, 6, 18, 6); // mound
+    g.fillStyle(hi, 1); g.fillEllipse(9, 5, 11, 3);
+    g.fillStyle(lo, 1); g.fillRect(2, 8, 18, 1);
+    // individual kibble bits scattered across the mound
+    g.fillStyle(hi, 1);
+    g.fillCircle(5, 5, 1.4); g.fillCircle(9, 3, 1.4); g.fillCircle(13, 4, 1.4);
+    g.fillCircle(17, 5, 1.2); g.fillCircle(7, 7, 1.2);
+    g.fillStyle(lo, 1);
+    g.fillCircle(11, 6, 1.2); g.fillCircle(15, 7, 1.2); g.fillCircle(4, 7, 1);
+  });
+  gen(scene, 'catWaterPile', 22, 10, (g) => { // a small puddle of water dropped on the ground
+    const deep = 0x356f9e, mid = 0x3f7fb5, hi = 0x9ae0f8;
+    g.fillStyle(0x000000, 0.08); g.fillEllipse(11, 9, 20, 3);
+    g.fillStyle(deep, 1); g.fillEllipse(11, 7, 18, 6); // puddle
+    g.fillStyle(mid, 1); g.fillEllipse(11, 6, 13, 4);
+    g.fillStyle(hi, 0.8); g.fillEllipse(8, 5, 5, 1.5); // sunlit ripple
+    g.fillStyle(hi, 0.6); g.fillEllipse(15, 7, 3, 1);
   });
 
   // --- gathering source props (issue #63) ---
@@ -339,27 +346,38 @@ export function buildPropTextures(scene) {
     g.fillStyle(roofLo, 1); g.fillRect(8, 9, 25, 1); g.fillRect(11, 6, 18, 1);
     g.fillStyle(roofLo, 1); g.fillRect(19, 1, 2, 11); // ridge
   });
-  // Fishing barrel — a wooden barrel by the stream stocked with fish, the cat's
-  // food source (#202). Mirrors the grain bin's role (a static gather point) but
-  // themed as a barrel with fish tails poking over the rim.
-  gen(scene, 'fishBarrel', 40, 38, (g) => {
-    const wood = 0x7a5230, woodHi = 0x946540, woodLo = 0x5e3f24, band = 0x4a4038;
-    // ground shadow
-    g.fillStyle(0x000000, 0.12); g.fillEllipse(20, 36, 34, 5);
-    // barrel body (slightly barrel-curved sides)
-    g.fillStyle(wood, 1); g.fillRect(6, 12, 28, 22);
-    g.fillRect(4, 16, 32, 14);
-    g.fillStyle(woodHi, 1); g.fillRect(6, 12, 28, 2); g.fillRect(4, 16, 4, 12);
-    g.fillStyle(woodLo, 1); g.fillRect(30, 16, 4, 12); g.fillRect(6, 32, 28, 2);
-    // iron bands
-    g.fillStyle(band, 1);
-    g.fillRect(4, 18, 32, 2); g.fillRect(4, 28, 32, 2);
-    // open top rim + dark water/fish inside
-    g.fillStyle(woodHi, 1); g.fillEllipse(20, 12, 30, 8);
-    g.fillStyle(0x2f4552, 1); g.fillEllipse(20, 11, 22, 5);
-    // fish tails poking above the rim
-    g.fillStyle(0x7a9bb0, 1);
-    g.fillTriangle(13, 9, 10, 4, 15, 5); g.fillTriangle(26, 8, 24, 3, 29, 4);
-    g.fillStyle(0xaecbd9, 1); g.fillTriangle(20, 8, 18, 3, 22, 4);
+  // Cat food bowl — a small pet-style dish heaped with kibble, the cat's food
+  // source (#202 refinement, replaces the old Fishing Barrel). A shallow rimmed
+  // bowl rather than a barrel, sized to sit low and small like real pet dishes.
+  gen(scene, 'catFoodBowl', 26, 16, (g) => {
+    const bowl = 0xc85a3c, bowlHi = 0xe07854, bowlLo = 0x9c4228;
+    const kibble = 0xb9793a, kibbleHi = 0xd6a25e;
+    g.fillStyle(0x000000, 0.12); g.fillEllipse(13, 15, 22, 4); // ground shadow
+    // bowl body (shallow dish, wider than tall)
+    g.fillStyle(bowlLo, 1); g.fillEllipse(13, 11, 24, 9);
+    g.fillStyle(bowl, 1); g.fillEllipse(13, 9, 22, 8);
+    g.fillStyle(bowlHi, 1); g.fillEllipse(13, 7, 18, 5); // rim highlight
+    // kibble mounded inside
+    g.fillStyle(kibble, 1); g.fillEllipse(13, 6, 14, 5);
+    g.fillStyle(kibbleHi, 1);
+    g.fillCircle(9, 5, 1.4); g.fillCircle(13, 4, 1.4); g.fillCircle(17, 5, 1.4);
+    g.fillStyle(kibble, 1);
+    g.fillCircle(11, 6, 1.2); g.fillCircle(15, 6, 1.2);
+  });
+  // Cat water bowl — a matching dish, this one filled with water, the cat's new
+  // thirst source (#202 refinement). Same shallow-dish shape as the food bowl so
+  // the two read as a set, tinted blue-grey and filled with water instead of kibble.
+  gen(scene, 'catWaterBowl', 26, 16, (g) => {
+    const bowl = 0x8a97a0, bowlHi = 0xaab5bc, bowlLo = 0x6a747c;
+    const water = 0x3f7fb5, waterHi = 0x9ae0f8;
+    g.fillStyle(0x000000, 0.12); g.fillEllipse(13, 15, 22, 4); // ground shadow
+    // bowl body (shallow dish, wider than tall)
+    g.fillStyle(bowlLo, 1); g.fillEllipse(13, 11, 24, 9);
+    g.fillStyle(bowl, 1); g.fillEllipse(13, 9, 22, 8);
+    g.fillStyle(bowlHi, 1); g.fillEllipse(13, 7, 18, 5); // rim highlight
+    // water filling the dish
+    g.fillStyle(water, 1); g.fillEllipse(13, 6, 14, 5);
+    g.fillStyle(waterHi, 0.85); g.fillEllipse(10, 5, 5, 1.6); // sunlit ripple
+    g.fillStyle(waterHi, 0.6); g.fillEllipse(16, 6, 3, 1);
   });
 }

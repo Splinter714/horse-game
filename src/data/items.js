@@ -12,8 +12,8 @@ export const CARRIER_DEFS = {
   // animal that eats it, #136), so the basket's cap is just a safety ceiling, not a
   // limit you should hit. Kept finite (not Infinity) so it never trips serialization
   // or UI maths — but high enough that the demand always fits (and you can hoard eggs).
-  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'fish', 'egg'] },
-  bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'milk'] },
+  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'egg'] },
+  bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'catWater', 'milk'] },
 };
 
 // What each content type looks like in a carrier and what using it does.
@@ -33,12 +33,18 @@ export const CONTENT_DEFS = {
   apple:  { label: 'Apples',  icon: 'iconBasketApple',  action: 'feed',  ground: 'applePile',  feeds: ['horse', 'cow', 'pig'] },
   carrot: { label: 'Carrots', icon: 'iconBasketCarrot', action: 'feed',  ground: 'carrotPile', feeds: ['horse', 'cow', 'pig'] },
   seed:   { label: 'Seed',    icon: 'iconBasketSeed',   action: 'feed',  ground: 'seedPile',   feeds: ['chicken'] },
-  // Fish feeds only the cat (#202) — gathered from the fishing barrel by the stream
+  // Cat food feeds only the cat (#202 refinement) — gathered from the food bowl
   // and dropped like any other food; the cat's `seekFood` behavior walks to a
-  // dropped fish pile the same way a pig walks to dropped apples/carrots.
-  fish:   { label: 'Fish',    icon: 'iconBasketFish',   action: 'feed',  ground: 'fishPile',   feeds: ['cat'] },
+  // dropped pile the same way a pig walks to dropped apples/carrots.
+  catFood: { label: 'Cat Food', icon: 'iconBasketCatFood', action: 'feed',  ground: 'catFoodPile', feeds: ['cat'] },
   egg:    { label: 'Eggs',    icon: 'iconBasketEgg',    action: 'egg' },
   water:  { label: 'Water',   icon: 'iconBucketWater',  action: 'water' },
+  // Cat water (thirst mechanic): gathered from the water bowl, dropped as its own
+  // pile, and drunk via the same generic grazing primitive as `catFood` — just
+  // wired to the `water` action (thirst) instead of `feed` (hunger). Unlike the
+  // trough's plain `water` (fills a shared object, no `feeds` list), this is a
+  // per-species dropped pile, so it carries a `feeds` list like the foods above.
+  catWater: { label: 'Cat Water', icon: 'iconBucketCatWater', action: 'water', ground: 'catWaterPile', feeds: ['cat'] },
   // Milk is produced by milking a well-cared-for cow into an empty bucket, then
   // sold at the farm stand (action 'sell', like eggs — see STAND_DEFS).
   milk:   { label: 'Milk',    icon: 'iconBucketMilk',   action: 'sell' },
