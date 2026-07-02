@@ -339,6 +339,25 @@ export function buildWorldTextures(scene) {
     g.fillStyle(YARN, 1);   g.fillRect(23, 11, 4, 1);
   });
 
+  // --- Spinning-wheel spokes overlay (20 × 20) — just the spoked disc, centered so
+  // it can be rotated in place during a craft (#233). Drawn as its own texture with
+  // origin (0.5, 0.5) at the hub; the base `spinningWheel` prop stays static and this
+  // spins on top of it while wool is spun into yarn, then hides. Matches the base
+  // wheel's colors/radius (R=9, center of a 20×20 grid). ---
+  gen(scene, 'spinningWheelSpokes', 20, 20, (g) => {
+    const WOOD   = 0x8a5a2c, WOOD_D = 0x6a4420, WOOD_L = 0xa8763c;
+    const IRON   = 0x555055;
+    const cx = 10, cy = 10, R = 9;
+    g.fillStyle(WOOD, 1);   g.fillCircle(cx, cy, R);
+    g.fillStyle(WOOD_D, 1); g.fillCircle(cx, cy, R - 2);       // inner cut
+    g.fillStyle(WOOD, 1);   g.fillCircle(cx, cy, R - 3);       // re-fill face
+    g.fillStyle(WOOD_L, 1);                                    // spokes
+    g.fillRect(cx - 0.5, cy - R + 2, 1, R * 2 - 4);            // vertical
+    g.fillRect(cx - R + 2, cy - 0.5, R * 2 - 4, 1);            // horizontal
+    g.fillRect(cx - R + 3, cy - R + 3, R * 2 - 6, 1);          // diagonal-ish
+    g.fillStyle(IRON, 1);   g.fillCircle(cx, cy, 2);           // iron hub
+  });
+
   // --- NPC customer sprite (16 × 24, same layout as player) ---
   const NPC_SKIN  = 0xf0c080;
   const NPC_HAIR  = 0x5a3a20;

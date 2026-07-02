@@ -110,12 +110,29 @@ export const WithFarmStand = (Base) => class extends Base {
     const n = this.scene.get('HotbarScene')?.convertActiveCarrier(from, to) ?? 0;
     if (n <= 0) return;
     playGather(to); // a soft whirr/click as the wheel turns
+    this._spinWheelAnim(w);
     const icon = this.add.image(w.x, w.y - 40, CONTENT_DEFS[to].icon)
       .setScale(1.8).setDepth(10000);
     this.tweens.add({
       targets: icon, y: icon.y - 40, alpha: 0,
       duration: 900, ease: 'Sine.easeOut',
       onComplete: () => icon.destroy(),
+    });
+  }
+
+  // Briefly spin the wheel's spoked disc so the craft reads as motion (#233 playtest).
+  // The spokes overlay is normally hidden and pinned on the hub; here we reveal it and
+  // rotate it a couple of turns over ~0.8s, easing out to a stop, then hide it again so
+  // the static base wheel remains at rest. No-op if the wheel wasn't built with an
+  // overlay (older saves / tests). Restarts cleanly if spun again mid-turn.
+  _spinWheelAnim(w) {
+    const spokes = w?.spokes;
+    if (!spokes) return;
+    this.tweens.killTweensOf(spokes);
+    spokes.setVisible(true).setAngle(0);
+    this.tweens.add({
+      targets: spokes, angle: 360 * 2, duration: 800, ease: 'Cubic.easeOut',
+      onComplete: () => spokes.setVisible(false).setAngle(0),
     });
   }
 

@@ -134,13 +134,23 @@ export const WithWorld = (Base) => class extends Base {
     this.props.trashCan = { x: trashX, y: trashY, sprite: trashSprite, spill: null, open: false };
 
     // Spinning wheel (#233) — the crafting station that spins a basket of raw wool
-    // into yarn (worth more at the stand). Placed on the farm band near the stand so
-    // the shear → spin → sell loop is close together. `craft` names the conversion
+    // into yarn (worth more at the stand). Placed in a crafting nook just east of the
+    // BARN (the home/animal-structure area), well clear of the trash can it used to
+    // overlap (was 1430,720 next to the bin at 1470,720). `craft` names the conversion
     // the useDispatch spin action reads (wool → yarn), so it stays data-driven.
-    const swx = 1430, swy = 720;
+    // (First-pass spot — owner will redirect if a different corner reads better.)
+    const swx = 700, swy = 700;
     const spinSprite = this.add.image(swx, swy, 'spinningWheel')
       .setScale(S).setDepth(swy).setOrigin(0.5, 1);
-    this.props.spinningWheel = { x: swx, y: swy, sprite: spinSprite, craft: { from: 'wool', to: 'yarn' } };
+    // Spoked-disc overlay centred on the wheel hub, spun during a craft (#233). The
+    // base sprite's hub sits at texture (10,15) with origin (0.5,1) on a 32×40 grid,
+    // so the hub is (10-16)*S left and (15-40)*S up of the prop anchor. Hidden until
+    // spinWool() runs, then rotated for a beat as feedback that the wheel is turning.
+    const spokes = this.add.image(swx + (10 - 16) * S, swy + (15 - 40) * S, 'spinningWheelSpokes')
+      .setScale(S).setDepth(swy + 0.1).setOrigin(0.5, 0.5).setVisible(false);
+    this.props.spinningWheel = {
+      x: swx, y: swy, sprite: spinSprite, spokes, craft: { from: 'wool', to: 'yarn' },
+    };
     // (Its solid footprint is added to this.obstacles below, once that array exists.)
 
     // Gathering sources (issue #63) — static, infinite props the player fills
