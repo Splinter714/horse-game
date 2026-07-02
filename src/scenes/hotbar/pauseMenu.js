@@ -3,9 +3,10 @@
 // it while the world is frozen (#159). Freezes/*un*freezes the gameplay scenes.
 // Extracted from the monolithic HotbarScene (issue #167).
 
-import { toggleMute, isMuted, setVolume, getAudioSettings, playNicker } from '../../audio/sounds.js';
+import { toggleMute, isMuted, setVolume, getAudioSettings } from '../../audio/sounds.js';
 import { saveUiSettings, resetAllHorses, loadDevSettings, saveDevSettings } from '../../data/save.js';
 import { EVENTS } from '../../data/events.js';
+import { devEventList } from '../../data/ambientEvents.js';
 import { growHitArea, logicalW, logicalH, dprOf } from '../uiUtils.js';
 import { PAUSABLE_SCENES } from './constants.js';
 
@@ -245,38 +246,12 @@ export const WithPauseMenu = (Base) => class extends Base {
     window.location.reload();
   }
 
+  // The dev-overlay event list is now DERIVED from the data-driven registry
+  // (data/ambientEvents.js) — the same registry the ambient scheduler reads, so an
+  // event declared once auto-appears here AND enters the random rotation (#253). No
+  // hand-maintained list to keep in sync.
   _devEventList() {
-    const idleHorse = (p) => {
-      const agents = p._grazers?.() ?? [];
-      const idle = agents.filter((h) => h.state === 'idle' && h.sprite?.active);
-      return idle.length ? idle[Phaser.Math.Between(0, idle.length - 1)] : null;
-    };
-    return [
-      { label: '🐦 Bird on horse back',  fire: (p) => p._maybeSpawnHorsePerch?.() },
-      { label: '🐦 Bird fly-by',         fire: (p) => p._spawnFlyby?.() },
-      { label: '🐦 Bird perch (ground)', fire: (p) => p._spawnPerch?.() },
-      { label: '🦝 Raccoon visit',       fire: (p) => p._spawnRaccoon?.() },
-      { label: '🐟 Fish surface',        fire: (p) => p._spawnFish?.() },
-      { label: '🐱 Cat goes fishing',    fire: (p) => {
-        const cat = p.animals?.find((a) => a.key === 'cat' && a.sprite?.active);
-        if (cat && cat.state !== 'fishing') p.catGoFish?.(cat);
-      }},
-      { label: '🐴 Horse rolls in dirt', fire: (p) => {
-        const h = idleHorse(p); if (!h) return;
-        const horse = p.registry.get('allHorses')?.[h.key];
-        if (horse) p._rollInDirt?.(h, horse);
-      }},
-      { label: '🐴 Horse nicker',        fire: (p) => {
-        const h = idleHorse(p); if (!h) return;
-        p._shake?.(h.sprite);
-        playNicker();
-      }},
-      { label: '🐷 Pig wallow in mud',   fire: (p) => {
-        const pig = p.animals?.find((a) => a.key === 'pig' && a.sprite?.active && a.state === 'idle');
-        if (pig) p.pigGoWallow?.(pig);
-      }},
-      { label: '🐔 Chicken lays egg',    fire: (p) => p.eggLayTick?.() },
-    ];
+    return devEventList();
   }
 
   _toggleDevEvents() {
@@ -292,8 +267,9 @@ export const WithPauseMenu = (Base) => class extends Base {
     const ROW = 40, PAD = 12, HDR = 38;
     const W = 230, H = HDR + events.length * ROW + PAD;
 
-    // Start near bottom-left, clear of the hotbar.
-    let cx = 20, cy = sh - H - 80;
+    // Start near bottom-left, clear of the hotbar. Clamp to the top so a tall list
+    // (the registry now drives its length) doesn't spill off-screen — it's draggable.
+    let cx = 20, cy = Math.max(20, sh - H - 80);
 
     const panel = this.add.container(cx, cy).setDepth(300);
     this._devPanel = panel;
