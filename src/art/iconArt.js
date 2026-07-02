@@ -108,6 +108,11 @@ export function buildIconTextures(scene) {
     g.fillStyle(0xfffdf5, 1); g.fillEllipse(8, 8, 4, 5);
     g.fillStyle(0xe8d8a0, 1); g.fillEllipse(10, 14, 8, 4); // shadow base
   });
+  gen(scene, 'iconEggBrown', 20, 20, (g) => { // brown egg (#276)
+    g.fillStyle(0xc48a4c, 1); g.fillEllipse(10, 11, 12, 14);
+    g.fillStyle(0xdca868, 1); g.fillEllipse(8, 8, 4, 5);
+    g.fillStyle(0x9c6c34, 1); g.fillEllipse(10, 14, 8, 4); // shadow base
+  });
   gen(scene, 'iconCoin', 20, 20, (g) => { // coin for money display
     g.fillStyle(0xe8b820, 1); g.fillCircle(10, 10, 8);
     g.fillStyle(0xf8d840, 1); g.fillCircle(9, 8, 4);
@@ -196,6 +201,13 @@ export function buildIconTextures(scene) {
     g.fillStyle(0xfff8e0, 1);
     g.fillEllipse(7, 7, 5, 6); g.fillEllipse(13, 7, 5, 6); g.fillEllipse(10, 5, 5, 6);
     g.fillStyle(0xfffdf5, 1); g.fillEllipse(6, 5, 2, 2); g.fillEllipse(12, 5, 2, 2);
+  });
+  // Basket of brown eggs (#276) — same layout, warm-brown shells.
+  gen(scene, 'iconBasketEggBrown', 20, 20, (g) => {
+    drawBasketBody(g);
+    g.fillStyle(0xc48a4c, 1);
+    g.fillEllipse(7, 7, 5, 6); g.fillEllipse(13, 7, 5, 6); g.fillEllipse(10, 5, 5, 6);
+    g.fillStyle(0xdca868, 1); g.fillEllipse(6, 5, 2, 2); g.fillEllipse(12, 5, 2, 2);
   });
   // Basket of raw wool — soft cream fleece clumps mounded above the rim (#233).
   gen(scene, 'iconBasketWool', 20, 20, (g) => {

@@ -12,7 +12,7 @@ export const CARRIER_DEFS = {
   // animal that eats it, #136), so the basket's cap is just a safety ceiling, not a
   // limit you should hit. Kept finite (not Infinity) so it never trips serialization
   // or UI maths — but high enough that the demand always fits (and you can hoard eggs).
-  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'egg', 'wool', 'yarn'] },
+  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'egg', 'eggBrown', 'wool', 'yarn'] },
   bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'catWater', 'bunnyWater', 'milk'] },
 };
 
@@ -38,6 +38,10 @@ export const CONTENT_DEFS = {
   // dropped pile the same way a pig walks to dropped apples/carrots.
   catFood: { label: 'Cat Food', icon: 'iconBasketCatFood', action: 'feed',  ground: 'catFoodPile', feeds: ['cat'] },
   egg:    { label: 'Eggs',    icon: 'iconBasketEgg',    action: 'egg' },
+  // Brown eggs (#276): laid by brown & gold hens (see species/chicken/eggColor.js).
+  // A separate content type so colour rides the existing basket → farm-stand → sell
+  // pipeline unchanged — same 'egg' action, its own icon and sellable stand variant.
+  eggBrown: { label: 'Brown Eggs', icon: 'iconBasketEggBrown', action: 'egg' },
   water:  { label: 'Water',   icon: 'iconBucketWater',  action: 'water' },
   // Cat water (thirst mechanic): gathered from the water bowl, dropped as its own
   // pile, and drunk via the same generic grazing primitive as `catFood` — just
