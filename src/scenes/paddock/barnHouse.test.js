@@ -17,26 +17,33 @@ describe('#241 barn/house are distinct world objects', () => {
   const world = read('scenes/paddock/world.js');
   const worldArt = read('art/worldArt.js');
 
-  it('world.js places BOTH a house and a barn prop', () => {
+  const barn = read('scenes/paddock/barn.js');
+
+  it('world.js places a house prop; the barn prop is set by the barn mixin (#35)', () => {
     expect(world).toMatch(/this\.props\.house\s*=/);
-    expect(world).toMatch(/this\.props\.barn\s*=/);
+    // world.js delegates the barn build to the barn concern mixin, which sets the prop.
+    expect(world).toMatch(/this\.buildBarn\(\)/);
+    expect(barn).toMatch(/this\.props\.barn\s*=/);
   });
 
-  it('world.js renders BOTH a house and a barn texture', () => {
+  it('renders a house texture (world.js) and barn textures (barn mixin, #35)', () => {
     expect(world).toMatch(/'house'/);
-    expect(world).toMatch(/'barn'/);
+    // The walk-in barn (#35) is two stacked textures: interior + fading front façade.
+    expect(barn).toMatch(/'barnInterior'/);
+    expect(barn).toMatch(/'barnFront'/);
   });
 
-  it('worldArt.js generates BOTH house and barn textures', () => {
+  it('worldArt.js generates the house texture and BOTH barn textures (#35)', () => {
     expect(worldArt).toMatch(/gen\(scene,\s*'house'/);
-    expect(worldArt).toMatch(/gen\(scene,\s*'barn'/);
+    expect(worldArt).toMatch(/gen\(scene,\s*'barnInterior'/);
+    expect(worldArt).toMatch(/gen\(scene,\s*'barnFront'/);
   });
 
   it('the barn is a separate structure, not at the house position', () => {
-    // House sits at the NW home-base corner (240,280); the barn must be placed
-    // somewhere else — a distinct building, per #241.
+    // House sits at the NW home-base corner (240,280); the barn is placed elsewhere
+    // (its own anchor in barn.js), a distinct building per #241/#35.
     expect(world).toMatch(/this\.add\.image\(240,\s*280,\s*'house'\)/);
-    expect(world).not.toMatch(/this\.add\.image\(240,\s*280,\s*'barn'\)/);
+    expect(barn).not.toMatch(/240,\s*280/);
   });
 });
 
