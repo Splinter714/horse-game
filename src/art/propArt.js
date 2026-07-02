@@ -565,4 +565,114 @@ export function buildPropTextures(scene) {
     g.fillStyle(0x6a3d1a, 1); g.fillRect(5, 1, 1, 3);           // stem
     g.fillStyle(0x3b8a1c, 1); g.fillTriangle(6, 2, 9, 1, 8, 4); // leaf
   });
+
+  // ── Garden plot + crops (#242) ───────────────────────────────────────────────
+  buildGardenTextures(scene);
+}
+
+// Garden plot art: the tilled soil bed, and per-crop growth-stage sprites. Kept in its
+// own function so the crop set stays co-located and easy to extend (a new crop = a new
+// entry in CROP_ART below + its icons). Origins bottom-centre so a crop "stands" in its
+// slot the way animals/props do (setDepth(y) sorts correctly).
+function buildGardenTextures(scene) {
+  const withLayer = (g0) => (g0.layer ??= () => {}, g0);
+
+  // The tilled garden bed the slots sit on — a rectangle of dark furrowed earth with a
+  // wooden frame, drawn once behind the crops. Sized to hold a 3×2 row of slots.
+  gen(scene, 'gardenPlot', 132, 84, (g0) => {
+    const g = withLayer(g0);
+    g.layer('frame');
+    const wood = 0x7a5a30, woodHi = 0x93703c, woodLo = 0x5e4525;
+    g.fillStyle(wood, 1); g.fillRect(0, 0, 132, 84);
+    g.fillStyle(woodHi, 1); g.fillRect(0, 0, 132, 3);
+    g.fillStyle(woodLo, 1); g.fillRect(0, 81, 132, 3);
+    g.layer('soil');
+    const soil = 0x5a3f24, soilHi = 0x6e4e2c, soilLo = 0x452f1a;
+    g.fillStyle(soil, 1); g.fillRect(5, 5, 122, 74);
+    g.fillStyle(soilHi, 1); g.fillRect(5, 5, 122, 2);
+    // furrow ridges running across the bed
+    g.fillStyle(soilLo, 1);
+    for (let y = 14; y < 78; y += 12) g.fillRect(6, y, 120, 2);
+    g.fillStyle(soilHi, 1);
+    for (let y = 10; y < 78; y += 12) g.fillRect(6, y, 120, 1);
+    // scattered flecks of grit
+    g.fillStyle(soilLo, 1);
+    for (let i = 0; i < 24; i++) g.fillRect(8 + (i * 37) % 116, 8 + (i * 23) % 68, 1, 1);
+  });
+
+  // Shared soil mound each crop stage sprout grows out of (a small dark hillock).
+  const mound = (g) => {
+    g.fillStyle(0x000000, 0.12); g.fillEllipse(11, 21, 18, 4); // shadow
+    g.fillStyle(0x4a3420, 1); g.fillEllipse(11, 19, 15, 5);
+    g.fillStyle(0x5c4228, 1); g.fillEllipse(11, 18, 11, 3);
+  };
+  const sprout = (g, tall) => { // a young green shoot, `tall` px high
+    g.fillStyle(0x3f8a24, 1); g.fillRect(10, 19 - tall, 2, tall);
+    g.fillStyle(0x54a634, 1);
+    g.fillTriangle(11, 19 - tall, 6, 19 - tall + 3, 11, 19 - tall + 5);
+    g.fillTriangle(11, 19 - tall, 16, 19 - tall + 3, 11, 19 - tall + 5);
+  };
+  const leafy = (g, h) => { // a fuller bushy plant of height `h`
+    g.fillStyle(0x357a1e, 1); g.fillEllipse(11, 19 - h * 0.5, h, h * 0.9);
+    g.fillStyle(0x4a9a2e, 1); g.fillEllipse(9, 19 - h * 0.6, h * 0.6, h * 0.6);
+    g.fillStyle(0x5fb43a, 1); g.fillEllipse(13, 19 - h * 0.4, h * 0.4, h * 0.4);
+  };
+
+  // Per-crop foliage + ripe fruit. Each draws stages 0..3 (0 seedling → 3 ripe). The
+  // ripe stage adds the crop's harvestable fruit so the plot reads "ready to pick."
+  const CROP_ART = {
+    strawberry: {
+      grow: (g) => leafy(g, 12),
+      fruit: (g) => { // red berries dotted among the leaves
+        for (const [x, y] of [[6, 15], [15, 14], [11, 18], [16, 18]]) {
+          g.fillStyle(0xe23b4a, 1); g.fillTriangle(x, y + 4, x - 2, y, x + 2, y);
+          g.fillStyle(0xffe08a, 1); g.fillRect(x, y + 1, 1, 1);
+        }
+      },
+    },
+    wheat: {
+      grow: (g) => { // tall golden-green stalks
+        g.fillStyle(0x6a9a3a, 1);
+        for (const x of [7, 11, 15]) g.fillRect(x, 6, 1, 13);
+      },
+      fruit: (g) => { // ripe golden grain heads
+        for (const x of [7, 11, 15]) {
+          g.fillStyle(0xcaa63a, 1); g.fillRect(x, 8, 1, 11);
+          g.fillStyle(0xe8c94e, 1); g.fillEllipse(x + 0.5, 6, 3, 5);
+          g.fillStyle(0xf5e07a, 1); g.fillRect(x, 4, 1, 1);
+        }
+      },
+    },
+    carrot: {
+      grow: (g) => { // feathery green tops
+        g.fillStyle(0x3b8a1c, 1);
+        for (const x of [6, 9, 12, 15]) { g.fillRect(x, 8, 1, 11); g.fillRect(x - 1, 8, 1, 5); g.fillRect(x + 1, 9, 1, 4); }
+      },
+      fruit: (g) => { // orange crown just peeking above the soil
+        g.fillStyle(0x3b8a1c, 1);
+        for (const x of [6, 9, 12, 15]) { g.fillRect(x, 6, 1, 11); g.fillRect(x - 1, 6, 1, 5); }
+        g.fillStyle(0xf07830, 1); g.fillEllipse(11, 17, 8, 4);
+        g.fillStyle(0xff9a5a, 1); g.fillEllipse(10, 16, 4, 2);
+      },
+    },
+  };
+
+  for (const [id, art] of Object.entries(CROP_ART)) {
+    // Stage 0 — a bare seedling shoot (same for every crop: just a sprout).
+    gen(scene, `crop_${id}_0`, 22, 24, (g0) => {
+      const g = withLayer(g0); g.layer('soil'); mound(g); g.layer('plant'); sprout(g, 4);
+    });
+    // Stage 1 — a taller sprout.
+    gen(scene, `crop_${id}_1`, 22, 24, (g0) => {
+      const g = withLayer(g0); g.layer('soil'); mound(g); g.layer('plant'); sprout(g, 8);
+    });
+    // Stage 2 — the crop's full foliage, not yet fruiting.
+    gen(scene, `crop_${id}_2`, 22, 24, (g0) => {
+      const g = withLayer(g0); g.layer('soil'); mound(g); g.layer('plant'); art.grow(g);
+    });
+    // Stage 3 — ripe: full foliage + the harvestable fruit.
+    gen(scene, `crop_${id}_3`, 22, 24, (g0) => {
+      const g = withLayer(g0); g.layer('soil'); mound(g); g.layer('plant'); art.grow(g); g.layer('fruit'); art.fruit(g);
+    });
+  }
 }

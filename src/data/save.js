@@ -8,6 +8,7 @@
 // `makeRoster` is the generic load/save factory all species share.
 
 import { ROSTERS } from './rosters.js';
+import { sanitizeGarden } from './garden.js';
 
 // Build a { load, save } pair for one species' roster from its config. Collapses the
 // three formerly-duplicated loaders into one generic implementation:
@@ -202,6 +203,26 @@ export function saveGameState({ hotbar, inventory, carriers, activeCarrier, mone
       hotbar, inventory, carriers, activeCarrier, money: sanitizeMoney(money),
       scooperLoad: sanitizeCount(scooperLoad), compost: sanitizeCount(compost),
     }));
+  } catch {}
+}
+
+// ── Garden plot (#242) ────────────────────────────────────────────────────────
+// The crop garden's slot array (data/garden.js): each slot null or { crop, stage }.
+// Its own storage key (not the wholesale-rewritten gameState) so it persists cleanly,
+// like the player look. sanitizeGarden makes the load forgiving (old/corrupt → empty).
+const GARDEN_KEY = 'horse-game-garden-v1';
+
+export function loadGarden() {
+  try {
+    return sanitizeGarden(JSON.parse(localStorage.getItem(GARDEN_KEY)));
+  } catch {
+    return sanitizeGarden(null);
+  }
+}
+
+export function saveGarden(garden) {
+  try {
+    localStorage.setItem(GARDEN_KEY, JSON.stringify(sanitizeGarden(garden)));
   } catch {}
 }
 

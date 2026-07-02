@@ -12,7 +12,7 @@ export const CARRIER_DEFS = {
   // animal that eats it, #136), so the basket's cap is just a safety ceiling, not a
   // limit you should hit. Kept finite (not Infinity) so it never trips serialization
   // or UI maths — but high enough that the demand always fits (and you can hoard eggs).
-  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost'] },
+  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat'] },
   bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'milk'] },
 };
 
@@ -77,6 +77,12 @@ export const CONTENT_DEFS = {
   // a basket. No `feeds`/`ground`/`action` beyond stored: nobody eats it, it doesn't
   // drop as food, and it isn't sold.
   compost: { label: 'Compost', icon: 'iconBasketCompost', action: 'store' },
+  // Crops (#242): harvested from the garden plot into a basket, then sold at the farm
+  // stand (action 'sell', like eggs/wool). Strawberries and wheat are new sellables;
+  // carrots reuse the existing `carrot` content (already sold + basket-accepted). These
+  // are the future inputs to crop processing (#40: jam / flour / pig feed).
+  strawberry: { label: 'Strawberries', icon: 'iconBasketStrawberry', action: 'sell' },
+  wheat:      { label: 'Wheat',        icon: 'iconBasketWheat',      action: 'sell' },
 };
 
 // How many of a food to gather in one fill-up (#136): one unit per live animal that

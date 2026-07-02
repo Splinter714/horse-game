@@ -555,6 +555,64 @@ export function buildWorldTextures(scene) {
   gen(scene, 'npc_walk_0', 16, 24, (g) => drawNpc(g, 0));
   gen(scene, 'npc_walk_1', 16, 24, (g) => drawNpc(g, 1));
 
+  // --- Shopkeeper NPC (16 × 24) — the first concrete NPC (#244). Staffs the market
+  // stall and runs the buy/sell shop. Deliberately reads as a *vendor*, distinct from
+  // the walk-by farm-stand customer above: a green apron over a warm shirt, a rust
+  // kerchief cap, and rosy cheeks — a friendly cozy shopkeeper. Two frames differ only
+  // in the eyes (open / blinking) for a subtle idle blink; the body is identical so the
+  // sprite can bob in place without moving. Origin (0.5, 1), same 16×24 layout as the
+  // player/customer. Dissect-tagged for the dev dissect tool. ---
+  const SK_SKIN  = 0xf2c894;
+  const SK_CHEEK = 0xe6a884;
+  const SK_HAIR  = 0x3a2414;
+  const SK_CAP   = 0xb5533a;   // rust kerchief cap
+  const SK_CAP_D = 0x8f3f2c;
+  const SK_SHIRT = 0xd8b48a;   // warm cream shirt
+  const SK_APRON = 0x4f7a4a;   // green vendor apron
+  const SK_APRND = 0x3c5f39;
+  const SK_PANTS = 0x5a4636;
+  const SK_SHOE  = 0x2a1a0e;
+
+  const drawShopkeeper = (g, blink) => {
+    g.layer('cap');
+    // Kerchief cap over the hair
+    g.fillStyle(SK_CAP, 1);   g.fillRect(4, 0, 8, 3); g.fillRect(3, 1, 10, 2);
+    g.fillStyle(SK_CAP_D, 1); g.fillRect(4, 2, 8, 1);
+    g.layer('hair');
+    // Hair peeking out at the sides
+    g.fillStyle(SK_HAIR, 1);  g.fillRect(3, 3, 2, 4); g.fillRect(11, 3, 2, 4);
+    g.layer('head');
+    // Face
+    g.fillStyle(SK_SKIN, 1);  g.fillRect(5, 3, 6, 6);
+    // Rosy cheeks
+    g.fillStyle(SK_CHEEK, 1); g.fillRect(5, 6, 1, 1); g.fillRect(10, 6, 1, 1);
+    g.layer('eye');
+    // Eyes — open normally, a thin closed line when blinking
+    g.fillStyle(0x1a0a04, 1);
+    if (blink) { g.fillRect(6, 6, 1, 1); g.fillRect(9, 6, 1, 1); }
+    else       { g.fillRect(6, 5, 1, 2); g.fillRect(9, 5, 1, 2); }
+    // Little smile
+    g.fillStyle(0xb07050, 1); g.fillRect(7, 8, 2, 1);
+    g.layer('body');
+    // Shirt (shoulders/arms)
+    g.fillStyle(SK_SHIRT, 1); g.fillRect(4, 9, 8, 6); g.fillRect(2, 9, 3, 5); g.fillRect(11, 9, 3, 5);
+    // Apron over the chest/belly
+    g.fillStyle(SK_APRON, 1); g.fillRect(5, 10, 6, 6);
+    g.fillStyle(SK_APRND, 1); g.fillRect(5, 14, 6, 2);           // apron shadow hem
+    g.fillStyle(SK_APRND, 1); g.fillRect(5, 9, 1, 5); g.fillRect(10, 9, 1, 5); // apron straps
+    g.layer('hands');
+    // Hands at the counter
+    g.fillStyle(SK_SKIN, 1);  g.fillRect(2, 13, 2, 2); g.fillRect(12, 13, 2, 2);
+    g.layer('legs');
+    // Pants + legs (mostly hidden behind the counter, but drawn for standalone view)
+    g.fillStyle(SK_PANTS, 1); g.fillRect(4, 16, 8, 5);
+    g.fillRect(4, 16, 3, 5); g.fillRect(9, 16, 3, 5);
+    g.layer('shoes');
+    g.fillStyle(SK_SHOE, 1);  g.fillRect(4, 20, 4, 3); g.fillRect(8, 20, 4, 3);
+  };
+  gen(scene, 'shopkeeper_0', 16, 24, (g) => drawShopkeeper(g, false)); // eyes open
+  gen(scene, 'shopkeeper_1', 16, 24, (g) => drawShopkeeper(g, true));  // blinking
+
   // Icons (hotbar/UI) and props/effects/gather-sources live in their own files.
   buildIconTextures(scene);
   buildPropTextures(scene);

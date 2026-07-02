@@ -200,12 +200,19 @@ export const WithInteractables = (Base) => class extends Base {
     // held item (assignment is a bare-hand interaction).
     const barn = () => this._barnInteractables?.() ?? [];
 
-    this.interactables = [gate, house, shop, barn, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, sources, nests, farmStand, spinningWheel, compostBin];
-    // Split by input: gate/house/shop/barn are bare-hand "interact" targets (tap/click/E);
-    // the rest require a carried tool/carrier and are triggered by Use (the
+    // Garden plot (#242) — bare-hand interact by the bed PLANTS the next crop; a basket
+    // + Use on a ripe slot HARVESTS it. The garden mixin (paddock/garden.js) supplies the
+    // two descriptors; split across the interact/tool input paths accordingly.
+    const gardenDescs = this._gardenInteractables?.() ?? { plant: () => [], harvest: () => [] };
+    const gardenPlant   = gardenDescs.plant;
+    const gardenHarvest = gardenDescs.harvest;
+
+    this.interactables = [gate, house, shop, barn, gardenPlant, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, sources, nests, farmStand, spinningWheel, compostBin, gardenHarvest];
+    // Split by input: gate/house/shop/barn/garden-plant are bare-hand "interact" targets
+    // (tap/click/E); the rest require a carried tool/carrier and are triggered by Use (the
     // on-screen button / F / controller). See useActiveTool + handleTap.
-    this.interactWorld = [gate, house, shop, barn];
-    this.toolWorld     = [trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, sources, nests, farmStand, spinningWheel, compostBin];
+    this.interactWorld = [gate, house, shop, barn, gardenPlant];
+    this.toolWorld     = [trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, sources, nests, farmStand, spinningWheel, compostBin, gardenHarvest];
   }
 
   // Nearest activatable instance to (x, y) within each instance's own radius
