@@ -7,9 +7,24 @@
 import Phaser from 'phaser';
 import { S, DUST_CLEAN_AT, DUST_MAX_ALPHA, STINK_AT, PLAYER_SPEED } from './constants.js';
 import { composeCoat } from '../../data/species/horse/coats.js';
-import { buildHorseTextures } from '../../art/horseArt.js';
+import { buildHorseTextures, horsePosture } from '../../art/horseArt.js';
 
 export const WithRendering = (Base) => class extends Base {
+  // Body-language posture (#69): while a horse is standing idle, swap its idle
+  // animation to the mood-appropriate variant (pinned ears when neglected, drooped
+  // head + floppy ears when content) from the pure horsePosture() selector. Only
+  // touches the idle pose — walking / eating / rolling / sleeping are left alone, so
+  // posture reads on a settled horse without fighting any active movement anim.
+  _applyPosture(h) {
+    const anim = h.sprite.anims?.currentAnim?.key;
+    if (!anim || !anim.startsWith('idle')) return;      // only re-pose a standing idle
+    if (!anim.endsWith(h.key)) return;                   // (defensive) our own idle key
+    const horse = this.registry.get('allHorses')?.[h.key];
+    if (!horse) return;
+    const id = horsePosture({ neglected: horse.neglected, happiness: horse.stats?.happiness });
+    const want = id ? `idle_${id}_${h.key}` : `idle_${h.key}`;
+    if (anim !== want && this.anims.exists(want)) h.sprite.play(want, true);
+  }
   // Keep each equipped saddle glued to its horse as it wanders. The ridden
   // horse's saddle is synced inside updateRiding, so skip it here.
   updateSaddles() {
@@ -73,6 +88,8 @@ export const WithRendering = (Base) => class extends Base {
       h.shadow.y = h.sprite.y;
       h.shadow.setDepth(h.sprite.y - 1);
       h.sprite.setDepth(h.sprite.y);
+
+      this._applyPosture(h); // body-language idle pose from the horse's mood (#69)
 
       // Keep the dust overlay glued to the sprite and fade it as a whole with
       // how dirty the horse is (grooming < DUST_CLEAN_AT). Brushing raises

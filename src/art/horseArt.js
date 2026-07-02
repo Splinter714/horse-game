@@ -464,10 +464,46 @@ function drawMane(g, coat, bob) {
   }
 }
 
-function drawHorse(g, coat, bob, legLift, sway = 0) {
+// Ears drawn per posture (#69). Right-facing horse; the near ear sits at the poll
+// (~x48-51, top of the skull). `posture` selects the mood read, grounded in real
+// equine body language:
+//   'forward' — pricked up, alert/interested (default look)
+//   'side'    — relaxed / dozing, ears lopped out to the side (content)
+//   'pinned'  — flattened back against the neck, annoyed/neglected
+// `y0` is the top of the skull in the current pose (4 + bob + headDrop).
+function drawEars(g, b, y0, posture) {
+  if (posture === 'pinned') {
+    // Flat back — a low blade sweeping down-left toward the neck crest, tip trailing.
+    g.fillStyle(b.lo, 1);  g.fillRect(44, y0 + 1, 5, 2);   // ear laid back over the poll
+    g.fillStyle(b.mid, 1); g.fillRect(43, y0 + 2, 3, 2);   // trailing tip
+    g.fillStyle(SHADE, 0.25); g.fillRect(44, y0 + 1, 5, 0.75); // tension shadow at the base
+    return;
+  }
+  if (posture === 'side') {
+    // Lopped to the side — a lower, wider, drooping ear (dozy/relaxed).
+    g.fillStyle(b.mid, 1);    g.fillRect(47, y0 - 2, 4, 4);  // ear drooped out & down
+    g.fillStyle(EAR_PINK, 1); g.fillRect(48, y0 - 1, 1, 2);  // inner
+    g.fillStyle(b.lo, 0.35);  g.fillRect(50, y0 - 1, 1, 3);  // soft edge
+    return;
+  }
+  // forward (default) — tall, upright, pricked ear.
+  g.fillStyle(b.mid, 1);    g.fillRect(48, y0 - 4, 3, 6);   // ear (taller, more upright)
+  g.fillStyle(EAR_PINK, 1); g.fillRect(49, y0 - 3, 1, 4);   // ear inner
+}
+
+// `posture` (#69) shapes body language from the horse's mood — see horsePosture():
+//   { ears: 'forward'|'side'|'pinned', headDrop: px, tailClamp: bool }
+// headDrop lowers the head group (a drooped, relaxed head); tailClamp tucks the tail
+// low against the hindquarters (a tense/clamped tail reads via the existing sway).
+function drawHorse(g, coat, bob, legLift, sway = 0, posture = {}) {
   const b = coat.body;
   const m = coat.mane;
   const mk = coat.markings || {};
+  const ears = posture.ears || 'forward';
+  const hd = posture.headDrop || 0;                       // head-group vertical drop
+  // A clamped tail tucks in tight against the rump: a small inward sway that overrides
+  // any passed-in swish, so a tense horse's tail reads pinned rather than loose.
+  if (posture.tailClamp) sway = 2.2;
 
   // --- legs first (behind body), far legs in shadow tone ---
   g.layer('legs'); // part tags for the dissect tool (no-op in the real build)
@@ -529,24 +565,24 @@ function drawHorse(g, coat, bob, legLift, sway = 0) {
   g.fillStyle(b.mid, 1); g.fillRect(45, 8 + bob, 8, 8);
   g.fillStyle(b.hi, 1); g.fillRect(46, 8 + bob, 3, 18);
 
-  // --- head ---
+  // --- head (drops by `hd` for a relaxed / drooped posture, #69) ---
   g.layer('head');
-  g.fillStyle(b.mid, 1); g.fillRect(47, 4 + bob, 14, 9);   // skull
-  g.fillStyle(b.hi, 1);  g.fillRect(47, 4 + bob, 14, 2);   // top highlight
-  g.fillStyle(b.lo, 1);  g.fillRect(55, 8 + bob, 7, 4);    // muzzle (flush with skull)
-  g.fillStyle(b.mid, 1); g.fillRect(48, 0 + bob, 3, 6);    // ear (taller, more upright)
-  g.fillStyle(EAR_PINK, 1); g.fillRect(49, 1 + bob, 1, 4); // ear inner
+  const hb = bob + hd; // head-group vertical offset (bob + posture head drop)
+  g.fillStyle(b.mid, 1); g.fillRect(47, 4 + hb, 14, 9);   // skull
+  g.fillStyle(b.hi, 1);  g.fillRect(47, 4 + hb, 14, 2);   // top highlight
+  g.fillStyle(b.lo, 1);  g.fillRect(55, 8 + hb, 7, 4);    // muzzle (flush with skull)
+  drawEars(g, b, 4 + hb, ears);                            // ears per posture (#69)
   // nostril
-  g.fillStyle(coat.hoof, 0.6); g.fillRect(60, 10 + bob, 1, 1);
+  g.fillStyle(coat.hoof, 0.6); g.fillRect(60, 10 + hb, 1, 1);
 
   // face markings (star / stripe / snip / blaze), drawn before the eye so the eye
   // stays on top
-  faceMarkings(g, mk, bob);
+  faceMarkings(g, mk, hb);
 
   // eye — upper-lid shadow + a small catch-light glint
-  g.fillStyle(coat.eye, 1);  g.fillRect(50, 7 + bob, 2, 2);
-  g.fillStyle(SHADE, 0.30);  g.fillRect(50, 7 + bob, 2, 0.5);
-  g.fillStyle(HILITE, 0.85); g.fillRect(50.25, 7.5 + bob, 0.5, 0.5);
+  g.fillStyle(coat.eye, 1);  g.fillRect(50, 7 + hb, 2, 2);
+  g.fillStyle(SHADE, 0.30);  g.fillRect(50, 7 + hb, 2, 0.5);
+  g.fillStyle(HILITE, 0.85); g.fillRect(50.25, 7.5 + hb, 0.5, 0.5);
 
   // --- mane (hi-res, over neck) ---
   drawMane(g, coat, bob);
@@ -1082,6 +1118,17 @@ export function buildHorseTextures(scene, baseKey, coat) {
     { name: 'walk_3', bob: 1, legs: WALK_LEGS[3] }
   ];
 
+  // Body-language posture idle frames (#69): the standing idle pose re-drawn with the
+  // ears / head / tail carrying the horse's mood. Selected per-horse each tick by the
+  // pure horsePosture() below → the paddock plays idle_<posture>_<key>.
+  //   content   — floppy side ears + a drooped head + a loose tail (relaxed, dozing)
+  //   neglected — ears pinned flat + a tense clamped tail (annoyed / uncared-for)
+  // (The default idle_0/1 keeps the alert forward-eared "happy/neutral" read.)
+  POSTURE_FRAMES.forEach(({ id, posture }) => {
+    frames.push({ name: `idle_${id}_0`, bob: 0, legs: IDLE_LEGS, posture });
+    frames.push({ name: `idle_${id}_1`, bob: 1, legs: IDLE_LEGS, posture });
+  });
+
   frames.push(
     { name: 'eat_0', bob: 0, eat: true },
     { name: 'eat_1', bob: 1, eat: true },
@@ -1107,7 +1154,7 @@ export function buildHorseTextures(scene, baseKey, coat) {
       if (f.eat) drawHorseEat(g, coat, f.bob);
       else if (f.sleep) drawHorseSleep(g, coat, f.bob);
       else if (f.roll !== undefined) drawHorseRoll(g, coat, f.bob, f.roll);
-      else drawHorse(g, coat, f.bob, f.legs, f.sway ?? 0);
+      else drawHorse(g, coat, f.bob, f.legs, f.sway ?? 0, f.posture);
     });
   }
 }
@@ -1116,6 +1163,28 @@ export function buildHorseTextures(scene, baseKey, coat) {
 // back through the splay, so the loop reads as a continuous rock-and-kick while the
 // horse is down. See drawHorseRoll for the per-phase leg motion.
 const ROLL_PHASES = [0, 1, 2, 1];
+
+// Posture idle variants (#69). Each `id` produces idle_<id>_0/1 frames with the mood
+// baked into ears/head/tail. `HORSE_POSTURE_IDS` is exported so the paddock knows
+// which posture animations to register alongside the default idle.
+export const POSTURE_FRAMES = [
+  { id: 'content',   posture: { ears: 'side',   headDrop: 2, tailClamp: false } },
+  { id: 'neglected', posture: { ears: 'pinned', headDrop: 0, tailClamp: true  } },
+];
+export const HORSE_POSTURE_IDS = POSTURE_FRAMES.map((p) => p.id);
+
+// Pure mood → posture-idle selector (#69). Maps the care state the behavior layer
+// already computes onto which idle variant a standing horse shows:
+//   neglected (grumpy, missed required care)          → 'neglected' (pinned ears)
+//   low happiness / a "down" mood label               → 'content'   (drooped, dozy)
+//   otherwise (happy / neutral)                       → '' (default alert idle_0/1)
+// Returns the posture id used in the animation key (`idle_${id}_${key}`), or '' for
+// the default. Kept pure + data-only so it's unit-testable (horseArt.test.js).
+export function horsePosture({ neglected = false, happiness = 100 } = {}) {
+  if (neglected) return 'neglected';
+  if (happiness < 55) return 'content';
+  return '';
+}
 
 // Sway (design px) per swish frame: a full side-to-side swing, gentle (the tail is
 // ~4.5px wide, so ±2.4 reads clearly without flinging). Played looping for a short
