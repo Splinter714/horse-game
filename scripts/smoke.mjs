@@ -306,7 +306,65 @@ try {
   });
   await page.screenshot({ path: '/tmp/player-customizer.png' });
 
+  // Weather pass (#188): force the DayNightScene into rain and back, and assert the
+  // paddock's hooks respond — the WEATHER_CHANGE event lands, _weather tracks it,
+  // rain dirties a horse faster (2×), the wildlife rain-gate closes, and rain
+  // partially (never fully) fills the trough. All renderer-agnostic logic.
+  const weather = await page.evaluate(async () => {
+    const g = window.__game;
+    const dn = g.scene.getScene('DayNightScene');
+    const p  = g.scene.getScene('PaddockScene');
+    const trough = p.props.trough;
+
+    // Baseline: force sun, set the trough empty, groom a horse fully.
+    dn._setWeather('sun', true);
+    await new Promise((r) => setTimeout(r, 20));
+    p._setTroughLevel(0);
+    const horse = g.registry.get('allHorses').horse;
+    horse.stats.grooming = 100;
+
+    // Dirt in the sun (x1).
+    p._dirtyHorse('horse', 10);
+    const sunLoss = 100 - horse.stats.grooming;
+
+    // Switch to rain.
+    dn._setWeather('rain', true);
+    await new Promise((r) => setTimeout(r, 20));
+    const paddockSawRain = p._weather === 'rain';
+    const wildlifeGate = p._weatherAllowsWildlife(); // should be false in rain
+
+    // Dirt in the rain (should be > sunLoss) — same +10 action.
+    horse.stats.grooming = 100;
+    p._dirtyHorse('horse', 10);
+    const rainLoss = 100 - horse.stats.grooming;
+
+    // Rain trough fill: run several ticks manually; it must add water but stop
+    // below full capacity (partial fill so the bucket loop still matters).
+    p._startRainTroughFill();
+    for (let i = 0; i < 20; i++) {
+      const { rainTroughFill } = await import('/src/data/weather.js');
+      const add = rainTroughFill(trough.level, 9);
+      if (add > 0) p._setTroughLevel(trough.level + add);
+    }
+    const rainTroughLevel = trough.level;
+    p._stopRainTroughFill();
+
+    // Restore sun so nothing else in the run is surprised.
+    dn._setWeather('sun', true);
+
+    return { paddockSawRain, wildlifeGate, sunLoss, rainLoss, rainTroughLevel };
+  });
+  result.weather = weather;
+
   console.log(JSON.stringify(result, null, 2));
+
+  const wx = result.weather;
+  if (!wx.paddockSawRain) fail('WEATHER_CHANGE not received by PaddockScene (weather event not wired)');
+  if (wx.wildlifeGate !== false) fail('wildlife rain-gate did not close in rain (_weatherAllowsWildlife true while raining)');
+  if (!(wx.rainLoss > wx.sunLoss)) fail(`rain did not dirty faster (sunLoss=${wx.sunLoss}, rainLoss=${wx.rainLoss})`);
+  if (wx.rainLoss !== wx.sunLoss * 2) fail(`rain dirt multiplier ≠ 2 (sunLoss=${wx.sunLoss}, rainLoss=${wx.rainLoss})`);
+  if (!(wx.rainTroughLevel > 0)) fail('rain did not fill the trough at all');
+  if (wx.rainTroughLevel >= 9) fail(`rain filled the trough to ${wx.rainTroughLevel}/9 — should be PARTIAL, not full (bucket loop undercut)`);
 
   if (pageErrors.length) fail('uncaught page errors:\n' + pageErrors.join('\n'));
   if (consoleErrors.length) fail('console errors:\n' + consoleErrors.join('\n'));
