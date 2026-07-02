@@ -21,6 +21,7 @@ const BG = '#1c2330';
 const SIZES = [
   { name: 'icon-192.png', size: 192, pad: 0.18 },
   { name: 'icon-512.png', size: 512, pad: 0.18 },
+  { name: 'icon-1024.png', size: 1024, pad: 0.18 }, // full-bleed for macOS Safari "Add to Dock"
   { name: 'icon-maskable-512.png', size: 512, pad: 0.30 }, // maskable needs a big safe-zone margin
   { name: 'apple-touch-icon.png', size: 180, pad: 0.14 },  // iOS doesn't apply a mask, can fill more
 ];
