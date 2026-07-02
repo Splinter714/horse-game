@@ -14,8 +14,9 @@ describe('carrier definitions', () => {
     // eggBrown added with colored eggs (#276) — brown/gold hens lay brown eggs.
     expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'egg', 'eggBrown', 'wool', 'yarn']);
     expect(CARRIER_DEFS.bucket.capacity).toBe(1);
-    // milk added with the cow (#cow); bunnyWater with bunnies (#224).
-    expect(CARRIER_DEFS.bucket.accepts).toEqual(['water', 'catWater', 'bunnyWater', 'milk']);
+    // milk added with the cow (#cow); bunnyWater with bunnies (#224). catWater removed
+    // with the #202 rework — the cat's water bowl is filled from a plain bucket of water.
+    expect(CARRIER_DEFS.bucket.accepts).toEqual(['water', 'bunnyWater', 'milk']);
   });
 
   it('every content a basket accepts has a content definition', () => {
@@ -30,14 +31,16 @@ describe('content definitions', () => {
     expect(CONTENT_DEFS.water.action).toBe('water');
     expect(CONTENT_DEFS.egg.action).toBe('egg');
     expect(CONTENT_DEFS.seed.feeds).toEqual(['chicken']);
+    // Cat food (#202 rework): scooped into a basket, poured into the cat's FOOD BOWL
+    // (`stocks: 'catFood'` marks it as a bowl-fill content), never dropped on the
+    // ground — so it has no `ground` texture. Still feeds only the cat.
     expect(CONTENT_DEFS.catFood.feeds).toEqual(['cat']);
-    // catWater is a per-species dropped drink (the cat's water bowl, #202
-    // refinement) — unlike the trough's plain `water`, it carries a `feeds` list
-    // even though its action is 'water', not 'feed'.
-    expect(CONTENT_DEFS.catWater.action).toBe('water');
-    expect(CONTENT_DEFS.catWater.feeds).toEqual(['cat']);
+    expect(CONTENT_DEFS.catFood.stocks).toBe('catFood');
+    expect(CONTENT_DEFS.catFood.ground).toBeUndefined();
+    // catWater was removed with the #202 rework — the water bowl fills from plain water.
+    expect(CONTENT_DEFS.catWater).toBeUndefined();
     // Bunny food/water (#224): bunnyFood feeds the bunny (and attracts it); bunnyWater
-    // is its per-species dropped drink, same shape as catWater.
+    // is its per-species dropped drink.
     expect(CONTENT_DEFS.bunnyFood.feeds).toEqual(['bunny']);
     expect(CONTENT_DEFS.bunnyWater.action).toBe('water');
     expect(CONTENT_DEFS.bunnyWater.feeds).toEqual(['bunny']);
@@ -50,8 +53,8 @@ describe('content definitions', () => {
 
   it('every feed-action content lists the species that eat it; egg/plain-water don\'t', () => {
     for (const [key, def] of Object.entries(CONTENT_DEFS)) {
-      if (def.action === 'feed' || key === 'catWater' || key === 'bunnyWater') expect(Array.isArray(def.feeds)).toBe(true);
-      else expect(def.feeds).toBeUndefined(); // plain water/egg aren't tied to a diet
+      if (def.action === 'feed' || key === 'bunnyWater') expect(Array.isArray(def.feeds)).toBe(true);
+      else expect(def.feeds).toBeUndefined(); // plain water/egg/sellables aren't tied to a diet
     }
   });
 });

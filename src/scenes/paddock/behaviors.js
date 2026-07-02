@@ -176,15 +176,16 @@ export const WithBehaviors = (Base) => class extends Base {
   // Nearest hay pile this creature can actually reach, or null. Mirrors the old
   // horseTickForHorse scan. Pasture-roaming grazers (horses/cow/pig/sheep) are
   // fence-gated: a pile outside the pasture needs the gate open. A creature that
-  // roams the whole world instead (`spawn.roam !== 'pasture'` — the cat, #202) isn't
-  // fenced in at all, so the gate check doesn't apply to it: any dropped pile it can
-  // eat is reachable regardless of the pasture gate.
+  // roams the whole world instead (`spawn.roam !== 'pasture'`) isn't fenced in at all,
+  // so the gate check doesn't apply to it: any dropped pile it can eat is reachable
+  // regardless of the pasture gate.
   //
-  // `contentFilter`, if given, further restricts which pile contents count — the cat
-  // has two distinct diets dropped into the same pile list (`catFood` for hunger,
-  // `catWater` for thirst, #202 refinement), so seekFood/seekWater each pass a
-  // filter to find "the nearest pile of *my* content" rather than just any edible
-  // pile. Defaults to accepting anything the species eats (the original behavior).
+  // `contentFilter`, if given, further restricts which pile contents count — a species
+  // with more than one distinct diet dropped into the same pile list can pass a filter
+  // to find "the nearest pile of *my* content" rather than just any edible pile.
+  // Defaults to accepting anything the species eats (the original behavior). (The cat
+  // no longer uses this — it eats straight from its bowls, #202 rework — but the
+  // mechanism stays generic for any future multi-diet grazer.)
   _nearestReachableHay(h, contentFilter = null) {
     if (!this.props.hayPiles?.length) return null;
     const gateOpen = this._gateOpen();

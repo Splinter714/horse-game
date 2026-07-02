@@ -268,22 +268,8 @@ export function buildIconTextures(scene) {
     g.fillStyle(0xb8c0d0, 1); g.fillRect(5, 10, 1, 6);
     g.fillStyle(0x7a8396, 1); g.fillEllipse(10, 18.4, 8.6, 2.2);
   });
-  // Cat water bucket — same tilted pail as iconBucketWater, distinguished only by
-  // context (the cat's water bowl); visually identical water fill is intentional,
-  // it's still literally a bucket of water (#202 refinement).
-  gen(scene, 'iconBucketCatWater', 20, 20, (g) => {
-    g.fillStyle(0x6f7889, 1);
-    g.fillRect(3, 4, 1, 3); g.fillRect(16, 4, 1, 3);
-    g.fillRect(4, 2, 12, 1); g.fillRect(3, 3, 2, 1); g.fillRect(15, 3, 2, 1);
-    g.fillStyle(0x9aa3b6, 1);
-    g.fillTriangle(3, 8, 17, 8, 15, 17); g.fillTriangle(3, 8, 15, 17, 5, 17);
-    g.fillEllipse(10, 17, 11, 4.4);
-    g.fillStyle(0xb8c0d0, 1); g.fillEllipse(10, 8, 14, 5);
-    g.fillStyle(0x5fa6d6, 1); g.fillEllipse(10, 8, 10.5, 3.4);
-    g.fillStyle(0x9ae0f8, 1); g.fillEllipse(8.4, 7.4, 4.6, 1.6);
-    g.fillStyle(0xb8c0d0, 1); g.fillRect(5, 10, 1, 6);
-    g.fillStyle(0x7a8396, 1); g.fillEllipse(10, 18.4, 8.6, 2.2);
-  });
+  // (The cat's water bowl is now filled from a plain bucket of water, so there's no
+  // separate cat-water bucket icon — #202 rework removed the `catWater` content.)
   // Bunny water bucket (#224) — same tilted pail of water as the others; it's still
   // literally a bucket of water, distinguished only by the bunny hutch it's drawn from.
   gen(scene, 'iconBucketBunnyWater', 20, 20, (g) => {

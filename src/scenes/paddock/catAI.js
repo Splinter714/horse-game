@@ -1,51 +1,52 @@
-// Cat AI — the scene-coupled half of the cat's fishing behavior (#163). The pure
-// decision (catFish.test) lives in data (src/data/species/cat/behaviors.js); this
-// mixin holds the context snapshot it reads and the `run` primitive it triggers.
+// Cat AI — the scene-coupled half of the cat's feeding/fishing behaviors (#163/#202).
+// The pure decisions (seekFood/seekWater/catFish `test`) live in data
+// (src/data/species/cat/behaviors.js); this mixin holds the context snapshot they
+// read and the `run` primitives they trigger.
 //
-// A hungry cat pads to the nearest stream bank, crouches, and pounces at the water —
-// but it NEVER actually catches anything: each pounce is just a splash and a ripple,
-// so no fish is ever harmed (#201). Fishing is purely a charming attempt; it does NOT
-// feed the cat. The cat's real hunger/thirst sources are the dropped cat-food/
-// cat-water piles from its food/water bowls (#202 refinement) — fishing is just a
-// fallback distraction when nothing's out. Reuses the shared movement primitive
-// (moveCreatureTo) and the stream's ripple from WithWildlife (_fishRipple).
+// #202 rework — the cat eats and drinks DIRECTLY from its food + water bowls: a
+// hungry/thirsty cat walks to a stocked bowl and consumes a serving from it
+// (catEatFromBowl), lowering the bowl's level. The player's job is to keep the bowls
+// filled (worldObjects.js fillCatBowl). Only when NO bowl has food does a hungry cat
+// fall back to the stream, where it pads to the bank, crouches, and pounces — but it
+// NEVER catches anything: each pounce is just a splash and a ripple, so no fish is
+// ever harmed (#201) and fishing does NOT feed the cat. Reuses the shared movement
+// primitive (moveCreatureTo) and the stream's ripple from WithWildlife (_fishRipple).
 
 import Phaser from 'phaser';
-import { playDrink } from '../../audio/sounds.js';
+import { EVENTS } from '../../data/events.js';
+import { drainBowlLevel, bowlHasFood } from '../../data/bowls.js';
+import { playEat, playDrink } from '../../audio/sounds.js';
 
 const EDGE_OFFSET = 46;  // stand this far down the field normal from the water centreline
 
 export const WithCatAI = (Base) => class extends Base {
   // Context snapshot for the cat's behavior `test`s (dispatched from behaviors.js).
-  // What seekFood needs: how hungry it is + distance to the nearest reachable dropped
-  // cat-food pile. What seekWater needs: how thirsty it is + distance to the nearest
-  // reachable dropped cat-water pile. Both via the shared _nearestReachableHay lookup
-  // (species-generic despite the filename), filtered to each content so the cat
-  // doesn't confuse its food bowl's pile for its water bowl's (#202 refinement). What
-  // catFish needs: whether a stream is reachable and whether it's night (the cat goes
-  // home to sleep then, so it shouldn't fish).
+  // #202 rework — seekFood/seekWater now read the distance to the cat's FOOD/WATER
+  // BOWL, but only when that bowl is actually STOCKED (level > 0); an empty bowl reads
+  // as Infinity so a hungry cat falls through to fishing (food) or just wanders
+  // (water) rather than pacing an empty dish. catFish still needs whether a stream is
+  // reachable and whether it's night (the cat goes home to sleep then).
   _catContext(a) {
     const cat = a.model;
     const spot = this._nearestStreamSpot(a);
     const streamDist = spot
       ? Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, spot.x, spot.y)
       : Infinity;
-    const foodPile = this._nearestReachableHay(a, 'catFood');
-    const nearestFoodDist = foodPile
-      ? Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, foodPile.x, foodPile.y)
-      : Infinity;
-    const waterPile = this._nearestReachableHay(a, 'catWater');
-    const nearestWaterDist = waterPile
-      ? Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, waterPile.x, waterPile.y)
-      : Infinity;
     return {
       hunger: cat?.stats?.hunger ?? 100,
       thirst: cat?.stats?.thirst ?? 100,
-      nearestFoodDist,
-      nearestWaterDist,
+      nearestFoodDist:  this._catBowlDist(a, this.props.catFoodBowl),
+      nearestWaterDist: this._catBowlDist(a, this.props.catWaterBowl),
       streamDist,
       isNight: !!this.isNight,
     };
+  }
+
+  // Distance from the cat to a bowl, or Infinity if the bowl is missing/empty — an
+  // empty bowl is "nothing to seek". Used by seekFood/seekWater's range test.
+  _catBowlDist(a, bowl) {
+    if (!bowl || !bowlHasFood(bowl.level)) return Infinity;
+    return Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, bowl.x, bowl.y);
   }
 
   // The nearest stream bank the cat can fish from. Unlike the horses' drink anchor
@@ -63,6 +64,52 @@ export const WithCatAI = (Base) => class extends Base {
       if (d < bestD) { bestD = d; best = { x, y, bank: s.bank, nrm: s.nrm }; }
     }
     return best;
+  }
+
+  // run() for seekFood/seekWater (#202 rework): the cat walks up to a stocked bowl
+  // and consumes one serving DIRECTLY from it — head down at the bowl's edge, the
+  // eat/drink pose + sound, then the matching care action (feed → hunger, water →
+  // thirst) and the bowl's level drops by one (empties the dish over several visits).
+  // `action` is 'feed' (food bowl) or 'water' (water bowl). Returns true once it
+  // claims the cat; false if the bowl vanished/emptied before it committed.
+  catEatFromBowl(a, bowl, action) {
+    if (!bowl || !bowlHasFood(bowl.level) || !a.sprite.active) return false;
+
+    a.state = 'eating';
+    a._eatBowl = bowl;
+    if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
+
+    const facingRight = bowl.x >= a.sprite.x;
+    const tx = bowl.x + (facingRight ? -34 : 34);
+    const ty = bowl.y - 6; // stand just at the dish's rim
+
+    this.moveCreatureTo(a, tx, ty, () => {
+      if (a.state !== 'eating' || !a.sprite.active) return;
+      if (!bowlHasFood(bowl.level)) { this._catEatDone(a); return; } // someone/thing emptied it
+      a.sprite.setFlipX(!facingRight);
+      a.sprite.play(`eat_${a.key}`, true); // head-down eat/drink pose (catArt drawCatEat)
+      if (action === 'water') playDrink(); else playEat('catFood');
+
+      a.eatTimer = this.time.delayedCall(1600, () => {
+        a.eatTimer = null;
+        if (a.state !== 'eating' || !a.sprite.active) return;
+        a.model?.applyAction(action);
+        this.game.events.emit(EVENTS.STATS_CHANGED);
+        this._setCatBowlLevel(bowl, drainBowlLevel(bowl.level)); // a serving eaten empties the dish a bit
+        this._catEatDone(a);
+      });
+    });
+    return true;
+  }
+
+  // Stand up from the bowl and go back to the prowl.
+  _catEatDone(a) {
+    if (a.eatTimer) { this.time.removeEvent(a.eatTimer); a.eatTimer = null; }
+    a._eatBowl = null;
+    if (!a.sprite.active) return;
+    a.sprite.play(`idle_${a.key}`, true);
+    a.state = 'idle';
+    this.scheduleAnimalWander(a, Phaser.Math.Between(1200, 2600));
   }
 
   // run() for catFish: claim the cat, walk it to the bank, then fish. Returns true

@@ -15,7 +15,7 @@
 
 import Phaser from 'phaser';
 import { CONTENT_DEFS } from '../../data/items.js';
-import { TROUGH_CAP, PASTURE_BOUNDS, STAND_DEFS } from './constants.js';
+import { TROUGH_CAP, BOWL_CAP, PASTURE_BOUNDS, STAND_DEFS } from './constants.js';
 
 export const WithInteractables = (Base) => class extends Base {
   buildInteractables() {
@@ -76,6 +76,26 @@ export const WithInteractables = (Base) => class extends Base {
         activate: () => this.fillTrough(),
       }];
     };
+
+    // Cat bowls (#202 rework) — refill targets, NOT gather sources. The cat eats and
+    // drinks from them directly; the player keeps them stocked. Offer "Fill Food Bowl"
+    // when holding a basket of cat food, "Fill Water Bowl" when holding a bucket of
+    // water — until the bowl is brim-full — mirroring the trough's fill descriptor.
+    const catBowl = (content, propKey, label) => (item) => {
+      const b = this.props[propKey];
+      if (!b || b.level >= BOWL_CAP || item?.content !== content || item.count <= 0) return [];
+      return [{
+        x: b.x, y: b.y, tapRadius: 120, reachDist: 100, promptOffsetY: 60,
+        canAct: true, label: `Fill ${label}`,
+        approach: (world) => {
+          const refX = world ? world.x : this.player.sprite.x;
+          return { x: b.x + (refX < b.x ? -1 : 1) * 44, y: b.y + 8 };
+        },
+        activate: () => this.fillCatBowl(content),
+      }];
+    };
+    const catFoodBowl  = catBowl('catFood', 'catFoodBowl',  'Food Bowl');
+    const catWaterBowl = catBowl('water',   'catWaterBowl', 'Water Bowl');
 
     const sources = (item) => {
       if (!item || item.type !== 'carrier') return [];
@@ -159,12 +179,12 @@ export const WithInteractables = (Base) => class extends Base {
     // held item (assignment is a bare-hand interaction).
     const barn = () => this._barnInteractables?.() ?? [];
 
-    this.interactables = [gate, house, shop, barn, trough, sources, nests, farmStand, spinningWheel];
+    this.interactables = [gate, house, shop, barn, trough, catFoodBowl, catWaterBowl, sources, nests, farmStand, spinningWheel];
     // Split by input: gate/house/shop/barn are bare-hand "interact" targets (tap/click/E);
     // the rest require a carried tool/carrier and are triggered by Use (the
     // on-screen button / F / controller). See useActiveTool + handleTap.
     this.interactWorld = [gate, house, shop, barn];
-    this.toolWorld     = [trough, sources, nests, farmStand, spinningWheel];
+    this.toolWorld     = [trough, catFoodBowl, catWaterBowl, sources, nests, farmStand, spinningWheel];
   }
 
   // Nearest activatable instance to (x, y) within each instance's own radius

@@ -45,6 +45,12 @@ export const PASTURE_BOUNDS = { minX: 180, maxX: 1740, minY: 910, maxY: 1450 };
 export const TROUGH_CAP = 9;
 export const TROUGH_PER_BUCKET = 3;
 
+// Cat food + water bowls (#202 rework). Each bowl holds a numeric level 0..BOWL_CAP
+// in "servings": the player refilling it (a scoop of cat food / a pour of water)
+// tops it to BOWL_CAP, and each meal the cat takes lowers it by one. The bowl sprite
+// swaps between its filled and empty texture as the level crosses zero.
+export const BOWL_CAP = 4;
+
 // Gate opening in the top pasture fence (the only gap; gate sits here).
 export const GATE_X = 960;
 export const GATE_GAP_X0 = 900;
