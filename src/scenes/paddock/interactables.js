@@ -1,5 +1,5 @@
 // World interactables — the static props you activate with the primary action
-// (gate, barn, trough, gathering sources, nests, farm stand). Each is a
+// (gate, house, trough, gathering sources, nests, farm stand). Each is a
 // self-describing descriptor so both input paths (handleTap and the proximity
 // pass) share one declarative list instead of two parallel blocks — adding an
 // activatable object is a single descriptor. Extracted from player.js (issue #167).
@@ -30,13 +30,15 @@ export const WithInteractables = (Base) => class extends Base {
       }];
     };
 
-    const barn = () => {
-      const b = this.props.barn;
+    // House (#241) — the home base you walk up to and sleep in until morning.
+    // (The separate horse barn has no interaction yet; its interior is #35.)
+    const house = () => {
+      const b = this.props.house;
       if (!b) return [];
       return [{
         x: b.x, y: b.y, tapRadius: 130, reachDist: 150, promptOffsetY: 40,
         canAct: true, label: 'Sleep',
-        approach: () => ({ x: b.x, y: b.y + 95 }), // walk to just below the barn
+        approach: () => ({ x: b.x, y: b.y + 95 }), // walk to just below the house
         activate: () => this.sleep(),
       }];
     };
@@ -137,11 +139,11 @@ export const WithInteractables = (Base) => class extends Base {
       }];
     };
 
-    this.interactables = [gate, barn, trough, sources, nests, farmStand, spinningWheel];
-    // Split by input: gate/barn are bare-hand "interact" targets (tap/click/E);
+    this.interactables = [gate, house, trough, sources, nests, farmStand, spinningWheel];
+    // Split by input: gate/house are bare-hand "interact" targets (tap/click/E);
     // the rest require a carried tool/carrier and are triggered by Use (the
     // on-screen button / F / controller). See useActiveTool + handleTap.
-    this.interactWorld = [gate, barn];
+    this.interactWorld = [gate, house];
     this.toolWorld     = [trough, sources, nests, farmStand, spinningWheel];
   }
 

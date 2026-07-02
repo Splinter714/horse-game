@@ -10,7 +10,7 @@
 // crossing — when it's OPEN these behaviors path through it (the dog trots in among
 // the sheep; the cat curls up with a resting horse), exactly like a horse heading out
 // to the stream. When it's SHUT they stay on the reachable side (the dog postures at
-// the fence and the sheep still bunch; the cat curls by the dog/barn). Gate state is
+// the fence and the sheep still bunch; the cat curls by the dog/house). Gate state is
 // read via _gateOpen() per bout, so it always matches the player's current setup.
 
 import Phaser from 'phaser';
@@ -238,7 +238,7 @@ export const WithCharm = (Base) => class extends Base {
 
   // Called per animal from restAllAnimals at nightfall. Horses are the herd centre —
   // they bed down where they stand. Other pasture animals (sheep/pig/cow) drift in to
-  // join the herd; the dog beds down near the barn. A cozy "settle together" without
+  // join the herd; the dog beds down near the house. A cozy "settle together" without
   // dragging the whole herd around.
   _settleAnimalForNight(a) {
     this._endCharmNap(a); // tidy up any in-progress daytime nap first
@@ -264,7 +264,7 @@ export const WithCharm = (Base) => class extends Base {
   }
 
   // The cozy huddle centre for animal `a`: pasture animals gather toward the horse-
-  // herd centroid; yard roamers (the dog) bed down near the barn.
+  // herd centroid; yard roamers (the dog) bed down near the house.
   _nightHuddleAnchor(a) {
     const b = a.homeBounds ?? BOUNDS;
     if (b === PASTURE_BOUNDS) {
@@ -275,14 +275,14 @@ export const WithCharm = (Base) => class extends Base {
         y: hs.reduce((s, h) => s + h.sprite.y, 0) / hs.length,
       };
     }
-    const e = this._barnEntry();
+    const e = this._houseEntry();
     return { x: e.x, y: e.y + 40 };
   }
 
   // ─── Cat curls up for the night (#187) ──────────────────────────────────────
 
-  // Instead of slipping into the barn, the cat sometimes curls up outside by the
-  // nearest resting companion in its own yard (the dog), or just by the barn — a
+  // Instead of slipping into the house, the cat sometimes curls up outside by the
+  // nearest resting companion in its own yard (the dog), or just by the house — a
   // cozy night beat. Stays curled (squash + Zzz) until morning wake.
   catCurlUp(a) {
     if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
@@ -295,7 +295,7 @@ export const WithCharm = (Base) => class extends Base {
       const side = buddy.sprite.x < a.sprite.x ? 26 : -26;
       spot = { x: buddy.sprite.x + side, y: buddy.sprite.y + 6 };
     } else {
-      const e = this._barnEntry();
+      const e = this._houseEntry();
       spot = { x: e.x + 34, y: e.y + 16 };
     }
 

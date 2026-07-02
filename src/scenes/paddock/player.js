@@ -11,9 +11,10 @@ import { loadDevSettings } from '../../data/save.js';
 import { dprOf, logicalH } from '../uiUtils.js';
 
 // Named boot-spawn points for the "Start at" dev tool (pause menu). Each is a
-// walkable spot next to that landmark; an unset/unknown pick falls back to Barn.
+// walkable spot next to that landmark; an unset/unknown pick falls back to House.
 const START_SPAWNS = {
-  Barn:         { x: 300,  y: 420 },  // default: in front of the barn (NW)
+  House:        { x: 300,  y: 420 },  // default: in front of the house (NW home base)
+  Barn:         { x: 520,  y: 810 },  // in front of the horse barn (#241)
   Pasture:      { x: 960,  y: 1180 }, // middle of the paddock, among the horses
   Gate:         { x: 960,  y: 850 },  // just NORTH of the pasture gate (farm-yard side)
   'Farm stand': { x: 1600, y: 840 },  // at the farm-stand counter (E edge)
@@ -42,11 +43,11 @@ export const WithPlayer = (Base) => class extends Base {
       { key: 'player_side_2' }, { key: 'player_side_3' },
     ], 8);
 
-    // Start in front of the barn (NW corner) so there's a walk-up approach down
+    // Start in front of the house (NW corner) so there's a walk-up approach down
     // to the pasture gate at (960, 910) rather than spawning right on top of it.
     // The "Start at" dev tool (pause menu) can override the boot spawn to another
-    // landmark for quicker testing; an unset pick uses the barn default.
-    const spawn = START_SPAWNS[loadDevSettings().startLocation] || START_SPAWNS.Barn;
+    // landmark for quicker testing; an unset pick uses the house default.
+    const spawn = START_SPAWNS[loadDevSettings().startLocation] || START_SPAWNS.House;
     const startX = spawn.x;
     const startY = spawn.y;
 
@@ -238,7 +239,7 @@ export const WithPlayer = (Base) => class extends Base {
       }
     }
 
-    // Bare-hand world interactables — gate, barn (tool-based ones like the
+    // Bare-hand world interactables — gate, house (tool-based ones like the
     // trough/nests/stand are triggered by Use instead).
     if (this._tapInteractable(world, item)) return;
 

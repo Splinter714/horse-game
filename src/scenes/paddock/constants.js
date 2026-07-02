@@ -112,9 +112,9 @@ export const CHARM = {
   WALLOW_COOLDOWN: 20000, // min ms between wallows (keeps it occasional)
   WALLOW_MS: 1800,        // how long the flop/roll lasts
   // Night settling: non-horse pasture animals drift in to bed down with the herd;
-  // the dog beds down near the barn; the cat curls by a companion or the barn.
+  // the dog beds down near the house; the cat curls by a companion or the house.
   CLUSTER_CHANCE: 0.7,  // odds an animal drifts to the night huddle (else rests put)
-  CAT_CURL_CHANCE: 0.5, // odds the cat curls outside instead of going into the barn
+  CAT_CURL_CHANCE: 0.5, // odds the cat curls outside instead of going into the house
 };
 
 // Cleanliness (issue #26): below DUST_CLEAN_AT grooming the dust overlay starts
