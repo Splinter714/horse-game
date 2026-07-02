@@ -5,7 +5,8 @@
 
 import Phaser from 'phaser';
 import { CONTENT_DEFS } from '../../data/items.js';
-import { PLAYER_BOUNDS, TROUGH_CAP, TROUGH_PER_BUCKET, S } from './constants.js';
+import { PLAYER_BOUNDS, PASTURE_BOUNDS, TROUGH_CAP, TROUGH_PER_BUCKET, S } from './constants.js';
+import { gateNudgeY } from './gateNudge.js';
 import { playSplash } from '../../audio/sounds.js';
 
 export const WithWorldObjects = (Base) => class extends Base {
@@ -118,10 +119,12 @@ export const WithWorldObjects = (Base) => class extends Base {
       const p = this.player?.sprite;
       const g = this.gateObstacle;
       if (p && this._hits(p.x, p.y, 14, g)) {
-        // Strongly favor nudging the player north (toward the farm). Only push
-        // them south into the pasture if they're clearly in the bottom portion.
-        const nudgeSouth = p.y > g.y + g.h * 0.8;
-        p.y = nudgeSouth ? g.y + g.h + 15 : g.y - 15;
+        // Nudge to whichever side the player is already on, with the switchover at
+        // the true fence line (PASTURE_BOUNDS.minY) — the same north/south divide
+        // _settleAtGate uses for creatures. The old threshold (g.y + g.h*0.8) was an
+        // offset that biased north, so a player standing just south of the line still
+        // got shoved back into the farm (#117).
+        p.y = gateNudgeY(p.y, g, PASTURE_BOUNDS.minY);
         p.y = Phaser.Math.Clamp(p.y, PLAYER_BOUNDS.minY, PLAYER_BOUNDS.maxY);
         if (this.player.shadow) this.player.shadow.y = p.y;
       }
