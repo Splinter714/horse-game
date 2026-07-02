@@ -98,18 +98,25 @@ export const WithRendering = (Base) => class extends Base {
         const groom = allHorses[h.key]?.stats.grooming ?? 100;
         const dirt  = Phaser.Math.Clamp((DUST_CLEAN_AT - groom) / DUST_CLEAN_AT, 0, 1);
         // The dust/stink overlays are the STANDING horse shape, so they'd float
-        // awkwardly over the lying-down sleep/roll poses. Hide them whenever a
-        // lying-down frame is showing — asleep at night (#102) or mid-roll on its
-        // back (#70). They reappear (darker, if the roll dirtied it) on standing.
+        // awkwardly over the lying-down sleep pose — hide them while asleep at night
+        // (#102). During the roll (#70), though, keep the dust cloud + stink lines on
+        // the torso (playtest fix): the horse is rolling *because* it's filthy, so the
+        // stink should read right through the roll until it kicks back up cleaner.
         const animKey = h.sprite.anims?.currentAnim?.key;
-        const lying = animKey === `sleep_${h.key}` || animKey === `roll_${h.key}`;
+        const lying = animKey === `sleep_${h.key}`;
+        // While rolling, the belly-up torso sits ~14 design px lower in the frame than
+        // the standing body (the roll pose's `dy` seat), so drop the standing-shape
+        // overlays by that much (× S world px) to keep the dust cloud + stink lines
+        // planted on the torso rather than floating up where the standing back was.
+        const rolling = animKey === `roll_${h.key}`;
+        const rollDrop = rolling ? 14 * S : 0;
         // The body art bobs 1 design-pixel (= S world px) on the odd idle/walk
         // frames; mirror that here so the dust splotches and stink lines bounce
         // *with* the horse instead of floating over the breathing body.
         const frameKey = h.sprite.frame?.texture?.key || '';
         const bob = /(_1|_3)$/.test(frameKey) ? S : 0;
         h.dustOverlay.x = h.sprite.x;
-        h.dustOverlay.y = h.sprite.y + bob;
+        h.dustOverlay.y = h.sprite.y + bob + rollDrop;
         h.dustOverlay.setFlipX(h.sprite.flipX);
         h.dustOverlay.angle = h.sprite.angle; // follow the body (e.g. while rolling)
         h.dustOverlay.setDepth(h.sprite.y);
@@ -121,7 +128,7 @@ export const WithRendering = (Base) => class extends Base {
           const stink = Phaser.Math.Clamp((STINK_AT - groom) / STINK_AT, 0, 1);
           const waver = Math.sin(this.time.now / 220 + h._stinkPhase);
           h.stinkOverlay.x = h.sprite.x;
-          h.stinkOverlay.y = h.sprite.y - 66 + waver * 3 + bob;
+          h.stinkOverlay.y = h.sprite.y - 66 + waver * 3 + bob + rollDrop;
           h.stinkOverlay.setDepth(h.sprite.y + 1);
           h.stinkOverlay.setAlpha(stink * (0.75 + 0.25 * waver));
           h.stinkOverlay.setVisible(stink > 0 && !lying);

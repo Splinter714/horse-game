@@ -647,8 +647,9 @@ function drawHorseRoll(g, coat, bob, phase) {
   // --- legs waving up (drawn first, behind the belly that rises over them) ---
   g.layer('legs');
   // Hind pair roots near the rump (left), fore pair near the chest (right). Root Y is
-  // the top of the belly barrel so the legs sprout from the underside now facing up.
-  const legRootY = 24 + yo;
+  // near the top of the (now full-height) belly barrel so the legs sprout from the
+  // risen underside facing up.
+  const legRootY = 20 + yo;
   rollLegUp(g, 15, legRootY, KICK.len - 1, KICK.hind, b, false, coat.hoof); // hind far
   rollLegUp(g, 40, legRootY, KICK.len - 1, KICK.fore, b, false, coat.hoof); // fore far
   rollLegUp(g, 18, legRootY, KICK.len,     KICK.hind, b, true,  coat.hoof); // hind near
@@ -660,19 +661,21 @@ function drawHorseRoll(g, coat, bob, phase) {
   g.fillStyle(m.lo, 1);  g.fillRect(3, 27 + yo, 4, 3);
   g.fillStyle(m.mid, 1); g.fillRect(1, 29 + yo, 3, 2);
 
-  // --- body: a low rounded barrel, belly-up. Belly (light) on top, spine (shadow)
-  // tucked at the ground line. ---
+  // --- body: a rounded barrel, belly-up. Belly (light) on top, spine (shadow)
+  // tucked at the ground line. Sized to read the same mass as the standing torso
+  // (#70 playtest fix): the standing body barrel spans ~41px wide × ~18px tall, so
+  // the belly rises to y=18 here instead of the earlier squashed ~11px barrel. ---
   g.layer('body');
   g.fillStyle(b.mid, 1);
-  g.fillRect(10, 24 + yo, 38, 10);    // main barrel
-  g.fillRect(9,  26 + yo, 1, 6);      // rounded left (rump) edge
-  g.fillRect(48, 26 + yo, 1, 6);      // rounded right (chest) edge
+  g.fillRect(10, 18 + yo, 38, 16);    // main barrel (full torso height, belly risen)
+  g.fillRect(9,  20 + yo, 1, 12);     // rounded left (rump) edge
+  g.fillRect(48, 20 + yo, 1, 12);     // rounded right (chest) edge
   g.fillStyle(b.hi, 1);
-  g.fillRect(10, 23 + yo, 38, 3);     // belly-up highlight (now the topline)
+  g.fillRect(10, 17 + yo, 38, 4);     // belly-up highlight (now the topline)
   g.fillStyle(b.lo, 1);
   g.fillRect(10, 32 + yo, 38, 2);     // spine/ground shadow underneath
   // rounded-barrel shading, flipped: sheen high on the exposed belly
-  g.fillStyle(HILITE, 0.10); g.fillRect(12, 23.5 + yo, 34, 1.25);
+  g.fillStyle(HILITE, 0.10); g.fillRect(12, 17.5 + yo, 34, 1.25);
   g.fillStyle(SHADE, 0.10);  g.fillRect(11, 32.5 + yo, 36, 1.25);
 
   drawDorsal(g, coat, yo);
