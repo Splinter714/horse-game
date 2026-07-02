@@ -197,6 +197,16 @@ export default class DayNightScene extends Phaser.Scene {
     if (announce) this.game.events.emit(EVENTS.WEATHER_CHANGE, { weather });
   }
 
+  // Dev trigger (#188/#253): force the weather to a given state on demand, announcing
+  // it so all the paddock hooks react, and re-arm the timer with a fresh duration so
+  // the forced state actually lingers instead of being rolled away next tick.
+  _devSetWeather(weather) {
+    this._weatherReady = true;
+    const { durationMs } = nextWeather(weather, 1);
+    this._weatherLeft = durationMs;
+    this._setWeather(weather, /* announce */ true);
+  }
+
   // Build the rain particle field: a pool of thin pale streaks that fall and wrap.
   // Drawn once per frame into a single Graphics object (cheap, renderer-agnostic —
   // no WebGL particle emitter, so it works under Phaser.CANVAS in the smoke test).
