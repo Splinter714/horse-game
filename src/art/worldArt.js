@@ -63,49 +63,94 @@ export function buildWorldTextures(scene) {
     }
   });
 
-  // --- barn (horse barn; its interior/cutaway is #35) ---
-  // FIRST-PASS ART, owner-art-directed (#241): a classic gambrel-roofed red barn
-  // with big central hay doors, a hayloft door + pulley up top, and a cupola.
-  // This is the horses' building — the animals/home-base semantics stay on the
-  // HOUSE above. 96×72 footprint (a touch larger than the house, as barns are).
-  // Dissect tags per part.
-  gen(scene, 'barn', 96, 72, (g) => {
+  // --- barn interior + cutaway (#35) ---
+  // FIRST-PASS DRAFT ART, owner-art-directed. The barn is now a walk-in building
+  // rendered as two stacked textures so it can do an in-world CUTAWAY: when the
+  // player steps inside, the front-wall/roof façade (`barnFront`) fades out to
+  // reveal the interior (`barnInterior`) drawn beneath it. See scenes/paddock/barn.js.
+  //
+  // Footprint is 160×132 design px (origin 0.5,1 at the SOUTH doorway). At scale
+  // S=2 that's 320×264 world px — real walkable interior depth, per #35's note that
+  // the old #241 placeholder was too small to walk into. Dissect tags per part.
+  const BARN_W = 160, BARN_H = 132;
+
+  // INTERIOR — floor, back/side inner walls, a row of 4 stalls along the back, and a
+  // tack room in the left bay. Drawn UNDER animals/player (low depth) so anything
+  // standing inside occludes it correctly. The south edge (y≈H) is the open doorway.
+  gen(scene, 'barnInterior', BARN_W, BARN_H, (g) => {
+    g.layer('floor');
+    g.fillStyle(0x6a5236, 1); g.fillRect(8, 18, 144, 110);           // packed-dirt floor
+    g.fillStyle(0x5e492f, 1);                                        // plank/board seams
+    for (let y = 30; y < 128; y += 12) g.fillRect(10, y, 140, 1);
+    g.fillStyle(0x775c3c, 1);                                        // straw scatter (light)
+    for (const [sx, sy] of [[40, 100], [96, 112], [130, 96], [60, 120]]) g.fillRect(sx, sy, 6, 1);
+    g.layer('backwall');
+    g.fillStyle(0x8a3020, 1); g.fillRect(8, 18, 144, 16);            // inner back wall (shaded red)
+    g.fillStyle(0x7a2a1c, 1); g.fillRect(8, 18, 144, 3);            // wall-top shadow line
+    g.layer('stalls');
+    // Four stalls across the back: low dividers + a hay-mound + a nameboard each.
+    for (let i = 0; i < 4; i++) {
+      const x = 40 + i * 30;
+      g.fillStyle(0x6a4420, 1); g.fillRect(x, 30, 3, 30);           // stall divider post
+      g.fillStyle(0x8a5a2e, 1); g.fillRect(x, 44, 3, 3);           // divider rail cap
+    }
+    // Stall goodies drawn in a second pass so their colours don't fight the divider loop.
+    for (let i = 0; i < 4; i++) {
+      const cx = 40 + i * 30 + 15;
+      g.fillStyle(0xd8b060, 1); g.fillRect(cx - 8, 52, 16, 6);      // hay mound
+      g.fillStyle(0xe8c878, 1); g.fillRect(cx - 8, 52, 16, 2);
+      g.fillStyle(0xead9b0, 1); g.fillRect(cx - 7, 36, 14, 6);      // nameboard
+      g.fillStyle(0x6a4420, 1); g.fillRect(cx - 7, 36, 14, 1);
+    }
+    g.layer('tack');
+    // Tack room / corner: a wall-mounted rack with a saddle, bridle and brush.
+    g.fillStyle(0x5a3f24, 1); g.fillRect(10, 66, 26, 3);            // shelf
+    g.fillStyle(0x7a5a34, 1); g.fillRect(13, 58, 10, 8);           // saddle body
+    g.fillStyle(0x5a3f24, 1); g.fillRect(13, 64, 10, 2);          // saddle skirt
+    g.fillStyle(0x2a1c10, 1); g.fillRect(27, 58, 2, 10);          // bridle strap
+    g.fillStyle(0x2a1c10, 1); g.fillCircle(28, 66, 3);           // bridle loop
+    g.fillStyle(0x8a5a2e, 1); g.fillRect(31, 60, 4, 6);          // brush block
+    g.fillStyle(0x3a2410, 1); g.fillRect(31, 65, 4, 2);         // brush bristles
+  });
+
+  // FRONT FAÇADE — the front wall, big doorway, gambrel roof, cupola & hayloft. This
+  // is drawn OVER the interior + occupants (high depth) and is what fades out for the
+  // cutaway. Kept visually consistent with the old #241 barn so it still reads as a barn.
+  gen(scene, 'barnFront', BARN_W, BARN_H, (g) => {
     g.layer('roof');
-    // Gambrel (barn) roof: steep lower slopes + shallow upper slopes.
-    g.fillStyle(0x7a2a1c, 1);
-    g.fillTriangle(4, 30, 48, 6, 92, 30);                            // roof underside/shadow
+    // Gambrel (barn) roof spanning the wide front.
+    g.fillStyle(0x7a2a1c, 1); g.fillTriangle(4, 34, 80, 4, 156, 34);   // underside/shadow
     g.fillStyle(0x9a3826, 1);
-    g.fillPoints([{ x: 8, y: 30 }, { x: 22, y: 16 }, { x: 74, y: 16 }, { x: 88, y: 30 }]); // lower slopes
+    g.fillPoints([{ x: 8, y: 34 }, { x: 34, y: 18 }, { x: 126, y: 18 }, { x: 152, y: 34 }]); // lower slopes
     g.fillStyle(0xb6432e, 1);
-    g.fillPoints([{ x: 22, y: 16 }, { x: 48, y: 6 }, { x: 74, y: 16 }]); // upper cap
-    g.fillStyle(0xc8543c, 1); g.fillRect(8, 29, 80, 2);              // eave trim highlight
+    g.fillPoints([{ x: 34, y: 18 }, { x: 80, y: 4 }, { x: 126, y: 18 }]); // upper cap
+    g.fillStyle(0xc8543c, 1); g.fillRect(8, 33, 144, 2);                // eave highlight
     g.layer('cupola');
-    g.fillStyle(0x9a3826, 1); g.fillRect(44, 0, 8, 8);              // cupola box
-    g.fillStyle(0x5a2418, 1); g.fillTriangle(42, 2, 48, -3, 54, 2); // cupola cap
-    g.fillStyle(0xf0d890, 1); g.fillRect(46, 3, 4, 4);             // cupola vent
+    g.fillStyle(0x9a3826, 1); g.fillRect(74, 0, 12, 8);
+    g.fillStyle(0x5a2418, 1); g.fillTriangle(71, 2, 80, -4, 89, 2);
+    g.fillStyle(0xf0d890, 1); g.fillRect(77, 3, 6, 4);
     g.layer('wall');
-    g.fillStyle(0xb6432e, 1); g.fillRect(10, 30, 76, 40);          // barn wall
-    g.fillStyle(0xc8543c, 1); g.fillRect(10, 30, 76, 5);          // top-lit band
-    g.fillStyle(0x8a2e1e, 1); g.fillRect(10, 66, 76, 4);         // ground shadow
-    g.fillStyle(0x7a2a1c, 1); g.fillRect(10, 30, 3, 40); g.fillRect(83, 30, 3, 40); // corner posts
+    g.fillStyle(0xb6432e, 1); g.fillRect(8, 34, 144, 34);              // front wall band
+    g.fillStyle(0xc8543c, 1); g.fillRect(8, 34, 144, 5);             // top-lit band
+    g.fillStyle(0x7a2a1c, 1); g.fillRect(8, 34, 3, 34); g.fillRect(149, 34, 3, 34); // corner posts
     g.layer('loft');
-    g.fillStyle(0x5a2418, 1); g.fillRect(42, 20, 12, 12);         // hayloft door
-    g.fillStyle(0xd8b060, 1); g.fillRect(44, 22, 8, 8);          // straw glow behind loft
-    g.fillStyle(0x3a1810, 1); g.fillRect(48, 14, 2, 8);         // pulley arm
-    g.fillStyle(0x3a1810, 1); g.fillCircle(49, 14, 2);         // pulley wheel
-    g.layer('doors');
-    // Big central double doors with white X-braces (the classic barn look).
-    g.fillStyle(0x8a5a2e, 1); g.fillRect(34, 40, 28, 30);        // door frame/wood
-    g.fillStyle(0x6a4420, 1); g.fillRect(47, 40, 2, 30);       // door split
-    g.fillStyle(0xe8dcc0, 1);                                    // white cross-braces
-    g.fillRect(36, 41, 10, 2); g.fillRect(50, 41, 10, 2);      // top rails
-    g.fillRect(36, 67, 10, 2); g.fillRect(50, 67, 10, 2);      // bottom rails
-    g.fillTriangle(36, 42, 45, 67, 46, 67); g.fillTriangle(45, 42, 36, 67, 37, 67); // left X
-    g.fillTriangle(50, 42, 59, 67, 60, 67); g.fillTriangle(59, 42, 50, 67, 51, 67); // right X
+    g.fillStyle(0x5a2418, 1); g.fillRect(72, 22, 16, 12);            // hayloft door
+    g.fillStyle(0xd8b060, 1); g.fillRect(75, 24, 10, 8);           // straw glow
+    g.fillStyle(0x3a1810, 1); g.fillRect(79, 15, 2, 8); g.fillCircle(80, 15, 2); // pulley
+    g.layer('doorway');
+    // A big open central doorway (the dark interior shows through). Framed jambs +
+    // a header, with the two doors swung open flat against the wall to either side.
+    g.fillStyle(0x2a1c10, 1); g.fillRect(60, 40, 40, 92);           // dark doorway opening
+    g.fillStyle(0x6a4420, 1); g.fillRect(56, 38, 4, 94); g.fillRect(100, 38, 4, 94); // jambs
+    g.fillStyle(0x6a4420, 1); g.fillRect(56, 38, 48, 4);           // header
+    g.fillStyle(0x8a5a2e, 1);                                       // open doors flat on the wall
+    g.fillRect(40, 40, 16, 28); g.fillRect(104, 40, 16, 28);
+    g.fillStyle(0xe8dcc0, 1);                                       // white braces on the doors
+    g.fillTriangle(41, 41, 55, 67, 56, 67); g.fillTriangle(105, 41, 119, 67, 120, 67);
     g.layer('window');
-    for (const wx of [18, 70]) {
-      g.fillStyle(0xf0d890, 1); g.fillRect(wx, 40, 10, 10);      // lit window
-      g.fillStyle(0x7a2a1c, 1); g.fillRect(wx + 4, 40, 2, 10); g.fillRect(wx, 44, 10, 2); // muntins
+    for (const wx of [22, 124]) {
+      g.fillStyle(0xf0d890, 1); g.fillRect(wx, 44, 12, 12);
+      g.fillStyle(0x7a2a1c, 1); g.fillRect(wx + 5, 44, 2, 12); g.fillRect(wx, 49, 12, 2);
     }
   });
 
@@ -297,6 +342,44 @@ export function buildWorldTextures(scene) {
     // Table legs
     g.fillStyle(0x7a4820, 1);
     g.fillRect(8, 34, 4, 10); g.fillRect(60, 34, 4, 10);
+  });
+
+  // --- Shop / market stall (72 × 48) — where the player SPENDS gold on feed (#29).
+  // Deliberately distinct from the red farm stand: a blue-striped canopy over a
+  // crate-stacked counter so the two economy stations read apart at a glance.
+  // Origin (0.5, 1), same footprint style as the farm stand. ---
+  gen(scene, 'shopStall', 72, 48, (g) => {
+    g.layer('poles');
+    // Canopy poles
+    g.fillStyle(0x6a4a28, 1);
+    g.fillRect(4, 10, 4, 38); g.fillRect(64, 10, 4, 38);
+    g.layer('canopy');
+    // Blue-and-cream striped awning
+    for (let x = 0; x < 72; x += 12) {
+      g.fillStyle(x % 24 === 0 ? 0x3a72b0 : 0xeae4d2, 1);
+      g.fillRect(x, 4, 12, 14);
+    }
+    // Scalloped edge
+    for (let x = 0; x < 72; x += 12) {
+      g.fillStyle(x % 24 === 0 ? 0x3a72b0 : 0xeae4d2, 1);
+      g.fillEllipse(x + 6, 18, 10, 6);
+    }
+    g.layer('counter');
+    // Counter top
+    g.fillStyle(0x9a6430, 1); g.fillRect(4, 24, 64, 12);
+    g.fillStyle(0xb87c3c, 1); g.fillRect(4, 24, 64, 4);
+    g.fillStyle(0x805020, 1); g.fillRect(4, 32, 64, 4);
+    g.layer('goods');
+    // Stacked goods crates on the counter (a produce shop)
+    g.fillStyle(0x7a5228, 1); g.fillRect(12, 16, 14, 10); g.fillRect(46, 16, 14, 10);
+    g.fillStyle(0x9a6c38, 1); g.fillRect(12, 16, 14, 3); g.fillRect(46, 16, 14, 3);
+    // A few round produce items poking out of the crates
+    g.fillStyle(0xd85040, 1); g.fillCircle(16, 16, 2); g.fillCircle(22, 16, 2);
+    g.fillStyle(0xe0902c, 1); g.fillCircle(50, 16, 2); g.fillCircle(56, 16, 2);
+    g.layer('legs');
+    // Legs
+    g.fillStyle(0x6a4a28, 1);
+    g.fillRect(8, 36, 4, 12); g.fillRect(60, 36, 4, 12);
   });
 
   // --- Spinning wheel (32 × 40) — the crafting station that spins wool into yarn

@@ -12,6 +12,8 @@ import Phaser from 'phaser';
 import { S, WORLD_W, BOUNDS } from './constants.js';
 import { ART_SCALE } from '../../art/_frames.js';
 import { wildlifeActiveInWeather } from '../../data/weather.js';
+import { BIRD_TYPES, pickBirdType } from '../../data/wildlife.js';
+import { birdTexKey, birdAnimKey } from '../../art/wildlifeArt.js';
 
 // How close the player can get before a ground critter bolts (skittish). Birds in
 // flight and fish ignore the player.
@@ -37,8 +39,14 @@ export const WithWildlife = (Base) => class extends Base {
       if (!this.anims.exists(key)) this.anims.create({ key, frames: frames.map((k) => ({ key: k })), frameRate, repeat: -1 });
     };
     anim('fish_swim', ['fish_0', 'fish_1'], 3);
+    // One fly/peck animation pair per bird type (visual variety, #220). The original
+    // un-prefixed keys stay as the default sparrow for any older references.
     anim('bird_fly', ['bird_fly_0', 'bird_fly_1'], 10);
     anim('bird_peck', ['bird_peck_0', 'bird_peck_1'], 4);
+    for (const t of BIRD_TYPES) {
+      anim(birdAnimKey(t.id, 'fly'), [birdTexKey(t.id, 'fly', 0), birdTexKey(t.id, 'fly', 1)], 10);
+      anim(birdAnimKey(t.id, 'peck'), [birdTexKey(t.id, 'peck', 0), birdTexKey(t.id, 'peck', 1)], 4);
+    }
     anim('raccoon_idle', ['raccoon_idle_0', 'raccoon_idle_1'], 2);
     anim('raccoon_run', ['raccoon_run_0', 'raccoon_run_1', 'raccoon_run_2', 'raccoon_run_3'], 9);
 
@@ -104,6 +112,18 @@ export const WithWildlife = (Base) => class extends Base {
       if (c.kind === 'bird') { c.perchHost = null; this._birdTakeOff(c); }
       else this._raccoonScurryOff?.(c);
     }
+  }
+
+  // Pick a bird type (weighted by rarity, #220) and resolve its texture/animation keys
+  // so a spawn can dress itself in one line. Purely cosmetic — no per-type behavior.
+  _pickBird() {
+    const t = pickBirdType();
+    return {
+      type: t,
+      tex: birdTexKey(t.id, 'fly', 0),
+      flyAnim: birdAnimKey(t.id, 'fly'),
+      peckAnim: birdAnimKey(t.id, 'peck'),
+    };
   }
 
   // Drop a critter: stop its tween, fade it out, remove it from the active list.
@@ -183,9 +203,10 @@ export const WithWildlife = (Base) => class extends Base {
     const arc = Phaser.Math.Between(18, 60);
     const startX = dir === 1 ? -40 : WORLD_W + 40;
     const endX = dir === 1 ? WORLD_W + 40 : -40;
-    const sprite = this.add.sprite(startX, y0, 'bird_fly_0')
-      .setOrigin(0.5, 0.5).setScale(WILD_SCALE).setDepth(100000).setFlipX(dir === -1).play('bird_fly');
-    const c = { sprite, kind: 'bird', ground: false, state: 'flying', tween: null };
+    const b = this._pickBird();
+    const sprite = this.add.sprite(startX, y0, b.tex)
+      .setOrigin(0.5, 0.5).setScale(WILD_SCALE).setDepth(100000).setFlipX(dir === -1).play(b.flyAnim);
+    const c = { sprite, kind: 'bird', ground: false, state: 'flying', tween: null, bird: b };
     this._wildCritters.push(c);
 
     const prox = { p: 0 };
@@ -208,9 +229,10 @@ export const WithWildlife = (Base) => class extends Base {
       if (!this._collides(sx, sy, 16, this.obstacles)) break;
     }
     const dir = Math.random() < 0.5 ? 1 : -1;
-    const sprite = this.add.sprite(dir === 1 ? -40 : WORLD_W + 40, sy - 220, 'bird_fly_0')
-      .setOrigin(0.5, 1).setScale(WILD_SCALE).setDepth(sy).setFlipX(dir === -1).play('bird_fly');
-    const c = { sprite, kind: 'bird', ground: false, state: 'descending', tween: null, fleeing: false };
+    const b = this._pickBird();
+    const sprite = this.add.sprite(dir === 1 ? -40 : WORLD_W + 40, sy - 220, b.tex)
+      .setOrigin(0.5, 1).setScale(WILD_SCALE).setDepth(sy).setFlipX(dir === -1).play(b.flyAnim);
+    const c = { sprite, kind: 'bird', ground: false, state: 'descending', tween: null, fleeing: false, bird: b };
     this._wildCritters.push(c);
 
     sprite.setFlipX(sprite.x > sx); // face the landing spot
@@ -220,7 +242,7 @@ export const WithWildlife = (Base) => class extends Base {
       onComplete: () => {
         if (!sprite.active) return;
         c.ground = true; c.state = 'perched';
-        sprite.play('bird_peck');
+        sprite.play(b.peckAnim);
         this._perchHop(c, Phaser.Math.Between(3, 6));
       },
     });
@@ -245,7 +267,7 @@ export const WithWildlife = (Base) => class extends Base {
     c.fleeing = true; c.ground = false; c.state = 'leaving';
     if (c.tween) { c.tween.stop(); c.tween = null; }
     const sprite = c.sprite;
-    sprite.play('bird_fly');
+    sprite.play(c.bird?.flyAnim ?? 'bird_fly');
     const toLeft = sprite.x < WORLD_W / 2;
     sprite.setFlipX(toLeft);
     c.tween = this.tweens.add({
@@ -302,12 +324,13 @@ export const WithWildlife = (Base) => class extends Base {
     const startX = fromLeft ? view.x - 40 : view.x + view.width + 40;
     const startY = ty - Phaser.Math.Between(80, 160);
 
-    const sprite = this.add.sprite(startX, startY, 'bird_fly_0')
+    const b = this._pickBird();
+    const sprite = this.add.sprite(startX, startY, b.tex)
       .setOrigin(0.5, 1).setScale(WILD_SCALE).setDepth(hy + 1)
-      .setFlipX(startX > tx).play('bird_fly');
+      .setFlipX(startX > tx).play(b.flyAnim);
 
     const c = { sprite, kind: 'bird', ground: false, state: 'descending',
-                tween: null, fleeing: false, perchHost: horse,
+                tween: null, fleeing: false, perchHost: horse, bird: b,
                 _lastHostX: hx, _lastHostY: hy };
     this._wildCritters.push(c);
 
@@ -317,7 +340,7 @@ export const WithWildlife = (Base) => class extends Base {
       onComplete: () => {
         if (!sprite.active || c.fleeing) return;
         c.state = 'perched';
-        sprite.play('bird_peck');
+        sprite.play(b.peckAnim);
         this._horsePerchHop(c, Phaser.Math.Between(5, 9));
       },
     });

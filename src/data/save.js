@@ -136,10 +136,21 @@ function defaultCarriers() {
   };
 }
 
+// Starting gold — a small float so the shop is usable from a fresh save (#29).
+export const DEFAULT_MONEY = 20;
+
+// Coerce a persisted money value into a safe non-negative integer, falling back
+// to the starting stake for a missing/corrupt value (older saves had no money).
+function sanitizeMoney(v) {
+  const n = Math.floor(Number(v));
+  return Number.isFinite(n) && n >= 0 ? n : DEFAULT_MONEY;
+}
+
 export function loadGameState() {
   const fresh = () => ({
     hotbar: [...DEFAULT_HOTBAR], inventory: defaultInventory(),
     carriers: defaultCarriers(), activeCarrier: defaultActiveCarrier(),
+    money: DEFAULT_MONEY,
   });
   try {
     const raw = localStorage.getItem(GAME_STATE_KEY);
@@ -158,15 +169,20 @@ export function loadGameState() {
       inventory:     { ...defaultInventory(),     ...(data.inventory ?? {}) },
       carriers:      { ...defaultCarriers(),      ...(data.carriers ?? {}) },
       activeCarrier: { ...defaultActiveCarrier(), ...(data.activeCarrier ?? {}) },
+      // Money persists across sessions (#29); an older save with no money field
+      // seeds the starting stake so the shop is immediately usable.
+      money:         'money' in data ? sanitizeMoney(data.money) : DEFAULT_MONEY,
     };
   } catch {
     return fresh();
   }
 }
 
-export function saveGameState({ hotbar, inventory, carriers, activeCarrier }) {
+export function saveGameState({ hotbar, inventory, carriers, activeCarrier, money }) {
   try {
-    localStorage.setItem(GAME_STATE_KEY, JSON.stringify({ hotbar, inventory, carriers, activeCarrier }));
+    localStorage.setItem(GAME_STATE_KEY, JSON.stringify({
+      hotbar, inventory, carriers, activeCarrier, money: sanitizeMoney(money),
+    }));
   } catch {}
 }
 
