@@ -12,7 +12,7 @@ export const CARRIER_DEFS = {
   // animal that eats it, #136), so the basket's cap is just a safety ceiling, not a
   // limit you should hit. Kept finite (not Infinity) so it never trips serialization
   // or UI maths — but high enough that the demand always fits (and you can hoard eggs).
-  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'egg', 'wool', 'yarn'] },
+  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'egg', 'eggBrown', 'wool', 'yarn'] },
   bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'bunnyWater', 'milk'] },
 };
 
@@ -41,6 +41,10 @@ export const CONTENT_DEFS = {
   // basket auto-gathers one serving per cat (#136) and demand maths stay data-driven.
   catFood: { label: 'Cat Food', icon: 'iconBasketCatFood', action: 'feed', stocks: 'catFood', feeds: ['cat'] },
   egg:    { label: 'Eggs',    icon: 'iconBasketEgg',    action: 'egg' },
+  // Brown eggs (#276): laid by brown & gold hens (see species/chicken/eggColor.js).
+  // A separate content type so colour rides the existing basket → farm-stand → sell
+  // pipeline unchanged — same 'egg' action, its own icon and sellable stand variant.
+  eggBrown: { label: 'Brown Eggs', icon: 'iconBasketEggBrown', action: 'egg' },
   // Water fills the trough (horses) AND the cat's water bowl (fillCatBowl) — the
   // Use dispatch picks whichever fillable spot the player is facing. Plain water from
   // the well/stream; the cat's water bowl needs no special content (#202 rework).

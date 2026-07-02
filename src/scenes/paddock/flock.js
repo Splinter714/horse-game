@@ -8,6 +8,7 @@
 
 import Phaser from 'phaser';
 import { playPeck, playGather } from '../../audio/sounds.js';
+import { eggContentForChicken } from '../../data/species/chicken/eggColor.js';
 
 export const WithFlock = (Base) => class extends Base {
   // The 2s flock driver. The per-bird decision (peck dropped seed → follow a
@@ -210,7 +211,11 @@ export const WithFlock = (Base) => class extends Base {
         if (a.state !== 'laying') { nest.occupant = null; return; }
         nest.hasEgg = true;
         nest.occupant = null;
-        nest.sprite.setTexture('nestEgg');
+        // Egg colour tracks the laying hen's coat (#276): brown & gold hens lay brown
+        // eggs. Remember the content type so collection stocks the right basket variant,
+        // and pick the matching nest texture (white vs brown egg in the straw).
+        nest.eggContent = eggContentForChicken(this._modelFor(a));
+        nest.sprite.setTexture(nest.eggContent === 'eggBrown' ? 'nestEggBrown' : 'nestEgg');
         a.sprite.play(`idle_${a.key}`, true); // back up off the nest before wandering off
         a.state = 'idle';
         this.scheduleCreatureWander(a, Phaser.Math.Between(2000, 5000));
@@ -222,15 +227,21 @@ export const WithFlock = (Base) => class extends Base {
     if (!nest.hasEgg) return;
     const item = this.getActiveItem();
     if (item?.carrier !== 'basket') return;
+    // Egg colour set at lay time (#276) — default to white for older saved nests.
+    const content = nest.eggContent ?? 'egg';
     // Strict contents: a basket already holding something else (or full) refuses.
-    const added = this.scene.get('HotbarScene')?.fillActiveCarrier('egg', 1) ?? 0;
+    // (A brown egg and a white egg are different content types, so a basket holds one
+    // colour at a time — matching the existing no-mixing rule for every other content.)
+    const added = this.scene.get('HotbarScene')?.fillActiveCarrier(content, 1) ?? 0;
     if (added <= 0) return;
     playGather('egg'); // soft pick-up / gentle clink
     nest.hasEgg = false;
+    nest.eggContent = null;
     nest.sprite.setTexture('nest');
 
-    // Floating egg icon feedback
-    const icon = this.add.image(nest.x, nest.y - 20, 'iconEgg')
+    // Floating egg icon feedback — matches the collected egg's colour.
+    const floatIcon = content === 'eggBrown' ? 'iconEggBrown' : 'iconEgg';
+    const icon = this.add.image(nest.x, nest.y - 20, floatIcon)
       .setScale(1.5).setDepth(10000);
     this.tweens.add({
       targets: icon, y: icon.y - 40, alpha: 0,

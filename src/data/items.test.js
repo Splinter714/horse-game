@@ -11,7 +11,8 @@ describe('carrier definitions', () => {
     expect(CARRIER_DEFS.basket.capacity).toBeGreaterThanOrEqual(99);
     // wool/yarn added with shearing (#233) — solids, so they ride in the basket;
     // bunnyFood added with bunnies (#224).
-    expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'egg', 'wool', 'yarn']);
+    // eggBrown added with colored eggs (#276) — brown/gold hens lay brown eggs.
+    expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'egg', 'eggBrown', 'wool', 'yarn']);
     expect(CARRIER_DEFS.bucket.capacity).toBe(1);
     // milk added with the cow (#cow); bunnyWater with bunnies (#224). catWater removed
     // with the #202 rework — the cat's water bowl is filled from a plain bucket of water.
