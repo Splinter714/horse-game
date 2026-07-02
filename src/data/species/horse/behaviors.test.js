@@ -3,16 +3,20 @@
 // horseTickForHorse if-ladder would have. (The scene-coupled `run` half is covered
 // by the smoke test.)
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { chooseBehavior } from '../index.js';
 
 // A content horse with everything topped up and nothing nearby — wanders.
+// (buddyDist Infinity + no bond tuning firing keeps seekBuddy out of these cases;
+// the herd-bond tests below supply their own bond fields.)
 const BASE = {
   hunger: 100, thirst: 100, temperament: 'calm',
   nearestHayDist: Infinity, troughDist: Infinity, streamDist: Infinity,
   hasPlayer: true, gateOpen: false, playerDist: 9999,
   now: 100000, lastSeek: null,
   begHunger: 50, begNoticeDist: 520, begThrottleMs: 8000,
+  happiness: 85, buddyDist: Infinity,
+  bondHappy: 60, bondLingerGap: 120, bondChance: 0.5, bondCooldown: 14000, lastBond: null,
 };
 
 describe('horse chooseBehavior', () => {
@@ -90,5 +94,57 @@ describe('horse chooseBehavior', () => {
     const c = { ...BASE, hunger: 40, playerDist: 300, now: 100000, lastSeek: 95000 };
     expect(chooseBehavior('horse', c)).toBe('graze'); // only 5s since last seek (< 8s) → no beg
     expect(chooseBehavior('horse', { ...c, lastSeek: 90000 })).toBe('begPlayer'); // 10s
+  });
+});
+
+// Cosmetic herd bond (#31): a content horse ambles back to its favoured companion
+// once they've drifted apart. Lowest priority (below graze), so any need wins first.
+// Random roll pinned via Math.random mocking to stay deterministic.
+describe('horse chooseBehavior — seekBuddy (herd bonds #31)', () => {
+  // A content horse with everything topped up, a bonded buddy drifted well away,
+  // off cooldown — so only seekBuddy's own gate (linger gap + roll) decides.
+  const BONDED = { ...BASE, happiness: 85, buddyDist: 300, lastBond: null };
+
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('content horse, buddy drifted apart, roll hits → seekBuddy', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.1); // below bondChance
+    expect(chooseBehavior('horse', BONDED)).toBe('seekBuddy');
+  });
+
+  it('roll misses → wanders (null)', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.9); // above bondChance
+    expect(chooseBehavior('horse', BONDED)).toBe(null);
+  });
+
+  it('buddy already close (within linger gap) → does not amble over', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.1);
+    expect(chooseBehavior('horse', { ...BONDED, buddyDist: 80 })).toBe(null);
+  });
+
+  it('no bonded buddy (buddyDist Infinity) → does not seek', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.1);
+    expect(chooseBehavior('horse', { ...BONDED, buddyDist: Infinity })).toBe(null);
+  });
+
+  it('unhappy horse does not seek out its buddy', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.1);
+    expect(chooseBehavior('horse', { ...BONDED, happiness: 40 })).toBe(null);
+  });
+
+  it('still on cooldown → does not re-amble even if the roll hits', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.1);
+    expect(chooseBehavior('horse', { ...BONDED, lastBond: 90000, now: 100000 })).toBe(null);
+  });
+
+  it('cooldown elapsed and roll hits → ambles over again', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.1);
+    expect(chooseBehavior('horse', { ...BONDED, lastBond: 80000, now: 100000 })).toBe('seekBuddy');
+  });
+
+  it('any real need (hunger) outranks the cosmetic bond amble', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.1);
+    const c = { ...BONDED, hunger: 60, nearestHayDist: 300 };
+    expect(chooseBehavior('horse', c)).toBe('seekFood');
   });
 });

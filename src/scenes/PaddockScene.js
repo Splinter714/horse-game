@@ -179,6 +179,10 @@ export default class PaddockScene
       if (h.saddled) this.equipSaddle(h);
     }
 
+    // Cosmetic herd bonds (#31): pair the roster into favoured companions so bonded
+    // horses linger head-to-tail (seekBuddy behavior). Purely charm — no stat effect.
+    this.assignHerdBonds();
+
     // Foals disabled for now — re-enable by uncommenting
     // this.spawnFoal(h3.sprite.x + 80,  h3.sprite.y, 'foal1', h3); // grey foal → Ash
     // this.spawnFoal(h4.sprite.x - 70,  h4.sprite.y, 'foal2', h4); // paint foal → Splash

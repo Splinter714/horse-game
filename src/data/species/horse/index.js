@@ -80,5 +80,8 @@ export const HORSE = {
   // AI priority list, highest first. The dispatcher walks these in order; the first
   // whose condition fires and successfully claims the horse wins. Wander is the
   // implicit fallback. Modules: ./behaviors.js.
-  behaviors: ['seekFood', 'seekWater', 'seekStream', 'begPlayer', 'graze'],
+  // `seekBuddy` (#31) is the cosmetic herd-bond amble — a content horse drifting back
+  // to its favoured companion. It sits LAST (below graze) so every real need still
+  // wins; it's pure charm with no stat/care effect.
+  behaviors: ['seekFood', 'seekWater', 'seekStream', 'begPlayer', 'graze', 'seekBuddy'],
 };
