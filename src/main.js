@@ -3,6 +3,7 @@ import BootScene from './scenes/BootScene.js';
 import PaddockScene from './scenes/PaddockScene.js';
 import InfoPanelScene from './scenes/InfoPanelScene.js';
 import HotbarScene from './scenes/HotbarScene.js';
+import ShopScene from './scenes/ShopScene.js';
 import DayNightScene from './scenes/DayNightScene.js';
 import ArtPreviewScene from './scenes/ArtPreviewScene.js';
 import CustomizerScene from './scenes/CustomizerScene.js';
@@ -40,7 +41,7 @@ const config = {
   input: {
     gamepad: true
   },
-  scene: [BootScene, PaddockScene, DayNightScene, InfoPanelScene, HotbarScene, ArtPreviewScene, CustomizerScene, PlayerCustomizerScene]
+  scene: [BootScene, PaddockScene, DayNightScene, InfoPanelScene, HotbarScene, ShopScene, ArtPreviewScene, CustomizerScene, PlayerCustomizerScene]
 };
 
 const game = new Phaser.Game(config);

@@ -30,6 +30,19 @@ export const WithInteractables = (Base) => class extends Base {
       }];
     };
 
+    // Shop / market (#29) — walk up and interact to open the buy panel (spend gold on
+    // feed). A bare-hand interact target like the house/gate: no carried item needed.
+    const shop = () => {
+      const s = this.props.shop;
+      if (!s) return [];
+      return [{
+        x: s.x, y: s.y, tapRadius: 150, reachDist: 150, promptOffsetY: 60,
+        canAct: true, label: 'Shop',
+        approach: () => ({ x: s.x, y: s.y + 30 }), // walk to just below the counter
+        activate: () => this.openShop(),
+      }];
+    };
+
     // House (#241) — the home base you walk up to and sleep in until morning.
     // (The separate horse barn has no interaction yet; its interior is #35.)
     const house = () => {
@@ -139,11 +152,11 @@ export const WithInteractables = (Base) => class extends Base {
       }];
     };
 
-    this.interactables = [gate, house, trough, sources, nests, farmStand, spinningWheel];
-    // Split by input: gate/house are bare-hand "interact" targets (tap/click/E);
+    this.interactables = [gate, house, shop, trough, sources, nests, farmStand, spinningWheel];
+    // Split by input: gate/house/shop are bare-hand "interact" targets (tap/click/E);
     // the rest require a carried tool/carrier and are triggered by Use (the
     // on-screen button / F / controller). See useActiveTool + handleTap.
-    this.interactWorld = [gate, house];
+    this.interactWorld = [gate, house, shop];
     this.toolWorld     = [trough, sources, nests, farmStand, spinningWheel];
   }
 
