@@ -258,7 +258,9 @@ export const WithDayNight = (Base) => class extends Base {
   catGoHome(a) {
     if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
     if (a._sleepTimer) { this.time.removeEvent(a._sleepTimer); a._sleepTimer = null; }
+    if (a.eatTimer)    { this.time.removeEvent(a.eatTimer); a.eatTimer = null; } // stop a mid-bowl meal (#202)
     a._eatPile = null;
+    a._eatBowl = null;
     a.state = 'homing';
 
     const { x: ex, y: ey } = this._houseEntry();
