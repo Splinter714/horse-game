@@ -177,3 +177,14 @@ export function dumpScooper(load, compost) {
   if (load <= 0) return { load, compost };
   return { load: 0, compost: compost + load };
 }
+
+// Emptying a carrier into the trash (#284): discard its whole load in one go,
+// reverting the carrier state to empty regardless of what (or how much) it held —
+// generic over any content, nothing recoverable. Returns { state, discarded }: the
+// reset { content:null, count:0 } and how many units were tossed (0 for an already-
+// empty carrier, a no-op). Pure so the discard contract is unit-tested without Phaser.
+export function emptyCarrier(state) {
+  const count = state?.count ?? 0;
+  if (count <= 0) return { state: { content: null, count: 0 }, discarded: 0 };
+  return { state: { content: null, count: 0 }, discarded: count };
+}
