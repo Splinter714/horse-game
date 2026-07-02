@@ -46,6 +46,15 @@ export const CAT = {
   ],
   traits: { personality: 'curious' },
   optionalAttrs: [],
+  // Personality & preferences (#88 v1) — a cat's own vocabulary (it hunts and naps
+  // rather than grazes). Temperament/affinities fall back to the shared defaults.
+  personality: {
+    pools: {
+      activity: ['chasing things', 'napping in the sun', 'exploring', 'watching birds', 'pouncing on leaves'],
+      food: ['fish', 'kibble', 'a saucer of milk'],
+      treat: ['a fresh fish', 'a warm sunbeam', 'a new box to sit in'],
+    },
+  },
   // `hunts` wires the cat's goal-tick at spawn (creatures.js) to the behavior
   // dispatcher, so a hungry cat runs its `behaviors` list (below) before a plain
   // wander — the same hook `grazes` uses for the herbivores.

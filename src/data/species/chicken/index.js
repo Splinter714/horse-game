@@ -29,6 +29,15 @@ export const CHICKEN = {
   ],
   traits: { personality: 'friendly' },
   optionalAttrs: [],
+  // Personality & preferences (#88 v1) — a hen's own vocabulary.
+  personality: {
+    pools: {
+      activity: ['pecking for seeds', 'dust-bathing', 'napping in the sun', 'exploring the yard', 'scratching around'],
+      food: ['seed', 'grain', 'corn', 'fresh greens'],
+      treat: ['a handful of mealworms', 'sweet corn', 'a leafy scrap'],
+      affinities: ['enjoys company', 'loves sunshine', 'loves a good nap', 'loves a dust bath', 'loves scratching about'],
+    },
+  },
   // `pecks` adds the occasional idle ground-peck; `roosts` makes the flock spawn
   // hidden and emerge from the coop in the morning (both wired at spawn in
   // creatures.js from these capability flags, #167 B4).

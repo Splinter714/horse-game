@@ -24,6 +24,12 @@ const ROSTER_BY_ID = Object.fromEntries(ROSTER_SPECIES.map((r) => [r.id, r]));
 
 const CARD_W = 300;
 const PAD    = 16;
+
+// Capitalize the first letter of a display string (e.g. affinity "loves water" →
+// "Loves water"). Leaves the rest untouched.
+function cap(s) {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
 // Brief grace window after opening so the key/tap that opened the popup can't
 // instantly close it on the same input.
 const OPEN_GRACE_MS = 140;
@@ -187,6 +193,11 @@ export default class InfoPanelScene extends WithCustomizerShell(WithCustomizerNa
       infoY += 22;
     }
 
+    // ── Personality & preferences (#88 v1) — display-only, driven by the
+    //    animal's assigned `personality` object. Makes each animal read as an
+    //    individual: temperament + favorites + affinities.
+    infoY = this._addPersonality(animal, infoY);
+
     this.addDivider(infoY);
 
     // ── Stat bars (one per need + happiness) ───────────────────────────
@@ -268,6 +279,43 @@ export default class InfoPanelScene extends WithCustomizerShell(WithCustomizerNa
     g.lineStyle(1, 0xd4cec4, 1);
     g.lineBetween(14, y, CARD_W - 14, y);
     this.panel.add(g);
+  }
+
+  // ── Personality & preferences section (#88 v1, display-only) ────────────────
+  // Renders the animal's assigned personality: a temperament headline plus a few
+  // "Loves …" lines (favorite activity/food/treat + affinities). Purely cosmetic —
+  // no behavior effects this pass. Returns the new y cursor. A no-op (returns y
+  // unchanged) if the animal somehow has no personality.
+  _addPersonality(animal, y) {
+    const p = animal.profile;
+    if (!p) return y;
+
+    let cy = y + 4;
+    // Temperament headline — capitalized, e.g. "A gentle soul".
+    if (p.temperament) {
+      this.panel.add(this.add.text(CARD_W / 2, cy, `A ${p.temperament} soul`, {
+        fontFamily: 'system-ui, sans-serif', fontSize: '13px', color: '#a47a4a',
+        fontStyle: 'italic',
+      }).setOrigin(0.5, 0));
+      cy += 20;
+    }
+
+    // "Loves …" preference lines — left-aligned, compact. Only the ones present.
+    const likes = [];
+    if (p.activity) likes.push(`Loves ${p.activity}`);
+    if (p.food)     likes.push(`Favorite food: ${p.food}`);
+    if (p.treat)    likes.push(`Favorite treat: ${p.treat}`);
+    for (const a of p.affinities ?? []) likes.push(cap(a));
+
+    for (const line of likes) {
+      this.panel.add(this.add.text(14, cy, `• ${line}`, {
+        fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: '#57554f',
+        wordWrap: { width: CARD_W - 28 },
+      }).setOrigin(0, 0));
+      cy += 18;
+    }
+
+    return likes.length || p.temperament ? cy + 4 : y;
   }
 
   refreshStats(animal) {

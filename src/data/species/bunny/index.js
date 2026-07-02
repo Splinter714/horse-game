@@ -70,6 +70,14 @@ export const BUNNY = {
   ],
   traits: { personality: 'gentle' },
   optionalAttrs: [],
+  // Personality & preferences (#88 v1) — a bunny's own vocabulary.
+  personality: {
+    pools: {
+      activity: ['hopping about', 'nibbling clover', 'napping in the shade', 'exploring', 'binkying'],
+      food: ['clover', 'carrots', 'fresh greens', 'hay'],
+      treat: ['a bit of banana', 'a dandelion leaf', 'carrot tops'],
+    },
+  },
   // `grazes` wires the shared food/water goal-tick at spawn (creatures.js) — a hungry
   // or thirsty bunny heads for the nearest dropped pile before a plain wander, exactly
   // like the cow/cat. No riding/leading/eggs.
