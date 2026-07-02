@@ -62,7 +62,9 @@ export default class PaddockScene
     this.promptsOn = loadUiSettings().showPrompts;
 
     // World interactables
-    this.props = { trough: null, hayPiles: [], seedPiles: [], nests: [], sources: [], house: null, barn: null, trashCan: null };
+    // `droppings` (#232) — the animal droppings scattered in the pasture, waiting to
+    // be scooped up with the scooper tool. `compostBin` is the dump spot.
+    this.props = { trough: null, hayPiles: [], seedPiles: [], nests: [], sources: [], house: null, barn: null, trashCan: null, droppings: [], compostBin: null };
     this.inventory = {};
     this.money = 0;
     this.farmStand = null;

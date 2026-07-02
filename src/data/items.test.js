@@ -2,7 +2,8 @@
 // guard the data-driven inventory contract that the rest of the game reads.
 
 import { describe, it, expect } from 'vitest';
-import { CARRIER_DEFS, CONTENT_DEFS, CARRIER_GROUPS, CARRIER_MEMBERS, ALL_ITEMS, ITEM_MAP, ITEMS, foodDemand } from './items.js';
+import { CARRIER_DEFS, CONTENT_DEFS, CARRIER_GROUPS, CARRIER_MEMBERS, ALL_ITEMS, ITEM_MAP, ITEMS, foodDemand,
+  SCOOPER, scoopAmount, scooperHasLoad, dumpScooper } from './items.js';
 
 describe('carrier definitions', () => {
   it('baskets hold solids, buckets hold liquids', () => {
@@ -12,7 +13,9 @@ describe('carrier definitions', () => {
     // wool/yarn added with shearing (#233) — solids, so they ride in the basket;
     // bunnyFood added with bunnies (#224).
     // eggBrown added with colored eggs (#276) — brown/gold hens lay brown eggs.
-    expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'egg', 'eggBrown', 'wool', 'yarn']);
+    // compost added with poop-pickup (#232) — a solid that rides in the basket for
+    // future crop use, even though the scoop/dump loop uses the scooper's own load.
+    expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost']);
     expect(CARRIER_DEFS.bucket.capacity).toBe(1);
     // milk added with the cow (#cow); bunnyWater with bunnies (#224). catWater removed
     // with the #202 rework — the cat's water bowl is filled from a plain bucket of water.
@@ -97,7 +100,8 @@ describe('hotbar items', () => {
     const groups = ALL_ITEMS.filter((i) => i.type === 'carrierGroup');
     const tools  = ALL_ITEMS.filter((i) => i.type === 'tool');
     expect(groups.map((g) => g.key)).toEqual(['basketGroup', 'bucketGroup']);
-    expect(tools.map((t) => t.key)).toEqual(['brush', 'saddle', 'lead']);
+    // scooper added with poop-pickup (#232).
+    expect(tools.map((t) => t.key)).toEqual(['brush', 'saddle', 'lead', 'scooper']);
     // The individual members aren't listed in the hotbar/inventory any more.
     expect(ALL_ITEMS.some((i) => i.type === 'carrier')).toBe(false);
   });
@@ -125,5 +129,56 @@ describe('carrier groups (#75)', () => {
     // …and the group keys resolve to a group item carrying its member list.
     expect(ITEM_MAP.basketGroup.type).toBe('carrierGroup');
     expect(ITEM_MAP.basketGroup.members).toEqual(['basket1', 'basket2', 'basket3', 'basket4']);
+  });
+});
+
+describe('scooper + compost (#232)', () => {
+  it('compost is a stored content — no diet, no ground drop, no sale', () => {
+    expect(CONTENT_DEFS.compost).toBeDefined();
+    expect(CONTENT_DEFS.compost.action).toBe('store');
+    expect(CONTENT_DEFS.compost.feeds).toBeUndefined();  // nobody eats it
+    expect(CONTENT_DEFS.compost.ground).toBeUndefined(); // it doesn't drop as food
+  });
+
+  it('the scooper is a load-carrying tool with a small capacity', () => {
+    const scooper = ITEM_MAP.scooper;
+    expect(scooper.type).toBe('tool');
+    expect(scooper.action).toBe('scoop');
+    expect(SCOOPER.capacity).toBeGreaterThan(0);
+    expect(SCOOPER.content).toBe('compost');
+  });
+
+  it('scoopAmount adds one per scoop until full, then nothing', () => {
+    expect(scoopAmount(0)).toBe(1);
+    expect(scoopAmount(SCOOPER.capacity - 1)).toBe(1);
+    expect(scoopAmount(SCOOPER.capacity)).toBe(0);   // full → can't scoop
+    expect(scoopAmount(SCOOPER.capacity + 5)).toBe(0);
+    // honours an explicit cap
+    expect(scoopAmount(2, 2)).toBe(0);
+    expect(scoopAmount(1, 2)).toBe(1);
+  });
+
+  it('scooperHasLoad reflects whether there is anything to dump', () => {
+    expect(scooperHasLoad(0)).toBe(false);
+    expect(scooperHasLoad(1)).toBe(true);
+    expect(scooperHasLoad(SCOOPER.capacity)).toBe(true);
+  });
+
+  it('dumpScooper moves the whole load into the compost store, emptying the scooper', () => {
+    expect(dumpScooper(3, 10)).toEqual({ load: 0, compost: 13 });
+    expect(dumpScooper(SCOOPER.capacity, 0)).toEqual({ load: 0, compost: SCOOPER.capacity });
+  });
+
+  it('dumpScooper is a no-op when the scooper is empty', () => {
+    expect(dumpScooper(0, 7)).toEqual({ load: 0, compost: 7 });
+  });
+
+  it('a full scoop → dump cycle nets one compost per scoop', () => {
+    let load = 0, compost = 0;
+    for (let i = 0; i < 3; i++) load += scoopAmount(load); // scoop three droppings
+    expect(load).toBe(3);
+    ({ load, compost } = dumpScooper(load, compost));
+    expect(load).toBe(0);
+    expect(compost).toBe(3);
   });
 });

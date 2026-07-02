@@ -6,7 +6,7 @@
 import Phaser from 'phaser';
 import { CONTENT_DEFS } from '../../data/items.js';
 import { fillBowlLevel, bowlHasFood } from '../../data/bowls.js';
-import { PLAYER_BOUNDS, PASTURE_BOUNDS, TROUGH_CAP, TROUGH_PER_BUCKET, BOWL_CAP, S } from './constants.js';
+import { PLAYER_BOUNDS, PASTURE_BOUNDS, TROUGH_CAP, TROUGH_PER_BUCKET, BOWL_CAP, S, DROPPINGS_CAP } from './constants.js';
 import { gateNudgeY } from './gateNudge.js';
 import { playSplash } from '../../audio/sounds.js';
 
@@ -70,6 +70,53 @@ export const WithWorldObjects = (Base) => class extends Base {
     // `onFoodPlaced`). Species-neutral — the hook decides what, if anything, a given
     // content attracts, so this shared file names no species.
     this.onFoodPlaced?.(content, spot.x, spot.y);
+  }
+
+  // ─── Droppings (#232) ────────────────────────────────────────────────────────
+
+  // Fire an ambient dropping: pick a random pasture animal (a grazer — horse, cow,
+  // pig, sheep) that's active and visible, and leave a small dropping just behind
+  // it. Cosmetic only — no mood/stat effect, per the issue; it's just a bit of
+  // clutter for the player to tidy up with the scooper. Capped so the pasture never
+  // carpets in poop if the player ignores it for a while.
+  spawnDropping() {
+    if ((this.props.droppings?.length ?? 0) >= DROPPINGS_CAP) return;
+    const pool = (this._grazers?.() ?? []).filter(a => a.sprite?.active && a.sprite.visible);
+    if (!pool.length) return;
+    const a = pool[Phaser.Math.Between(0, pool.length - 1)];
+
+    // Drop just behind the animal (opposite its facing), nudged onto clear ground so
+    // it doesn't land inside an obstacle. Falls back to right at its feet.
+    const behind = this._behindAnimal(a);
+    const spot = this._freeFoodSpot(behind.x, behind.y) ?? { x: a.sprite.x, y: a.sprite.y };
+    this._addDropping(spot.x, spot.y);
+  }
+
+  // A point just behind an animal given its facing (or a small random offset if it
+  // has none), so a dropping lands at its rear rather than on top of it.
+  _behindAnimal(a) {
+    const s = a.sprite;
+    const f = a.facing ?? a.dir ?? null;
+    let dx, dy;
+    if      (f === 'left')  { dx = 24;  dy = 4; }
+    else if (f === 'right') { dx = -24; dy = 4; }
+    else if (f === 'up')    { dx = 0;   dy = 22; }
+    else if (f === 'down')  { dx = 0;   dy = -18; }
+    else { dx = Phaser.Math.Between(-16, 16); dy = Phaser.Math.Between(10, 24); }
+    return { x: s.x + dx, y: s.y + dy };
+  }
+
+  // Add a dropping sprite + record at (x,y). Shared by the ambient spawn and the dev
+  // trigger so both stay in one place.
+  _addDropping(x, y) {
+    const sprite = this.add.image(x, y, 'dropping').setScale(S).setDepth(y);
+    this.props.droppings.push({ x, y, sprite });
+  }
+
+  // Remove a dropping (scooped up): destroy its sprite and drop it from the list.
+  removeDropping(dropping) {
+    dropping.sprite?.destroy();
+    this.props.droppings = this.props.droppings.filter(d => d !== dropping);
   }
 
   // ─── Trough ────────────────────────────────────────────────────────────────

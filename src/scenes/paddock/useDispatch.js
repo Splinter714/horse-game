@@ -11,7 +11,7 @@ import { CONTENT_DEFS, foodDemand } from '../../data/items.js';
 import { getSpecies } from '../../data/species/index.js';
 import { ROSTER_SPECIES } from '../../data/save.js';
 import { CARE_DIST, USE_REACH } from './constants.js';
-import { playGather } from '../../audio/sounds.js';
+import { playGather, playSplash } from '../../audio/sounds.js';
 
 export const WithUseDispatch = (Base) => class extends Base {
   getActiveItem() {
@@ -72,6 +72,44 @@ export const WithUseDispatch = (Base) => class extends Base {
     return best;
   }
 
+  // ── Scooper / droppings (#232) ──────────────────────────────────────────────
+
+  // Nearest dropping within Use reach, or null. Shared by useActiveTool (to scoop)
+  // and the prompt pass (to label "Scoop") so they always agree.
+  _nearestDropping() {
+    let best = null, bestD = Infinity;
+    for (const d of (this.props.droppings ?? [])) {
+      const dd = Phaser.Math.Distance.Between(
+        this.player.sprite.x, this.player.sprite.y, d.x, d.y);
+      if (dd <= USE_REACH && dd < bestD) { bestD = dd; best = d; }
+    }
+    return best;
+  }
+
+  // Scoop a dropping into the scooper: remove it from the world and add it to the
+  // scooper's load (via the hotbar). Plays a soft scoop and floats a compost icon.
+  // No mood/stat effect — the dropping was cosmetic clutter (#232).
+  scoopDropping(dropping) {
+    const hot = this.scene.get('HotbarScene');
+    const added = hot?.addScooperLoad?.(1) ?? 0;
+    if (added <= 0) return; // scooper full — nothing to do
+    this.removeDropping(dropping);
+    playGather('compost'); // light dry scatter — a soft scoop
+    this.showIcon('iconBasketCompost', this.player.sprite);
+  }
+
+  // Dump the scooper's whole load into the compost bin, growing the farm's compost
+  // store. Plays a wet plop and floats a compost icon over the bin. A no-op when the
+  // scooper is empty (the interactable already gates on that).
+  dumpCompost() {
+    const hot = this.scene.get('HotbarScene');
+    const dumped = hot?.dumpScooperLoad?.() ?? 0;
+    if (dumped <= 0) return;
+    playSplash(); // wet plop into the heap
+    const bin = this.props.compostBin;
+    if (bin) this.showIcon('iconBasketCompost', bin.sprite ?? bin);
+  }
+
   // Resolve what Use does with `item` on a nearby harvestable animal, or null. Only
   // produce harvesting is a direct interaction now: the right EMPTY carrier on a
   // producing animal → harvest `produces` when ready (the cow's milk into a bucket,
@@ -127,6 +165,19 @@ export const WithUseDispatch = (Base) => class extends Base {
       if (item.action === 'saddle')    this.toggleSaddle(target);
       else if (item.action === 'lead') this.toggleLead(target);
       else                             this.useItemOnHorse(item, target);
+      return;
+    }
+
+    // Scooper (#232): scoop up the nearest dropping in reach into the scooper's
+    // load. If none is in reach (or the scooper is full), fall through to the world
+    // spots so the compost bin (dump) can win when you're standing at it.
+    if (item.action === 'scoop') {
+      const dropping = this._nearestDropping();
+      if (dropping && (item.load ?? 0) < (item.capacity ?? Infinity)) {
+        this.scoopDropping(dropping);
+        return;
+      }
+      this._nearestUseSpot(item)?.activate(); // dump at the compost bin, if there
       return;
     }
 

@@ -144,6 +144,14 @@ export const AMBIENT_EVENTS = [
     weight: 2,
     fire: (s) => s.eggLayTick?.(),
   },
+  {
+    id: 'animal_dropping',
+    label: '💩 Animal leaves a dropping',
+    needs: ['awake'],
+    // A pasture animal occasionally leaves a dropping to scoop up (#232). Cosmetic
+    // only — no mood/stat effect. Weighted like the other gentle ambient bits.
+    fire: (s) => s.spawnDropping?.(),
+  },
 
   // ── Dev-only triggers (not in the random rotation) ─────────────────────────
   // Weather force-toggles so the weather pass (#188) is testable on demand, and a

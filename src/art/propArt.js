@@ -223,6 +223,49 @@ export function buildPropTextures(scene) {
     g.fillStyle(hi, 0.6); g.fillEllipse(15, 7, 3, 1);
   });
 
+  // Animal dropping (#232) — a small, tasteful cluster of rounded pellets on the
+  // ground with a soft shadow. Cozy pixel-art, kept deliberately little and neat so
+  // it reads as "a bit to tidy up," not gross. Scooped up with the scooper tool.
+  gen(scene, 'dropping', 16, 10, (g) => {
+    g.layer('shadow');
+    g.fillStyle(0x000000, 0.12); g.fillEllipse(8, 8, 14, 3);
+    g.layer('pellets');
+    const base = 0x5a4128, hi = 0x6e5233, lo = 0x3e2c19;
+    // three rounded pellets clustered together
+    g.fillStyle(base, 1);
+    g.fillEllipse(5, 6, 5, 4); g.fillEllipse(10, 6, 5, 4); g.fillEllipse(8, 4, 5, 4);
+    g.fillStyle(hi, 1); // soft top highlight on each
+    g.fillEllipse(4, 5, 2, 1.4); g.fillEllipse(9, 5, 2, 1.4); g.fillEllipse(7, 3, 2, 1.4);
+    g.fillStyle(lo, 1); // grounding shade under the cluster
+    g.fillRect(2, 7, 12, 1);
+  });
+
+  // Compost bin (#232) — a slatted wooden bin you dump scooped droppings into. A
+  // simple open-topped crate with a dark composting-earth pile just visible over the
+  // rim, so it reads as "put the muck here." Placed once in the pasture.
+  gen(scene, 'compostBin', 40, 34, (g) => {
+    g.layer('shadow');
+    g.fillStyle(0x000000, 0.14); g.fillEllipse(20, 31, 36, 6);
+    g.layer('earth');
+    // dark compost heaped inside, showing above the front slats
+    g.fillStyle(0x4a3620, 1); g.fillEllipse(20, 14, 30, 10);
+    g.fillStyle(0x5e4529, 1); g.fillEllipse(18, 12, 22, 6);
+    g.fillStyle(0x3a2a18, 1); g.fillCircle(13, 13, 1.4); g.fillCircle(26, 12, 1.4); g.fillCircle(20, 15, 1.4);
+    g.fillStyle(0xc4a43a, 1); g.fillRect(11, 11, 3, 1); g.fillRect(24, 12, 3, 1); // straw flecks
+    g.layer('bin');
+    // wooden crate walls (front + sides), slatted
+    const wood = 0x8a6a3c, woodHi = 0xa07f4a, woodLo = 0x6b502c;
+    g.fillStyle(wood, 1); g.fillRect(6, 12, 28, 18);       // front wall
+    g.fillStyle(woodLo, 1); g.fillRect(6, 27, 28, 3);       // shaded base
+    // vertical slats / posts
+    g.fillStyle(woodLo, 1);
+    for (let x = 10; x < 34; x += 6) g.fillRect(x, 12, 1, 18);
+    // corner posts
+    g.fillStyle(woodHi, 1); g.fillRect(6, 10, 3, 20); g.fillRect(31, 10, 3, 20);
+    g.fillStyle(wood, 1); g.fillRect(6, 10, 28, 3);         // top rim front
+    g.fillStyle(woodHi, 1); g.fillRect(6, 10, 28, 1);       // rim highlight
+  });
+
   // --- gathering source props (issue #63) ---
   // Haystack — a low stack of rectangular straw bales to gather hay from,
   // with loose fuzzy straw poking out around the edges.

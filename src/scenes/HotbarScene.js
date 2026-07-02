@@ -33,6 +33,11 @@ export default class HotbarScene
     // Money persists across sessions (#29). Load the saved balance and broadcast it
     // so the world (PaddockScene) starts from the same figure the HUD shows.
     this._money      = saved.money ?? 0;
+    // Compost mechanic (#232): the scooper's current load (droppings scooped, not yet
+    // dumped) and the farm's compost store (dumped total). HotbarScene owns both so
+    // it's the single writer of them in gameState, alongside money.
+    this._scooperLoad = saved.scooperLoad ?? 0;
+    this._compost     = saved.compost ?? 0;
     this._slots      = [];
     this._invNodes   = [];
     this._flyoutNodes = []; // carrier-group fly-out picker (#75)
@@ -104,11 +109,7 @@ export default class HotbarScene
     this._onMoney  = v => {
       this._money = v;
       this._updateStatusLabels();
-      saveGameState({
-        hotbar: this.hotbar, inventory: this.inventory,
-        carriers: this.carriers, activeCarrier: this.activeCarrier,
-        money: this._money,
-      });
+      this._persistGameState();
     };
     this.game.events.on(EVENTS.MONEY_CHANGED,  this._onMoney);
 

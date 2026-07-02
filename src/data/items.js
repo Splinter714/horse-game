@@ -12,7 +12,7 @@ export const CARRIER_DEFS = {
   // animal that eats it, #136), so the basket's cap is just a safety ceiling, not a
   // limit you should hit. Kept finite (not Infinity) so it never trips serialization
   // or UI maths — but high enough that the demand always fits (and you can hoard eggs).
-  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'egg', 'eggBrown', 'wool', 'yarn'] },
+  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost'] },
   bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'bunnyWater', 'milk'] },
 };
 
@@ -70,6 +70,14 @@ export const CONTENT_DEFS = {
   // Yarn is the processed form of wool — spun 1:1 at the spinning wheel — worth more
   // at the stand than raw wool (the payoff for the extra crafting step, #233).
   yarn:   { label: 'Yarn',    icon: 'iconBasketYarn',   action: 'sell' },
+  // Compost (#232): the resource made by scooping up animal droppings with the
+  // scooper tool and dumping them in the compost bin. It's a STORED resource only
+  // for now — its payoff (fertilising future crops) lands with #27/#40. It rides in
+  // a basket (a solid) so a future crop plot can be fed straight from a basket, but
+  // the scoop/dump loop itself uses the scooper's own load (see SCOOPER below), not
+  // a basket. No `feeds`/`ground`/`action` beyond stored: nobody eats it, it doesn't
+  // drop as food, and it isn't sold.
+  compost: { label: 'Compost', icon: 'iconBasketCompost', action: 'store' },
 };
 
 // How many of a food to gather in one fill-up (#136): one unit per live animal that
@@ -124,6 +132,11 @@ const TOOL_ITEMS = [
   { key: 'brush',  label: 'Brush',  icon: 'iconBrush',  action: 'brush',  type: 'tool' },
   { key: 'saddle', label: 'Saddle', icon: 'iconSaddle', action: 'saddle', type: 'tool' },
   { key: 'lead',   label: 'Lead',   icon: 'iconLead',   action: 'lead',   type: 'tool' },
+  // The scooper (#232): scoops up animal droppings and carries them to the compost
+  // bin. Unlike the other tools it holds a load — its own little `compost` count,
+  // tracked in game state (scooperLoad), not in a carrier — so it has a Use action
+  // both on a dropping (scoop) and at the bin (dump). Capacity is SCOOPER.capacity.
+  { key: 'scooper', label: 'Scooper', icon: 'iconScooper', action: 'scoop', type: 'tool' },
 ];
 
 // Inventory list: the grouped carriers + tools (individual members aren't shown).
@@ -136,3 +149,31 @@ export const ITEM_MAP = Object.fromEntries(
 
 // backward compat
 export const ITEMS = ALL_ITEMS;
+
+// ── Scooper + compost (#232) ─────────────────────────────────────────────────
+// The scooper carries a small load of scooped droppings until it's dumped in the
+// compost bin. Kept small so it's a genuine carry-and-dump chore (fill it, walk it
+// to the bin) rather than a bottomless bag. Its load persists in game state.
+export const SCOOPER = { capacity: 6, content: 'compost' };
+
+// Pure loop helpers (unit-tested). All take/return plain numbers so the scoop/dump
+// mechanic can be verified without Phaser.
+
+// How many droppings a scoop adds to the scooper, given its current load. One per
+// scoop, but never past capacity — a full scooper scoops nothing (must dump first).
+export function scoopAmount(load, cap = SCOOPER.capacity) {
+  return load < cap ? 1 : 0;
+}
+
+// Is the scooper carrying anything to dump?
+export function scooperHasLoad(load) {
+  return load > 0;
+}
+
+// Dumping the scooper at the bin: the whole load moves into the farm's compost
+// store. Returns the new { load, compost } after the dump (load → 0). A no-op
+// (unchanged) when the scooper is empty.
+export function dumpScooper(load, compost) {
+  if (load <= 0) return { load, compost };
+  return { load: 0, compost: compost + load };
+}
