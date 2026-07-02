@@ -17,7 +17,8 @@ core orchestrator.
 |---|---|---|
 | Orchestration | `PaddockScene.js` (core) | `constructor`/`create`/`update`, `buildHorses`, `checkProximity`, `movePlayer`, sleep/wake |
 | World build | `paddock/world.js` (`WithWorld`) | terrain/props, obstacles, collision helpers, stream + `streamPath` |
-| Ambient wildlife | `paddock/wildlife.js` (`WithWildlife`) | scenery critters (stream fish, fly-by/peck birds, scampering raccoon) — spawn timers, tween movement, skittish flee. Not roster/care animals |
+| Ambient wildlife | `paddock/wildlife.js` (`WithWildlife`) | scenery critters (stream fish, fly-by/peck birds, horse-back perch) — spawn timers, tween movement, skittish flee. Not roster/care animals |
+| Ambient raccoon | `paddock/raccoon.js` (`WithRaccoon`) | the nocturnal raccoon's spawn/potter/scurry flow, trash-can rummaging + cosmetic loot (#191). Pure decisions in `data/wildlife.js` |
 | Creatures | `paddock/creatures.js` (`WithCreatures`) | species-neutral spawn + shared wander/movement primitives, foals, horse spawn |
 | Flock | `paddock/flock.js` (`WithFlock`) | chicken flock driver, follow/gather/peck, egg laying + collection |
 | Herd | `paddock/herd.js` (`WithHerd`) | horse need-driven wander, herd separation/pairing, rolling, greeting |
