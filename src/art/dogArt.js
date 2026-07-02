@@ -6,7 +6,7 @@
 // palettes. An arg-less call falls back to DEFAULT_LOOK (the original golden), so
 // BootScene and the art-preview gallery render the dog unchanged.
 
-import { makeLeg, idleWalkLegs, buildFrames } from './_frames.js';
+import { makeLeg, idleWalkLegs, buildFrames, gen, scaledGraphics, ART_SCALE } from './_frames.js';
 
 export const DOG_W = 28, DOG_H = 24;
 
@@ -72,6 +72,65 @@ function drawDog(g, bob, [lhf, lhn, lff, lfn], look) {
   g.fillStyle(0xffffff, 0.7); g.fillRect(24, 7+bob, 1, 1);
 }
 
+// A sitting pose (#186 companion charm): the dog settles onto its haunches beside
+// an idle player. Rump lowered to the ground with folded hind legs, chest lifted so
+// the front legs are straight and planted, head up and alert, tail sweeping the
+// ground behind. Same colour data as the standing art; dissect-tagged like the rest.
+function drawDogSit(g, look) {
+  const c = look?.coat || DEFAULT_LOOK.coat;
+  const col = look?.collar || DEFAULT_LOOK.collar;
+  const { hi, mid, shad, legNear, tailHi, jaw, ear, earShad, snout, snoutShad } = c;
+
+  g.layer('legs');
+  // Straight front legs planted under the lifted chest.
+  g.fillStyle(shad, 1);    g.fillRect(18, 16, 3, 7);
+  g.fillStyle(legNear, 1); g.fillRect(21, 16, 3, 7);
+  g.fillStyle(0x2a2018, 1); g.fillRect(17, 22, 5, 1); g.fillRect(20, 22, 5, 1); // paws
+  // Folded hind leg tucked under the lowered rump.
+  g.fillStyle(shad, 1);    g.fillRect(6, 15, 8, 4);
+
+  g.layer('tail');
+  // Tail sweeping along the ground behind the rump.
+  g.fillStyle(legNear, 1); g.fillRect(2, 19, 6, 2);
+  g.fillStyle(tailHi, 1);  g.fillRect(2, 19, 5, 1);
+
+  g.layer('body');
+  // Rump low at the back, chest rising toward the front — a wedge sitting shape.
+  g.fillStyle(mid, 1);  g.fillRect(6, 12, 16, 9);
+  g.fillStyle(hi, 1);   g.fillRect(14, 8, 8, 5);   // lifted chest
+  g.fillStyle(hi, 1);   g.fillRect(6, 12, 16, 3);
+  g.fillStyle(shad, 1); g.fillRect(6, 18, 16, 3);
+
+  g.layer('neck');
+  // Upright neck from the raised chest to the head.
+  g.fillStyle(mid, 1); g.fillRect(19, 5, 5, 6);
+  g.fillStyle(hi, 1);  g.fillRect(19, 5, 5, 2);
+
+  g.layer('collar');
+  g.fillStyle(col.mid, 1);  g.fillRect(19, 9, 5, 2);
+  g.fillStyle(col.shad, 1); g.fillRect(21, 11, 2, 1); // tag
+
+  g.layer('head');
+  // Head held high and alert, snout forward.
+  g.fillStyle(mid, 1);  g.fillRect(21, 1, 6, 7);   // skull
+  g.fillStyle(hi, 1);   g.fillRect(21, 1, 6, 2);   // top highlight
+  g.fillStyle(jaw, 1);  g.fillRect(21, 7, 4, 1);   // jaw shade
+  g.fillStyle(snout, 1); g.fillRect(24, 5, 4, 3);  // snout
+  g.fillStyle(snoutShad, 1); g.fillRect(24, 7, 4, 1); // chin shade
+  g.fillStyle(0x2a1810, 1); g.fillRect(26, 5, 2, 1); // nose
+
+  g.layer('ear');
+  g.fillStyle(ear, 1);     g.fillRect(19, 2, 3, 7); // floppy ear
+  g.fillStyle(earShad, 1); g.fillRect(19, 5, 2, 4);
+
+  g.layer('eye');
+  g.fillStyle(0x2a1808, 1); g.fillRect(23, 4, 1, 2);
+  g.fillStyle(0xffffff, 0.7); g.fillRect(23, 4, 1, 1);
+}
+
 export function buildDogTextures(scene, key, look) {
   buildFrames(scene, key, DOG_W, DOG_H, (g, bob, legs) => drawDog(g, bob, legs, look), idleWalkLegs(2));
+  // Extra single-frame sit pose (#186), same super-sampled grid as the walk frames.
+  gen(scene, `${key}_sit_0`, DOG_W * ART_SCALE, DOG_H * ART_SCALE,
+    (g0) => drawDogSit(scaledGraphics(g0), look));
 }

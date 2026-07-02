@@ -154,13 +154,13 @@ export const WithWorld = (Base) => class extends Base {
     // (Its solid footprint is added to this.obstacles below, once that array exists.)
     this.props.compostBin = { x: 300, y: 1000, sprite: this.add.image(300, 1000, 'compostBin').setScale(S).setDepth(1000).setOrigin(0.5, 1) }; // Compost bin (#232) — dump spot, pasture NW.
 
-    // Shop / market stall (#29) — where the player SPENDS gold on feed. Placed in the
-    // open farm band a little west of the farm stand (the SELL station at 1600,780) so
-    // the two halves of the economy sit near each other but read as distinct stalls.
+    // Shop / market stall (#29) — where the player SPENDS gold on feed. West of the
+    // farm stand (SELL station, 1600,780) so the two economy halves read as distinct.
     const shopX = 1240, shopY = 800;
     const shopSprite = this.add.image(shopX, shopY, 'shopStall')
       .setScale(S).setDepth(shopY).setOrigin(0.5, 1);
     this.props.shop = { x: shopX, y: shopY, sprite: shopSprite };
+    this.buildShopkeeper(); // Shopkeeper NPC vendor at the stall (#244); see paddock/shop.js
     // Solid counter footprint the player bumps into (mirrors the farm stand's), added
     // to this.obstacles once that array exists — see the obstacle list below.
 
