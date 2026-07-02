@@ -200,6 +200,30 @@ export function buildPropTextures(scene) {
     g.fillStyle(hi, 0.8); g.fillEllipse(8, 5, 5, 1.5); // sunlit ripple
     g.fillStyle(hi, 0.6); g.fillEllipse(15, 7, 3, 1);
   });
+  gen(scene, 'bunnyFoodPile', 22, 10, (g) => { // a small scatter of green pellets + a carrot bit
+    const base = 0x5c8a3a, hi = 0x74a84c, lo = 0x466b2b;
+    g.fillStyle(0x000000, 0.1); g.fillEllipse(11, 9, 20, 3);
+    g.fillStyle(base, 1); g.fillEllipse(11, 6, 18, 6); // mound of pellets
+    g.fillStyle(hi, 1); g.fillEllipse(9, 5, 10, 3);
+    g.fillStyle(lo, 1); g.fillRect(2, 8, 18, 1);
+    // individual green pellets scattered across the mound
+    g.fillStyle(hi, 1);
+    g.fillCircle(5, 5, 1.3); g.fillCircle(9, 3, 1.3); g.fillCircle(13, 4, 1.3);
+    g.fillCircle(17, 5, 1.1); g.fillCircle(7, 7, 1.1);
+    g.fillStyle(lo, 1);
+    g.fillCircle(11, 6, 1.1); g.fillCircle(15, 7, 1.1); g.fillCircle(4, 7, 1);
+    // a stray carrot chunk in the mix
+    g.fillStyle(0xf07830, 1); g.fillTriangle(14, 6, 19, 4, 19, 7);
+    g.fillStyle(0x3b8a1c, 1); g.fillRect(19, 3, 1, 2);
+  });
+  gen(scene, 'bunnyWaterPile', 22, 10, (g) => { // a small puddle of water dropped on the ground
+    const deep = 0x356f9e, mid = 0x3f7fb5, hi = 0x9ae0f8;
+    g.fillStyle(0x000000, 0.08); g.fillEllipse(11, 9, 20, 3);
+    g.fillStyle(deep, 1); g.fillEllipse(11, 7, 18, 6); // puddle
+    g.fillStyle(mid, 1); g.fillEllipse(11, 6, 13, 4);
+    g.fillStyle(hi, 0.8); g.fillEllipse(8, 5, 5, 1.5); // sunlit ripple
+    g.fillStyle(hi, 0.6); g.fillEllipse(15, 7, 3, 1);
+  });
 
   // --- gathering source props (issue #63) ---
   // Haystack — a low stack of rectangular straw bales to gather hay from,
@@ -384,6 +408,43 @@ export function buildPropTextures(scene) {
     g.fillStyle(water, 1); g.fillEllipse(13, 6, 14, 5);
     g.fillStyle(waterHi, 0.85); g.fillEllipse(10, 5, 5, 1.6); // sunlit ripple
     g.fillStyle(waterHi, 0.6); g.fillEllipse(16, 6, 3, 1);
+  });
+
+  // Bunny hutch (#224) — the gathering source for bunny food + water. A little raised
+  // wooden hutch with a wire-mesh front, a shingled roof, and a bowl of green food
+  // pellets tucked in front. The player fills a carrier here, then drops a bunny-food
+  // pile to attract/feed bunnies. Origin bottom-centre (set by the placer).
+  gen(scene, 'bunnyHutch', 48, 44, (g) => {
+    const wood = 0xa9773f, woodHi = 0xc99a5f, woodLo = 0x7f5628;
+    const roof = 0x8a5a34, roofHi = 0xa9754a, mesh = 0x4a4038;
+    g.layer('shadow');
+    g.fillStyle(0x000000, 0.14); g.fillEllipse(24, 42, 40, 6);
+    // legs
+    g.layer('legs');
+    g.fillStyle(woodLo, 1); g.fillRect(8, 32, 4, 9); g.fillRect(36, 32, 4, 9);
+    // main box body
+    g.layer('body');
+    g.fillStyle(wood, 1); g.fillRect(6, 16, 36, 18);
+    g.fillStyle(woodHi, 1); g.fillRect(6, 16, 36, 2);
+    g.fillStyle(woodLo, 1); g.fillRect(6, 32, 36, 2);
+    // wire-mesh door on the left, solid nesting box on the right
+    g.layer('door');
+    g.fillStyle(mesh, 1); g.fillRect(9, 19, 15, 12);
+    g.fillStyle(0x6a5f52, 1);
+    for (let x = 11; x < 24; x += 3) g.fillRect(x, 19, 1, 12);
+    for (let y = 21; y < 31; y += 3) g.fillRect(9, y, 15, 1);
+    g.fillStyle(woodHi, 1); g.fillRect(26, 19, 13, 12); // solid box side
+    g.fillStyle(woodLo, 1); g.fillRect(31, 19, 1, 12);
+    // shingled roof, overhanging
+    g.layer('roof');
+    g.fillStyle(roof, 1); g.fillRect(3, 10, 42, 7);
+    g.fillStyle(roofHi, 1); g.fillRect(3, 10, 42, 2);
+    g.fillStyle(0x6f4526, 1); g.fillRect(3, 13, 42, 1); g.fillRect(3, 15, 42, 1);
+    // a food dish of green pellets sitting out front
+    g.layer('dish');
+    g.fillStyle(0x8a97a0, 1); g.fillEllipse(24, 37, 16, 5);
+    g.fillStyle(0x5c8a3a, 1); g.fillEllipse(24, 35, 12, 4);
+    g.fillStyle(0x74a84c, 1); g.fillCircle(21, 34, 1.1); g.fillCircle(25, 34, 1.1); g.fillCircle(27, 35, 1);
   });
 
   // --- Trash can (#191) ---------------------------------------------------

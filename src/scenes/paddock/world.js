@@ -313,6 +313,13 @@ export const WithWorld = (Base) => class extends Base {
       // dropped pile and eat/drink via the shared grazing primitive.
       { x: 165,  y: 420, content: 'catFood',  tex: 'catFoodBowl',  label: 'Food Bowl',  reach: 90, ob: { w: 26, h: 16 } },
       { x: 205,  y: 420, content: 'catWater', tex: 'catWaterBowl', label: 'Water Bowl', reach: 90, ob: { w: 26, h: 16 } },
+      // Bunny hutch (#224) — the attraction/care source for bunnies, tucked in the
+      // north yard by the coop. Gather bunny food here and drop a pile to lure a wild
+      // bunny in (capped at 4, one per coat colour) and to feed those already joined;
+      // a small water dish beside it is the bunny's thirst source. Same gather →
+      // drop-pile flow as the cat's bowls, wired to the bunnyFood/bunnyWater content.
+      { x: 560,  y: 300, content: 'bunnyFood',  tex: 'bunnyHutch',    label: 'Bunny Hutch', reach: 100, ob: { w: 44, h: 30 } },
+      { x: 615,  y: 320, content: 'bunnyWater', tex: 'catWaterBowl',  label: 'Bunny Water', reach: 90,  ob: { w: 26, h: 16 } },
     ];
     for (const d of defs) {
       const sprite = this.add.image(d.x, d.y, d.tex)

@@ -26,6 +26,7 @@ export const WithBehaviors = (Base) => class extends Base {
     const ctx = species === 'chicken' ? this._chickenContext(agent)
       : species === 'cat' ? this._catContext(agent)
       : species === 'dog' ? this._dogContext(agent)
+      : species === 'bunny' ? this._bunnyContext(agent)
       : this._horseContext(agent);
     const spec = getSpecies(species);
     const registry = BEHAVIORS[species] ?? {};
@@ -139,6 +140,30 @@ export const WithBehaviors = (Base) => class extends Base {
       now: this.time.now,
       lastHerd: a._lastHerd ?? null,
       herdCooldown: CHARM.HERD_COOLDOWN,
+    };
+  }
+
+  // Context for the bunny's seek behaviors (#224). Mirrors the cat's _catContext: its
+  // hunger/thirst plus the distance to the nearest reachable dropped bunny-food /
+  // bunny-water pile (via the shared _nearestReachableHay lookup, filtered by content
+  // so it doesn't confuse the two). The bunny roams the open world (like the cat), so
+  // reachability isn't fence-gated.
+  _bunnyContext(a) {
+    const bunny = a.model;
+    const foodPile = this._nearestReachableHay(a, 'bunnyFood');
+    const nearestFoodDist = foodPile
+      ? Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, foodPile.x, foodPile.y)
+      : Infinity;
+    const waterPile = this._nearestReachableHay(a, 'bunnyWater');
+    const nearestWaterDist = waterPile
+      ? Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, waterPile.x, waterPile.y)
+      : Infinity;
+    return {
+      hunger: bunny?.stats?.hunger ?? 100,
+      thirst: bunny?.stats?.thirst ?? 100,
+      nearestFoodDist,
+      nearestWaterDist,
+      isNight: !!this.isNight,
     };
   }
 

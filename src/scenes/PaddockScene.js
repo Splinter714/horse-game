@@ -13,6 +13,7 @@ import { WithWildlife } from './paddock/wildlife.js';
 import { WithRaccoon } from './paddock/raccoon.js';
 import { WithAmbientEvents } from './paddock/ambientEvents.js';
 import { WithCatAI } from './paddock/catAI.js';
+import { WithBunny } from './paddock/bunny.js';
 import { WithCreatures } from './paddock/creatures.js';
 import { WithFlock } from './paddock/flock.js';
 import { WithHerd } from './paddock/herd.js';
@@ -39,9 +40,9 @@ import { WithInput } from './paddock/input.js';
 import { applyDpr } from './uiUtils.js';
 
 export default class PaddockScene
-  extends WithWorld(WithBarn(WithHouseEntry(WithWildlife(WithRaccoon(WithAmbientEvents(WithCatAI(WithCharm(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithShop(WithDayNight(WithWeather(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
+  extends WithWorld(WithBarn(WithBunny(WithHouseEntry(WithWildlife(WithRaccoon(WithAmbientEvents(WithCatAI(WithCharm(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithShop(WithDayNight(WithWeather(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
     WithEffects(WithPersistence(WithRendering(WithWorldObjects(WithCareActions(WithInteraction(WithInput(
-    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene)))))))))))))))))))))))))))))) {
+    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene))))))))))))))))))))))))))))))) {
   constructor() {
     super('PaddockScene');
   }
