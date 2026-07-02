@@ -16,7 +16,9 @@ import { buildCowTextures } from './cowArt.js';
 import { buildSheepTextures } from './sheepArt.js';
 import { buildPigTextures } from './pigArt.js';
 import { buildDogTextures } from './dogArt.js';
+import { buildBunnyTextures } from './bunnyArt.js';
 import { buildPlayerTextures } from './playerArt.js';
+import { BUNNY_COATS } from '../data/species/bunny/index.js';
 import { buildWildlifeOldTextures } from './wildlifeArt.js'; // TEMP: old-vs-new gallery A/B
 import { composeCoat } from '../data/species/horse/coats.js';
 import { DEMO_FOALS } from '../data/demoFoals.js';
@@ -63,6 +65,19 @@ export const SPECIES_TEXTURES = {
   sheep(scene) { buildRosterLooks(scene, 'allSheep', 'sheep', buildSheepTextures); },
 
   dog(scene) { buildRosterLooks(scene, 'allDogs', 'dog', buildDogTextures); },
+
+  // Bunnies (#224). The roster starts EMPTY and grows at runtime when the player
+  // attracts a bunny with bunny food, so — unlike the other rosters — we can't build
+  // "one texture per saved individual" up front. Instead build ALL FOUR coat
+  // textures unconditionally (keyed `bunny0`..`bunny3` = coat slot, so `bunny<i>`
+  // always wears BUNNY_COATS[i]), the way the demo foals are pre-built. attractBunny
+  // then spawns a bunny whose key already has a ready texture — no runtime build.
+  // A persisted bunny with a customizer `look` re-skins on top via reskinAnimal.
+  bunny(scene) {
+    BUNNY_COATS.forEach((coat, i) => {
+      buildBunnyTextures(scene, `bunny${i}`, { coat });
+    });
+  },
 };
 
 // A hen's coat index: its customized style if set, else the roster `coat` default.

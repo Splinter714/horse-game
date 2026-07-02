@@ -12,8 +12,8 @@ export const CARRIER_DEFS = {
   // animal that eats it, #136), so the basket's cap is just a safety ceiling, not a
   // limit you should hit. Kept finite (not Infinity) so it never trips serialization
   // or UI maths — but high enough that the demand always fits (and you can hoard eggs).
-  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'egg', 'wool', 'yarn'] },
-  bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'catWater', 'milk'] },
+  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'egg', 'wool', 'yarn'] },
+  bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'catWater', 'bunnyWater', 'milk'] },
 };
 
 // What each content type looks like in a carrier and what using it does.
@@ -45,6 +45,17 @@ export const CONTENT_DEFS = {
   // trough's plain `water` (fills a shared object, no `feeds` list), this is a
   // per-species dropped pile, so it carries a `feeds` list like the foods above.
   catWater: { label: 'Cat Water', icon: 'iconBucketCatWater', action: 'water', ground: 'catWaterPile', feeds: ['cat'] },
+  // Bunny food (#224): gathered from the bunny hutch (a new gathering source) and
+  // dropped as a pile like any other food. Its distinguishing role is ATTRACTION —
+  // dropping a bunny-food pile lures a wild bunny in to join the roster (capped at 4,
+  // paddock/bunny.js `attractBunny`, fired from the generic onFoodPlaced hook). Once
+  // a bunny has joined, the pile also feeds it (`feed`), so bunny food both attracts
+  // and sustains. `feeds: ['bunny']` gates which piles a bunny will walk to eat.
+  bunnyFood:  { label: 'Bunny Food',  icon: 'iconBasketBunnyFood',  action: 'feed',  ground: 'bunnyFoodPile',  feeds: ['bunny'] },
+  // Bunny water (thirst): gathered from the bunny hutch's water dish, dropped as its
+  // own pile, drunk via the same generic grazing primitive wired to the `water`
+  // action — the bunny's thirst source, mirroring the cat's catWater.
+  bunnyWater: { label: 'Bunny Water', icon: 'iconBucketBunnyWater', action: 'water', ground: 'bunnyWaterPile', feeds: ['bunny'] },
   // Milk is produced by milking a well-cared-for cow into an empty bucket, then
   // sold at the farm stand (action 'sell', like eggs — see STAND_DEFS).
   milk:   { label: 'Milk',    icon: 'iconBucketMilk',   action: 'sell' },

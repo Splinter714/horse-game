@@ -75,30 +75,40 @@ export const WithCreatures = (Base) => class extends Base {
 
       Object.keys(models).forEach((key, i) => {
         const place = sp.placements[i] ?? sp.placements[sp.placements.length - 1] ?? { x: 0, y: 0 };
-        const a = this.spawnAnimal(
-          place.x, place.y, key, sp.shadowScale, sp.walkFps, sp.tweenRate,
-          place.home?.x, place.home?.y, place.wanderRadius, sp.eatFps, models[key]);
-        if (sp.roam === 'pasture') a.homeBounds = PASTURE_BOUNDS; // roam the pasture, not the world
-        if (sp.bodyR != null) a.bodyR = sp.bodyR;
-        // Display scale. Super-sampled art (drawn on the ART_SCALE grid like the
-        // horse/sheep) shows at S/ART_SCALE; plain 1× art (chicken/cat/cow/dog) shows
-        // at S. An optional per-species `scale` size multiplier (the bulky cow) rides
-        // on top of either, scaling both the sprite and its ground shadow.
-        const baseScale = sp.superSampled ? S / ART_SCALE : S;
-        const sizeMult = sp.scale ?? 1;
-        a.sprite.setScale(baseScale * sizeMult);
-        a.shadow.setScale(S * sp.shadowScale * sizeMult);
-        // Seed the shorn-visual tracker so tickRegrowth (#233) only re-skins on an
-        // actual change: BootScene already built the sprite in its current fleece
-        // state, so record that as the shown state (false for non-producing species).
-        a._shownShorn = a.model?.isShorn?.() ?? false;
-        this._applySpawnCapabilities(a, spec);
+        this._spawnWorldIndividual(spec, key, models[key], place);
       });
     }
 
     // Flock AI tick (chickens). A no-op when no flock is present, so it's safe to
     // register unconditionally.
     this.time.addEvent({ delay: CHICKEN_TICK_MS, loop: true, callback: this.chickenTick, callbackScope: this });
+  }
+
+  // Spawn ONE world individual from its species `spawn` data at `place` — the shared
+  // per-animal setup (sprite/shadow, roam bounds, body radius, display scale, capability
+  // hooks). Factored out of buildAnimals so a species that grows its roster at RUNTIME
+  // (an attracted bunny, #224) can spawn a new member with the exact same wiring, no
+  // duplication. Species-neutral: everything comes off `spec.spawn`. Returns the
+  // creature object.
+  _spawnWorldIndividual(spec, key, model, place = { x: 0, y: 0 }) {
+    const sp = spec.spawn;
+    const a = this.spawnAnimal(
+      place.x, place.y, key, sp.shadowScale, sp.walkFps, sp.tweenRate,
+      place.home?.x, place.home?.y, place.wanderRadius, sp.eatFps, model);
+    if (sp.roam === 'pasture') a.homeBounds = PASTURE_BOUNDS; // roam the pasture, not the world
+    if (sp.bodyR != null) a.bodyR = sp.bodyR;
+    // Display scale. Super-sampled art (drawn on the ART_SCALE grid like the horse/
+    // sheep) shows at S/ART_SCALE; plain 1× art (chicken/cow/dog) shows at S. An
+    // optional per-species `scale` size multiplier (the bulky cow) rides on top.
+    const baseScale = sp.superSampled ? S / ART_SCALE : S;
+    const sizeMult = sp.scale ?? 1;
+    a.sprite.setScale(baseScale * sizeMult);
+    a.shadow.setScale(S * sp.shadowScale * sizeMult);
+    // Seed the shorn-visual tracker so tickRegrowth (#233) only re-skins on a real
+    // change (false for non-producing species).
+    a._shownShorn = a.model?.isShorn?.() ?? false;
+    this._applySpawnCapabilities(a, spec);
+    return a;
   }
 
   // Species that spawn into the world (declare `spawn.inWorld`). Horses spawn via

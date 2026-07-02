@@ -10,11 +10,13 @@ import { COW } from './cow/index.js';
 import { PIG } from './pig/index.js';
 import { SHEEP } from './sheep/index.js';
 import { DOG } from './dog/index.js';
+import { BUNNY } from './bunny/index.js';
 import * as horseBehaviors from './horse/behaviors.js';
 import * as chickenBehaviors from './chicken/behaviors.js';
 import * as catBehaviors from './cat/behaviors.js';
 import * as dogBehaviors from './dog/behaviors.js';
 import * as pigBehaviors from './pig/behaviors.js';
+import * as bunnyBehaviors from './bunny/behaviors.js';
 
 export const SPECIES = {
   horse: HORSE,
@@ -24,6 +26,7 @@ export const SPECIES = {
   pig: PIG,
   sheep: SHEEP,
   dog: DOG,
+  bunny: BUNNY,
 };
 
 export function getSpecies(id) {
@@ -57,6 +60,10 @@ export const BEHAVIORS = {
   // The dog occasionally noses the sheep flock into a bunch (#187 charm) — its own
   // one-behavior module. A fuller "dog job" (companion-follow / real herding) is #186.
   dog: indexById(dogBehaviors),
+  // The bunny hops to its own dropped bunny-food/water piles (seekBunnyFood/
+  // seekBunnyWater, #224) — its own behavior module, same shape as the cat's
+  // seekFood/seekWater. Falls through to a plain hop-wander when neither fires.
+  bunny: indexById(bunnyBehaviors),
 };
 
 function indexById(mod) {

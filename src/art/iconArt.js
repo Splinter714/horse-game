@@ -179,6 +179,18 @@ export function buildIconTextures(scene) {
     g.fillStyle(0xd6a25e, 1);
     g.fillCircle(6, 5, 1); g.fillCircle(10, 4, 1); g.fillCircle(14, 5, 1); g.fillCircle(8, 7, 1);
   });
+  // Basket of bunny food (#224) — leafy green pellets + a carrot top, so it reads as
+  // "rabbit food" distinct from the brown cat kibble / golden grain at a glance.
+  gen(scene, 'iconBasketBunnyFood', 20, 20, (g) => {
+    drawBasketBody(g);
+    g.fillStyle(0x5c8a3a, 1); g.fillRoundedRect(4, 5, 12, 6, 2); // mound of green pellets
+    g.fillStyle(0x74a84c, 1);
+    g.fillCircle(6, 7, 1.2); g.fillCircle(10, 6, 1.2); g.fillCircle(14, 7, 1.2); g.fillCircle(8, 9, 1.2); g.fillCircle(12, 9, 1.2);
+    g.fillStyle(0x466b2b, 1); g.fillCircle(9, 8, 1); g.fillCircle(13, 8, 1);
+    // a little carrot poking out of the mix
+    g.fillStyle(0xf07830, 1); g.fillTriangle(10, 5, 8, 1, 12, 1);
+    g.fillStyle(0x3b8a1c, 1); g.fillRect(9, 0, 1, 2); g.fillRect(11, 0, 1, 2);
+  });
   gen(scene, 'iconBasketEgg', 20, 20, (g) => {
     drawBasketBody(g);
     g.fillStyle(0xfff8e0, 1);
@@ -248,6 +260,21 @@ export function buildIconTextures(scene) {
   // context (the cat's water bowl); visually identical water fill is intentional,
   // it's still literally a bucket of water (#202 refinement).
   gen(scene, 'iconBucketCatWater', 20, 20, (g) => {
+    g.fillStyle(0x6f7889, 1);
+    g.fillRect(3, 4, 1, 3); g.fillRect(16, 4, 1, 3);
+    g.fillRect(4, 2, 12, 1); g.fillRect(3, 3, 2, 1); g.fillRect(15, 3, 2, 1);
+    g.fillStyle(0x9aa3b6, 1);
+    g.fillTriangle(3, 8, 17, 8, 15, 17); g.fillTriangle(3, 8, 15, 17, 5, 17);
+    g.fillEllipse(10, 17, 11, 4.4);
+    g.fillStyle(0xb8c0d0, 1); g.fillEllipse(10, 8, 14, 5);
+    g.fillStyle(0x5fa6d6, 1); g.fillEllipse(10, 8, 10.5, 3.4);
+    g.fillStyle(0x9ae0f8, 1); g.fillEllipse(8.4, 7.4, 4.6, 1.6);
+    g.fillStyle(0xb8c0d0, 1); g.fillRect(5, 10, 1, 6);
+    g.fillStyle(0x7a8396, 1); g.fillEllipse(10, 18.4, 8.6, 2.2);
+  });
+  // Bunny water bucket (#224) — same tilted pail of water as the others; it's still
+  // literally a bucket of water, distinguished only by the bunny hutch it's drawn from.
+  gen(scene, 'iconBucketBunnyWater', 20, 20, (g) => {
     g.fillStyle(0x6f7889, 1);
     g.fillRect(3, 4, 1, 3); g.fillRect(16, 4, 1, 3);
     g.fillRect(4, 2, 12, 1); g.fillRect(3, 3, 2, 1); g.fillRect(15, 3, 2, 1);

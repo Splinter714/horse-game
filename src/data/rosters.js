@@ -20,6 +20,7 @@ import { Pig } from './species/pig/model.js';
 import { Cat } from './species/cat/model.js';
 import { Sheep } from './species/sheep/model.js';
 import { Dog } from './species/dog/model.js';
+import { Bunny } from './species/bunny/model.js';
 
 // The canonical herd. Every horse is equal — same persistence, same decay. The
 // only per-horse differences are data (name, coat, age, spawn) plus Ebony's
@@ -100,6 +101,16 @@ function defaultDogRoster() {
   };
 }
 
+// Bunnies (#224) start with NO default individuals — unlike every other species, the
+// fresh farm has zero bunnies. They only exist once attracted by placing bunny food
+// (paddock/bunny.js `attractBunny`), which adds a `bunny<i>` member at runtime, keyed
+// by coat slot (one per colour, cap 4). The empty default means makeRoster.load()
+// leans on its saved-key merge to restore any bunnies a returning player attracted;
+// offline decay applies (they have hunger/thirst) so a bunny "missed you" gently.
+function defaultBunnyRoster() {
+  return {};
+}
+
 export const ROSTERS = {
   horse: {
     storageKey: 'horse-care-save-v2',
@@ -159,6 +170,14 @@ export const ROSTERS = {
     Model: Dog,
     defaultRoster: defaultDogRoster,
     offlineDecay: false, // identity-only (no survival needs) — don't decay offline
+    legacy: null,
+  },
+  bunny: {
+    storageKey: 'horse-care-bunnies-v1',
+    registryKey: 'allBunnies',
+    Model: Bunny,
+    defaultRoster: defaultBunnyRoster, // empty — attracted at runtime, not seeded
+    offlineDecay: true, // has hunger/thirst — forgiving offline decay like the herd
     legacy: null,
   },
 };
