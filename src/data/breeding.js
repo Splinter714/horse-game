@@ -1,8 +1,17 @@
-// Breeding & foals (#15) — the PURE logic behind pairing two horses and a foal
-// being born after a gestation wait. Kept renderer-free and side-effect-free so it's
-// unit-testable (breeding.test.js): the scene-coupled half (the in-world pairing
-// interaction, the gestation timer, the birth → name → customizer flow, growing the
-// horse roster) lives in scenes/paddock/breeding.js and calls into these.
+// Breeding & foals (#15, redesigned by #114) — the PURE logic behind pairing two
+// horses and a foal being born after a gestation wait. Kept renderer-free and
+// side-effect-free so it's unit-testable (breeding.test.js): the scene-coupled half
+// (the in-world pairing interaction, the gestation timer, the birth → name →
+// customizer flow, growing the horse roster) lives in scenes/paddock/breeding.js
+// and calls into these.
+//
+// #114 split the original single "pair → instant gestation" action into two
+// deliberate steps: a PERMANENT pair-bond (`isBonded`/`bondMateKey`/`canBond`
+// below) formed once via "Pair", and a separate, repeatable "Breed" action that
+// starts a new gestation on an already-bonded pair. The bond list itself
+// (`{ aKey, bKey }`) is persisted by save.js's load/savePairBonds — these helpers
+// are the pure reads/checks over that list, kept alongside the rest of the
+// breeding logic so they're unit-testable without a scene.
 //
 // Deliberately NO genetic/coat-inheritance logic (that was dropped in triage). The
 // foal is born with a parent-SEEDED look — a sensible jumping-off point the player
@@ -116,4 +125,33 @@ export function makeFoalData(parentA, parentB, key, seed = null) {
     parents: [parentA?.id ?? null, parentB?.id ?? null],
     stats: { hunger: 90, thirst: 90, grooming: 90, happiness: 95 },
   };
+}
+
+// ── Pair bonds (#114) — pure reads/checks over the persisted bond list ─────────
+// `bonds` is the plain array save.js persists: [{ aKey, bKey }, …]. Permanent once
+// formed — nothing here ever removes an entry (no death, no re-pairing).
+
+// Is `key` already bonded to anyone? (monogamy check)
+export function isBonded(key, bonds) {
+  return (bonds ?? []).some((p) => p.aKey === key || p.bKey === key);
+}
+
+// The mate key for an already-bonded horse, or null if unbonded.
+export function bondMateKey(key, bonds) {
+  const pair = (bonds ?? []).find((p) => p.aKey === key || p.bKey === key);
+  if (!pair) return null;
+  return pair.aKey === key ? pair.bKey : pair.aKey;
+}
+
+// Can these two horses form a NEW bond together? Both must exist, be distinct,
+// not foals, and neither already bonded to anyone (monogamy enforced at bond time,
+// not just gestation exclusivity — matches #114's locked scope).
+export function canBond(aKey, bKey, bonds, horsesByKey) {
+  if (!aKey || !bKey || aKey === bKey) return false;
+  const a = horsesByKey?.[aKey];
+  const b = horsesByKey?.[bKey];
+  if (!a || !b) return false;
+  if (a.isFoal || b.isFoal) return false;
+  if (isBonded(aKey, bonds) || isBonded(bKey, bonds)) return false;
+  return true;
 }

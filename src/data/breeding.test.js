@@ -1,12 +1,13 @@
 // Unit tests for the pure breeding logic (breeding.js): gestation timing, the
-// next-foal-key roster growth, and the parent-seeded foal look/data. No Phaser, no
-// scene — just the data functions.
+// next-foal-key roster growth, the parent-seeded foal look/data, and (#114) the
+// permanent pair-bond checks. No Phaser, no scene — just the data functions.
 
 import { describe, it, expect } from 'vitest';
 import {
   GESTATION_MS, FOAL_AGE, GROWN_AGE,
   nextFoalKey, gestationRemaining, isBornReady, gestationProgress,
   seedFoalLook, makeFoalData,
+  isBonded, bondMateKey, canBond,
 } from './breeding.js';
 
 describe('gestation timing', () => {
@@ -112,5 +113,63 @@ describe('makeFoalData (newborn roster entry)', () => {
 
   it('GROWN_AGE is older than a newborn', () => {
     expect(GROWN_AGE).toBeGreaterThan(FOAL_AGE);
+  });
+});
+
+describe('pair bonds (#114) — permanent, monogamous pairing separate from gestation', () => {
+  const horsesByKey = {
+    a: { isFoal: false },
+    b: { isFoal: false },
+    c: { isFoal: false },
+    foal: { isFoal: true },
+  };
+
+  it('isBonded is false for a horse with no bonds', () => {
+    expect(isBonded('a', [])).toBe(false);
+  });
+
+  it('isBonded is true for either side of a bond', () => {
+    const bonds = [{ aKey: 'a', bKey: 'b' }];
+    expect(isBonded('a', bonds)).toBe(true);
+    expect(isBonded('b', bonds)).toBe(true);
+    expect(isBonded('c', bonds)).toBe(false);
+  });
+
+  it('bondMateKey resolves the mate from either side, null if unbonded', () => {
+    const bonds = [{ aKey: 'a', bKey: 'b' }];
+    expect(bondMateKey('a', bonds)).toBe('b');
+    expect(bondMateKey('b', bonds)).toBe('a');
+    expect(bondMateKey('c', bonds)).toBeNull();
+  });
+
+  it('canBond allows two distinct, unbonded, non-foal horses', () => {
+    expect(canBond('a', 'b', [], horsesByKey)).toBe(true);
+  });
+
+  it('canBond rejects a horse bonding with itself', () => {
+    expect(canBond('a', 'a', [], horsesByKey)).toBe(false);
+  });
+
+  it('canBond rejects a horse already bonded to someone else (monogamy)', () => {
+    const bonds = [{ aKey: 'a', bKey: 'b' }];
+    expect(canBond('a', 'c', bonds, horsesByKey)).toBe(false);
+    expect(canBond('c', 'a', bonds, horsesByKey)).toBe(false);
+    expect(canBond('c', 'b', bonds, horsesByKey)).toBe(false);
+  });
+
+  it('canBond rejects a foal on either side', () => {
+    expect(canBond('foal', 'a', [], horsesByKey)).toBe(false);
+    expect(canBond('a', 'foal', [], horsesByKey)).toBe(false);
+  });
+
+  it('canBond rejects missing horses', () => {
+    expect(canBond('a', 'ghost', [], horsesByKey)).toBe(false);
+  });
+
+  it('the bond never breaks — the same pair can be checked repeatedly with no re-pair case', () => {
+    const bonds = [{ aKey: 'a', bKey: 'b' }];
+    // A bonded pair stays bonded; there's no "unbond" helper by design.
+    expect(isBonded('a', bonds)).toBe(true);
+    expect(canBond('a', 'b', bonds, horsesByKey)).toBe(false); // already bonded to each other
   });
 });
