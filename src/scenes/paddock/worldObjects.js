@@ -65,11 +65,24 @@ export const WithWorldObjects = (Base) => class extends Base {
     if (CONTENT_DEFS[content]?.feeds?.includes('chicken')) this.props.seedPiles.push(pile);
     else                                                   this.props.hayPiles.push(pile);
 
-    // Generic post-drop hook: a concern mixin can react to a food pile landing
-    // (e.g. bunny food attracting a wild bunny to the roster — paddock/bunny.js
-    // `onFoodPlaced`). Species-neutral — the hook decides what, if anything, a given
-    // content attracts, so this shared file names no species.
-    this.onFoodPlaced?.(content, spot.x, spot.y);
+    // Generic post-drop hook: any concern mixin can react to a food pile landing
+    // (e.g. fox food luring a wild fox, paddock/fox.js `onFoxFoodPlaced`; duck food
+    // luring a wild duck, paddock/duck.js `onDuckFoodPlaced`, #275). Each ground-drop
+    // taming species owns its OWN hook name (not one shared `onFoodPlaced` slot) so two
+    // such species can coexist without a silent-override collision (#167 C1 guard) —
+    // `_dispatchFoodPlaced` below just fans the drop out to every hook that exists.
+    // Species-neutral — this shared file names no species itself.
+    this._dispatchFoodPlaced(content, spot.x, spot.y);
+  }
+
+  // Fan a dropped-food event out to every ground-drop taming species' own hook
+  // (`on<X>FoodPlaced`, #275) — a fixed, species-neutral list of hook NAMES (not
+  // logic), so this file still names no species behavior, only which mixins may want
+  // to know. Each hook self-gates on its own content id (e.g. onFoxFoodPlaced bails
+  // unless content === 'foxFood'), so an unrelated drop is a cheap no-op call.
+  _dispatchFoodPlaced(content, x, y) {
+    this.onFoxFoodPlaced?.(content, x, y);
+    this.onDuckFoodPlaced?.(content, x, y);
   }
 
   // ─── Droppings (#232) ────────────────────────────────────────────────────────

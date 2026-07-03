@@ -264,6 +264,19 @@ export function buildIconTextures(scene) {
     g.fillStyle(0x5a2a55, 1); g.fillCircle(11, 5, 1.4);
     g.fillStyle(0x7a3a72, 1); g.fillCircle(10.6, 4.6, 0.6);
   });
+  // Basket of duck food (#275) — golden grain + a sprig of pond weed, so it reads as
+  // "feed for the duck," distinct from the russet fox scraps / green bunny pellets /
+  // brown cat kibble.
+  gen(scene, 'iconBasketDuckFood', 20, 20, (g) => {
+    drawBasketBody(g);
+    g.fillStyle(0xd8a94a, 1); g.fillRoundedRect(4, 5, 12, 6, 2); // mound of grain
+    g.fillStyle(0xefc978, 1);
+    g.fillCircle(6, 7, 1.3); g.fillCircle(10, 6, 1.3); g.fillCircle(14, 7, 1.3); g.fillCircle(8, 9, 1.3); g.fillCircle(12, 9, 1.3);
+    g.fillStyle(0xab8038, 1); g.fillCircle(9, 8, 1); g.fillCircle(13, 8, 1);
+    // a sprig of pond weed tucked in
+    g.fillStyle(0x4a7a2e, 1); g.fillCircle(11, 5, 1.4);
+    g.fillStyle(0x69a34a, 1); g.fillCircle(10.6, 4.6, 0.6);
+  });
   gen(scene, 'iconBasketEgg', 20, 20, (g) => {
     drawBasketBody(g);
     g.fillStyle(0xfff8e0, 1);

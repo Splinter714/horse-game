@@ -107,7 +107,9 @@ try {
       // beehive + honey (#239).
       'buildBeehive', '_setHoneyLevel', '_ripenHoneyTick', 'harvestBeehive',
       // fox taming (#266): wild-fox summon on fox-food drop + commit-to-roster.
-      'buildFox', 'onFoodPlaced', '_lureWildFox', '_feedWildFox', '_commitFox', '_foxRosterFull',
+      'buildFox', 'onFoxFoodPlaced', '_lureWildFox', '_feedWildFox', '_commitFox', '_foxRosterFull',
+      // duck taming + swim (#275): wild-duck summon on duck-food drop + commit-to-roster.
+      'buildDuck', 'onDuckFoodPlaced', '_lureWildDuck', '_feedWildDuck', '_commitDuck', '_duckRosterFull',
       // breeding & foals (#15): pairing, gestation, birth, roster growth, grow-up gate.
       'buildBreeding', 'beginBreeding', 'updateBreeding', '_birthFoal', 'growUpFoal',
       'setStayBaby', 'spawnSavedFoals', 'toggleBreedSelection',
@@ -338,9 +340,10 @@ try {
     } catch (e) { rooster = 'threw: ' + String(e); }
 
     // #266 foxes: the fox roster starts EMPTY (no default fox). Dropping fox food summons
-    // a WILD fox (onFoodPlaced), and repeated feeding TAMES it into the roster (capped at 1).
-    // We drive the pure/commit path deterministically (the wild-fox animation uses timers):
-    //   - onFoodPlaced('foxFood') must create a wild-fox sprite while untamed.
+    // a WILD fox (onFoxFoodPlaced), and repeated feeding TAMES it into the roster (capped
+    // at 1). We drive the pure/commit path deterministically (the wild-fox animation uses
+    // timers):
+    //   - onFoxFoodPlaced('foxFood') must create a wild-fox sprite while untamed.
     //   - _commitFox must add a `fox0` Fox to allFoxes + spawn a fox sprite in the scene.
     //   - a SECOND commit is capped (still exactly one fox — no duplicate join).
     //   - a hungry roster fox with a fox-food pile in reach must select its seek behavior.
@@ -348,15 +351,15 @@ try {
     try {
       const startedEmpty = Object.keys(g.registry.get('allFoxes') ?? {}).length === 0;
       // Untamed: dropping fox food summons a wild fox (a loose sprite, not a roster animal).
-      paddock.onFoodPlaced('foxFood', 340, 400);
+      paddock.onFoxFoodPlaced('foxFood', 340, 400);
       const wildSummoned = !!paddock._wildFox?.sprite?.active;
       // Commit it to the roster (the taming payoff).
       paddock._commitFox(paddock._wildFox, 340, 400);
       const roster = g.registry.get('allFoxes') ?? {};
       const joined = Object.keys(roster).length === 1 && roster.fox0?.species === 'fox';
       const foxInScene = paddock.animals.filter((a) => a.model?.species === 'fox').length;
-      // Capped: onFoodPlaced no longer summons once tamed, and a 2nd commit is a no-op.
-      paddock.onFoodPlaced('foxFood', 340, 400);
+      // Capped: onFoxFoodPlaced no longer summons once tamed, and a 2nd commit is a no-op.
+      paddock.onFoxFoodPlaced('foxFood', 340, 400);
       const noResummon = !paddock._wildFox; // already tamed → no new wild fox
       paddock._commitFox(null, 340, 400);
       const stillOne = Object.keys(g.registry.get('allFoxes') ?? {}).length === 1;
@@ -375,6 +378,50 @@ try {
         ? 'tamed-and-capped'
         : `startedEmpty=${startedEmpty},wildSummoned=${wildSummoned},joined=${joined},foxInScene=${foxInScene},noResummon=${noResummon},stillOne=${stillOne},seeks=${seeks}`;
     } catch (e) { fox = 'threw: ' + String(e); }
+
+    // #275 ducks: the duck roster starts EMPTY (no default duck), mirroring the fox.
+    // Dropping duck food near the stream summons a WILD duck (onDuckFoodPlaced), and
+    // repeated feeding TAMES it into the roster (capped at 1). Once tamed it also SWIMS
+    // via the generic `swims` capability (species/swim.js, #231) — we drive
+    // `animalGoSwim` directly to assert the swim-eligible dispatch claims the duck and
+    // its dedicated swim_0/1 art frames exist.
+    let duck = 'ok';
+    try {
+      const startedEmpty = Object.keys(g.registry.get('allDucks') ?? {}).length === 0;
+      // Untamed: dropping duck food near the stream summons a wild duck.
+      paddock.onDuckFoodPlaced('duckFood', 1650, 330);
+      const wildSummoned = !!paddock._wildDuck?.sprite?.active;
+      // Commit it to the roster (the taming payoff).
+      paddock._commitDuck(paddock._wildDuck, 1650, 330);
+      const roster = g.registry.get('allDucks') ?? {};
+      const joined = Object.keys(roster).length === 1 && roster.duck0?.species === 'duck';
+      const duckInScene = paddock.animals.filter((a) => a.model?.species === 'duck').length;
+      // Capped: onDuckFoodPlaced no longer summons once tamed, and a 2nd commit is a no-op.
+      paddock.onDuckFoodPlaced('duckFood', 1650, 330);
+      const noResummon = !paddock._wildDuck; // already tamed → no new wild duck
+      paddock._commitDuck(null, 1650, 330);
+      const stillOne = Object.keys(g.registry.get('allDucks') ?? {}).length === 1;
+      // The tamed duck seeks a duck-food pile when hungry (grazing dispatch claims it).
+      let seeks = false, swims = false, hasSwimFrames = false;
+      const duckA = paddock.animals.find((a) => a.model?.species === 'duck');
+      if (duckA) {
+        duckA.model.stats.hunger = 20;
+        paddock.props.hayPiles.push({ x: duckA.sprite.x + 20, y: duckA.sprite.y, sprite: { destroy() {} }, content: 'duckFood' });
+        duckA.state = 'idle';
+        const claimed = paddock.runBehaviors(duckA);
+        seeks = claimed && duckA.state === 'eating';
+        paddock.props.hayPiles = [];
+        // Swim: the duck's `swims` capability wires the generic swim primitive
+        // (charm.js animalGoSwim) — drive it directly (bypassing the random-chance
+        // gate) to assert it claims the duck and its dedicated frames exist.
+        duckA.state = 'idle';
+        hasSwimFrames = g.textures.exists(`${duckA.key}_swim_0`) && g.textures.exists(`${duckA.key}_swim_1`);
+        swims = paddock.animalGoSwim(duckA) && duckA.state === 'swimming';
+      }
+      duck = (startedEmpty && wildSummoned && joined && duckInScene === 1 && noResummon && stillOne && seeks && swims && hasSwimFrames)
+        ? 'tamed-and-swims'
+        : `startedEmpty=${startedEmpty},wildSummoned=${wildSummoned},joined=${joined},duckInScene=${duckInScene},noResummon=${noResummon},stillOne=${stillOne},seeks=${seeks},swims=${swims},hasSwimFrames=${hasSwimFrames}`;
+    } catch (e) { duck = 'threw: ' + String(e); }
     // #254 shears (multi-use tool): equip the shears, shear a ready sheep → +1 wool in
     // the shears' OWN load (not a basket) and the sheep flips shorn/not-ready; then dump
     // the shears' wool into the farm stand's wool stock (the scooper-style dump). Also
@@ -532,6 +579,7 @@ try {
       roosterCount: Object.keys(g.registry.get('allRoosters') ?? {}).length,
       roostersInScene: paddock.animals.filter((a) => a.model?.species === 'rooster').length,
       fox,
+      duck,
       shears,
       catBowls,
       seedFeeder,
@@ -867,6 +915,9 @@ try {
   if (result.rooster !== 'crows-at-dawn') fail(`rooster (#269) failed: ${result.rooster}`);
   // #266 foxes: wild fox summons on fox food, tames into the roster once, capped, then seeks.
   if (result.fox !== 'tamed-and-capped') fail(`fox taming (#266) failed: ${result.fox}`);
+  // #275 ducks: wild duck summons on duck food near the stream, tames into the roster
+  // once, capped, then seeks food AND swims via the generic swims capability (#231).
+  if (result.duck !== 'tamed-and-swims') fail(`duck taming/swim (#275) failed: ${result.duck}`);
   // #202 rework: the cat eats directly from a stocked bowl (not dropped piles).
   if (result.catBowls !== 'eats-from-bowl') fail(`cat bowl feeding (#202) failed: ${result.catBowls}`);
   if (result.seedFeeder !== 'fills-and-drains') fail(`seed feeder fill/drain (#240) failed: ${result.seedFeeder}`);

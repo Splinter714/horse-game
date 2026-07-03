@@ -15,6 +15,7 @@ import { BUNNY } from './bunny/index.js';
 import { GOAT } from './goat/index.js';
 import { LLAMA } from './llama/index.js';
 import { FOX } from './fox/index.js';
+import { DUCK } from './duck/index.js';
 import * as horseBehaviors from './horse/behaviors.js';
 import * as chickenBehaviors from './chicken/behaviors.js';
 import * as roosterBehaviors from './rooster/behaviors.js';
@@ -24,6 +25,7 @@ import * as pigBehaviors from './pig/behaviors.js';
 import * as bunnyBehaviors from './bunny/behaviors.js';
 import * as llamaBehaviors from './llama/behaviors.js';
 import * as foxBehaviors from './fox/behaviors.js';
+import * as duckBehaviors from './duck/behaviors.js';
 import * as swimBehaviors from './swim.js';
 
 export const SPECIES = {
@@ -39,6 +41,7 @@ export const SPECIES = {
   goat: GOAT,
   llama: LLAMA,
   fox: FOX,
+  duck: DUCK,
 };
 
 export function getSpecies(id) {
@@ -97,6 +100,12 @@ export const BEHAVIORS = {
   // gates (fox/behaviors.js); its `behaviors` list (fox/index.js) picks the fox subset.
   // Its foxFood-only diet is enforced by the food data (items.js `feeds`), not a behavior.
   fox: { ...indexById(horseBehaviors), ...indexById(foxBehaviors) },
+  // The tamed duck is a grazer that eats dropped DUCK-FOOD piles — its own
+  // seekDuckFood/seekDuckWater gates (duck/behaviors.js), same shape as the fox's,
+  // PLUS the GENERIC swimStream module (#231, ./swim.js) since it declares the
+  // `swims` capability: a content, off-cooldown duck occasionally wanders to the
+  // stream and takes a dip. Its `behaviors` list (duck/index.js) picks the subset.
+  duck: { ...indexById(duckBehaviors), ...indexById(swimBehaviors) },
 };
 
 function indexById(mod) {

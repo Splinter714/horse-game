@@ -12,7 +12,7 @@ export const CARRIER_DEFS = {
   // animal that eats it, #136), so the basket's cap is just a safety ceiling, not a
   // limit you should hit. Kept finite (not Infinity) so it never trips serialization
   // or UI maths — but high enough that the demand always fits (and you can hoard eggs).
-  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey'] },
+  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey'] },
   bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'milk', 'nectar'] },
 };
 
@@ -71,9 +71,17 @@ export const CONTENT_DEFS = {
   // contents, it has a `ground` texture — the fox is befriended by leaving food out for
   // it, so the pile is the taming interaction). Dropping a foxFood pile also advances the
   // wild fox's taming counter and, once fed enough, lures it into the roster (paddock/fox.js
-  // `onFoodPlaced` → `_feedWildFox`). `feeds: ['fox']` keeps the demand/gather + diet-gate
+  // `onFoxFoodPlaced` → `_feedWildFox`). `feeds: ['fox']` keeps the demand/gather + diet-gate
   // maths data-driven (only the fox seeks a foxFood pile; grazers walk past it).
   foxFood:    { label: 'Fox Food',    icon: 'iconBasketFoxFood',    action: 'feed',  ground: 'foxFoodPile', feeds: ['fox'] },
+  // Duck food (#275): gathered from the duck feeder (a gathering source by the stream)
+  // into a basket, then DROPPED as a ground pile the duck waddles over to and eats
+  // (same shape as fox food — a ground-drop taming interaction, not a bowl-fill).
+  // Dropping a duckFood pile also advances the wild duck's taming counter and, once
+  // fed enough, lures it into the roster (paddock/duck.js `onDuckFoodPlaced` →
+  // `_feedWildDuck`). `feeds: ['duck']` keeps the demand/gather + diet-gate maths
+  // data-driven (only the duck seeks a duckFood pile; grazers walk past it).
+  duckFood:   { label: 'Duck Food',   icon: 'iconBasketDuckFood',   action: 'feed',  ground: 'duckFoodPile', feeds: ['duck'] },
   // Milk is produced by milking a well-cared-for cow into an empty bucket, then
   // sold at the farm stand (action 'sell', like eggs — see STAND_DEFS).
   milk:   { label: 'Milk',    icon: 'iconBucketMilk',   action: 'sell' },

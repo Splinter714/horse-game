@@ -56,11 +56,14 @@ export const WithFox = (Base) => class extends Base {
     return Object.keys(this.registry.get('allFoxes') ?? {}).length >= FOX_CAP;
   }
 
-  // Generic post-drop hook (placeFood → onFoodPlaced). Species-neutral in the shared file;
-  // here we react only to FOX FOOD. If the fox is already tamed, do nothing — the roster
-  // fox eats the pile via the normal grazing AI. Otherwise summon/redirect the wild fox to
-  // the pile so it comes over to be fed (the taming beat).
-  onFoodPlaced(content, x, y) {
+  // Post-drop hook (placeFood → worldObjects.js dispatches to every registered
+  // on<X>FoodPlaced hook, #275). Own-named (not the shared `onFoodPlaced` slot) so a
+  // second ground-drop taming species (the duck) can have its own hook without a
+  // silent-override collision — see worldObjects.js `_dispatchFoodPlaced`. Reacts only
+  // to FOX FOOD. If the fox is already tamed, do nothing — the roster fox eats the pile
+  // via the normal grazing AI. Otherwise summon/redirect the wild fox to the pile so it
+  // comes over to be fed (the taming beat).
+  onFoxFoodPlaced(content, x, y) {
     if (content !== 'foxFood') return;
     if (this._foxRosterFull()) return; // already have our fox — normal grazing takes over
     this._lureWildFox(x, y);

@@ -30,6 +30,7 @@ export const WithBehaviors = (Base) => class extends Base {
       : species === 'cat' ? this._catContext(agent)
       : species === 'dog' ? this._dogContext(agent)
       : species === 'bunny' ? this._bunnyContext(agent)
+      : species === 'duck' ? this._duckContext(agent)
       : this._horseContext(agent);
     const spec = getSpecies(species);
     const registry = BEHAVIORS[species] ?? {};
@@ -193,6 +194,44 @@ export const WithBehaviors = (Base) => class extends Base {
       nearestFoodDist:  this._catBowlDist(a, this.props.bunnyFoodBowl),
       nearestWaterDist: this._catBowlDist(a, this.props.bunnyWaterBowl),
       isNight: !!this.isNight,
+    };
+  }
+
+  // Context for the tamed duck's behaviors (#275). Mirrors the fox's shape (it eats
+  // dropped DUCK-FOOD piles at `_nearestReachableHay`, diet-gated by items.js) — hunger/
+  // thirst plus the distance to the nearest reachable dropped pile / filled trough —
+  // PLUS the stream-swim fields the generic swimStream module (../../data/species/
+  // swim.js) needs, since the duck also declares the `swims` capability. Same
+  // streamDist/lastSwim/swimChance/swimCooldown shape as `_dogContext`.
+  _duckContext(a) {
+    const duck = a.model;
+    const pile = this._nearestReachableHay(a);
+    const nearestHayDist = pile
+      ? Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, pile.x, pile.y)
+      : Infinity;
+
+    const t = this.props.trough;
+    const troughDist = (t?.filled && this._inPasture(t.x, t.y))
+      ? Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, t.x, t.y)
+      : Infinity;
+
+    const water = this._nearestReachableWater(a);
+    const streamDist = water
+      ? Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, water.x, water.y)
+      : Infinity;
+
+    return {
+      hunger: duck?.stats?.hunger ?? 100,
+      thirst: duck?.stats?.thirst ?? 100,
+      nearestHayDist,
+      troughDist,
+      isNight: !!this.isNight,
+      now: this.time.now,
+      // Stream swim (#231, generic — any `swims` capability species).
+      streamDist,
+      lastSwim: a._lastSwim ?? null,
+      swimChance: CHARM.SWIM_CHANCE,
+      swimCooldown: CHARM.SWIM_COOLDOWN,
     };
   }
 

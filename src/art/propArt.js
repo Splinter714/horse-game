@@ -250,6 +250,53 @@ export function buildPropTextures(scene) {
     g.fillStyle(0x7a3a72, 1); g.fillCircle(8.5, 5.5, 0.6); g.fillCircle(14.5, 6.5, 0.6);
   });
 
+  // Duck feeder (#275) — the gather SOURCE for duck food: a rustic wooden feed tray
+  // set on a post by the stream bank, scattered with grain. The player fills a basket
+  // here, then drops duck-food piles to befriend the wild duck. Origin bottom-centre
+  // (set by the placer). Drawn in the same cozy pixel style as the fox den / kibble sack.
+  gen(scene, 'duckFeeder', 36, 34, (g) => {
+    const post = 0x8a6a44, postHi = 0xa8855a, postLo = 0x63492d;
+    const wood = 0xb08858, woodHi = 0xcaa878, woodLo = 0x8a6640;
+    g.layer('shadow');
+    g.fillStyle(0x000000, 0.14); g.fillEllipse(18, 32, 26, 5);
+    // post
+    g.layer('post');
+    g.fillStyle(postLo, 1); g.fillRect(16, 14, 5, 18);
+    g.fillStyle(post, 1);   g.fillRect(17, 14, 3, 18);
+    g.fillStyle(postHi, 1); g.fillRect(17, 14, 1, 18);
+    // tray
+    g.layer('tray');
+    g.fillStyle(woodLo, 1); g.fillEllipse(18, 13, 30, 9);
+    g.fillStyle(wood, 1);   g.fillEllipse(18, 11, 28, 8);
+    g.fillStyle(woodHi, 1); g.fillEllipse(12, 9, 12, 3); // sunlit rim
+    // grain scattered in the tray
+    g.layer('grain');
+    const grain = 0xd8a94a, grainHi = 0xefc978;
+    g.fillStyle(grain, 1);
+    g.fillCircle(9, 10, 1.2); g.fillCircle(14, 9, 1.2); g.fillCircle(19, 10, 1.2);
+    g.fillCircle(24, 9, 1.2); g.fillCircle(27, 11, 1.2); g.fillCircle(16, 12, 1.2);
+    g.fillStyle(grainHi, 1);
+    g.fillCircle(9, 9, 0.6); g.fillCircle(19, 9, 0.6); g.fillCircle(24, 8, 0.6);
+  });
+
+  // Duck food pile (#275) — a dropped serving of grain the wild duck waddles over to
+  // eat. Golden scattered grains + a couple of green pond-weed bits, distinct at a
+  // glance from the fox's meaty morsels / the bunny's leafy pellets. Origin default
+  // (placed centred by placeFood).
+  gen(scene, 'duckFoodPile', 22, 10, (g) => {
+    g.fillStyle(0x000000, 0.1); g.fillEllipse(11, 9, 20, 3); // ground shadow
+    const grain = 0xd8a94a, grainHi = 0xefc978, grainLo = 0xab8038;
+    g.fillStyle(grainLo, 1);
+    g.fillEllipse(6, 6, 6, 4); g.fillEllipse(13, 6, 6, 4); g.fillEllipse(17, 5, 5, 3);
+    g.fillStyle(grain, 1);
+    g.fillEllipse(6, 5, 5, 3); g.fillEllipse(13, 5, 5, 3); g.fillEllipse(17, 4, 4, 2.5);
+    g.fillStyle(grainHi, 1);
+    g.fillCircle(5, 4, 1); g.fillCircle(12, 4, 1); g.fillCircle(16, 3.5, 0.8);
+    // a couple of pond-weed sprigs tucked in
+    g.fillStyle(0x4a7a2e, 1); g.fillCircle(9, 6, 1.4); g.fillCircle(15, 7, 1.4);
+    g.fillStyle(0x69a34a, 1); g.fillCircle(8.5, 5.5, 0.6); g.fillCircle(14.5, 6.5, 0.6);
+  });
+
   // Animal dropping (#232) — a small, tasteful cluster of rounded pellets on the
   // ground with a soft shadow. Cozy pixel-art, kept deliberately little and neat so
   // it reads as "a bit to tidy up," not gross. Scooped up with the scooper tool.

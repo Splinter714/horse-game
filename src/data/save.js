@@ -333,6 +333,28 @@ export function saveFoxTaming(count) {
   } catch {}
 }
 
+// ── Duck taming progress (#275) ───────────────────────────────────────────────
+// Same shape as the fox taming counter above — the wild duck is befriended by
+// repeated feeding at the stream; each duck-food pile it eats bumps a counter, and
+// once it's high enough the duck joins the roster (paddock/duck.js). Its own tiny
+// storage key so befriending is gradual across sessions, mirroring FOX_TAMING_KEY.
+const DUCK_TAMING_KEY = 'horse-game-duck-taming-v1';
+
+export function loadDuckTaming() {
+  try {
+    const n = Number(JSON.parse(localStorage.getItem(DUCK_TAMING_KEY)));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function saveDuckTaming(count) {
+  try {
+    localStorage.setItem(DUCK_TAMING_KEY, JSON.stringify(Math.max(0, count | 0)));
+  } catch {}
+}
+
 // ── Breeding gestations (#15) ─────────────────────────────────────────────────
 // In-flight pregnancies: an array of { aKey, bKey, startedAt, seed } that must
 // survive a reload so a foal paired before closing the game is still born on time
