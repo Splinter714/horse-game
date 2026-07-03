@@ -84,6 +84,18 @@ try {
       '_stepNav', 'tapMoveTo', '_renderPrompts', 'checkToolProximity',
       'buildInteractables', '_proximityInteractable', 'useActiveTool', '_nearestToolHorse',
       '_animalUseAction', '_nearestCareAnimal',
+      // wildlife: ambient bird beats incl. the bird-bath splash (#219) + feeder (#240).
+      'buildWildlife', 'updateWildlife', '_scheduleBirdBathVisit', '_spawnBirdBathVisit',
+      '_scheduleFeederVisit', '_spawnFeederVisit',
+      // birdEcosystem: fixed bird props + feeder fill/drain (#219/#240) + hummingbirds (#226).
+      'buildBirdEcosystem', 'buildBirdBath', 'buildSeedFeeder', 'buildNectarFeeder',
+      'fillSeedFeeder', '_setSeedFeederLevel', 'drainSeedFeeder',
+      'fillNectarFeeder', '_setNectarFeederLevel', 'drainNectarFeeder',
+      // birdEcosystemVisits: the object-anchored flying-critter visit beats.
+      'startBirdEcosystemVisits', '_scheduleHummingbirdVisit', '_spawnHummingbird', '_hummerTargets',
+      '_scheduleBeeVisit', '_spawnBeeVisit', '_beeTargets',
+      // beehive + honey (#239).
+      'buildBeehive', '_setHoneyLevel', '_ripenHoneyTick', 'harvestBeehive',
     ];
     const missingMethods = expectMethods.filter((m) => typeof paddock[m] !== 'function');
 
@@ -216,6 +228,75 @@ try {
       }
     } catch (e) { catBowls = 'threw: ' + String(e); }
 
+    // #240 seed feeder: starts empty (birds ignore it), a fill tops it to the cap and
+    // flips its `filled` flag + sprite; each bird feeding drains one; draining to empty
+    // flips it back off (the sprite swap + attraction gate the player sees).
+    let seedFeeder = 'no feeder';
+    try {
+      const f = paddock.props.seedFeeder;
+      if (f) {
+        const startedEmpty = f.level === 0 && f.filled === false;
+        paddock._setSeedFeederLevel(8); // full (FEEDER_CAP)
+        const stocked = f.filled === true && f.level === 8 && f.sprite.texture.key === 'seedFeeder';
+        paddock.drainSeedFeeder(); // one bird feeds
+        const drained = f.level === 7;
+        paddock._setSeedFeederLevel(0);
+        const emptiedOff = f.filled === false && f.sprite.texture.key === 'seedFeederEmpty';
+        seedFeeder = (startedEmpty && stocked && drained && emptiedOff)
+          ? 'fills-and-drains'
+          : `startedEmpty=${startedEmpty},stocked=${stocked},drained=${drained},emptiedOff=${emptiedOff}`;
+      }
+    } catch (e) { seedFeeder = 'threw: ' + String(e); }
+
+    // #226 hummingbird nectar feeder: same fill/drain contract as the seed feeder but
+    // for the nectar resource, plus the hummingbird hover targets include the feeder
+    // only while it's stocked (flowers always count).
+    let nectarFeeder = 'no feeder';
+    try {
+      const f = paddock.props.nectarFeeder;
+      if (f) {
+        const startedEmpty = f.level === 0 && f.filled === false;
+        // Empty feeder → hover targets are flowers only (no feeder port).
+        const emptyTargets = paddock._hummerTargets();
+        const emptyNoFeederPort = emptyTargets.length > 0 && !emptyTargets.some((t) => t.feeder);
+        paddock._setNectarFeederLevel(8);
+        const stocked = f.filled === true && f.level === 8 && f.sprite.texture.key === 'nectarFeeder';
+        const stockedHasPort = paddock._hummerTargets().some((t) => t.feeder);
+        paddock.drainNectarFeeder();
+        const drained = f.level === 7;
+        paddock._setNectarFeederLevel(0);
+        const emptiedOff = f.filled === false && f.sprite.texture.key === 'nectarFeederEmpty';
+        nectarFeeder = (startedEmpty && emptyNoFeederPort && stocked && stockedHasPort && drained && emptiedOff)
+          ? 'fills-and-drains'
+          : `startedEmpty=${startedEmpty},emptyNoFeederPort=${emptyNoFeederPort},stocked=${stocked},stockedHasPort=${stockedHasPort},drained=${drained},emptiedOff=${emptiedOff}`;
+      }
+    } catch (e) { nectarFeeder = 'threw: ' + String(e); }
+
+    // #239 beehive: honey ripens on the hive (a tick), the sprite flips to the ready
+    // variant, and a basket harvest pulls the whole batch in + resets the hive to zero.
+    let beehive = 'no hive';
+    try {
+      const h = paddock.props.beehive;
+      if (h) {
+        const startedEmpty = h.honey === 0 && h.ready === false;
+        paddock._ripenHoneyTick(); // one production tick → ripe enough to harvest
+        const ripe = h.honey >= 1 && h.ready === true && h.sprite.texture.key === 'beehiveReady';
+        // Equip an empty basket and harvest.
+        const hot = g.scene.getScene('HotbarScene');
+        hot.activeSlot = hot.hotbar.indexOf('basketGroup');
+        hot.activeCarrier.basket = 'basket1';
+        hot.carriers.basket1 = { content: null, count: 0 };
+        const yielded = h.honey;
+        paddock.harvestBeehive();
+        const harvested = hot.carriers.basket1.content === 'honey'
+          && hot.carriers.basket1.count === yielded
+          && h.honey === 0 && h.ready === false && h.sprite.texture.key === 'beehive';
+        beehive = (startedEmpty && ripe && harvested)
+          ? 'ripens-and-harvests'
+          : `startedEmpty=${startedEmpty},ripe=${ripe},harvested=${harvested}(basket=${JSON.stringify(hot.carriers.basket1)},honey=${h.honey})`;
+      }
+    } catch (e) { beehive = 'threw: ' + String(e); }
+
     // #187 charm behaviors: the night settle/wake cycle must round-trip without
     // throwing (it rewires restAllAnimals/wakeAllAnimals), and the new run primitives
     // must resolve. Probed last (it mutates animal state) and lenient — this proves
@@ -238,6 +319,9 @@ try {
     return {
       charm,
       catBowls,
+      seedFeeder,
+      nectarFeeder,
+      beehive,
       cowMilk,
       goatMilk,
       goatCount: Object.keys(g.registry.get('allGoats') ?? {}).length,
@@ -261,6 +345,10 @@ try {
       missingMethods,
       horsesInScene: paddock.horses?.length ?? 0,
       hasFarmStand: !!paddock.farmStand,
+      hasBirdBath: !!paddock.props.birdBath, // #219 decorative bird bath world object
+      hasSeedFeeder: !!paddock.props.seedFeeder, // #240 refillable seed feeder
+      hasNectarFeeder: !!paddock.props.nectarFeeder, // #226 hummingbird nectar feeder
+      hasBeehive: !!paddock.props.beehive, // #239 beehive world object
       // Display scales: every animal is now super-sampled (ART_SCALE× art shown at
       // S/ART_SCALE), so the chicken and horse share the same base display scale. Guard
       // that ratio ≈ 1 — it jumps to ART_SCALE if a species' `superSampled` spawn flag
@@ -434,6 +522,10 @@ try {
   if (result.missingMethods.length) fail('PaddockScene missing methods (mixin not wired?): ' + result.missingMethods.join(', '));
   if (result.horsesInScene !== 7) fail(`expected 7 horse sprites in scene, got ${result.horsesInScene}`);
   if (!result.hasFarmStand) fail('farm stand not built — farmStand mixin not wired');
+  if (!result.hasBirdBath) fail('bird bath (#219) not built — world.js props.birdBath missing');
+  if (!result.hasSeedFeeder) fail('seed feeder (#240) not built — props.seedFeeder missing');
+  if (!result.hasNectarFeeder) fail('nectar feeder (#226) not built — props.nectarFeeder missing');
+  if (!result.hasBeehive) fail('beehive (#239) not built — props.beehive missing');
   if (Math.abs(result.scaleRatio - 1) > 0.01) fail(`chicken/horse display-scale ratio ${result.scaleRatio} ≠ 1 — a species' superSampled spawn flag may be missing (chicken rendered 4× too big)?`);
   if (!result.movementOk) fail('creature movement/pathfinding threw: ' + result.movementError);
   if (result.behaviorDecision !== 'seekFood') fail(`hungry horse with hay nearby did not select seekFood (got ${result.behaviorDecision})`);
@@ -455,6 +547,9 @@ try {
   if (result.charm !== 'wired') fail(`charm behaviors (#187) failed: ${result.charm}`);
   // #202 rework: the cat eats directly from a stocked bowl (not dropped piles).
   if (result.catBowls !== 'eats-from-bowl') fail(`cat bowl feeding (#202) failed: ${result.catBowls}`);
+  if (result.seedFeeder !== 'fills-and-drains') fail(`seed feeder fill/drain (#240) failed: ${result.seedFeeder}`);
+  if (result.nectarFeeder !== 'fills-and-drains') fail(`nectar feeder fill/drain (#226) failed: ${result.nectarFeeder}`);
+  if (result.beehive !== 'ripens-and-harvests') fail(`beehive honey (#239) failed: ${result.beehive}`);
   // The pig: it spawned into the world and eats apples but not hay.
   if (result.pigCount !== 1) fail(`expected 1 pig in roster, got ${result.pigCount}`);
   if (result.pigsInScene !== 1) fail(`expected 1 pig sprite in scene, got ${result.pigsInScene}`);

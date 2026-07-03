@@ -407,8 +407,261 @@ export function buildWorldTextures(scene) {
     g.fillCircle(11, 37, 1); g.fillCircle(11, 39, 1);
   });
 
+  // --- bird bath (34 × 40) — decorative garden bird bath (#219) ---
+  // A classic pedestal bird bath: a fluted stone column on a wide foot, topped by
+  // a shallow round basin of water. Purely decorative + ambient — birds fly in to
+  // splash/drink (paddock/wildlife.js), no refilling/upkeep. Origin (0.5,1) at the
+  // foot so it depth-sorts on its base like the other pedestal props. Dissect tags
+  // (g.layer) per logical part for the dev dissect tool.
+  gen(scene, 'birdBath', 34, 40, (g) => {
+    const stone = 0xb8b2a6, stoneHi = 0xd6d0c4, stoneLo = 0x8f897d, moss = 0x7a8a52;
+    const rim = 0xa8a294, water = 0x5aa6d6, waterHi = 0x9ad2f0, waterLo = 0x3f83b8;
+
+    // Wide base foot
+    g.layer('base');
+    g.fillStyle(stoneLo, 1); g.fillEllipse(17, 38, 22, 7);   // ground shadow ring
+    g.fillStyle(stone, 1);   g.fillEllipse(17, 36, 20, 6);
+    g.fillStyle(stoneHi, 1); g.fillEllipse(17, 35, 16, 3);
+    g.fillStyle(moss, 0.7);  g.fillRect(7, 36, 2, 1); g.fillRect(25, 35, 2, 1); // moss flecks
+
+    // Fluted pedestal column
+    g.layer('column');
+    g.fillStyle(stone, 1);   g.fillRect(12, 16, 10, 20);
+    g.fillStyle(stoneHi, 1); g.fillRect(12, 16, 2, 20);      // lit left edge
+    g.fillStyle(stoneLo, 1); g.fillRect(20, 16, 2, 20);      // shaded right edge
+    g.fillStyle(stoneLo, 1);                                  // flute seams
+    g.fillRect(15, 18, 1, 16); g.fillRect(18, 18, 1, 16);
+    g.fillStyle(moss, 0.6);  g.fillRect(13, 30, 2, 2);       // a little moss on the shaft
+
+    // Basin bowl (wide shallow dish on top)
+    g.layer('basin');
+    g.fillStyle(stoneLo, 1); g.fillEllipse(17, 16, 32, 12);  // underside rim shadow
+    g.fillStyle(stone, 1);   g.fillEllipse(17, 14, 32, 12);  // outer bowl
+    g.fillStyle(rim, 1);     g.fillEllipse(17, 13, 30, 11);  // rim lip
+    g.fillStyle(stoneHi, 1); g.fillEllipse(17, 12, 30, 9);   // lit inner rim
+
+    // Water surface in the basin
+    g.layer('water');
+    g.fillStyle(waterLo, 1); g.fillEllipse(17, 13, 24, 8);
+    g.fillStyle(water, 1);   g.fillEllipse(17, 12, 24, 7);
+    g.fillStyle(waterHi, 0.85);
+    g.fillEllipse(12, 11, 6, 2);                             // sun glint
+    g.fillRect(20, 13, 5, 1); g.fillRect(15, 14, 4, 1);      // little ripple lines
+    g.layer('rim');
+    g.fillStyle(stoneHi, 1); g.fillEllipse(17, 10, 30, 3);   // front rim highlight
+  });
+
+  // --- seed bird feeder (28 × 56) — refillable songbird feeder on a post (#240) ---
+  // A wooden hopper feeder atop a slim post: a peaked-roof seed box with a glass-front
+  // hopper and a little landing tray. Two variants — stocked (`seedFeeder`, seed
+  // showing in the tray + hopper) and empty (`seedFeederEmpty`, bare tray) — swapped by
+  // birdEcosystem.js as the seed level crosses zero (like the trough/pet bowls). Origin
+  // (0.5,1) at the foot of the post so it depth-sorts on its base. Dissect-tagged.
+  const drawSeedFeeder = (g, stocked) => {
+    const post = 0x8a5a2e, postHi = 0xa9743c, postLo = 0x6a4420;
+    const wood = 0xc08a4e, woodHi = 0xd8a662, woodLo = 0x9a6a34;
+    const roofD = 0x6a3a1c, roofM = 0x9a5024, roofH = 0xc07a40;
+    const glass = 0xbfe0ea, tray = 0x8a5a2e, trayHi = 0xa9743c;
+    const seed = 0xe0b840, seedLo = 0xbe9628, seedHi = 0xf2d868;
+
+    // Post
+    g.layer('post');
+    g.fillStyle(post, 1);   g.fillRect(12, 30, 4, 26);
+    g.fillStyle(postHi, 1); g.fillRect(12, 30, 1, 26);
+    g.fillStyle(postLo, 1); g.fillRect(15, 30, 1, 26);
+    g.fillStyle(postLo, 1); g.fillEllipse(14, 55, 8, 3); // ground shadow
+
+    // Landing tray (with a low lip)
+    g.layer('tray');
+    g.fillStyle(woodLo, 1); g.fillRect(5, 30, 18, 4);
+    g.fillStyle(tray, 1);   g.fillRect(6, 28, 16, 3);
+    g.fillStyle(trayHi, 1); g.fillRect(6, 28, 16, 1);
+    g.fillStyle(woodLo, 1); g.fillRect(5, 29, 1, 4); g.fillRect(22, 29, 1, 4); // lip ends
+
+    // Seed heaped in the tray (stocked only)
+    if (stocked) {
+      g.layer('seed');
+      g.fillStyle(seedLo, 1); g.fillEllipse(14, 28, 14, 3);
+      g.fillStyle(seed, 1);   g.fillEllipse(14, 27, 12, 3);
+      g.fillStyle(seedHi, 1); g.fillRect(9, 26, 2, 1); g.fillRect(16, 26, 2, 1); g.fillRect(13, 25, 2, 1);
+    }
+
+    // Hopper box (glass-fronted)
+    g.layer('hopper');
+    g.fillStyle(wood, 1);   g.fillRect(8, 14, 12, 14);
+    g.fillStyle(woodHi, 1); g.fillRect(8, 14, 12, 2);
+    g.fillStyle(woodLo, 1); g.fillRect(8, 26, 12, 2);
+    g.fillStyle(wood, 1);   g.fillRect(8, 14, 2, 14); g.fillRect(18, 14, 2, 14); // side posts
+    g.fillStyle(glass, 0.85); g.fillRect(10, 16, 8, 10);   // glass front
+    if (stocked) { // seed visible through the glass, settling to the bottom
+      g.fillStyle(seed, 1);   g.fillRect(10, 21, 8, 5);
+      g.fillStyle(seedHi, 1); g.fillRect(10, 21, 8, 1);
+      g.fillStyle(seedLo, 1); g.fillRect(11, 24, 2, 1); g.fillRect(15, 24, 2, 1);
+    }
+    g.fillStyle(0xffffff, 0.4); g.fillRect(11, 17, 1, 7); // glass glint
+
+    // Peaked roof
+    g.layer('roof');
+    g.fillStyle(roofD, 1); g.fillTriangle(4, 15, 14, 5, 24, 15);
+    g.fillStyle(roofM, 1); g.fillTriangle(6, 15, 14, 7, 22, 15);
+    g.fillStyle(roofH, 1); g.fillRect(9, 11, 2, 2); g.fillRect(12, 9, 2, 2); // highlight streaks
+    g.fillStyle(woodLo, 1); g.fillRect(4, 14, 20, 2);      // eave board
+    g.fillStyle(roofD, 1);  g.fillRect(13, 5, 2, 3);       // ridge cap
+    // Little hang-loop finial
+    g.fillStyle(postLo, 1); g.fillRect(13, 2, 2, 4);
+  };
+  gen(scene, 'seedFeeder',      28, 56, (g) => drawSeedFeeder(g, true));
+  gen(scene, 'seedFeederEmpty', 28, 56, (g) => drawSeedFeeder(g, false));
+
+  // --- hummingbird nectar feeder (24 × 52) — refillable sugar-water feeder (#226) ---
+  // A hanging nectar feeder: an inverted glass reservoir of rosy sugar water with a
+  // little red flower-shaped feeding base and yellow bee-guard ports. Two variants —
+  // stocked (`nectarFeeder`, nectar showing) and empty (`nectarFeederEmpty`, clear
+  // reservoir) — swapped by birdEcosystem.js as the nectar level crosses zero.
+  // Hummingbirds hover at the ports to drink. Origin (0.5,1) at the foot of the post.
+  const drawNectarFeeder = (g, stocked) => {
+    const post = 0x8a5a2e, postHi = 0xa9743c, postLo = 0x6a4420;
+    const glass = 0xcfe6ee, glassHi = 0xffffff;
+    const nectar = 0xe85a7a, nectarHi = 0xf7a6bd, nectarLo = 0xc23a5c;
+    const baseRed = 0xd83a3a, baseDark = 0xa82828, port = 0xf2d24a, portDark = 0xc89a1a;
+
+    // Post + hang loop
+    g.layer('post');
+    g.fillStyle(post, 1);   g.fillRect(11, 2, 2, 12);
+    g.fillStyle(postHi, 1); g.fillRect(11, 2, 1, 12);
+    g.fillStyle(postLo, 1); g.fillEllipse(12, 51, 6, 2); // ground shadow
+    g.fillStyle(postLo, 1); g.fillRect(10, 2, 4, 2);     // loop bar
+
+    // Reservoir (inverted rounded bottle)
+    g.layer('reservoir');
+    g.fillStyle(glass, 0.9); g.fillEllipse(12, 24, 16, 26);
+    g.fillStyle(glass, 0.9); g.fillRect(4, 14, 16, 12);
+    if (stocked) { // rosy nectar settling in the bottom of the reservoir
+      g.layer('nectar');
+      g.fillStyle(nectarLo, 1); g.fillEllipse(12, 28, 13, 16);
+      g.fillStyle(nectar, 1);   g.fillEllipse(12, 30, 12, 12);
+      g.fillStyle(nectarHi, 0.8); g.fillEllipse(8, 27, 4, 6);
+    }
+    g.layer('glassHi');
+    g.fillStyle(glassHi, 0.5); g.fillRect(7, 16, 2, 14); // vertical glass glint
+    g.fillStyle(glassHi, 0.35); g.fillEllipse(12, 14, 14, 4); // top curve sheen
+
+    // Red flower feeding base
+    g.layer('base');
+    g.fillStyle(baseDark, 1); g.fillEllipse(12, 40, 20, 8);
+    g.fillStyle(baseRed, 1);  g.fillEllipse(12, 39, 18, 7);
+    // petal lobes around the rim
+    g.fillStyle(baseRed, 1);
+    g.fillCircle(3, 39, 3); g.fillCircle(21, 39, 3); g.fillCircle(7, 42, 2); g.fillCircle(17, 42, 2);
+    g.fillStyle(baseDark, 1); g.fillEllipse(12, 41, 14, 4); // underside shade
+
+    // Yellow bee-guard feeding ports
+    g.layer('ports');
+    g.fillStyle(portDark, 1); g.fillCircle(6, 40, 2); g.fillCircle(18, 40, 2); g.fillCircle(12, 42, 2);
+    g.fillStyle(port, 1);     g.fillCircle(6, 39, 1.4); g.fillCircle(18, 39, 1.4); g.fillCircle(12, 41, 1.4);
+
+    // Little bottom drip tip
+    g.layer('tip');
+    g.fillStyle(baseDark, 1); g.fillTriangle(10, 43, 14, 43, 12, 47);
+  };
+  gen(scene, 'nectarFeeder',      24, 52, (g) => drawNectarFeeder(g, true));
+  gen(scene, 'nectarFeederEmpty', 24, 52, (g) => drawNectarFeeder(g, false));
+
+  // --- nectar station (22 × 26) — sugar-water jug the player fills a bucket at (#226) ---
+  // A stout glass jug of rosy nectar with a cork and a little spout, on a wooden stand
+  // by the house. A gathering SOURCE (like the kibble sack): fill a bucket here, then
+  // pour it into the hummingbird feeder. Origin (0.5,1) at the base.
+  gen(scene, 'nectarStation', 22, 26, (g) => {
+    const wood = 0x9a6a34, woodHi = 0xb98a4c;
+    const glass = 0xcfe6ee, glassHi = 0xffffff;
+    const nectar = 0xe85a7a, nectarHi = 0xf7a6bd, nectarLo = 0xc23a5c;
+    const cork = 0xb98a4c, corkDark = 0x8a5f2c;
+
+    // Wooden stand
+    g.layer('stand');
+    g.fillStyle(wood, 1);   g.fillRect(2, 23, 18, 3);
+    g.fillStyle(woodHi, 1); g.fillRect(2, 23, 18, 1);
+
+    // Jug body (rounded)
+    g.layer('jug');
+    g.fillStyle(glass, 0.92); g.fillEllipse(11, 15, 18, 18);
+    g.fillStyle(glass, 0.92); g.fillRect(4, 9, 14, 6);
+    // nectar fill
+    g.fillStyle(nectarLo, 1); g.fillEllipse(11, 17, 15, 13);
+    g.fillStyle(nectar, 1);   g.fillEllipse(11, 18, 14, 11);
+    g.fillStyle(nectarHi, 0.8); g.fillEllipse(7, 15, 4, 6);
+    g.fillStyle(glassHi, 0.5); g.fillRect(6, 9, 2, 10); // glint
+
+    // Neck + cork
+    g.layer('cork');
+    g.fillStyle(glass, 0.92); g.fillRect(8, 4, 6, 5);
+    g.fillStyle(cork, 1);     g.fillRect(8, 2, 6, 3);
+    g.fillStyle(corkDark, 1); g.fillRect(8, 4, 6, 1);
+
+    // Little pour spout on the side
+    g.layer('spout');
+    g.fillStyle(glass, 0.92); g.fillTriangle(18, 12, 21, 13, 18, 15);
+  });
+
+  // --- beehive (30 × 44) — stacked-box hive, fixed world object (#239) ---
+  // A classic langstroth-style beehive: two stacked wooden supers on a base board with
+  // a peaked lid, a landing board + entrance slot, and (when ripe) golden honey glowing
+  // in the seams. Two variants — `beehive` (working) and `beehiveReady` (honey ripe,
+  // ready to harvest: warm honey glow in the box seams + a drip at the entrance).
+  // Placed like the birdhouse (fixed spot). Origin (0.5,1) at the base. Dissect-tagged.
+  const drawBeehive = (g, ripe) => {
+    const box = 0xd8a24a, boxHi = 0xecc06a, boxLo = 0xb07e2e, seam = 0x9a6a24;
+    const lid = 0xb07e2e, lidHi = 0xcf9a44, lidDark = 0x7f5a1e;
+    const board = 0x9a6a34, dark = 0x2a1c08, glow = 0xf6c94e, honey = 0xe8a828;
+
+    // Base board / stand
+    g.layer('base');
+    g.fillStyle(boxLo, 1); g.fillEllipse(15, 43, 30, 5); // ground shadow
+    g.fillStyle(board, 1); g.fillRect(3, 38, 24, 4);
+    g.fillStyle(0xb98a4c, 1); g.fillRect(3, 38, 24, 1);
+    // landing board sticking out the front
+    g.fillStyle(board, 1); g.fillRect(6, 36, 18, 2);
+
+    // Lower super (box)
+    g.layer('super_lower');
+    g.fillStyle(box, 1);   g.fillRect(5, 26, 20, 12);
+    g.fillStyle(boxHi, 1); g.fillRect(5, 26, 20, 2);
+    g.fillStyle(boxLo, 1); g.fillRect(5, 36, 20, 2);
+    g.fillStyle(seam, 1);  g.fillRect(5, 31, 20, 1); // frame seam
+    // entrance slot + landing
+    g.fillStyle(dark, 1);  g.fillRect(11, 35, 8, 2);
+
+    // Upper super (box)
+    g.layer('super_upper');
+    g.fillStyle(box, 1);   g.fillRect(6, 14, 18, 12);
+    g.fillStyle(boxHi, 1); g.fillRect(6, 14, 18, 2);
+    g.fillStyle(boxLo, 1); g.fillRect(6, 24, 18, 2);
+    g.fillStyle(seam, 1);  g.fillRect(6, 19, 18, 1);
+
+    // Honey glow in the seams when ripe
+    if (ripe) {
+      g.layer('honey');
+      g.fillStyle(glow, 0.9); g.fillRect(6, 19, 18, 1); g.fillRect(5, 31, 20, 1);
+      g.fillStyle(glow, 0.55); g.fillRect(6, 18, 18, 3); g.fillRect(5, 30, 20, 3);
+      // a honey drip at the entrance
+      g.fillStyle(honey, 1); g.fillRect(14, 37, 2, 3); g.fillCircle(15, 40, 1.4);
+      g.fillStyle(glow, 1);  g.fillRect(14, 37, 1, 2);
+    }
+
+    // Peaked telescoping lid
+    g.layer('lid');
+    g.fillStyle(lidDark, 1); g.fillRect(4, 12, 22, 3);
+    g.fillStyle(lid, 1);     g.fillTriangle(3, 12, 15, 4, 27, 12);
+    g.fillStyle(lidHi, 1);   g.fillTriangle(6, 12, 15, 6, 12, 12); // lit left slope
+    g.fillStyle(lidDark, 1); g.fillRect(14, 4, 2, 3);              // ridge cap
+  };
+  gen(scene, 'beehive',      30, 44, (g) => drawBeehive(g, false));
+  gen(scene, 'beehiveReady', 30, 44, (g) => drawBeehive(g, true));
+
   // --- nest (18 × 12) — woven straw ring ---
   gen(scene, 'nest', 18, 12, (g) => {
+    // Outer straw ring
+    g.fillStyle(0xb87828, 1); g.fillEllipse(9, 8, 18, 10);
     // Outer straw ring
     g.fillStyle(0xb87828, 1); g.fillEllipse(9, 8, 18, 10);
     g.fillStyle(0xd4a030, 1); g.fillEllipse(9, 7, 16, 8);

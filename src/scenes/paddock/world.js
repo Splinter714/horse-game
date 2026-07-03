@@ -66,8 +66,8 @@ export const WithWorld = (Base) => class extends Base {
       [420, 1020], [560, 900], [700, 1040], [850, 820], [980, 1020],
       [120, 750], [240, 1100], [360, 980], [500, 800], [630, 1100],
     ].forEach(([x, y], i) => {
-      this.add.image(x, y, flowers[i % flowers.length])
-        .setScale(S).setDepth(y);
+      this.add.image(x, y, flowers[i % flowers.length]).setScale(S).setDepth(y);
+      (this.props.flowers ??= []).push({ x, y }); // hummingbirds (#226) hover near flowers
     });
 
     // House (#241) — the player's home base, NW corner. Interactive: walk up and
@@ -124,21 +124,17 @@ export const WithWorld = (Base) => class extends Base {
     // readers that just ask "is there water?" — kept in sync by _setTroughLevel (#103).
     this.props.trough = { x: tx, y: ty, sprite: troughSprite, level: 0, filled: false };
 
-    // Trash can (#191) — a dented metal bin the ambient raccoon rummages in at
-    // night. Purely a charming prop: no stock, no gathering, no economy. Placed in
-    // the open farm band near the farm stand (the "house/stand" area) so the
-    // nocturnal mischief happens somewhere the player passes.
+    // Trash can (#191) — a dented metal bin the ambient raccoon rummages in at night.
+    // Purely a charming prop (no stock/gathering/economy), in the farm band near the
+    // stand so the nocturnal mischief happens somewhere the player passes.
     const trashX = 1470, trashY = 720;
     const trashSprite = this.add.image(trashX, trashY, 'trashCan')
       .setScale(S).setDepth(trashY).setOrigin(0.5, 1);
     this.props.trashCan = { x: trashX, y: trashY, sprite: trashSprite, spill: null, open: false };
 
-    // Spinning wheel (#233) — the crafting station that spins a basket of raw wool
-    // into yarn (worth more at the stand). Placed in a crafting nook just east of the
-    // BARN (the home/animal-structure area), well clear of the trash can it used to
-    // overlap (was 1430,720 next to the bin at 1470,720). `craft` names the conversion
-    // the useDispatch spin action reads (wool → yarn), so it stays data-driven.
-    // (First-pass spot — owner will redirect if a different corner reads better.)
+    // Spinning wheel (#233) — the crafting station that spins a basket of raw wool into
+    // yarn (worth more at the stand). In a crafting nook east of the BARN. `craft` names
+    // the conversion the useDispatch spin action reads (wool → yarn), so it's data-driven.
     const swx = 700, swy = 700;
     const spinSprite = this.add.image(swx, swy, 'spinningWheel')
       .setScale(S).setDepth(swy).setOrigin(0.5, 1);
@@ -164,9 +160,8 @@ export const WithWorld = (Base) => class extends Base {
     // Solid counter footprint the player bumps into (mirrors the farm stand's), added
     // to this.obstacles once that array exists — see the obstacle list below.
 
-    // Gathering sources (issue #63) — static, infinite props the player fills
-    // their carriers at. Each holds one content type. Placed across the open
-    // farm band (north of the pasture) so the gather→carry→use loop has room.
+    // Gathering sources (issue #63) — static, infinite props the player fills their
+    // carriers at (one content each), across the farm band north of the pasture.
     this.buildSources();
 
     // Pet food + water bowls (#202 cat rework, #283 generalized) — fillable dishes the
@@ -174,7 +169,7 @@ export const WithWorld = (Base) => class extends Base {
     this.buildCatBowls();
     this.buildBunnyBowls();
     this.buildDoghouse(); // #237 decorative yard prop; sets this.doghouseObstacles
-
+    this.buildBirdEcosystem(); // #219/#240/#226/#239 bird-ecosystem props; paddock/birdEcosystem.js
     // Scenery stream cutting across the top-right corner of the world.
     this.buildStream();
 
@@ -322,6 +317,9 @@ export const WithWorld = (Base) => class extends Base {
       // from directly; stocking it also lures a wild bunny in (capped at 4). No ground
       // pile (items.js `stocks`). Water bowl fills from a plain bucket, like the cat's.
       { x: 560,  y: 300, content: 'bunnyFood',  tex: 'bunnyHutch',    label: 'Bunny Hutch', reach: 100, ob: { w: 44, h: 30 } },
+      // Nectar station (#226) — sugar-water jug (nectar source) by the house; fill a
+      // bucket here, then pour into the hummingbird feeder. Its OWN resource vs seed #240.
+      { x: 190,  y: 360, content: 'nectar',   tex: 'nectarStation', label: 'Nectar Jug',  reach: 90,  ob: { w: 24, h: 24 } },
     ];
     for (const d of defs) {
       const sprite = this.add.image(d.x, d.y, d.tex)
@@ -409,6 +407,7 @@ export const WithWorld = (Base) => class extends Base {
         : []),
       // Compost bin (#232) — solid ~80×40 footprint at S=2.
       ...(this.props.compostBin ? [{ x: this.props.compostBin.x - 40, y: this.props.compostBin.y - 40, w: 80, h: 40 }] : []),
+      ...(this.birdEcosystemObstacles || []), // #219/#240/#226/#239 bird-ecosystem props
     ];
 
     // ── Solid pasture fence ── (perimeter walls with a single gap at the gate)

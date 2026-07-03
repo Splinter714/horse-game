@@ -12,8 +12,8 @@ export const CARRIER_DEFS = {
   // animal that eats it, #136), so the basket's cap is just a safety ceiling, not a
   // limit you should hit. Kept finite (not Infinity) so it never trips serialization
   // or UI maths — but high enough that the demand always fits (and you can hoard eggs).
-  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat'] },
-  bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'milk'] },
+  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey'] },
+  bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'milk', 'nectar'] },
 };
 
 // What each content type looks like in a carrier and what using it does.
@@ -69,6 +69,13 @@ export const CONTENT_DEFS = {
   // Milk is produced by milking a well-cared-for cow into an empty bucket, then
   // sold at the farm stand (action 'sell', like eggs — see STAND_DEFS).
   milk:   { label: 'Milk',    icon: 'iconBucketMilk',   action: 'sell' },
+  // Nectar / sugar water (#226) — the hummingbird feeder's OWN refillable resource,
+  // distinct from the songbirds' seed (#240). Gathered from the nectar station (a
+  // sugar-water jug by the house) into a bucket, then poured into the hummingbird
+  // feeder (fillNectarFeeder). Like cat food (`stocks`), it's a feeder-fill content
+  // with no ground-drop and no `feeds` — nothing eats it directly; the hummingbirds
+  // are ambient wildlife drawn to the stocked feeder, not a roster species.
+  nectar: { label: 'Nectar',  icon: 'iconBucketNectar', action: 'water', stocks: 'nectar' },
   // Wool is sheared from a sheep into a basket (like eggs — a solid), then either
   // sold raw at the farm stand OR spun into yarn at the spinning wheel (#233).
   // `craftsTo` names the processed content the spinning wheel converts it into.
@@ -90,6 +97,11 @@ export const CONTENT_DEFS = {
   // are the future inputs to crop processing (#40: jam / flour / pig feed).
   strawberry: { label: 'Strawberries', icon: 'iconBasketStrawberry', action: 'sell' },
   wheat:      { label: 'Wheat',        icon: 'iconBasketWheat',      action: 'sell' },
+  // Honey (#239): harvested from the beehive into a basket once it's ripened on the
+  // hive's timer, then sold at the farm stand (action 'sell', like eggs/milk/wool). A
+  // future cooking ingredient (#41). No `feeds`/`ground` — nobody eats it, it doesn't
+  // drop as a pile; it's an in-world produce source alongside eggs/milk/wool.
+  honey:      { label: 'Honey',        icon: 'iconBasketHoney',      action: 'sell' },
 };
 
 // How many of a food to gather in one fill-up (#136): one unit per live animal that

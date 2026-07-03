@@ -26,7 +26,7 @@ const PERCH_Y = -64;
 // Display scale for the wildlife sprites: their textures are super-sampled on the
 // ART_SCALE grid (wildlifeArt.js), so they show at S/ART_SCALE — same on-screen size
 // as before, but crisp edges (matches the horse/sheep pipeline).
-const WILD_SCALE = S / ART_SCALE;
+export const WILD_SCALE = S / ART_SCALE;
 
 export const WithWildlife = (Base) => class extends Base {
   // ─── Setup ─────────────────────────────────────────────────────────────────
@@ -47,6 +47,11 @@ export const WithWildlife = (Base) => class extends Base {
       anim(birdAnimKey(t.id, 'fly'), [birdTexKey(t.id, 'fly', 0), birdTexKey(t.id, 'fly', 1)], 10);
       anim(birdAnimKey(t.id, 'peck'), [birdTexKey(t.id, 'peck', 0), birdTexKey(t.id, 'peck', 1)], 4);
     }
+    // Hummingbird (#226): a fast wing-buzz — two blur poses swapped quickly so the
+    // wings read as a motion smear.
+    anim('hummer_buzz', ['hummer_0', 'hummer_1'], 20);
+    // Bee (#239): a fast wing-buzz, like the hummingbird's.
+    anim('bee_buzz', ['bee_0', 'bee_1'], 18);
     anim('raccoon_idle', ['raccoon_idle_0', 'raccoon_idle_1'], 2);
     anim('raccoon_run', ['raccoon_run_0', 'raccoon_run_1', 'raccoon_run_2', 'raccoon_run_3'], 9);
 
@@ -55,6 +60,9 @@ export const WithWildlife = (Base) => class extends Base {
     this._scheduleBirdVisit(Phaser.Math.Between(5000, 12000));
     this._scheduleRaccoonVisit(Phaser.Math.Between(8000, 20000));
     this._scheduleHorsePerch(Phaser.Math.Between(20000, 45000));
+    // Object-anchored bird beats (bird bath #219, seed feeder #240, and the future
+    // hummingbird/bee visits) live in the bird-ecosystem mixin, which owns those props.
+    this.startBirdEcosystemVisits?.();
   }
 
   // Per-frame upkeep for the active ground critters: keep them depth-sorted against
@@ -104,12 +112,15 @@ export const WithWildlife = (Base) => class extends Base {
   }
 
   // Rain just started (called from onWeatherChange): send any critters currently
-  // out for cover. Birds in flight/perched fly off; ground raccoons scurry away.
-  // Fish are fire-and-forget tweens that fade on their own, so they need no help.
+  // out for cover. Birds in flight/perched fly off; hummingbirds (#226) zip away;
+  // ground raccoons scurry off. Fish are fire-and-forget tweens that fade on their
+  // own, so they need no help.
   _clearWildlifeForRain() {
     for (const c of [...(this._wildCritters ?? [])]) {
       if (!c.sprite?.active) continue;
       if (c.kind === 'bird') { c.perchHost = null; this._birdTakeOff(c); }
+      else if (c.kind === 'hummer') this._hummerLeave?.(c);
+      else if (c.kind === 'bee') this._beeLeave?.(c);
       else this._raccoonScurryOff?.(c);
     }
   }

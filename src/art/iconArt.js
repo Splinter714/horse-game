@@ -78,6 +78,18 @@ export function buildIconTextures(scene) {
     g.fillStyle(0xf5e07a, 1); g.fillEllipse(10, 3, 2, 2); // sunlit tip
     g.fillStyle(0xa9862b, 1); g.fillRect(6, 14, 8, 1); // bind
   });
+  gen(scene, 'iconHoney', 20, 20, (g) => { // honey jar (#239) — sold at the stand
+    // Glass jar of golden honey with a cloth lid and a little dipper.
+    g.fillStyle(0xe8a828, 1); g.fillRoundedRect(5, 7, 10, 11, 2); // honey body
+    g.fillStyle(0xf6c94e, 1); g.fillRect(6, 8, 3, 9);             // lit left face
+    g.fillStyle(0xc9821a, 1); g.fillRect(12, 8, 2, 9);            // shaded right
+    g.fillStyle(0xffe08a, 0.7); g.fillRect(7, 9, 2, 3);           // glass glint
+    g.fillStyle(0xd8b84a, 1); g.fillRect(4, 5, 12, 3);            // cloth lid overhang
+    g.fillStyle(0xbf9a34, 1); g.fillRect(4, 7, 12, 1);            // rim band
+    g.fillStyle(0xf2e8c0, 1);                                     // tied string
+    g.fillRect(5, 6, 10, 1);
+    g.fillStyle(0x8a5f2c, 1); g.fillRect(15, 4, 1, 8); g.fillCircle(16, 12, 1.5); // dipper
+  });
   gen(scene, 'iconTreat', 20, 20, (g) => { // sugar cube with sparkle
     g.fillStyle(0xf5ecd0, 1); g.fillRoundedRect(4, 7, 12, 10, 2);
     g.fillStyle(0xe8d8a8, 1);
@@ -202,6 +214,17 @@ export function buildIconTextures(scene) {
     g.fillEllipse(6, 6, 3, 5); g.fillEllipse(10, 5, 3, 6); g.fillEllipse(14, 6, 3, 5);
     g.fillStyle(0xf5e07a, 1); g.fillRect(6, 3, 1, 1); g.fillRect(10, 2, 1, 1); g.fillRect(14, 3, 1, 1);
     g.fillStyle(0xa9862b, 1); g.fillRect(5, 9, 10, 1); // bind at the rim
+  });
+  gen(scene, 'iconBasketHoney', 20, 20, (g) => { // basket of honey jars (#239)
+    drawBasketBody(g);
+    // A couple of little honey jars nestled in the basket.
+    const jar = (x) => {
+      g.fillStyle(0xe8a828, 1); g.fillRoundedRect(x, 4, 5, 6, 1);
+      g.fillStyle(0xf6c94e, 1); g.fillRect(x + 1, 5, 2, 4);
+      g.fillStyle(0xd8b84a, 1); g.fillRect(x - 1, 3, 7, 2); // lid
+    };
+    jar(4); jar(11);
+    g.fillStyle(0xffe08a, 0.6); g.fillRect(5, 5, 1, 2); g.fillRect(12, 5, 1, 2); // glints
   });
   gen(scene, 'iconBasketSeed', 20, 20, (g) => {
     drawBasketBody(g);
@@ -355,6 +378,24 @@ export function buildIconTextures(scene) {
     // Creamy milk filling the mouth oval, with a soft highlight near-left
     g.fillStyle(0xf4efe2, 1); g.fillEllipse(10, 8, 10.5, 3.4);
     g.fillStyle(0xfffdf6, 1); g.fillEllipse(8.4, 7.4, 4.6, 1.6);
+    g.fillStyle(0xb8c0d0, 1); g.fillRect(5, 10, 1, 6);
+    g.fillStyle(0x7a8396, 1); g.fillEllipse(10, 18.4, 8.6, 2.2);
+  });
+
+  // Nectar bucket (#226) — the tilted pail filled with rosy sugar-water (nectar) for
+  // the hummingbird feeder. Same pail as the water/milk buckets, tinted a warm pink so
+  // it reads as "sweet nectar" rather than plain water.
+  gen(scene, 'iconBucketNectar', 20, 20, (g) => {
+    g.fillStyle(0x6f7889, 1);
+    g.fillRect(3, 4, 1, 3); g.fillRect(16, 4, 1, 3);
+    g.fillRect(4, 2, 12, 1); g.fillRect(3, 3, 2, 1); g.fillRect(15, 3, 2, 1);
+    g.fillStyle(0x9aa3b6, 1);
+    g.fillTriangle(3, 8, 17, 8, 15, 17); g.fillTriangle(3, 8, 15, 17, 5, 17);
+    g.fillEllipse(10, 17, 11, 4.4); // rounded bottom bulge
+    g.fillStyle(0xb8c0d0, 1); g.fillEllipse(10, 8, 14, 5); // rim
+    // Rosy nectar filling the mouth oval, with a soft highlight near-left
+    g.fillStyle(0xe85a7a, 1); g.fillEllipse(10, 8, 10.5, 3.4);
+    g.fillStyle(0xf7a6bd, 1); g.fillEllipse(8.4, 7.4, 4.6, 1.6);
     g.fillStyle(0xb8c0d0, 1); g.fillRect(5, 10, 1, 6);
     g.fillStyle(0x7a8396, 1); g.fillEllipse(10, 18.4, 8.6, 2.2);
   });
