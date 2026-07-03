@@ -36,17 +36,23 @@ try {
 
   const dataUrl = await page.evaluate(({ keys, SCALE }) => {
     const game = window.__game;
-    // Preferred frame order; anything unknown falls to the end, alphabetically.
+    // Preferred order for known pose names; any pose not listed here still renders —
+    // it just sorts alphabetically after the known ones. New animals/poses need no
+    // edit here: a frame is recognized structurally (ends in `_<index>`), not by name.
     const ORDER = ['idle_0','idle_1','idle_content_0','idle_content_1','idle_neglected_0','idle_neglected_1','walk_0','walk_1','walk_2','walk_3','eat_0','eat_1','roll_0','roll_1','roll_2','roll_3','wallow_0','wallow_1','swim_0','swim_1','lay_0','lay_1','sleep_0','sleep_1','nap_0','nap_1','pounce_0'];
     const rank = (s) => { const i = ORDER.indexOf(s); return i < 0 ? 100 : i; };
+    // A real animation-frame suffix is a pose name followed by a numeric index
+    // (idle_0, walk_2, idle_content_1, swim_0, …) — this is how every species'
+    // texture builder names frames, so it needs no per-species/per-pose allowlist.
+    const isFrameSuffix = (s) => /^[a-z][a-z_]*_\d+$/.test(s);
 
     const rows = keys.map((key) => {
       const frames = game.textures.getTextureKeys()
         .filter((k) => k.startsWith(key + '_'))
         .map((k) => ({ k, suffix: k.slice(key.length + 1) }))
         // keep only real animation frames (skip any deeper/compound keys)
-        .filter((f) => ORDER.includes(f.suffix))
-        .sort((a, b) => rank(a.suffix) - rank(b.suffix));
+        .filter((f) => isFrameSuffix(f.suffix))
+        .sort((a, b) => rank(a.suffix) - rank(b.suffix) || a.suffix.localeCompare(b.suffix));
       return { key, frames };
     }).filter((r) => r.frames.length);
 
