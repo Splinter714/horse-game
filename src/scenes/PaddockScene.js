@@ -46,10 +46,30 @@ import { WithInteraction } from './paddock/interaction.js';
 import { WithInput } from './paddock/input.js';
 import { applyDpr } from './uiUtils.js';
 
-export default class PaddockScene
-  extends WithWorld(WithBirdEcosystem(WithBirdEcosystemVisits(WithBarn(WithBunny(WithFox(WithBreeding(WithHouseEntry(WithWildlife(WithRaccoon(WithOwls(WithAmbientEvents(WithCatAI(WithCompanion(WithCharm(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithShop(WithGarden(WithDayNight(WithWeather(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
-    WithEffects(WithPersistence(WithRendering(WithWorldObjects(WithCareActions(WithInteraction(WithInput(
-    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene)))))))))))))))))))))))))))))))))))))) {
+// The concern mixins, listed outermost-first (same order the old deeply-nested
+// `WithWorld(WithBirdEcosystem(…(WithUseDispatch(Phaser.Scene))…))` expression
+// applied them). The `reduceRight` below folds them onto Phaser.Scene, producing an
+// IDENTICAL prototype chain — `A(B(C(Base)))` === `[A,B,C].reduceRight((b,M)=>M(b), Base)`.
+//
+// Why a fold instead of the literal nesting: Rollup 4's tree-shake analysis is
+// super-linear (effectively unbounded) in the nesting depth of a single
+// `class extends A(B(C(…)))` expression. At ~37 levels deep the tree-shake/link phase
+// spun forever (production build hung → tree-shaking had to be disabled, #291). Applying
+// the mixins through a plain `reduceRight` loop removes the giant nested static class
+// expression, so tree-shaking terminates in milliseconds and can stay enabled. This is a
+// pure build-graph refactor — runtime behavior (method resolution order, `this`, super
+// calls) is unchanged.
+const PADDOCK_MIXINS = [
+  WithWorld, WithBirdEcosystem, WithBirdEcosystemVisits, WithBarn, WithBunny, WithFox, WithBreeding,
+  WithHouseEntry, WithWildlife, WithRaccoon, WithOwls, WithAmbientEvents, WithCatAI,
+  WithCompanion, WithCharm, WithCreatures, WithFlock, WithHerd, WithFarmStand, WithShop,
+  WithGarden, WithDayNight, WithWeather, WithHorseAI, WithBehaviors, WithRiding, WithPlayer,
+  WithEffects, WithPersistence, WithRendering, WithWorldObjects, WithCareActions,
+  WithInteraction, WithInput, WithPlayerMovement, WithPrompts, WithInteractables, WithUseDispatch,
+];
+const PaddockBase = PADDOCK_MIXINS.reduceRight((Base, Mixin) => Mixin(Base), Phaser.Scene);
+
+export default class PaddockScene extends PaddockBase {
   constructor() {
     super('PaddockScene');
   }
