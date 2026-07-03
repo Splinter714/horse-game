@@ -28,7 +28,7 @@ import {
 import { loadGestations, saveGestations } from '../../data/save.js';
 import { Horse } from '../../data/species/horse/model.js';
 import { composeCoat } from '../../data/species/horse/coats.js';
-import { buildFoalTextures, buildHorseTextures } from '../../art/horseArt.js';
+import { buildFoalTextures, buildHorseTextures, HORSE_POSTURE_IDS } from '../../art/horseArt.js';
 
 export const WithBreeding = (Base) => class extends Base {
   // Called from create() after the herd is built: restore any pregnancies that were
@@ -187,12 +187,47 @@ export const WithBreeding = (Base) => class extends Base {
 
     // Swap the smaller foal art for the full horse art under the same key, so the
     // on-screen sprite (which shares `${key}_*` textures) becomes a grown horse in
-    // place. Then refresh the sprite's current frame and sparkle the moment.
+    // place. The full horse frames now exist, so create the swish/roll/posture anims
+    // that spawnHorse skipped while it was a foal — otherwise the grown horse would
+    // never tail-swish/roll/posture. Then refresh the current frame and sparkle.
     buildHorseTextures(this, key, composeCoat(model.coat, model.markings));
+    this._ensureGrownHorseAnims(key);
     const s = this._horseSprite(key);
     if (s) { s.play(`idle_${key}`, true); this._sparkle(s); }
     this._saveHorses();
     return true;
+  }
+
+  // Create the swish/roll/posture animations for a horse key IF their frames now exist
+  // and the anim isn't already made — used when a foal grows up (its foal art had no
+  // such frames, so spawnHorse skipped these; buildHorseTextures has since added them).
+  _ensureGrownHorseAnims(key) {
+    if (!this.textures.exists(`${key}_swish_0`)) return; // still foal frames — nothing to add
+    if (!this.anims.exists(`swish_${key}`)) {
+      this.anims.create({
+        key: `swish_${key}`,
+        frames: [{ key: `${key}_swish_0` }, { key: `${key}_swish_1` },
+                 { key: `${key}_swish_2` }, { key: `${key}_swish_3` }],
+        frameRate: 5, repeat: -1,
+      });
+    }
+    if (!this.anims.exists(`roll_${key}`)) {
+      this.anims.create({
+        key: `roll_${key}`,
+        frames: [{ key: `${key}_roll_0` }, { key: `${key}_roll_1` },
+                 { key: `${key}_roll_2` }, { key: `${key}_roll_3` }],
+        frameRate: 5, repeat: -1,
+      });
+    }
+    for (const id of HORSE_POSTURE_IDS) {
+      if (this.anims.exists(`idle_${id}_${key}`)) continue;
+      if (!this.textures.exists(`${key}_idle_${id}_0`)) continue;
+      this.anims.create({
+        key: `idle_${id}_${key}`,
+        frames: [{ key: `${key}_idle_${id}_0` }, { key: `${key}_idle_${id}_1` }],
+        frameRate: 2, repeat: -1,
+      });
+    }
   }
 
   // The info-panel "stay a baby" toggle flips the flag and persists. When turned OFF
