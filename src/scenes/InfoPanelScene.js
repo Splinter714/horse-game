@@ -7,6 +7,7 @@ import { ROSTER_SPECIES } from '../data/save.js';
 import { WithCustomizerShell } from './customizer/shell.js';
 import { WithCustomizerNav } from './customizer/nav.js';
 import { WithHorseSections } from './customizer/horse.js';
+import { WithIncubationPanel } from './customizer/incubationPanel.js';
 
 // Persisted rosters by species id, so an in-panel edit saves the right roster
 // generically (no per-species wiring). Every in-world customizable animal now has a
@@ -34,7 +35,7 @@ function cap(s) {
 // instantly close it on the same input.
 const OPEN_GRACE_MS = 140;
 
-export default class InfoPanelScene extends WithCustomizerShell(WithCustomizerNav(WithHorseSections(Phaser.Scene))) {
+export default class InfoPanelScene extends WithCustomizerShell(WithCustomizerNav(WithHorseSections(WithIncubationPanel(Phaser.Scene)))) {
   constructor() {
     super('InfoPanelScene');
     this.statFills = {};
@@ -125,7 +126,12 @@ export default class InfoPanelScene extends WithCustomizerShell(WithCustomizerNa
     this.panel = this.add.container(0, 0);
 
     // ── Portrait (animated for species with idle frames, else a static image) ──
-    if (cfg.portrait === 'animated') {
+    // A still-a-baby chick (#274) has no dedicated static portrait texture built
+    // (its art is only the smaller in-world frame set) — fall back to the
+    // animated live-sprite portrait for any baby, even on a normally-static
+    // species, the same way the horse foal already reads fine because the horse
+    // species portrait is animated throughout.
+    if (cfg.portrait === 'animated' || animal.isFoal) {
       const animKey = `panel_idle_${key}`;
       if (!this.anims.exists(animKey)) {
         this.anims.create({
@@ -138,9 +144,16 @@ export default class InfoPanelScene extends WithCustomizerShell(WithCustomizerNa
       // super-sampled (ART_SCALE×) for HiDPI crispness, so its idle textures are
       // ART_SCALE× larger — divide that out to keep the portrait at the intended size.
       // (The chicken uses the static portrait branch below, sized via setDisplaySize.)
-      const pScale = 3 / ART_SCALE;
-      const sprite = this.add.sprite(CARD_W / 2, 78, `${key}_idle_0`)
-        .setScale(pScale).setOrigin(0.5, 0.5);
+      // A baby chick's art canvas is much smaller than a horse's, so the fixed
+      // horse-tuned pScale would render it tiny — size it to a consistent ~72px
+      // on-screen footprint instead, keyed off its actual texture width.
+      const sprite = this.add.sprite(CARD_W / 2, 78, `${key}_idle_0`).setOrigin(0.5, 0.5);
+      if (animal.isFoal && animal.species === 'chicken') {
+        const frameW = sprite.width || 1;
+        sprite.setScale(72 / frameW);
+      } else {
+        sprite.setScale(3 / ART_SCALE);
+      }
       sprite.play(animKey);
       this.panel.add(sprite);
     } else {
@@ -249,6 +262,12 @@ export default class InfoPanelScene extends WithCustomizerShell(WithCustomizerNa
     // "Stay a baby forever" toggle instead (kids get attached — a foal only grows up
     // when it's turned off). Both act through PaddockScene's breeding mixin.
     bottomY = this._addBreedingControls(animal, key, bottomY);
+    // ── Baby chicks (#274) — chicken-only in-panel controls ────────────────────
+    // A hen (with an eligible rooster present) gets an "Incubate" button; a
+    // still-a-baby chick gets the same "Stay a baby forever" toggle as a foal.
+    // Its own sibling method (paddock/incubation.js, WithIncubation) — this is a
+    // fully parallel system to horse breeding, never touching breeding.js.
+    bottomY = this._addIncubationControls(animal, key, bottomY);
 
     const cardH = bottomY + PAD;
 

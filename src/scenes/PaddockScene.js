@@ -19,6 +19,7 @@ import { WithCatAI } from './paddock/catAI.js';
 import { WithBunny } from './paddock/bunny.js';
 import { WithFox } from './paddock/fox.js';
 import { WithBreeding } from './paddock/breeding.js';
+import { WithIncubation } from './paddock/incubation.js';
 import { WithCreatures } from './paddock/creatures.js';
 import { WithFlock } from './paddock/flock.js';
 import { WithHerd } from './paddock/herd.js';
@@ -60,7 +61,7 @@ import { applyDpr } from './uiUtils.js';
 // pure build-graph refactor — runtime behavior (method resolution order, `this`, super
 // calls) is unchanged.
 const PADDOCK_MIXINS = [
-  WithWorld, WithBirdEcosystem, WithBirdEcosystemVisits, WithBarn, WithBunny, WithFox, WithBreeding,
+  WithWorld, WithBirdEcosystem, WithBirdEcosystemVisits, WithBarn, WithBunny, WithFox, WithBreeding, WithIncubation,
   WithHouseEntry, WithWildlife, WithRaccoon, WithOwls, WithAmbientEvents, WithCatAI,
   WithCompanion, WithCharm, WithCreatures, WithFlock, WithHerd, WithFarmStand, WithShop,
   WithGarden, WithDayNight, WithWeather, WithHorseAI, WithBehaviors, WithRiding, WithPlayer,
@@ -109,6 +110,7 @@ export default class PaddockScene extends PaddockBase {
     this.buildHorses();
     this._barnReseat(); // seat any horses saved into barn stalls (#35)
     this.buildAnimals();
+    this.buildIncubation(); // baby chicks (#274): restore any in-flight incubations
     this.buildPlayer();
     this.buildFarmStand();
     this.buildGarden(); // crop garden plot (#242) — before interactables (they read it)
@@ -233,6 +235,7 @@ export default class PaddockScene extends PaddockBase {
     this.updateLeading(delta);
     this.updateFoals(delta);
     this.updateBreeding(delta); // #15: tick gestations, birth ready foals
+    this.updateIncubation(delta); // #274: tick incubations, hatch ready chicks
     this.updateDogCompanion(delta); // dog trots alongside the player, sits when idle (#186)
     this.checkProximity();
     this.checkToolProximity();
