@@ -17,6 +17,13 @@ export const EVENTS = {
   // wildlife hiding, trough rain-fill) and the UI shows a 'today's weather' indicator.
   WEATHER_CHANGE: 'weather-change',
 
+  // Season changed (#272, v1 VISUAL FIRST): payload { season } where season is one
+  // of 'spring' | 'summer' | 'fall' | 'winter'. Emitted by DayNightScene's season
+  // cycle (advances a day at each Morning); currently drives only the seasonal tint /
+  // snow overlay + on-screen readout, but other systems can react later (crop timing,
+  // temperature, animal behaviour) without new wiring.
+  SEASON_CHANGE: 'season-change',
+
   // Player triggered sleep (PaddockScene / HouseInteriorScene → DayNightScene).
   SLEEP: 'sleep',
   // Sleep fade finished (DayNightScene → PaddockScene).
