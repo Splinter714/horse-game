@@ -14,6 +14,7 @@ import { DOG } from './dog/index.js';
 import { BUNNY } from './bunny/index.js';
 import { GOAT } from './goat/index.js';
 import { LLAMA } from './llama/index.js';
+import { FOX } from './fox/index.js';
 import * as horseBehaviors from './horse/behaviors.js';
 import * as chickenBehaviors from './chicken/behaviors.js';
 import * as roosterBehaviors from './rooster/behaviors.js';
@@ -22,6 +23,7 @@ import * as dogBehaviors from './dog/behaviors.js';
 import * as pigBehaviors from './pig/behaviors.js';
 import * as bunnyBehaviors from './bunny/behaviors.js';
 import * as llamaBehaviors from './llama/behaviors.js';
+import * as foxBehaviors from './fox/behaviors.js';
 
 export const SPECIES = {
   horse: HORSE,
@@ -35,6 +37,7 @@ export const SPECIES = {
   bunny: BUNNY,
   goat: GOAT,
   llama: LLAMA,
+  fox: FOX,
 };
 
 export function getSpecies(id) {
@@ -86,6 +89,11 @@ export const BEHAVIORS = {
   // no begging). She also gets her own `spit` module (#268) — a low-priority charm
   // behavior (a harmless "ptooey"), layered on top of the reused horse modules.
   llama: { ...indexById(horseBehaviors), ...indexById(llamaBehaviors) },
+  // The tamed fox is a grazer that eats dropped FOX-FOOD piles — it reuses the horse
+  // grazer run primitives (horseGoEat/horseGoDrink) plus its own seekFoxFood/seekFoxWater
+  // gates (fox/behaviors.js); its `behaviors` list (fox/index.js) picks the fox subset.
+  // Its foxFood-only diet is enforced by the food data (items.js `feeds`), not a behavior.
+  fox: { ...indexById(horseBehaviors), ...indexById(foxBehaviors) },
 };
 
 function indexById(mod) {

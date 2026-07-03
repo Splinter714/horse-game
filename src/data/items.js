@@ -12,7 +12,7 @@ export const CARRIER_DEFS = {
   // animal that eats it, #136), so the basket's cap is just a safety ceiling, not a
   // limit you should hit. Kept finite (not Infinity) so it never trips serialization
   // or UI maths — but high enough that the demand always fits (and you can hoard eggs).
-  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey'] },
+  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey'] },
   bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'milk', 'nectar'] },
 };
 
@@ -66,6 +66,14 @@ export const CONTENT_DEFS = {
   // paddock/bunny.js `attractBunny`, fired from the bowl's `onFill` hook), so bunny food
   // both attracts and sustains. `feeds: ['bunny']` keeps the demand/gather maths data-driven.
   bunnyFood:  { label: 'Bunny Food',  icon: 'iconBasketBunnyFood',  action: 'feed',  stocks: 'bunnyFood',  feeds: ['bunny'] },
+  // Fox food (#266): gathered from the fox den (a gathering source) into a basket, then
+  // DROPPED as a ground pile the fox trots over to and eats (unlike the cat/bunny bowl
+  // contents, it has a `ground` texture — the fox is befriended by leaving food out for
+  // it, so the pile is the taming interaction). Dropping a foxFood pile also advances the
+  // wild fox's taming counter and, once fed enough, lures it into the roster (paddock/fox.js
+  // `onFoodPlaced` → `_feedWildFox`). `feeds: ['fox']` keeps the demand/gather + diet-gate
+  // maths data-driven (only the fox seeks a foxFood pile; grazers walk past it).
+  foxFood:    { label: 'Fox Food',    icon: 'iconBasketFoxFood',    action: 'feed',  ground: 'foxFoodPile', feeds: ['fox'] },
   // Milk is produced by milking a well-cared-for cow into an empty bucket, then
   // sold at the farm stand (action 'sell', like eggs — see STAND_DEFS).
   milk:   { label: 'Milk',    icon: 'iconBucketMilk',   action: 'sell' },

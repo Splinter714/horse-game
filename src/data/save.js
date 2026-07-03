@@ -305,6 +305,30 @@ export function savePlayerLook(keys) {
   } catch {}
 }
 
+// ── Fox taming progress (#266) ────────────────────────────────────────────────
+// The wild fox is befriended by repeated feeding: each fox-food pile it eats bumps a
+// counter, and once it's high enough the fox joins the roster (paddock/fox.js). That
+// running count needs to survive a reload so befriending is gradual across sessions —
+// its own tiny storage key (not the wholesale-rewritten gameState). Just an integer;
+// once the fox is tamed the roster itself carries it, so this only tracks the pre-tame
+// warm-up. Stays species-agnostic in spirit (a plain number keyed by feature).
+const FOX_TAMING_KEY = 'horse-game-fox-taming-v1';
+
+export function loadFoxTaming() {
+  try {
+    const n = Number(JSON.parse(localStorage.getItem(FOX_TAMING_KEY)));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function saveFoxTaming(count) {
+  try {
+    localStorage.setItem(FOX_TAMING_KEY, JSON.stringify(Math.max(0, count | 0)));
+  } catch {}
+}
+
 // ── Dev settings (pause-menu dev tools) ──────────────────────────────────────
 // Persisted "start state" knobs so the owner can test things without replaying
 // from scratch: which time-of-day the day/night clock boots into, and whether

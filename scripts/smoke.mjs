@@ -98,6 +98,8 @@ try {
       '_scheduleBeeVisit', '_spawnBeeVisit', '_beeTargets',
       // beehive + honey (#239).
       'buildBeehive', '_setHoneyLevel', '_ripenHoneyTick', 'harvestBeehive',
+      // fox taming (#266): wild-fox summon on fox-food drop + commit-to-roster.
+      'buildFox', 'onFoodPlaced', '_lureWildFox', '_feedWildFox', '_commitFox', '_foxRosterFull',
     ];
     const missingMethods = expectMethods.filter((m) => typeof paddock[m] !== 'function');
 
@@ -324,6 +326,45 @@ try {
       }
     } catch (e) { rooster = 'threw: ' + String(e); }
 
+    // #266 foxes: the fox roster starts EMPTY (no default fox). Dropping fox food summons
+    // a WILD fox (onFoodPlaced), and repeated feeding TAMES it into the roster (capped at 1).
+    // We drive the pure/commit path deterministically (the wild-fox animation uses timers):
+    //   - onFoodPlaced('foxFood') must create a wild-fox sprite while untamed.
+    //   - _commitFox must add a `fox0` Fox to allFoxes + spawn a fox sprite in the scene.
+    //   - a SECOND commit is capped (still exactly one fox — no duplicate join).
+    //   - a hungry roster fox with a fox-food pile in reach must select its seek behavior.
+    let fox = 'ok';
+    try {
+      const startedEmpty = Object.keys(g.registry.get('allFoxes') ?? {}).length === 0;
+      // Untamed: dropping fox food summons a wild fox (a loose sprite, not a roster animal).
+      paddock.onFoodPlaced('foxFood', 340, 400);
+      const wildSummoned = !!paddock._wildFox?.sprite?.active;
+      // Commit it to the roster (the taming payoff).
+      paddock._commitFox(paddock._wildFox, 340, 400);
+      const roster = g.registry.get('allFoxes') ?? {};
+      const joined = Object.keys(roster).length === 1 && roster.fox0?.species === 'fox';
+      const foxInScene = paddock.animals.filter((a) => a.model?.species === 'fox').length;
+      // Capped: onFoodPlaced no longer summons once tamed, and a 2nd commit is a no-op.
+      paddock.onFoodPlaced('foxFood', 340, 400);
+      const noResummon = !paddock._wildFox; // already tamed → no new wild fox
+      paddock._commitFox(null, 340, 400);
+      const stillOne = Object.keys(g.registry.get('allFoxes') ?? {}).length === 1;
+      // The tamed fox seeks a fox-food pile when hungry (grazing dispatch claims it).
+      let seeks = false;
+      const foxA = paddock.animals.find((a) => a.model?.species === 'fox');
+      if (foxA) {
+        foxA.model.stats.hunger = 20;
+        paddock.props.hayPiles.push({ x: foxA.sprite.x + 20, y: foxA.sprite.y, sprite: { destroy() {} }, content: 'foxFood' });
+        foxA.state = 'idle';
+        const claimed = paddock.runBehaviors(foxA);
+        seeks = claimed && foxA.state === 'eating';
+        paddock.props.hayPiles = [];
+      }
+      fox = (startedEmpty && wildSummoned && joined && foxInScene === 1 && noResummon && stillOne && seeks)
+        ? 'tamed-and-capped'
+        : `startedEmpty=${startedEmpty},wildSummoned=${wildSummoned},joined=${joined},foxInScene=${foxInScene},noResummon=${noResummon},stillOne=${stillOne},seeks=${seeks}`;
+    } catch (e) { fox = 'threw: ' + String(e); }
+
     // #187 charm behaviors: the night settle/wake cycle must round-trip without
     // throwing (it rewires restAllAnimals/wakeAllAnimals), and the new run primitives
     // must resolve. Probed last (it mutates animal state) and lenient — this proves
@@ -380,6 +421,7 @@ try {
       rooster,
       roosterCount: Object.keys(g.registry.get('allRoosters') ?? {}).length,
       roostersInScene: paddock.animals.filter((a) => a.model?.species === 'rooster').length,
+      fox,
       catBowls,
       seedFeeder,
       nectarFeeder,
@@ -613,6 +655,8 @@ try {
   if (result.roosterCount !== 1) fail(`expected 1 rooster in roster, got ${result.roosterCount}`);
   if (result.roostersInScene !== 1) fail(`expected 1 rooster sprite in scene, got ${result.roostersInScene}`);
   if (result.rooster !== 'crows-at-dawn') fail(`rooster (#269) failed: ${result.rooster}`);
+  // #266 foxes: wild fox summons on fox food, tames into the roster once, capped, then seeks.
+  if (result.fox !== 'tamed-and-capped') fail(`fox taming (#266) failed: ${result.fox}`);
   // #202 rework: the cat eats directly from a stocked bowl (not dropped piles).
   if (result.catBowls !== 'eats-from-bowl') fail(`cat bowl feeding (#202) failed: ${result.catBowls}`);
   if (result.seedFeeder !== 'fills-and-drains') fail(`seed feeder fill/drain (#240) failed: ${result.seedFeeder}`);

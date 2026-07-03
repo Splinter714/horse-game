@@ -252,6 +252,18 @@ export function buildIconTextures(scene) {
     g.fillStyle(0xf07830, 1); g.fillTriangle(10, 5, 8, 1, 12, 1);
     g.fillStyle(0x3b8a1c, 1); g.fillRect(9, 0, 1, 2); g.fillRect(11, 0, 1, 2);
   });
+  // Basket of fox food (#266) — russet meaty morsels + a berry, so it reads as "scraps
+  // for the fox," distinct from the green bunny pellets / brown cat kibble / golden grain.
+  gen(scene, 'iconBasketFoxFood', 20, 20, (g) => {
+    drawBasketBody(g);
+    g.fillStyle(0xb05a3a, 1); g.fillRoundedRect(4, 5, 12, 6, 2); // mound of morsels
+    g.fillStyle(0xcf7a54, 1);
+    g.fillCircle(6, 7, 1.3); g.fillCircle(10, 6, 1.3); g.fillCircle(14, 7, 1.3); g.fillCircle(8, 9, 1.3); g.fillCircle(12, 9, 1.3);
+    g.fillStyle(0x8a4028, 1); g.fillCircle(9, 8, 1); g.fillCircle(13, 8, 1);
+    // a dark berry tucked in
+    g.fillStyle(0x5a2a55, 1); g.fillCircle(11, 5, 1.4);
+    g.fillStyle(0x7a3a72, 1); g.fillCircle(10.6, 4.6, 0.6);
+  });
   gen(scene, 'iconBasketEgg', 20, 20, (g) => {
     drawBasketBody(g);
     g.fillStyle(0xfff8e0, 1);
