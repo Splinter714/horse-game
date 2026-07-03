@@ -259,6 +259,7 @@ export default class PaddockScene extends PaddockBase {
 
   _onSleepDone() {
     this._sleeping = false;
+    this.flushReadyBirths?.(); // #299: reveal any held births as a wake-up surprise
   }
 
   checkProximity() {

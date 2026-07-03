@@ -357,6 +357,31 @@ export function saveGestations(list) {
   } catch {}
 }
 
+// ── Ready-to-birth holding queue (#299) ─────────────────────────────────────────
+// A gestation whose timer has completed doesn't birth live — it moves here and
+// waits to be revealed at the player's next wake-up (see WithBreeding.
+// flushReadyBirths), so every birth reads as a "while you were sleeping" surprise
+// rather than a mid-play interruption. Same shape as a gestation entry minus
+// startedAt ({ aKey, bKey, seed }); persisted separately so a completed-but-not-
+// yet-revealed pregnancy survives a reload and is still held (not re-birthed, not
+// lost) until the player next sleeps and wakes.
+const READY_BIRTHS_KEY = 'horse-game-ready-births-v1';
+
+export function loadReadyBirths() {
+  try {
+    const data = JSON.parse(localStorage.getItem(READY_BIRTHS_KEY));
+    return Array.isArray(data) ? data.filter((g) => g && g.aKey && g.bKey) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveReadyBirths(list) {
+  try {
+    localStorage.setItem(READY_BIRTHS_KEY, JSON.stringify(Array.isArray(list) ? list : []));
+  } catch {}
+}
+
 // ── Dev settings (pause-menu dev tools) ──────────────────────────────────────
 // Persisted "start state" knobs so the owner can test things without replaying
 // from scratch: which time-of-day the day/night clock boots into, and whether

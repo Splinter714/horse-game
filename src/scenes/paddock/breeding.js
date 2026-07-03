@@ -25,7 +25,9 @@ import { PASTURE_BOUNDS } from './constants.js';
 import {
   nextFoalKey, makeFoalData, seedFoalLook, isBornReady, GROWN_AGE,
 } from '../../data/breeding.js';
-import { loadGestations, saveGestations } from '../../data/save.js';
+import {
+  loadGestations, saveGestations, loadReadyBirths, saveReadyBirths,
+} from '../../data/save.js';
 import { Horse } from '../../data/species/horse/model.js';
 import { composeCoat } from '../../data/species/horse/coats.js';
 import { buildFoalTextures, buildHorseTextures, HORSE_POSTURE_IDS } from '../../art/horseArt.js';
@@ -42,6 +44,14 @@ export const WithBreeding = (Base) => class extends Base {
     const all = this.registry.get('allHorses') ?? {};
     this._gestations = this._gestations.filter((g) => all[g.aKey] && all[g.bKey]);
     saveGestations(this._gestations);
+
+    // #299: gestations that finished their timer but are still waiting to be
+    // revealed at the next wake-up (held rather than birthed live). Restored the
+    // same way as in-flight gestations so a "ready" pregnancy survives a reload —
+    // it just stays held until the player next sleeps and wakes.
+    this._readyBirths = loadReadyBirths();    // [{ aKey, bKey, seed }]
+    this._readyBirths = this._readyBirths.filter((g) => all[g.aKey] && all[g.bKey]);
+    saveReadyBirths(this._readyBirths);
   }
 
   // Is a horse currently pregnant (party to an in-flight gestation)? Used to keep a
@@ -102,8 +112,14 @@ export const WithBreeding = (Base) => class extends Base {
     return `${a.name} and ${b.name} are expecting a foal! 💕`;
   }
 
-  // Per-frame (from update): tick the gestation clock ~once a second and birth any
-  // foal whose wait is up. Cheap and self-gating when there are no pregnancies.
+  // Per-frame (from update): tick the gestation clock ~once a second. #299 — a
+  // gestation whose timer completes is NOT birthed live; it's moved to the
+  // "ready to birth" holding queue and revealed the next time the player wakes
+  // (see flushReadyBirths, called on EVENTS.SLEEP_DONE). This is deliberately a
+  // thin gate in front of the existing birth logic (not a rewrite of
+  // updateBreeding) so it stays easy to reconcile with #114's parallel breeding
+  // rework — whatever triggers a gestation, this only changes what happens when
+  // it COMPLETES.
   updateBreeding(delta) {
     if (!this._gestations?.length) return;
     this._breedAccum += delta;
@@ -112,10 +128,52 @@ export const WithBreeding = (Base) => class extends Base {
     const now = Date.now();
     const ready = this._gestations.filter((g) => isBornReady(g.startedAt, now));
     if (!ready.length) return;
-    // Remove the ready ones first (so a birth can't re-fire) then birth each.
+    // Remove the completed gestations, hold them as ready-to-birth instead of
+    // birthing now — even if the player is wide awake and playing.
     this._gestations = this._gestations.filter((g) => !isBornReady(g.startedAt, now));
     saveGestations(this._gestations);
+    (this._readyBirths ??= []).push(...ready);
+    saveReadyBirths(this._readyBirths);
+  }
+
+  // Flush the "ready to birth" holding queue: birth every held foal now. Called
+  // on EVENTS.SLEEP_DONE (wake-up) so births always read as a "while you were
+  // sleeping" surprise beat, whether the gestation finished mid-play or mid-sleep.
+  flushReadyBirths() {
+    if (!this._readyBirths?.length) return;
+    const ready = this._readyBirths;
+    this._readyBirths = [];
+    saveReadyBirths(this._readyBirths);
     for (const g of ready) this._birthFoal(g);
+    if (ready.length) this._announceOvernightBirths(ready.length);
+  }
+
+  // The "while you were sleeping…" reveal beat: a short toast so a newly-woken
+  // player notices the surprise before stumbling on the foal in the pasture.
+  // Reuses the existing status-text styling pattern (no bespoke UI system needed).
+  _announceOvernightBirths(count) {
+    const text = count === 1
+      ? '🐴 While you were sleeping, a foal was born!'
+      : `🐴 While you were sleeping, ${count} foals were born!`;
+    const cam = this.cameras?.main;
+    if (!cam) return;
+    const x = cam.worldView.centerX;
+    const y = cam.worldView.centerY - 160;
+    const msg = this.add.text(x, y, text, {
+      fontFamily: 'system-ui, sans-serif', fontSize: '20px', fontStyle: 'bold',
+      color: '#3a2a1a', backgroundColor: '#fff6c0e6', padding: { x: 16, y: 10 },
+      align: 'center',
+    }).setOrigin(0.5).setDepth(20000).setScrollFactor(1).setAlpha(0);
+    this.tweens.add({
+      targets: msg, alpha: 1, y: y - 14, duration: 500, ease: 'Sine.easeOut',
+      onComplete: () => {
+        this.tweens.add({
+          targets: msg, alpha: 0, y: y - 28,
+          delay: 2600, duration: 700, ease: 'Sine.easeIn',
+          onComplete: () => msg.destroy(),
+        });
+      },
+    });
   }
 
   // Birth one foal from a completed gestation: build its roster data (parent-seeded,

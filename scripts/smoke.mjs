@@ -112,8 +112,10 @@ try {
       // fox taming (#266): wild-fox summon on fox-food drop + commit-to-roster.
       'buildFox', 'onFoodPlaced', '_lureWildFox', '_feedWildFox', '_commitFox', '_foxRosterFull',
       // breeding & foals (#15): pairing, gestation, birth, roster growth, grow-up gate.
+      // #299: births are held at gestation-complete and only revealed at wake-up.
       'buildBreeding', 'beginBreeding', 'updateBreeding', '_birthFoal', 'growUpFoal',
       'setStayBaby', 'spawnSavedFoals', 'toggleBreedSelection',
+      'flushReadyBirths', '_announceOvernightBirths',
     ];
     const missingMethods = expectMethods.filter((m) => typeof paddock[m] !== 'function');
 
@@ -485,8 +487,21 @@ try {
       paddock._gestations[0].startedAt = Date.now() - 10 * 60 * 1000;
       paddock._breedAccum = 9999; // force the ~1/s born-check to run this tick
       paddock.updateBreeding(16);
+
+      // #299: the completed gestation must be HELD, not birthed live, even though
+      // the player is wide awake right now. Assert the foal is NOT yet in the
+      // roster/scene, and the gestation moved into the ready-to-birth queue.
+      const allBeforeWake = g.registry.get('allHorses');
+      const noLiveBirth = Object.keys(allBeforeWake).length === before;
+      const heldForWake = (paddock._readyBirths?.length ?? 0) === 1;
+      const gestClearedPreWake = (paddock._gestations?.length ?? -1) === 0;
+
+      // Now simulate sleep→wake: flushing the ready-births queue is what
+      // PaddockScene._onSleepDone does on EVENTS.SLEEP_DONE.
+      paddock.flushReadyBirths();
       const all = g.registry.get('allHorses');
       const grew = Object.keys(all).length === before + 1;
+      const flushedQueue = (paddock._readyBirths?.length ?? -1) === 0;
       const foalKey = Object.keys(all).find((k) => all[k].isFoal);
       const foalModel = foalKey ? all[foalKey] : null;
       const bornFoal = !!(foalModel && foalModel.isFoal && foalModel.stayBaby === true);
@@ -520,11 +535,12 @@ try {
       const grownUp = all[foalKey]?.isFoal === false;
       const grownHasSwish = paddock.anims.exists(`swish_${foalKey}`);
 
-      breeding = (paired && grew && bornFoal && foalInScene && gestCleared &&
+      breeding = (paired && noLiveBirth && heldForWake && gestClearedPreWake &&
+                  grew && flushedQueue && bornFoal && foalInScene && gestCleared &&
                   foalHasNoSwish && foalHasNoRoll && foalCharmSafe === true &&
                   stayedBaby && grownUp && grownHasSwish)
         ? 'pairs-births-and-gates-growth'
-        : `paired=${paired},grew=${grew},bornFoal=${bornFoal},foalInScene=${foalInScene},gestCleared=${gestCleared},foalHasNoSwish=${foalHasNoSwish},foalHasNoRoll=${foalHasNoRoll},foalCharmSafe=${foalCharmSafe},stayedBaby=${stayedBaby},grownUp=${grownUp},grownHasSwish=${grownHasSwish}`;
+        : `paired=${paired},noLiveBirth=${noLiveBirth},heldForWake=${heldForWake},gestClearedPreWake=${gestClearedPreWake},grew=${grew},flushedQueue=${flushedQueue},bornFoal=${bornFoal},foalInScene=${foalInScene},gestCleared=${gestCleared},foalHasNoSwish=${foalHasNoSwish},foalHasNoRoll=${foalHasNoRoll},foalCharmSafe=${foalCharmSafe},stayedBaby=${stayedBaby},grownUp=${grownUp},grownHasSwish=${grownHasSwish}`;
     } catch (e) { breeding = 'threw: ' + String(e); }
 
     return {
@@ -931,6 +947,7 @@ try {
     p._gestations[p._gestations.length - 1].startedAt = Date.now() - 10 * 60 * 1000;
     p._breedAccum = 9999;
     p.updateBreeding(16);
+    p.flushReadyBirths(); // #299: births are held until wake — flush to birth it now
     const all = g.registry.get('allHorses');
     const key = Object.keys(all).find((k) => !before.includes(k) && all[k].isFoal);
     return key ?? null;
