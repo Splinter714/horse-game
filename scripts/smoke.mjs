@@ -83,8 +83,12 @@ try {
       '_stepNav', 'tapMoveTo', '_renderPrompts', 'checkToolProximity',
       'buildInteractables', '_proximityInteractable', 'useActiveTool', '_nearestToolHorse',
       '_animalUseAction', '_nearestCareAnimal',
-      // wildlife: ambient bird beats incl. the bird-bath splash (#219).
+      // wildlife: ambient bird beats incl. the bird-bath splash (#219) + feeder (#240).
       'buildWildlife', 'updateWildlife', '_scheduleBirdBathVisit', '_spawnBirdBathVisit',
+      '_scheduleFeederVisit', '_spawnFeederVisit',
+      // birdEcosystem: fixed bird props + the seed-feeder fill/drain (#219/#240).
+      'buildBirdEcosystem', 'buildBirdBath', 'buildSeedFeeder',
+      'fillSeedFeeder', '_setSeedFeederLevel', 'drainSeedFeeder',
     ];
     const missingMethods = expectMethods.filter((m) => typeof paddock[m] !== 'function');
 
@@ -194,6 +198,26 @@ try {
       }
     } catch (e) { catBowls = 'threw: ' + String(e); }
 
+    // #240 seed feeder: starts empty (birds ignore it), a fill tops it to the cap and
+    // flips its `filled` flag + sprite; each bird feeding drains one; draining to empty
+    // flips it back off (the sprite swap + attraction gate the player sees).
+    let seedFeeder = 'no feeder';
+    try {
+      const f = paddock.props.seedFeeder;
+      if (f) {
+        const startedEmpty = f.level === 0 && f.filled === false;
+        paddock._setSeedFeederLevel(8); // full (FEEDER_CAP)
+        const stocked = f.filled === true && f.level === 8 && f.sprite.texture.key === 'seedFeeder';
+        paddock.drainSeedFeeder(); // one bird feeds
+        const drained = f.level === 7;
+        paddock._setSeedFeederLevel(0);
+        const emptiedOff = f.filled === false && f.sprite.texture.key === 'seedFeederEmpty';
+        seedFeeder = (startedEmpty && stocked && drained && emptiedOff)
+          ? 'fills-and-drains'
+          : `startedEmpty=${startedEmpty},stocked=${stocked},drained=${drained},emptiedOff=${emptiedOff}`;
+      }
+    } catch (e) { seedFeeder = 'threw: ' + String(e); }
+
     // #187 charm behaviors: the night settle/wake cycle must round-trip without
     // throwing (it rewires restAllAnimals/wakeAllAnimals), and the new run primitives
     // must resolve. Probed last (it mutates animal state) and lenient — this proves
@@ -216,6 +240,7 @@ try {
     return {
       charm,
       catBowls,
+      seedFeeder,
       cowMilk,
       pigDiet,
       pigCount: Object.keys(g.registry.get('allPigs') ?? {}).length,
@@ -237,6 +262,7 @@ try {
       horsesInScene: paddock.horses?.length ?? 0,
       hasFarmStand: !!paddock.farmStand,
       hasBirdBath: !!paddock.props.birdBath, // #219 decorative bird bath world object
+      hasSeedFeeder: !!paddock.props.seedFeeder, // #240 refillable seed feeder
       // Display scales: every animal is now super-sampled (ART_SCALE× art shown at
       // S/ART_SCALE), so the chicken and horse share the same base display scale. Guard
       // that ratio ≈ 1 — it jumps to ART_SCALE if a species' `superSampled` spawn flag
@@ -411,6 +437,7 @@ try {
   if (result.horsesInScene !== 7) fail(`expected 7 horse sprites in scene, got ${result.horsesInScene}`);
   if (!result.hasFarmStand) fail('farm stand not built — farmStand mixin not wired');
   if (!result.hasBirdBath) fail('bird bath (#219) not built — world.js props.birdBath missing');
+  if (!result.hasSeedFeeder) fail('seed feeder (#240) not built — props.seedFeeder missing');
   if (Math.abs(result.scaleRatio - 1) > 0.01) fail(`chicken/horse display-scale ratio ${result.scaleRatio} ≠ 1 — a species' superSampled spawn flag may be missing (chicken rendered 4× too big)?`);
   if (!result.movementOk) fail('creature movement/pathfinding threw: ' + result.movementError);
   if (result.behaviorDecision !== 'seekFood') fail(`hungry horse with hay nearby did not select seekFood (got ${result.behaviorDecision})`);
@@ -430,6 +457,7 @@ try {
   if (result.charm !== 'wired') fail(`charm behaviors (#187) failed: ${result.charm}`);
   // #202 rework: the cat eats directly from a stocked bowl (not dropped piles).
   if (result.catBowls !== 'eats-from-bowl') fail(`cat bowl feeding (#202) failed: ${result.catBowls}`);
+  if (result.seedFeeder !== 'fills-and-drains') fail(`seed feeder fill/drain (#240) failed: ${result.seedFeeder}`);
   // The pig: it spawned into the world and eats apples but not hay.
   if (result.pigCount !== 1) fail(`expected 1 pig in roster, got ${result.pigCount}`);
   if (result.pigsInScene !== 1) fail(`expected 1 pig sprite in scene, got ${result.pigsInScene}`);

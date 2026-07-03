@@ -451,6 +451,68 @@ export function buildWorldTextures(scene) {
     g.fillStyle(stoneHi, 1); g.fillEllipse(17, 10, 30, 3);   // front rim highlight
   });
 
+  // --- seed bird feeder (28 × 56) — refillable songbird feeder on a post (#240) ---
+  // A wooden hopper feeder atop a slim post: a peaked-roof seed box with a glass-front
+  // hopper and a little landing tray. Two variants — stocked (`seedFeeder`, seed
+  // showing in the tray + hopper) and empty (`seedFeederEmpty`, bare tray) — swapped by
+  // birdEcosystem.js as the seed level crosses zero (like the trough/pet bowls). Origin
+  // (0.5,1) at the foot of the post so it depth-sorts on its base. Dissect-tagged.
+  const drawSeedFeeder = (g, stocked) => {
+    const post = 0x8a5a2e, postHi = 0xa9743c, postLo = 0x6a4420;
+    const wood = 0xc08a4e, woodHi = 0xd8a662, woodLo = 0x9a6a34;
+    const roofD = 0x6a3a1c, roofM = 0x9a5024, roofH = 0xc07a40;
+    const glass = 0xbfe0ea, tray = 0x8a5a2e, trayHi = 0xa9743c;
+    const seed = 0xe0b840, seedLo = 0xbe9628, seedHi = 0xf2d868;
+
+    // Post
+    g.layer('post');
+    g.fillStyle(post, 1);   g.fillRect(12, 30, 4, 26);
+    g.fillStyle(postHi, 1); g.fillRect(12, 30, 1, 26);
+    g.fillStyle(postLo, 1); g.fillRect(15, 30, 1, 26);
+    g.fillStyle(postLo, 1); g.fillEllipse(14, 55, 8, 3); // ground shadow
+
+    // Landing tray (with a low lip)
+    g.layer('tray');
+    g.fillStyle(woodLo, 1); g.fillRect(5, 30, 18, 4);
+    g.fillStyle(tray, 1);   g.fillRect(6, 28, 16, 3);
+    g.fillStyle(trayHi, 1); g.fillRect(6, 28, 16, 1);
+    g.fillStyle(woodLo, 1); g.fillRect(5, 29, 1, 4); g.fillRect(22, 29, 1, 4); // lip ends
+
+    // Seed heaped in the tray (stocked only)
+    if (stocked) {
+      g.layer('seed');
+      g.fillStyle(seedLo, 1); g.fillEllipse(14, 28, 14, 3);
+      g.fillStyle(seed, 1);   g.fillEllipse(14, 27, 12, 3);
+      g.fillStyle(seedHi, 1); g.fillRect(9, 26, 2, 1); g.fillRect(16, 26, 2, 1); g.fillRect(13, 25, 2, 1);
+    }
+
+    // Hopper box (glass-fronted)
+    g.layer('hopper');
+    g.fillStyle(wood, 1);   g.fillRect(8, 14, 12, 14);
+    g.fillStyle(woodHi, 1); g.fillRect(8, 14, 12, 2);
+    g.fillStyle(woodLo, 1); g.fillRect(8, 26, 12, 2);
+    g.fillStyle(wood, 1);   g.fillRect(8, 14, 2, 14); g.fillRect(18, 14, 2, 14); // side posts
+    g.fillStyle(glass, 0.85); g.fillRect(10, 16, 8, 10);   // glass front
+    if (stocked) { // seed visible through the glass, settling to the bottom
+      g.fillStyle(seed, 1);   g.fillRect(10, 21, 8, 5);
+      g.fillStyle(seedHi, 1); g.fillRect(10, 21, 8, 1);
+      g.fillStyle(seedLo, 1); g.fillRect(11, 24, 2, 1); g.fillRect(15, 24, 2, 1);
+    }
+    g.fillStyle(0xffffff, 0.4); g.fillRect(11, 17, 1, 7); // glass glint
+
+    // Peaked roof
+    g.layer('roof');
+    g.fillStyle(roofD, 1); g.fillTriangle(4, 15, 14, 5, 24, 15);
+    g.fillStyle(roofM, 1); g.fillTriangle(6, 15, 14, 7, 22, 15);
+    g.fillStyle(roofH, 1); g.fillRect(9, 11, 2, 2); g.fillRect(12, 9, 2, 2); // highlight streaks
+    g.fillStyle(woodLo, 1); g.fillRect(4, 14, 20, 2);      // eave board
+    g.fillStyle(roofD, 1);  g.fillRect(13, 5, 2, 3);       // ridge cap
+    // Little hang-loop finial
+    g.fillStyle(postLo, 1); g.fillRect(13, 2, 2, 4);
+  };
+  gen(scene, 'seedFeeder',      28, 56, (g) => drawSeedFeeder(g, true));
+  gen(scene, 'seedFeederEmpty', 28, 56, (g) => drawSeedFeeder(g, false));
+
   // --- nest (18 × 12) — woven straw ring ---
   gen(scene, 'nest', 18, 12, (g) => {
     // Outer straw ring

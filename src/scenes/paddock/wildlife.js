@@ -26,7 +26,7 @@ const PERCH_Y = -64;
 // Display scale for the wildlife sprites: their textures are super-sampled on the
 // ART_SCALE grid (wildlifeArt.js), so they show at S/ART_SCALE — same on-screen size
 // as before, but crisp edges (matches the horse/sheep pipeline).
-const WILD_SCALE = S / ART_SCALE;
+export const WILD_SCALE = S / ART_SCALE;
 
 export const WithWildlife = (Base) => class extends Base {
   // ─── Setup ─────────────────────────────────────────────────────────────────
@@ -55,7 +55,9 @@ export const WithWildlife = (Base) => class extends Base {
     this._scheduleBirdVisit(Phaser.Math.Between(5000, 12000));
     this._scheduleRaccoonVisit(Phaser.Math.Between(8000, 20000));
     this._scheduleHorsePerch(Phaser.Math.Between(20000, 45000));
-    this._scheduleBirdBathVisit(Phaser.Math.Between(14000, 30000)); // #219 bird-bath splashes
+    // Object-anchored bird beats (bird bath #219, seed feeder #240, and the future
+    // hummingbird/bee visits) live in the bird-ecosystem mixin, which owns those props.
+    this.startBirdEcosystemVisits?.();
   }
 
   // Per-frame upkeep for the active ground critters: keep them depth-sorted against
@@ -276,87 +278,6 @@ export const WithWildlife = (Base) => class extends Base {
       x: toLeft ? -60 : WORLD_W + 60, y: Phaser.Math.Between(80, 200),
       duration: Phaser.Math.Between(1800, 2800), ease: 'Sine.easeIn',
       onComplete: () => this._despawnCritter(c),
-    });
-  }
-
-  // ─── Bird bath (#219) ────────────────────────────────────────────────────────
-  // A decorative garden bath the ambient birds visit: a bird swoops in and lands on
-  // the basin rim, then bobs and splashes a few times (a little water fleck each dip)
-  // before flushing. Purely ambient — the bath is scenery (world.js props.birdBath),
-  // no water level or upkeep. Reuses the ground-bird flee/take-off plumbing so the
-  // player crowding it startles it off, same as a ground perch.
-
-  _scheduleBirdBathVisit(delay) {
-    this.time.delayedCall(delay, () => {
-      // Daylit, awake, fair weather — same gate as the other bird visits. Skip while
-      // a bath visitor is already splashing so two birds don't stack on the basin.
-      if (!this._sleeping && this._phase !== 'Night' && this._weatherAllowsWildlife() &&
-          this.props?.birdBath && !this._wildCritters?.some((c) => c.atBath)) {
-        this._spawnBirdBathVisit();
-      }
-      // Livelier in the morning (like the other bird beats), sparse otherwise.
-      const morning = this._phase === 'Morning';
-      this._scheduleBirdBathVisit(morning ? Phaser.Math.Between(9000, 18000)
-                                          : Phaser.Math.Between(18000, 40000));
-    });
-  }
-
-  _spawnBirdBathVisit() {
-    const bath = this.props.birdBath;
-    // Land on the front rim of the basin. The sprite is 34×40 at S (origin 0.5,1),
-    // so the water sits ~26px up from the foot; perch on the near rim just below it.
-    const rimX = bath.x + Phaser.Math.Between(-6, 6);
-    const rimY = bath.y - 26;
-
-    const dir = Math.random() < 0.5 ? 1 : -1;
-    const b = this._pickBird();
-    const sprite = this.add.sprite(dir === 1 ? -40 : WORLD_W + 40, rimY - 200, b.tex)
-      .setOrigin(0.5, 1).setScale(WILD_SCALE).setDepth(bath.y + 1)
-      .setFlipX(dir === -1).play(b.flyAnim);
-    const c = { sprite, kind: 'bird', ground: false, state: 'descending',
-                tween: null, fleeing: false, bird: b, atBath: true };
-    this._wildCritters.push(c);
-
-    sprite.setFlipX(sprite.x > rimX); // face the bath
-    const dist = Phaser.Math.Distance.Between(sprite.x, sprite.y, rimX, rimY);
-    c.tween = this.tweens.add({
-      targets: sprite, x: rimX, y: rimY, duration: Math.max(900, dist * 4), ease: 'Sine.easeIn',
-      onComplete: () => {
-        if (!sprite.active) return;
-        c.ground = true; c.state = 'perched';
-        sprite.play(b.peckAnim);
-        this._birdBathSplash(c, Phaser.Math.Between(4, 7));
-      },
-    });
-  }
-
-  // A bathing bird dips + splashes `n` times, flinging a water fleck each dip, then
-  // flushes on its own (or when startled). Reuses _birdTakeOff so the player crowding
-  // it and the rain/night clear all behave exactly like a ground perch.
-  _birdBathSplash(c, n) {
-    if (!c.sprite.active || c.state !== 'perched') return;
-    if (n <= 0) { this._birdTakeOff(c); return; }
-    const sprite = c.sprite;
-    if (Math.random() < 0.4) sprite.setFlipX(!sprite.flipX); // turn as it bathes
-    c.tween = this.tweens.add({
-      targets: sprite, y: sprite.y + 4, duration: 130, yoyo: true, ease: 'Quad.easeIn',
-      onStart: () => this._bathDroplet(sprite.x, sprite.y),
-      onComplete: () => this.time.delayedCall(Phaser.Math.Between(350, 900),
-        () => this._birdBathSplash(c, n - 1)),
-    });
-  }
-
-  // A tiny water droplet arcing off the basin as a bird splashes — a soft ripple
-  // image flung up and out, fading as it falls. Cosmetic sparkle for the splash.
-  _bathDroplet(x, y) {
-    const dx = Phaser.Math.Between(-14, 14);
-    const drop = this.add.image(x, y, 'fishRipple')
-      .setScale(S * 0.18).setDepth(y + 2).setAlpha(0.85).setTint(0xbfeaff);
-    this.tweens.add({
-      targets: drop, x: x + dx, y: y - Phaser.Math.Between(6, 14),
-      alpha: 0, scaleX: S * 0.05, scaleY: S * 0.05,
-      duration: Phaser.Math.Between(350, 550), ease: 'Sine.easeOut',
-      onComplete: () => drop.destroy(),
     });
   }
 

@@ -16,6 +16,7 @@
 import Phaser from 'phaser';
 import { CONTENT_DEFS } from '../../data/items.js';
 import { TROUGH_CAP, BOWL_CAP, PASTURE_BOUNDS, STAND_DEFS } from './constants.js';
+import { FEEDER_CAP } from '../../data/feeder.js';
 
 export const WithInteractables = (Base) => class extends Base {
   buildInteractables() {
@@ -100,6 +101,25 @@ export const WithInteractables = (Base) => class extends Base {
     const catWaterBowl   = petBowl('catWaterBowl',   'Water Bowl');
     const bunnyFoodBowl  = petBowl('bunnyFoodBowl',  'Bunny Bowl');
     const bunnyWaterBowl = petBowl('bunnyWaterBowl', 'Bunny Water');
+
+    // Seed bird feeder (#240) — a refill target near the house, NOT a gather source.
+    // Offer "Fill Feeder" while holding a basket of seed, until it's brim-full —
+    // mirrors the trough/pet-bowl fill descriptor. Reuses the existing `seed` resource
+    // (gathered at the grain bin), so no new content type. Birds eat from it directly
+    // (ambient), draining it over time (birdEcosystem.js drainSeedFeeder).
+    const seedFeeder = (item) => {
+      const f = this.props.seedFeeder;
+      if (!f || f.level >= FEEDER_CAP || item?.content !== 'seed' || item.count <= 0) return [];
+      return [{
+        x: f.x, y: f.y, tapRadius: 120, reachDist: 110, promptOffsetY: 90,
+        canAct: true, label: 'Fill Feeder',
+        approach: (world) => {
+          const refX = world ? world.x : this.player.sprite.x;
+          return { x: f.x + (refX < f.x ? -1 : 1) * 44, y: f.y + 8 };
+        },
+        activate: () => this.fillSeedFeeder(),
+      }];
+    };
 
     const sources = (item) => {
       if (!item || item.type !== 'carrier') return [];
@@ -231,12 +251,12 @@ export const WithInteractables = (Base) => class extends Base {
     const gardenPlant   = gardenDescs.plant;
     const gardenHarvest = gardenDescs.harvest;
 
-    this.interactables = [gate, house, shop, barn, gardenPlant, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, sources, nests, farmStand, spinningWheel, compostBin, trashCan, gardenHarvest];
+    this.interactables = [gate, house, shop, barn, gardenPlant, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, sources, nests, farmStand, spinningWheel, compostBin, trashCan, gardenHarvest];
     // Split by input: gate/house/shop/barn/garden-plant are bare-hand "interact" targets
     // (tap/click/E); the rest require a carried tool/carrier and are triggered by Use (the
     // on-screen button / F / controller). See useActiveTool + handleTap.
     this.interactWorld = [gate, house, shop, barn, gardenPlant];
-    this.toolWorld     = [trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, sources, nests, farmStand, spinningWheel, compostBin, trashCan, gardenHarvest];
+    this.toolWorld     = [trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, sources, nests, farmStand, spinningWheel, compostBin, trashCan, gardenHarvest];
   }
 
   // Nearest activatable instance to (x, y) within each instance's own radius
