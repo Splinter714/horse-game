@@ -23,6 +23,7 @@ import { Dog } from './species/dog/model.js';
 import { Bunny } from './species/bunny/model.js';
 import { Goat } from './species/goat/model.js';
 import { Llama } from './species/llama/model.js';
+import { Fox } from './species/fox/model.js';
 
 // The canonical herd. Every horse is equal — same persistence, same decay. The
 // only per-horse differences are data (name, coat, age, spawn) plus Ebony's
@@ -133,6 +134,15 @@ function defaultLlamaRoster() {
   };
 }
 
+// Foxes (#266) start with NO default individuals — like the bunny, the fresh farm has
+// zero foxes. A fox only joins once it's been TAMED by repeated feeding (paddock/fox.js
+// `_commitFox`), which adds the `fox0` member at runtime (cap 1). The empty default means
+// makeRoster.load() leans on its saved-key merge to restore a tamed fox a returning player
+// won over; offline decay applies (it has hunger/thirst) so a fox "missed you" gently.
+function defaultFoxRoster() {
+  return {};
+}
+
 export const ROSTERS = {
   horse: {
     storageKey: 'horse-care-save-v2',
@@ -216,6 +226,14 @@ export const ROSTERS = {
     Model: Llama,
     defaultRoster: defaultLlamaRoster,
     offlineDecay: true, // grazer with survival needs — forgiving offline decay
+    legacy: null,
+  },
+  fox: {
+    storageKey: 'horse-care-foxes-v1',
+    registryKey: 'allFoxes',
+    Model: Fox,
+    defaultRoster: defaultFoxRoster, // empty — tamed at runtime, not seeded
+    offlineDecay: true, // has hunger/thirst — forgiving offline decay like the herd
     legacy: null,
   },
 };

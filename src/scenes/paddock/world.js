@@ -296,10 +296,9 @@ export const WithWorld = (Base) => class extends Base {
     }
   }
 
-  // Static gathering props. Walk up + interact (or tap) with a compatible
-  // carrier equipped to fill it. No depletion — infinite for now. Each carries
-  // an `ob` solid footprint (centered on x, bottom at y) so you can't walk
-  // through it — obstacles are registered in buildObstacles.
+  // Static gathering props. Walk up + interact (or tap) with a compatible carrier equipped
+  // to fill it. No depletion — infinite for now. Each carries an `ob` solid footprint
+  // (centered on x, bottom at y) so you can't walk through it — registered in buildObstacles.
   buildSources() {
     const defs = [
       { x: 820,  y: 850, content: 'hay',    tex: 'haystack',     label: 'Hay Pile',      reach: 100, ob: { w: 84,  h: 36 } },
@@ -317,9 +316,11 @@ export const WithWorld = (Base) => class extends Base {
       // from directly; stocking it also lures a wild bunny in (capped at 4). No ground
       // pile (items.js `stocks`). Water bowl fills from a plain bucket, like the cat's.
       { x: 560,  y: 300, content: 'bunnyFood',  tex: 'bunnyHutch',    label: 'Bunny Hutch', reach: 100, ob: { w: 44, h: 30 } },
-      // Nectar station (#226) — sugar-water jug (nectar source) by the house; fill a
-      // bucket here, then pour into the hummingbird feeder. Its OWN resource vs seed #240.
+      // Nectar station (#226) — sugar-water jug by the house; fill a bucket here, then pour
+      // into the hummingbird feeder. Its OWN resource vs seed #240.
       { x: 190,  y: 360, content: 'nectar',   tex: 'nectarStation', label: 'Nectar Jug',  reach: 90,  ob: { w: 24, h: 24 } },
+      // Fox den (#266) — SOURCE for fox food; fill a basket, DROP piles to befriend a fox.
+      { x: 300,  y: 320, content: 'foxFood',  tex: 'foxDen',        label: 'Fox Den',     reach: 100, ob: { w: 40, h: 26 } },
     ];
     for (const d of defs) {
       const sprite = this.add.image(d.x, d.y, d.tex)

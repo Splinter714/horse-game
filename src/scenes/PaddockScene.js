@@ -16,6 +16,7 @@ import { WithRaccoon } from './paddock/raccoon.js';
 import { WithAmbientEvents } from './paddock/ambientEvents.js';
 import { WithCatAI } from './paddock/catAI.js';
 import { WithBunny } from './paddock/bunny.js';
+import { WithFox } from './paddock/fox.js';
 import { WithCreatures } from './paddock/creatures.js';
 import { WithFlock } from './paddock/flock.js';
 import { WithHerd } from './paddock/herd.js';
@@ -44,9 +45,9 @@ import { WithInput } from './paddock/input.js';
 import { applyDpr } from './uiUtils.js';
 
 export default class PaddockScene
-  extends WithWorld(WithBirdEcosystem(WithBirdEcosystemVisits(WithBarn(WithBunny(WithHouseEntry(WithWildlife(WithRaccoon(WithAmbientEvents(WithCatAI(WithCompanion(WithCharm(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithShop(WithGarden(WithDayNight(WithWeather(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
+  extends WithWorld(WithBirdEcosystem(WithBirdEcosystemVisits(WithBarn(WithBunny(WithFox(WithHouseEntry(WithWildlife(WithRaccoon(WithAmbientEvents(WithCatAI(WithCompanion(WithCharm(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithShop(WithGarden(WithDayNight(WithWeather(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
     WithEffects(WithPersistence(WithRendering(WithWorldObjects(WithCareActions(WithInteraction(WithInput(
-    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene))))))))))))))))))))))))))))))))))) {
+    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene)))))))))))))))))))))))))))))))))))) {
   constructor() {
     super('PaddockScene');
   }
@@ -91,6 +92,7 @@ export default class PaddockScene
     this.buildGarden(); // crop garden plot (#242) — before interactables (they read it)
     this.buildInteractables();
     this.buildWildlife(); // ambient fish/birds/raccoon (needs the stream path + player)
+    this.buildFox(); // fox taming (#266): wild-fox anims + restore taming counter
     this.startAmbientEvents(); // unified data-driven ambient rotation (#253)
 
     // Periodic AI tick: direct idle horses to food/water

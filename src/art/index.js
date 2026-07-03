@@ -17,11 +17,13 @@ import { buildSheepTextures } from './sheepArt.js';
 import { buildPigTextures } from './pigArt.js';
 import { buildDogTextures } from './dogArt.js';
 import { buildBunnyTextures } from './bunnyArt.js';
+import { buildFoxTextures } from './foxArt.js';
 import { buildGoatTextures } from './goatArt.js';
 import { buildLlamaTextures } from './llamaArt.js';
 import { LLAMA_VARIANTS } from '../data/species/llama/index.js';
 import { buildPlayerTextures } from './playerArt.js';
 import { BUNNY_COATS } from '../data/species/bunny/index.js';
+import { FOX_KEY } from '../data/species/fox/index.js';
 import { buildWildlifeOldTextures } from './wildlifeArt.js'; // TEMP: old-vs-new gallery A/B
 import { composeCoat } from '../data/species/horse/coats.js';
 import { DEMO_FOALS } from '../data/demoFoals.js';
@@ -98,6 +100,16 @@ export const SPECIES_TEXTURES = {
       buildBunnyTextures(scene, `bunny${i}`, { coat });
     });
   },
+
+  // Foxes (#266). Like the bunny, the roster starts EMPTY and grows at runtime when a
+  // wild fox is TAMED by repeated feeding, so we can't build "one texture per saved
+  // individual" up front. Instead build the fox's frame set unconditionally under FOX_KEY
+  // (the key a tamed fox spawns as, paddock/fox.js), the way the demo foals / bunny coats
+  // are pre-built — so `_commitFox` spawns a fox whose key already has a ready texture, no
+  // runtime build. A persisted fox with a customizer `look` re-skins on top via reskinAnimal.
+  fox(scene) {
+    buildFoxTextures(scene, FOX_KEY, { coat: 'red' });
+  },
 };
 
 // A hen's coat index: its customized style if set, else the roster `coat` default.
@@ -140,6 +152,7 @@ const RESKIN = {
   cow:   (scene, key, look) => buildCowTextures(scene, key, look),
   goat:  (scene, key, look) => buildGoatTextures(scene, key, look),
   cat:   (scene, key, look) => buildCatTextures(scene, key, look),
+  fox:   (scene, key, look) => buildFoxTextures(scene, key, look),
   // The chicken picks a whole coat (a STYLE), not per-part ramps: the customizer's
   // single 'style' part stores the chosen CHICKEN_COATS entry under look.style.
   chicken: (scene, key, look) => buildChickenTextures(scene, key, look.style ?? look),

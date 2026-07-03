@@ -199,6 +199,57 @@ export function buildPropTextures(scene) {
     g.fillStyle(kibbleHi, 1); g.fillCircle(11, 5, 1.2); g.fillCircle(15, 5, 1.2); g.fillCircle(13, 4, 1.2);
   });
 
+  // Fox den (#266) — the gather SOURCE for fox food: a low earthen mound with a dark
+  // burrow mouth tucked into it, a scatter of dry grass, and a little bowl of food scraps
+  // set out front. The player fills a basket here, then drops fox-food piles to befriend
+  // the fox. Origin bottom-centre (set by the placer). Drawn in the same cozy pixel style
+  // as the other sources.
+  gen(scene, 'foxDen', 44, 34, (g) => {
+    const earth = 0x8a6a44, earthHi = 0xa8855a, earthLo = 0x63492d, hole = 0x241a10;
+    g.layer('shadow');
+    g.fillStyle(0x000000, 0.14); g.fillEllipse(22, 32, 40, 6);
+    // earthen mound
+    g.layer('mound');
+    g.fillStyle(earthLo, 1); g.fillEllipse(22, 26, 42, 18);
+    g.fillStyle(earth, 1);   g.fillEllipse(22, 24, 38, 16);
+    g.fillStyle(earthHi, 1); g.fillEllipse(16, 20, 16, 6); // sunlit crown
+    // burrow mouth
+    g.layer('burrow');
+    g.fillStyle(hole, 1);        g.fillEllipse(22, 25, 16, 12);
+    g.fillStyle(0x000000, 0.35); g.fillEllipse(22, 26, 12, 9); // depth
+    g.fillStyle(earthLo, 1);     g.fillEllipse(22, 20, 15, 4); // lip above the hole
+    // dry grass tufts around the base
+    g.layer('grass');
+    const grass = 0x9aa15a, grassHi = 0xbcc178;
+    g.fillStyle(grass, 1);
+    g.fillRect(4, 26, 1, 5); g.fillRect(7, 25, 1, 6); g.fillRect(38, 26, 1, 5); g.fillRect(41, 25, 1, 6);
+    g.fillStyle(grassHi, 1);
+    g.fillRect(5, 27, 1, 3); g.fillRect(39, 27, 1, 3);
+    // a little dish of food scraps out front
+    g.layer('dish');
+    g.fillStyle(0x6f6f78, 1); g.fillEllipse(22, 32, 12, 4);
+    g.fillStyle(0xb9793a, 1); g.fillEllipse(22, 31, 9, 2.5);
+    g.fillStyle(0xd6a25e, 1); g.fillCircle(20, 31, 1); g.fillCircle(24, 31, 1);
+  });
+
+  // Fox food pile (#266) — a dropped serving of scraps the fox trots over to gnaw. Little
+  // russet meaty morsels + a couple of berries on the ground, distinct at a glance from
+  // the golden hay / green bunny pellets. Origin default (placed centred by placeFood).
+  gen(scene, 'foxFoodPile', 22, 10, (g) => {
+    g.fillStyle(0x000000, 0.1); g.fillEllipse(11, 9, 20, 3); // ground shadow
+    const meat = 0xb05a3a, meatHi = 0xcf7a54, meatLo = 0x8a4028;
+    // scattered meaty morsels
+    g.fillStyle(meatLo, 1);
+    g.fillEllipse(6, 6, 6, 4); g.fillEllipse(13, 6, 6, 4); g.fillEllipse(17, 5, 5, 3);
+    g.fillStyle(meat, 1);
+    g.fillEllipse(6, 5, 5, 3); g.fillEllipse(13, 5, 5, 3); g.fillEllipse(17, 4, 4, 2.5);
+    g.fillStyle(meatHi, 1);
+    g.fillCircle(5, 4, 1); g.fillCircle(12, 4, 1); g.fillCircle(16, 3.5, 0.8);
+    // a couple of dark berries tucked in
+    g.fillStyle(0x5a2a55, 1); g.fillCircle(9, 6, 1.4); g.fillCircle(15, 7, 1.4);
+    g.fillStyle(0x7a3a72, 1); g.fillCircle(8.5, 5.5, 0.6); g.fillCircle(14.5, 6.5, 0.6);
+  });
+
   // Animal dropping (#232) — a small, tasteful cluster of rounded pellets on the
   // ground with a soft shadow. Cozy pixel-art, kept deliberately little and neat so
   // it reads as "a bit to tidy up," not gross. Scooped up with the scooper tool.
