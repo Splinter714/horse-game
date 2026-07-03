@@ -1,5 +1,5 @@
 // Tier-2 bird-ecosystem world objects (#219 bird bath, #240 seed feeder,
-// #226 hummingbird sugar-water feeder, #239 beehive). These are the fixed,
+// #226 hummingbird sugar-water feeder, #239 beehive, #218 birdhouse). These are the fixed,
 // decorative-plus-ambient props that the flying wildlife (paddock/wildlife.js) and
 // the bees/hummingbirds hook onto. Kept in their own concern mixin (not world.js)
 // so the family of related objects lives together and world.js stays under its
@@ -24,6 +24,7 @@ export const WithBirdEcosystem = (Base) => class extends Base {
     this.buildSeedFeeder();   // #240
     this.buildNectarFeeder(); // #226
     this.buildBeehive();      // #239
+    this.buildBirdhouse();    // #218
   }
 
   // ─── Bird bath (#219) ────────────────────────────────────────────────────────
@@ -198,6 +199,27 @@ export const WithBirdEcosystem = (Base) => class extends Base {
     this._setHoneyLevel(0);
     playGather('honey');
     this.showIcon?.('iconHoney', this.player.sprite);
+  }
+
+  // ─── Birdhouse (#218) ────────────────────────────────────────────────────────
+  // A decorative post-mounted nesting box in the north yard, near the house — purely
+  // an ambient bird attractor (mirrors the bird bath #219 / seed feeder #240 pattern),
+  // NOT the naming/befriending mechanic (that's future #223, which builds on top of
+  // this). No fill/drain — it's fixed scenery, always "active"; songbirds just perch
+  // on the roof/entrance more often when it's around (see _scheduleBirdhouseVisit in
+  // birdEcosystemVisits.js).
+  //
+  // FIRST-PASS spot (500, 260) — north yard, east of the house/doghouse cluster and
+  // clear of the bird bath (620,470) / seed feeder (330,360) / beehive (760,300) /
+  // doghouse (410,470), so it reads as its own distinct feature. Flagged for the
+  // owner to redirect in the live preview if a different yard corner reads better.
+  buildBirdhouse() {
+    const x = 500, y = 260;
+    this.add.image(x, y, 'birdhouse').setScale(S).setDepth(y).setOrigin(0.5, 1);
+    this.props.birdhouse = { x, y };
+    // Sprite 26×58 at S (origin 0.5,1); the solid part is the slim post foot → a
+    // narrow ~22×16 footprint at the base so the player can walk right up to it.
+    this.birdEcosystemObstacles.push({ x: x - 11, y: y - 16, w: 22, h: 14 });
   }
 
 };

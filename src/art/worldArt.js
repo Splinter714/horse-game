@@ -658,6 +658,50 @@ export function buildWorldTextures(scene) {
   gen(scene, 'beehive',      30, 44, (g) => drawBeehive(g, false));
   gen(scene, 'beehiveReady', 30, 44, (g) => drawBeehive(g, true));
 
+  // --- birdhouse (26 × 58) — post-mounted decorative nesting box (#218) ---
+  // A classic little birdhouse: a peaked-roof box with a round entrance hole and a
+  // perch dowel, mounted atop a slim post. Purely decorative + ambient — no naming/
+  // relationship mechanic (that's #223's job) — it just makes ambient songbirds
+  // (paddock/birdEcosystemVisits.js) perch on the roof/entrance more often when it's
+  // around, mirroring the bird bath (#219) and seed feeder (#240). Origin (0.5,1) at
+  // the foot of the post so it depth-sorts on its base. Dissect-tagged.
+  gen(scene, 'birdhouse', 26, 58, (g) => {
+    const post = 0x8a5a2e, postHi = 0xa9743c, postLo = 0x6a4420;
+    const wood = 0xc79456, woodHi = 0xe0b06e, woodLo = 0x9c7038;
+    const roofD = 0x7a3f22, roofM = 0xa8582c, roofH = 0xcf7f48;
+    const hole = 0x2a1c10, perch = 0x6a4420;
+
+    // Post
+    g.layer('post');
+    g.fillStyle(postLo, 1); g.fillEllipse(13, 56, 8, 3); // ground shadow
+    g.fillStyle(post, 1);   g.fillRect(11, 30, 4, 26);
+    g.fillStyle(postHi, 1); g.fillRect(11, 30, 1, 26);
+    g.fillStyle(postLo, 1); g.fillRect(14, 30, 1, 26);
+
+    // House box
+    g.layer('box');
+    g.fillStyle(wood, 1);   g.fillRect(4, 16, 18, 16);
+    g.fillStyle(woodHi, 1); g.fillRect(4, 16, 2, 16);   // lit left edge
+    g.fillStyle(woodLo, 1); g.fillRect(20, 16, 2, 16);  // shaded right edge
+    g.fillStyle(woodLo, 1); g.fillRect(4, 30, 18, 2);   // base trim shadow
+
+    // Entrance hole
+    g.layer('hole');
+    g.fillStyle(hole, 1); g.fillCircle(13, 23, 3.4);
+
+    // Perch dowel below the hole
+    g.layer('perch');
+    g.fillStyle(perch, 1); g.fillRect(11, 27, 6, 2);
+
+    // Peaked roof
+    g.layer('roof');
+    g.fillStyle(roofD, 1); g.fillTriangle(1, 17, 13, 6, 25, 17);
+    g.fillStyle(roofM, 1); g.fillTriangle(3, 17, 13, 8, 23, 17);
+    g.fillStyle(roofH, 1); g.fillRect(6, 13, 3, 2); g.fillRect(10, 10, 3, 2); // highlight streaks
+    g.fillStyle(woodLo, 1); g.fillRect(1, 16, 24, 2); // eave board
+    g.fillStyle(roofD, 1);  g.fillRect(12, 6, 2, 3);  // ridge cap
+  });
+
   // --- nest (18 × 12) — woven straw ring ---
   gen(scene, 'nest', 18, 12, (g) => {
     // Outer straw ring
