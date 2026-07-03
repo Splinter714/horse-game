@@ -68,10 +68,10 @@ try {
       'onPhaseChange', 'depthSort', 'tickDecay',
       // Extracted concern mixins (issue #167): effects / persistence / rendering.
       'showHeart', 'showIcon', '_saveHorses', '_saveAnimal', 'tickAutosave', 'updateSaddles', 'updateFoals',
-      // worldObjects: food drops / trough / gate / cat bowls (#202 rework).
+      // worldObjects: food drops / trough / gate / pet bowls (#202 rework, #283 generalized).
       'placeFood', '_freeFoodSpot', 'fillTrough', '_setTroughLevel', 'toggleGate',
-      'buildCatBowls', 'fillCatBowl', '_setCatBowlLevel', '_catBowlFor',
-      'catEatFromBowl', '_catContext', '_catBowlDist',
+      'buildCatBowls', 'fillPetBowl', '_setPetBowlLevel', '_petBowlFor',
+      'petEatFromBowl', '_catContext', '_catBowlDist',
       // careActions: brush-on-horse + generic produce harvesting (milk).
       'useItemOnHorse', '_produceFromAnimal',
       // interaction: pet/info cluster + info-panel openers.
@@ -178,13 +178,13 @@ try {
         cat.model.stats.hunger = 20;
         const emptyDist = paddock._catBowlDist(cat, fb);
         // Stock the food bowl and confirm the cat now commits to eating from it.
-        paddock._setCatBowlLevel(fb, 4);
+        paddock._setPetBowlLevel(fb, 4);
         const stockedFilled = fb.filled === true && fb.level === 4;
         cat.state = 'idle';
         const claimed = paddock.runBehaviors(cat);
         const eating = claimed && cat.state === 'eating';
         // Drain to empty → filled flag off again.
-        paddock._setCatBowlLevel(fb, 0);
+        paddock._setPetBowlLevel(fb, 0);
         const emptiedOff = fb.filled === false;
         catBowls = (startedEmpty && emptyDist === Infinity && stockedFilled && eating && emptiedOff)
           ? 'eats-from-bowl'
