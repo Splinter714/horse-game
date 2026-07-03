@@ -19,12 +19,14 @@ import { buildPigTextures } from './pigArt.js';
 import { buildDogTextures } from './dogArt.js';
 import { buildBunnyTextures } from './bunnyArt.js';
 import { buildFoxTextures } from './foxArt.js';
+import { buildDuckTextures } from './duckArt.js';
 import { buildGoatTextures } from './goatArt.js';
 import { buildLlamaTextures } from './llamaArt.js';
 import { LLAMA_VARIANTS } from '../data/species/llama/index.js';
 import { buildPlayerTextures } from './playerArt.js';
 import { BUNNY_COATS } from '../data/species/bunny/index.js';
 import { FOX_KEY } from '../data/species/fox/index.js';
+import { DUCK_KEY } from '../data/species/duck/index.js';
 import { buildWildlifeOldTextures } from './wildlifeArt.js'; // TEMP: old-vs-new gallery A/B
 import { composeCoat } from '../data/species/horse/coats.js';
 import { DEMO_FOALS } from '../data/demoFoals.js';
@@ -123,6 +125,17 @@ export const SPECIES_TEXTURES = {
   fox(scene) {
     buildFoxTextures(scene, FOX_KEY, { coat: 'red' });
   },
+
+  // Ducks (#275). Like the fox, the roster starts EMPTY and grows at runtime when a
+  // wild duck is TAMED by repeated feeding, so we can't build "one texture per saved
+  // individual" up front. Instead build the duck's frame set unconditionally under
+  // DUCK_KEY (the key a tamed duck spawns as, paddock/duck.js), the way the fox/demo
+  // foals are pre-built — so `_commitDuck` spawns a duck whose key already has a ready
+  // texture, no runtime build. A persisted duck with a customizer `look` re-skins on
+  // top via reskinAnimal.
+  duck(scene) {
+    buildDuckTextures(scene, DUCK_KEY, { coat: 'mallard' });
+  },
 };
 
 // A hen's coat index: its customized style if set, else the roster `coat` default.
@@ -171,6 +184,7 @@ const RESKIN = {
   goat:  (scene, key, look) => buildGoatTextures(scene, key, look),
   cat:   (scene, key, look) => buildCatTextures(scene, key, look),
   fox:   (scene, key, look) => buildFoxTextures(scene, key, look),
+  duck:  (scene, key, look) => buildDuckTextures(scene, key, look),
   // The chicken picks a whole coat (a STYLE), not per-part ramps: the customizer's
   // single 'style' part stores the chosen CHICKEN_COATS entry under look.style.
   chicken: (scene, key, look) => buildChickenTextures(scene, key, look.style ?? look),

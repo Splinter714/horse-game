@@ -25,6 +25,7 @@ import { Bunny } from './species/bunny/model.js';
 import { Goat } from './species/goat/model.js';
 import { Llama } from './species/llama/model.js';
 import { Fox } from './species/fox/model.js';
+import { Duck } from './species/duck/model.js';
 
 // The canonical herd. Every horse is equal — same persistence, same decay. The
 // only per-horse differences are data (name, coat, age, spawn) plus Ebony's
@@ -154,6 +155,15 @@ function defaultFoxRoster() {
   return {};
 }
 
+// Ducks (#275) start with NO default individuals — same wild-attract shape as the fox.
+// A duck only joins once it's been TAMED by repeated feeding near the stream
+// (paddock/duck.js `_commitDuck`), which adds the `duck0` member at runtime (cap 1).
+// The empty default means makeRoster.load() leans on its saved-key merge to restore a
+// tamed duck a returning player won over; offline decay applies (it has hunger/thirst).
+function defaultDuckRoster() {
+  return {};
+}
+
 export const ROSTERS = {
   horse: {
     storageKey: 'horse-care-save-v2',
@@ -252,6 +262,14 @@ export const ROSTERS = {
     registryKey: 'allFoxes',
     Model: Fox,
     defaultRoster: defaultFoxRoster, // empty — tamed at runtime, not seeded
+    offlineDecay: true, // has hunger/thirst — forgiving offline decay like the herd
+    legacy: null,
+  },
+  duck: {
+    storageKey: 'horse-care-ducks-v1',
+    registryKey: 'allDucks',
+    Model: Duck,
+    defaultRoster: defaultDuckRoster, // empty — tamed at runtime, not seeded
     offlineDecay: true, // has hunger/thirst — forgiving offline decay like the herd
     legacy: null,
   },
