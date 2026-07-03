@@ -59,6 +59,7 @@ export const WithBirdEcosystemVisits = (Base) => class extends Base {
         if (!sprite.active) return;
         c.ground = true; c.state = 'perched';
         sprite.play(b.peckAnim);
+        this.registerBirdVisit?.('bath', b.type.id, { x: rimX, y: rimY }); // #223 befriending tally
         this._birdBathSplash(c, Phaser.Math.Between(4, 7));
       },
     });
@@ -130,6 +131,7 @@ export const WithBirdEcosystemVisits = (Base) => class extends Base {
         if (!sprite.active) return;
         c.ground = true; c.state = 'perched';
         sprite.play(b.peckAnim);
+        this.registerBirdVisit?.('birdhouse', b.type.id, { x: px, y: py }); // #223 befriending tally
         this._birdhouseLook(c, Phaser.Math.Between(3, 6));
       },
     });
@@ -187,6 +189,7 @@ export const WithBirdEcosystemVisits = (Base) => class extends Base {
         c.ground = true; c.state = 'perched';
         this.drainSeedFeeder?.(); // eat one serving
         sprite.play(b.peckAnim);
+        this.registerBirdVisit?.('feeder', b.type.id, { x: tx, y: ty }); // #223 befriending tally
         this._feederPeck(c, Phaser.Math.Between(3, 6));
       },
     });

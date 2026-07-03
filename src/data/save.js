@@ -355,6 +355,33 @@ export function saveDuckTaming(count) {
   } catch {}
 }
 
+// ── Bird befriending progress (#223) ──────────────────────────────────────────
+// Mirrors the fox-taming persistence shape above, but per BIRD TYPE (data/wildlife.js
+// BIRD_TYPES id) rather than a single counter — several types can be warming up (or
+// already named) at once. Shape: { counts: { [typeId]: visitTally }, roster: [{
+// typeId, name }] }. `counts` is the pre-befriended running tally per type (visitBird,
+// data/birdFriendship.js); `roster` is the small capped list of named regulars, in the
+// order they were won over. Its own tiny storage key (not the wholesale-rewritten
+// gameState) so this stays a self-contained, easily-reset feature.
+const BIRD_FRIENDSHIP_KEY = 'horse-game-bird-friendship-v1';
+
+export function loadBirdFriendship() {
+  try {
+    const data = JSON.parse(localStorage.getItem(BIRD_FRIENDSHIP_KEY));
+    const counts = (data?.counts && typeof data.counts === 'object') ? data.counts : {};
+    const roster = Array.isArray(data?.roster) ? data.roster.filter((r) => r?.typeId) : [];
+    return { counts, roster };
+  } catch {
+    return { counts: {}, roster: [] };
+  }
+}
+
+export function saveBirdFriendship({ counts = {}, roster = [] }) {
+  try {
+    localStorage.setItem(BIRD_FRIENDSHIP_KEY, JSON.stringify({ counts, roster }));
+  } catch {}
+}
+
 // ── Breeding gestations (#15) ─────────────────────────────────────────────────
 // In-flight pregnancies: an array of { aKey, bKey, startedAt, seed } that must
 // survive a reload so a foal paired before closing the game is still born on time
