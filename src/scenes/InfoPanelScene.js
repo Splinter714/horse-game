@@ -299,11 +299,10 @@ export default class InfoPanelScene extends WithCustomizerShell(WithCustomizerNa
     });
   }
 
-  // ── Breeding & foals panel controls (#15) ──────────────────────────────────
-  // Grown horse → a "Breed" button that marks it as a mate (or, if another horse is
-  // already marked, "Breed with <name>" which starts the gestation). Foal → a "Stay a
-  // baby forever" toggle. Only for horses; other species get nothing. Returns the new
-  // bottom-y cursor. A small status line flashes feedback under the button.
+  // ── Breeding & foals panel controls (#15, redesigned #114) ──────────────────
+  // Unbonded grown horse → "Pair" (marks/forms a PERMANENT bond, no gestation).
+  // Already-bonded grown horse → separate, repeatable "Breed" (starts a gestation
+  // with its bonded mate). Foal → "Stay a baby forever" toggle. Horses only.
   _addBreedingControls(animal, key, y) {
     if (animal.species !== 'horse') return y;
     const paddock = this.scene.get('PaddockScene');
@@ -311,7 +310,7 @@ export default class InfoPanelScene extends WithCustomizerShell(WithCustomizerNa
 
     let cy = y + 6;
 
-    // A newborn foal shows the growth toggle rather than a breed button.
+    // A newborn foal shows the growth toggle rather than pair/breed buttons.
     if (animal.isFoal) {
       const on = !animal.stayBaby; // "Allow growing up" is the inverse of stayBaby
       const label = animal.stayBaby ? '🍼  Stays a baby forever' : '🌱  Allowed to grow up';
@@ -332,24 +331,36 @@ export default class InfoPanelScene extends WithCustomizerShell(WithCustomizerNa
       return cy + toggle.height + 4;
     }
 
-    // Grown horse: the breed button. Its label reflects any pending mate.
+    // Already bonded → the separate, repeatable "Breed" button (monogamous, permanent).
+    if (paddock.isBonded?.(key)) {
+      return this._addPinkButton(cy, '💕  Breed', () => {
+        const status = paddock.startBreeding?.(key);
+        if (status && status.includes('expecting a foal')) { this.close(); return; }
+        this._flashBreedStatus(status);
+      });
+    }
+
+    // Not yet bonded: the pair button (label reflects any pending mate).
     const mate = paddock.pendingMateName?.(key);
-    const label = mate ? `💕  Breed with ${mate}` : '💕  Breed';
-    const breedBtn = this.add.text(CARD_W / 2, cy, label, {
+    const label = mate ? `💞  Pair with ${mate}` : '💞  Pair';
+    return this._addPinkButton(cy, label, () => {
+      const status = paddock.toggleBondSelection?.(key);
+      if (status && status.includes('bonded for life')) { this.close(); return; }
+      this._flashBreedStatus(status);
+    });
+  }
+
+  // Shared pink-pill button used by both the "Pair" and "Breed" actions above —
+  // same styling, just a label + a click handler. Returns the new bottom-y cursor.
+  _addPinkButton(cy, label, onClick) {
+    const btn = this.add.text(CARD_W / 2, cy, label, {
       fontFamily: 'system-ui, sans-serif', fontSize: '14px', color: '#5a1e3a',
       fontStyle: 'bold', backgroundColor: '#ffc0d8', padding: { x: 14, y: 8 }, align: 'center',
     }).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
-    growHitArea(breedBtn);
-    breedBtn.on('pointerdown', () => {
-      const status = paddock.toggleBreedSelection?.(key);
-      // If a gestation actually started (both horses picked), close the panel; else
-      // flash the status and stay open so the player can pick the second horse.
-      if (status && status.includes('expecting a foal')) { this.close(); return; }
-      this._flashBreedStatus(status);
-    });
-    this.panel.add(breedBtn);
-    cy += breedBtn.height + 4;
-    return cy;
+    growHitArea(btn);
+    btn.on('pointerdown', onClick);
+    this.panel.add(btn);
+    return cy + btn.height + 4;
   }
 
   // Flash a short breeding status message under the breed button (auto-fades).

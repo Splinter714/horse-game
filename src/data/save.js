@@ -431,6 +431,31 @@ export function saveReadyBirths(list) {
   } catch {}
 }
 
+// ── Pair bonds (#114) ───────────────────────────────────────────────────────────
+// A PERMANENT mom+dad bond record, separate from any in-flight gestation: an array
+// of { aKey, bKey }. Formed once via the "Pair"/"Bond" panel action and never
+// broken (no death, no re-pairing — monogamous by design). A gestation no longer
+// starts automatically when a bond forms; the separate "Breed" action reads this
+// list to find a horse's mate and can be used repeatedly over time to start new
+// gestations. Kept as its own tiny storage key, mirroring GESTATIONS_KEY/
+// READY_BIRTHS_KEY above.
+const PAIR_BONDS_KEY = 'horse-game-pair-bonds-v1';
+
+export function loadPairBonds() {
+  try {
+    const data = JSON.parse(localStorage.getItem(PAIR_BONDS_KEY));
+    return Array.isArray(data) ? data.filter((p) => p && p.aKey && p.bKey) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function savePairBonds(list) {
+  try {
+    localStorage.setItem(PAIR_BONDS_KEY, JSON.stringify(Array.isArray(list) ? list : []));
+  } catch {}
+}
+
 // ── Chick incubations (#274) ──────────────────────────────────────────────────
 // In-flight fertilized eggs: an array of { henKey, roosterKey, startedAt, seed }
 // that must survive a reload so an egg started incubating before closing the game

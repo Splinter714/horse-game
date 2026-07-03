@@ -1,32 +1,47 @@
-// Breeding & foals (#15) — the scene-coupled half of "pair two horses, wait a
-// gestation, name & customize the newborn foal, and it grows up only if you let it."
-// The PURE logic (gestation timing, next-foal-key roster growth, parent-seeded look,
-// the newborn's roster data) lives in data/breeding.js; this mixin wires it into the
-// world: the player-initiated pairing interaction, the running gestation timers, the
-// birth → name-prompt → customizer flow, growing the horse roster with the newborn,
-// and honouring the "stay a baby forever" toggle in the grow-up path.
+// Breeding & foals (#15, redesigned by #114) — the scene-coupled half of "bond two
+// horses permanently, then breed them on demand, wait a gestation, name & customize
+// the newborn foal, and it grows up only if you let it." The PURE logic (gestation
+// timing, next-foal-key roster growth, parent-seeded look, the newborn's roster data,
+// the pair-bond checks) lives in data/breeding.js; this mixin wires it into the
+// world: the player-initiated pairing/bonding interaction, the separate on-demand
+// breed action, the running gestation timers, the birth → name-prompt → customizer
+// flow, growing the horse roster with the newborn, and honouring the "stay a baby
+// forever" toggle in the grow-up path.
 //
-// The pairing INTERACTION (first-pass, flagged for playtest): the player opens a
-// horse's info panel and taps a "Breed" button to mark it as the chosen mate; opening
-// a second horse's panel then offers "Breed with <name>", which starts the gestation.
-// It's deliberately deliberate (two explicit taps on two different horses) so breeding
-// is never accidental — matching the issue's "the player deliberately pairs two
-// horses" scope. A cutscene/animation for the moment is owner-art-directed; a small
-// sparkle stands in for now.
+// #114 split what #15 shipped as one fused action into two deliberate steps:
+//   1. PAIR/BOND — `toggleBondSelection`: the player opens a horse's info panel and
+//      taps "Pair" to mark it as the chosen mate; opening a second, eligible horse's
+//      panel then offers "Pair with <name>", which forms a PERMANENT bond (recorded
+//      in `_pairBonds`, persisted via load/savePairBonds). No gestation starts here.
+//      Monogamous: once bonded, a horse can't be paired with anyone else, and the
+//      bond never breaks (no death, no re-pairing).
+//   2. BREED — `startBreeding`: a SEPARATE, repeatable action available on an
+//      already-bonded horse's panel. Each tap starts a new gestation with its bonded
+//      mate (gated only by "not already expecting," same as #15's original gate). A
+//      bonded pair can have many foals across many play sessions, each its own
+//      deliberate choice.
+// Both are deliberately deliberate (explicit taps, never automatic) so pairing and
+// breeding are never accidental. A cutscene/animation for either moment is
+// owner-art-directed; a small sparkle stands in for now.
 //
 // A newborn foal joins the SAME horse roster (allHorses) the herd lives in, so it
 // persists through save.js's saved-key merge exactly like an attracted bunny grows the
 // bunny roster — save.js stays species-agnostic. In-flight gestations persist in their
 // own tiny storage key (load/saveGestations) so a foal paired before closing the game
-// is still born on time (the clock runs in wall time, like offline decay).
+// is still born on time (the clock runs in wall time, like offline decay). The
+// gestation-completion / #299 holding-queue / birth / customizer-at-birth machinery is
+// UNCHANGED by #114 — only how a gestation STARTS moved from pairing to a separate
+// "Breed" action.
 
 import Phaser from 'phaser';
 import { PASTURE_BOUNDS } from './constants.js';
 import {
   nextFoalKey, makeFoalData, seedFoalLook, isBornReady, GROWN_AGE,
+  isBonded, bondMateKey, canBond,
 } from '../../data/breeding.js';
 import {
   loadGestations, saveGestations, loadReadyBirths, saveReadyBirths,
+  loadPairBonds, savePairBonds,
 } from '../../data/save.js';
 import { Horse } from '../../data/species/horse/model.js';
 import { composeCoat } from '../../data/species/horse/coats.js';
@@ -34,10 +49,11 @@ import { buildFoalTextures, buildHorseTextures, HORSE_POSTURE_IDS } from '../../
 
 export const WithBreeding = (Base) => class extends Base {
   // Called from create() after the herd is built: restore any pregnancies that were
-  // in flight when the game closed. (Foals already born live in the horse roster and
-  // are spawned by buildHorses, so nothing to restore for them here.)
+  // in flight when the game closed, plus the permanent pair-bond list. (Foals already
+  // born live in the horse roster and are spawned by buildHorses, so nothing to
+  // restore for them here.)
   buildBreeding() {
-    this._pendingMate = null;                 // key of the horse marked as first parent
+    this._pendingMate = null;                 // key of the horse marked as first parent (bonding)
     this._gestations = loadGestations();      // [{ aKey, bKey, startedAt, seed }]
     this._breedAccum = 0;                      // ms accumulator so the born-check runs ~1/s
     // A gestation whose parents no longer exist (herd changed) is dropped defensively.
@@ -52,24 +68,41 @@ export const WithBreeding = (Base) => class extends Base {
     this._readyBirths = loadReadyBirths();    // [{ aKey, bKey, seed }]
     this._readyBirths = this._readyBirths.filter((g) => all[g.aKey] && all[g.bKey]);
     saveReadyBirths(this._readyBirths);
+
+    // #114: permanent pair bonds. A bond whose partner no longer exists (herd
+    // changed) is dropped defensively, same as gestations/readyBirths above.
+    this._pairBonds = loadPairBonds();        // [{ aKey, bKey }]
+    this._pairBonds = this._pairBonds.filter((p) => all[p.aKey] && all[p.bKey]);
+    savePairBonds(this._pairBonds);
   }
 
   // Is a horse currently pregnant (party to an in-flight gestation)? Used to keep a
-  // horse from being paired again while it's already expecting.
+  // horse from breeding again while it's already expecting.
   _isExpecting(key) {
     return (this._gestations ?? []).some((g) => g.aKey === key || g.bKey === key);
   }
 
-  // The info-panel "Breed" button routes here with the horse currently being viewed.
-  // First tap marks the mate; a second tap on a DIFFERENT eligible horse starts the
-  // gestation. Returns a short status string the panel can flash as feedback.
-  toggleBreedSelection(key) {
+  // Is a horse already permanently bonded to a mate? (#114 monogamy check)
+  isBonded(key) {
+    return isBonded(key, this._pairBonds ?? []);
+  }
+
+  // The bonded mate's key for a horse, or null if unbonded.
+  bondMateKey(key) {
+    return bondMateKey(key, this._pairBonds ?? []);
+  }
+
+  // The info-panel "Pair"/"Bond" button routes here with the horse currently being
+  // viewed. First tap marks the mate; a second tap on a DIFFERENT eligible horse
+  // forms the PERMANENT bond — no gestation starts here (that's the separate "Breed"
+  // action below). Returns a short status string the panel can flash as feedback.
+  toggleBondSelection(key) {
     const all = this.registry.get('allHorses') ?? {};
     const horse = all[key];
     if (!horse) return null;
-    // A foal can't breed, and an already-expecting horse can't take on another.
-    if (horse.isFoal) return 'Foals are too young to breed';
-    if (this._isExpecting(key)) return `${horse.name} is already expecting`;
+    // A foal can't bond, and an already-bonded horse can't be re-paired (monogamy).
+    if (horse.isFoal) return 'Foals are too young to pair';
+    if (this.isBonded(key)) return `${horse.name} is already bonded`;
 
     // No mate chosen yet → mark this one and wait for the second pick.
     if (!this._pendingMate) {
@@ -82,18 +115,50 @@ export const WithBreeding = (Base) => class extends Base {
       this._pendingMate = null;
       return 'Pairing cancelled';
     }
-    // A second, different horse → pair them and begin the gestation.
+    // A second, different horse → form the permanent bond.
     const mateKey = this._pendingMate;
     this._pendingMate = null;
-    return this.beginBreeding(mateKey, key);
+    return this.formPairBond(mateKey, key);
   }
 
-  // Whether a "Breed with <name>" prompt should be offered on the panel for `key`
+  // Whether a "Pair with <name>" prompt should be offered on the panel for `key`
   // (i.e. a different, eligible horse is already marked). Drives the button label.
   pendingMateName(key) {
     if (!this._pendingMate || this._pendingMate === key) return null;
     const all = this.registry.get('allHorses') ?? {};
     return all[this._pendingMate]?.name ?? null;
+  }
+
+  // Form a PERMANENT pair bond between two horses (#114). Validated with the pure
+  // `canBond` check (both exist, distinct, not foals, neither already bonded) so the
+  // scene and the tests agree. No gestation starts — that's a separate, later "Breed"
+  // action. Persisted immediately so the bond survives a reload.
+  formPairBond(aKey, bKey) {
+    const all = this.registry.get('allHorses') ?? {};
+    if (!canBond(aKey, bKey, this._pairBonds ?? [], all)) return null;
+    const a = all[aKey], b = all[bKey];
+    (this._pairBonds ??= []).push({ aKey, bKey });
+    savePairBonds(this._pairBonds);
+    this._sparkle(this._horseSprite(aKey));
+    this._sparkle(this._horseSprite(bKey));
+    return `${a.name} and ${b.name} are bonded for life! 💞`;
+  }
+
+  // The info-panel "Breed" button routes here with the horse currently being viewed
+  // (#114): a SEPARATE, repeatable action from pairing, available once a horse is
+  // already bonded. Starts a new gestation with its bonded mate, gated the same way
+  // gestation always was (not already expecting). Returns a short status string.
+  startBreeding(key) {
+    const all = this.registry.get('allHorses') ?? {};
+    const horse = all[key];
+    if (!horse) return null;
+    if (horse.isFoal) return 'Foals are too young to breed';
+    const mateKey = this.bondMateKey(key);
+    if (!mateKey) return `${horse.name} isn't paired with a mate yet`;
+    if (this._isExpecting(key) || this._isExpecting(mateKey)) {
+      return `${horse.name} is already expecting`;
+    }
+    return this.beginBreeding(key, mateKey);
   }
 
   // Start a gestation between two horses: record it (persisted), sparkle over both,
@@ -116,10 +181,9 @@ export const WithBreeding = (Base) => class extends Base {
   // gestation whose timer completes is NOT birthed live; it's moved to the
   // "ready to birth" holding queue and revealed the next time the player wakes
   // (see flushReadyBirths, called on EVENTS.SLEEP_DONE). This is deliberately a
-  // thin gate in front of the existing birth logic (not a rewrite of
-  // updateBreeding) so it stays easy to reconcile with #114's parallel breeding
-  // rework — whatever triggers a gestation, this only changes what happens when
-  // it COMPLETES.
+  // thin gate in front of the existing birth logic — unchanged by #114's breeding
+  // rework, since #114 only changed what STARTS a gestation (bond → separate
+  // "Breed" action), not what happens once one COMPLETES.
   updateBreeding(delta) {
     if (!this._gestations?.length) return;
     this._breedAccum += delta;

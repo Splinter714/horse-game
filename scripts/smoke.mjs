@@ -117,10 +117,13 @@ try {
       'buildFox', 'onFoxFoodPlaced', '_lureWildFox', '_feedWildFox', '_commitFox', '_foxRosterFull',
       // duck taming + swim (#275): wild-duck summon on duck-food drop + commit-to-roster.
       'buildDuck', 'onDuckFoodPlaced', '_lureWildDuck', '_feedWildDuck', '_commitDuck', '_duckRosterFull',
-      // breeding & foals (#15): pairing, gestation, birth, roster growth, grow-up gate.
-      // #299: births are held at gestation-complete and only revealed at wake-up.
+      // breeding & foals (#15, redesigned #114): permanent pair-bond, then a
+      // separate repeatable "Breed" action starts a gestation → birth, roster
+      // growth, grow-up gate. #299: births are held at gestation-complete and only
+      // revealed at wake-up.
       'buildBreeding', 'beginBreeding', 'updateBreeding', '_birthFoal', 'growUpFoal',
-      'setStayBaby', 'spawnSavedFoals', 'toggleBreedSelection',
+      'setStayBaby', 'spawnSavedFoals', 'toggleBondSelection', 'formPairBond',
+      'startBreeding', 'isBonded', 'bondMateKey',
       'flushReadyBirths', '_announceOvernightBirths',
       // baby chicks (#274): rooster-gated incubation, hatch, roster growth, grow-up gate.
       // Its own parallel system (data/species/chicken/incubation.js + this mixin) —
@@ -525,20 +528,39 @@ try {
         : `owlTex=${owlTex},spawnedAtNight=${spawnedAtNight},oneAtATime=${oneAtATime},despawned=${despawned}`;
     } catch (e) { owl = 'threw: ' + String(e); }
 
-    // #15 breeding & foals: pair two horses, force the gestation clock to completion,
-    // and assert a NEW foal joined the horse roster (grew it) + spawned in the world as
-    // an isFoal horse. Then assert the "stay a baby forever" toggle gates growth: while
-    // stayBaby is on, growUpFoal is a no-op; turning it off grows the foal up. The pure
-    // timing/seed logic is unit-tested (data/breeding.test.js) — here we prove the
-    // scene wiring (roster growth, birth spawn, grow-up gate) actually fires.
+    // #15/#114 breeding & foals: the two-step redesign — bond two horses PERMANENTLY
+    // (no gestation yet), then separately "Breed" that bonded pair to start a
+    // gestation, force the gestation clock to completion, and assert a NEW foal
+    // joined the horse roster (grew it) + spawned in the world as an isFoal horse.
+    // Then assert the "stay a baby forever" toggle gates growth: while stayBaby is
+    // on, growUpFoal is a no-op; turning it off grows the foal up. Also proves #114's
+    // monogamy (a bonded horse can't be re-paired) and that "Breed" works AGAIN on
+    // the same bond after a foal is revealed. The pure timing/seed/bond logic is
+    // unit-tested (data/breeding.test.js) — here we prove the scene wiring (bond
+    // persistence, roster growth, birth spawn, grow-up gate, repeat breeding) fires.
     let breeding = 'ok';
     try {
       paddock._suppressFoalCustomizer = true; // don't pop the editor mid-smoke
       const before = Object.keys(g.registry.get('allHorses')).length;
-      // Player-initiated pairing: mark horse, then pick a mate → gestation begins.
-      paddock.toggleBreedSelection('horse');
-      paddock.toggleBreedSelection('horse2');
-      const paired = (paddock._gestations?.length ?? 0) === 1;
+
+      // Step 1 — Pair (bond): mark horse, then pick a mate → PERMANENT bond forms.
+      // No gestation should start from this alone.
+      paddock.toggleBondSelection('horse');
+      paddock.toggleBondSelection('horse2');
+      const bonded = (paddock._pairBonds?.length ?? 0) === 1
+        && paddock.isBonded('horse') && paddock.isBonded('horse2')
+        && paddock.bondMateKey('horse') === 'horse2';
+      const noGestationFromBond = (paddock._gestations?.length ?? 0) === 0;
+
+      // #114 monogamy: a bonded horse can't be paired with a third horse.
+      const monogamyBlocked = paddock.formPairBond('horse', 'horse3') === null
+        && !paddock.isBonded('horse3');
+
+      // Step 2 — Breed (separate, explicit): starts a gestation with the bonded mate.
+      const breedStatus = paddock.startBreeding('horse');
+      const gestationStarted = (paddock._gestations?.length ?? 0) === 1
+        && !!breedStatus && breedStatus.includes('expecting a foal');
+
       // Fast-forward: shove the gestation start well into the past and tick.
       paddock._gestations[0].startedAt = Date.now() - 10 * 60 * 1000;
       paddock._breedAccum = 9999; // force the ~1/s born-check to run this tick
@@ -563,6 +585,16 @@ try {
       const bornFoal = !!(foalModel && foalModel.isFoal && foalModel.stayBaby === true);
       const foalInScene = !!(foalKey && paddock.horses.some((hh) => hh.key === foalKey));
       const gestCleared = (paddock._gestations?.length ?? -1) === 0;
+
+      // #114: "Breed" must work AGAIN on the same bond now that the foal is revealed
+      // (no longer expecting). The bond itself is untouched (still exactly 1 pair).
+      const rebreedStatus = paddock.startBreeding('horse');
+      const rebredOk = (paddock._gestations?.length ?? 0) === 1
+        && !!rebreedStatus && rebreedStatus.includes('expecting a foal')
+        && (paddock._pairBonds?.length ?? 0) === 1;
+      // Clean up the second gestation so it doesn't interfere with later checks below
+      // (the foal-art/grow-up assertions target the FIRST foal only).
+      paddock._gestations = [];
 
       // REGRESSION GUARD (#15): a foal wears the smaller foal art, which has NO
       // swish/roll/posture frames. Those anims must NOT be created for it — creating an
@@ -591,12 +623,14 @@ try {
       const grownUp = all[foalKey]?.isFoal === false;
       const grownHasSwish = paddock.anims.exists(`swish_${foalKey}`);
 
-      breeding = (paired && noLiveBirth && heldForWake && gestClearedPreWake &&
+      breeding = (bonded && noGestationFromBond && monogamyBlocked && gestationStarted &&
+                  noLiveBirth && heldForWake && gestClearedPreWake &&
                   grew && flushedQueue && bornFoal && foalInScene && gestCleared &&
+                  rebredOk &&
                   foalHasNoSwish && foalHasNoRoll && foalCharmSafe === true &&
                   stayedBaby && grownUp && grownHasSwish)
-        ? 'pairs-births-and-gates-growth'
-        : `paired=${paired},noLiveBirth=${noLiveBirth},heldForWake=${heldForWake},gestClearedPreWake=${gestClearedPreWake},grew=${grew},flushedQueue=${flushedQueue},bornFoal=${bornFoal},foalInScene=${foalInScene},gestCleared=${gestCleared},foalHasNoSwish=${foalHasNoSwish},foalHasNoRoll=${foalHasNoRoll},foalCharmSafe=${foalCharmSafe},stayedBaby=${stayedBaby},grownUp=${grownUp},grownHasSwish=${grownHasSwish}`;
+        ? 'bonds-breeds-repeatedly-and-gates-growth'
+        : `bonded=${bonded},noGestationFromBond=${noGestationFromBond},monogamyBlocked=${monogamyBlocked},gestationStarted=${gestationStarted},noLiveBirth=${noLiveBirth},heldForWake=${heldForWake},gestClearedPreWake=${gestClearedPreWake},grew=${grew},flushedQueue=${flushedQueue},bornFoal=${bornFoal},foalInScene=${foalInScene},gestCleared=${gestCleared},rebredOk=${rebredOk},foalHasNoSwish=${foalHasNoSwish},foalHasNoRoll=${foalHasNoRoll},foalCharmSafe=${foalCharmSafe},stayedBaby=${stayedBaby},grownUp=${grownUp},grownHasSwish=${grownHasSwish}`;
     } catch (e) { breeding = 'threw: ' + String(e); }
 
     // #274 baby chicks: rooster-bred incubation, mirroring the horse breeding probe
@@ -1048,7 +1082,7 @@ try {
   // #271 ambient owl: night-only glide-in, one at a time, absent by day/asleep.
   if (result.owl !== 'night-only') fail(`ambient owl (#271) failed: ${result.owl}`);
 
-  if (result.breeding !== 'pairs-births-and-gates-growth') fail(`breeding & foals (#15) failed: ${result.breeding}`);
+  if (result.breeding !== 'bonds-breeds-repeatedly-and-gates-growth') fail(`breeding & foals (#15/#114) failed: ${result.breeding}`);
   // Rooster (#269): spawned as a flock bird, doesn't lay, is a breeding partner, crows at dawn.
   if (result.roosterCount !== 1) fail(`expected 1 rooster in roster, got ${result.roosterCount}`);
   if (result.roostersInScene !== 1) fail(`expected 1 rooster sprite in scene, got ${result.roostersInScene}`);
@@ -1103,17 +1137,20 @@ try {
   }
   if (!pc.resumed) fail('world not restored / player customizer not closed after exit');
 
-  // ── #15 foal persistence across reload ──────────────────────────────────────
-  // Breed + birth a fresh foal, keep it a baby, then RELOAD the same page (same
-  // localStorage). The newborn — a runtime-grown horse-roster member — must be
-  // restored from the save and re-spawned into the world as an isFoal horse. Proves
-  // save.js's saved-key merge carries the grown roster and spawnSavedFoals re-shows it.
+  // ── #15/#114 foal + pair-bond persistence across reload ──────────────────────
+  // Bond, then breed + birth a fresh foal, keep it a baby, then RELOAD the same page
+  // (same localStorage). The newborn — a runtime-grown horse-roster member — must be
+  // restored from the save and re-spawned into the world as an isFoal horse, AND the
+  // permanent pair bond must survive the reload too. Proves save.js's saved-key merge
+  // carries the grown roster + spawnSavedFoals re-shows it, and load/savePairBonds
+  // round-trips the bond.
   const bornFoalKey = await page.evaluate(() => {
     const g = window.__game, p = g.scene.getScene('PaddockScene');
     p._suppressFoalCustomizer = true; // don't pop the editor mid-smoke
     const before = Object.keys(g.registry.get('allHorses'));
-    p.toggleBreedSelection('horse3');
-    p.toggleBreedSelection('horse4');
+    p.toggleBondSelection('horse3');
+    p.toggleBondSelection('horse4');
+    p.startBreeding('horse3');
     p._gestations[p._gestations.length - 1].startedAt = Date.now() - 10 * 60 * 1000;
     p._breedAccum = 9999;
     p.updateBreeding(16);
@@ -1184,6 +1221,24 @@ try {
   if (!foalPersist.stillBaby) fail(`#15 persistence: reloaded foal lost its stay-a-baby toggle`);
   if (!foalPersist.inScene) fail(`#15 persistence: foal ${bornFoalKey} not re-spawned into the world after reload (spawnSavedFoals)`);
   console.log(`Foal persistence (#15): ${JSON.stringify(foalPersist)} for ${bornFoalKey}`);
+
+  // ── #114 pair-bond persistence + repeat breeding after reload ────────────────
+  // The permanent bond formed on horse3/horse4 above must survive the reload (its
+  // own storage key, load/savePairBonds), and "Breed" must work AGAIN on that same
+  // bond now that the earlier foal has been revealed — proving a bonded pair can
+  // have multiple foals across separate play sessions (a fresh page load here).
+  const bondPersist = await page.evaluate(() => {
+    const g = window.__game, p = g.scene.getScene('PaddockScene');
+    const stillBonded = p.isBonded('horse3') && p.isBonded('horse4')
+      && p.bondMateKey('horse3') === 'horse4';
+    const status = p.startBreeding('horse3');
+    const rebredAfterReload = (p._gestations?.length ?? 0) === 1
+      && !!status && status.includes('expecting a foal');
+    return { stillBonded, rebredAfterReload, status };
+  });
+  if (!bondPersist.stillBonded) fail('#114 persistence: pair bond (horse3/horse4) lost after reload');
+  if (!bondPersist.rebredAfterReload) fail(`#114 persistence: "Breed" did not work again on the same bond after reload (${bondPersist.status})`);
+  console.log(`Pair-bond persistence + repeat breeding (#114): ${JSON.stringify(bondPersist)}`);
 
   // ── #274 chick persistence assertions (same reload as the foal, above) ───────
   const chickPersist = await page.evaluate((key) => {
