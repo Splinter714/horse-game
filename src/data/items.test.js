@@ -36,7 +36,8 @@ describe('content definitions', () => {
     expect(CONTENT_DEFS.hay.action).toBe('feed');
     expect(CONTENT_DEFS.water.action).toBe('water');
     expect(CONTENT_DEFS.egg.action).toBe('egg');
-    expect(CONTENT_DEFS.seed.feeds).toEqual(['chicken']);
+    // Seed feeds the chickens — and the goat, who eats everything (#267).
+    expect(CONTENT_DEFS.seed.feeds).toEqual(['chicken', 'goat']);
     // Cat food (#202 rework): scooped into a basket, poured into the cat's FOOD BOWL
     // (`stocks: 'catFood'` marks it as a bowl-fill content), never dropped on the
     // ground — so it has no `ground` texture. Still feeds only the cat.
@@ -56,6 +57,14 @@ describe('content definitions', () => {
     expect(CONTENT_DEFS.wool.craftsTo).toBe('yarn');
     expect(CONTENT_DEFS.yarn.action).toBe('sell');
     expect(CONTENT_DEFS.yarn.craftsTo).toBeUndefined(); // yarn is the end product
+  });
+
+  it('the goat eats every dropped food (#267 eat-everything quirk)', () => {
+    // Every food that can be dropped as a ground pile lists 'goat' in its diet — the
+    // goat is the one grazer that will trot over to any pile the farm drops.
+    for (const key of ['hay', 'apple', 'carrot', 'seed']) {
+      expect(CONTENT_DEFS[key].feeds, `${key} should feed the goat`).toContain('goat');
+    }
   });
 
   it('every feed-action content lists the species that eat it; egg/plain-water don\'t', () => {
