@@ -73,6 +73,7 @@ describe('scheduled vs dev-only', () => {
     expect(ids).toContain('fish_surface');
     expect(ids).toContain('bird_flyby');
     expect(ids).toContain('raccoon_visit');
+    expect(ids).toContain('owl_visit');
     expect(ids).toContain('horse_roll');
     expect(ids).toContain('chicken_lay');
   });
@@ -103,6 +104,13 @@ describe('eligibility gates (pure)', () => {
     expect(isEventEligible(byId('raccoon_visit'), day)).toBe(false);
     expect(isEventEligible(byId('raccoon_visit'), evening)).toBe(true);
     expect(isEventEligible(byId('raccoon_visit'), night)).toBe(true);
+  });
+
+  it('the owl is night-only (#271) — stricter than the raccoon: not at dusk', () => {
+    expect(isEventEligible(byId('owl_visit'), day)).toBe(false);
+    expect(isEventEligible(byId('owl_visit'), evening)).toBe(false); // dusk: owl stays put
+    expect(isEventEligible(byId('owl_visit'), night)).toBe(true);
+    expect(isEventEligible(byId('owl_visit'), rain)).toBe(false);    // hides in the rain
   });
 
   it('nothing fires while the player is asleep', () => {

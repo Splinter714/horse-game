@@ -13,6 +13,7 @@ import { WithWildlife } from './paddock/wildlife.js';
 import { WithBirdEcosystem } from './paddock/birdEcosystem.js';
 import { WithBirdEcosystemVisits } from './paddock/birdEcosystemVisits.js';
 import { WithRaccoon } from './paddock/raccoon.js';
+import { WithOwls } from './paddock/owls.js';
 import { WithAmbientEvents } from './paddock/ambientEvents.js';
 import { WithCatAI } from './paddock/catAI.js';
 import { WithBunny } from './paddock/bunny.js';
@@ -44,9 +45,9 @@ import { WithInput } from './paddock/input.js';
 import { applyDpr } from './uiUtils.js';
 
 export default class PaddockScene
-  extends WithWorld(WithBirdEcosystem(WithBirdEcosystemVisits(WithBarn(WithBunny(WithHouseEntry(WithWildlife(WithRaccoon(WithAmbientEvents(WithCatAI(WithCompanion(WithCharm(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithShop(WithGarden(WithDayNight(WithWeather(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
+  extends WithWorld(WithBirdEcosystem(WithBirdEcosystemVisits(WithBarn(WithBunny(WithHouseEntry(WithWildlife(WithRaccoon(WithOwls(WithAmbientEvents(WithCatAI(WithCompanion(WithCharm(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithShop(WithGarden(WithDayNight(WithWeather(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
     WithEffects(WithPersistence(WithRendering(WithWorldObjects(WithCareActions(WithInteraction(WithInput(
-    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene))))))))))))))))))))))))))))))))))) {
+    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene)))))))))))))))))))))))))))))))))))) {
   constructor() {
     super('PaddockScene');
   }
@@ -91,6 +92,7 @@ export default class PaddockScene
     this.buildGarden(); // crop garden plot (#242) — before interactables (they read it)
     this.buildInteractables();
     this.buildWildlife(); // ambient fish/birds/raccoon (needs the stream path + player)
+    this.buildOwls(); // ambient nocturnal owl (#271) — night-only glide-in/hoot/glide-off
     this.startAmbientEvents(); // unified data-driven ambient rotation (#253)
 
     // Periodic AI tick: direct idle horses to food/water

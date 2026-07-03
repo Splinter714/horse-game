@@ -530,6 +530,46 @@ export function playBirdChirp() {
   }
 }
 
+// ─── Owl hoot (ambient nocturnal) ────────────────────────────────────────────
+
+// A soft, breathy two-note "hoo… hoo" — the cozy night call of the ambient owl
+// (#271). Low, hollow sine tones with a gentle vibrato, routed through the ambient
+// bus like the bird chirp so it sits quietly under the night atmosphere.
+export function playOwlHoot() {
+  const c = getCtx();
+  const now = c.currentTime;
+  const base = 380 + Math.random() * 60; // low hollow pitch, slight variety
+
+  // Two hoots: a short first note, a beat, then a longer trailing one.
+  const notes = [{ t: 0, dur: 0.28 }, { t: 0.42, dur: 0.5 }];
+  for (const n of notes) {
+    const t = now + n.t;
+    const osc = c.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(base * 1.06, t);
+    osc.frequency.linearRampToValueAtTime(base, t + n.dur * 0.5); // gentle downward coo
+
+    // A subtle vibrato gives the hoot a breathy, hollow "hoo" texture.
+    const vib = c.createOscillator();
+    vib.type = 'sine';
+    vib.frequency.value = 6;
+    const vibGain = c.createGain();
+    vibGain.gain.value = 8;
+    vib.connect(vibGain); vibGain.connect(osc.frequency);
+
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.001, t);
+    g.gain.linearRampToValueAtTime(0.10, t + 0.05);
+    g.gain.setValueAtTime(0.10, t + n.dur * 0.6);
+    g.gain.exponentialRampToValueAtTime(0.001, t + n.dur);
+
+    osc.connect(g);
+    g.connect(busGain(1, 'ambient'));
+    osc.start(t); osc.stop(t + n.dur);
+    vib.start(t); vib.stop(t + n.dur);
+  }
+}
+
 // ─── Horse nicker (friendly greeting) ────────────────────────────────────────
 
 // A soft, low, pulsing whinny — the "hello / I'm pleased to see you" sound a

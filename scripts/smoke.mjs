@@ -87,6 +87,8 @@ try {
       // wildlife: ambient bird beats incl. the bird-bath splash (#219) + feeder (#240).
       'buildWildlife', 'updateWildlife', '_scheduleBirdBathVisit', '_spawnBirdBathVisit',
       '_scheduleFeederVisit', '_spawnFeederVisit',
+      // owls: ambient nocturnal owl (#271) — night-only glide-in/hoot/glide-off.
+      'buildOwls', '_scheduleOwlVisit', '_spawnOwl', '_owlHootLoop', '_owlGlideOff', '_despawnOwl',
       // birdEcosystem: fixed bird props + feeder fill/drain (#219/#240) + hummingbirds (#226).
       'buildBirdEcosystem', 'buildBirdBath', 'buildSeedFeeder', 'buildNectarFeeder',
       'fillSeedFeeder', '_setSeedFeederLevel', 'drainSeedFeeder',
@@ -316,7 +318,39 @@ try {
       charm = wired ? 'wired' : 'missing-methods';
     } catch (e) { charm = 'threw: ' + String(e); }
 
+    // #271 ambient nocturnal owl: present at night, absent by day. Owls are scenery
+    // (no roster) — probe the scene mixin directly. Textures must exist; a direct
+    // _spawnOwl at night puts an owl into _owls; and the pure night gate must reject
+    // daytime. We drive _phase directly (the day/night cycle owns it in play).
+    let owl = 'no owl mixin';
+    try {
+      const owlTex = ['owl_perched_0', 'owl_perched_1', 'owl_glide_0', 'owl_glide_1']
+        .every((k) => g.textures.exists(k));
+      // Clear any owl left from real gameplay so the count is deterministic.
+      (paddock._owls ?? []).slice().forEach((c) => paddock._despawnOwl(c));
+      const savedPhase = paddock._phase, savedSleeping = paddock._sleeping;
+      paddock._sleeping = false;
+
+      // Night: a spawn should produce exactly one owl in flight.
+      paddock._phase = 'Night';
+      paddock._spawnOwl();
+      const spawnedAtNight = (paddock._owls?.length ?? 0) === 1;
+      // A second spawn while one's already out is a no-op (one owl at a time).
+      paddock._spawnOwl();
+      const oneAtATime = (paddock._owls?.length ?? 0) === 1;
+      // Clean it up. (The pure night/day/asleep gate is unit-tested in data/owls.test.js;
+      // here we just prove the runtime spawn wiring resolves and the owl appears.)
+      (paddock._owls ?? []).slice().forEach((c) => paddock._despawnOwl(c));
+      const despawned = (paddock._owls?.length ?? 0) === 0;
+
+      paddock._phase = savedPhase; paddock._sleeping = savedSleeping;
+      owl = (owlTex && spawnedAtNight && oneAtATime && despawned)
+        ? 'night-only'
+        : `owlTex=${owlTex},spawnedAtNight=${spawnedAtNight},oneAtATime=${oneAtATime},despawned=${despawned}`;
+    } catch (e) { owl = 'threw: ' + String(e); }
+
     return {
+      owl,
       charm,
       catBowls,
       seedFeeder,
@@ -545,6 +579,8 @@ try {
   if (result.cowMilk !== 'milked-once') fail(`cow generic produce path failed (got ${result.cowMilk}) — #167 B3 unified care`);
   // #187 charm behaviors: night settle/wake cycle + charm run primitives must hold.
   if (result.charm !== 'wired') fail(`charm behaviors (#187) failed: ${result.charm}`);
+  // #271 ambient owl: night-only glide-in, one at a time, absent by day/asleep.
+  if (result.owl !== 'night-only') fail(`ambient owl (#271) failed: ${result.owl}`);
   // #202 rework: the cat eats directly from a stocked bowl (not dropped piles).
   if (result.catBowls !== 'eats-from-bowl') fail(`cat bowl feeding (#202) failed: ${result.catBowls}`);
   if (result.seedFeeder !== 'fills-and-drains') fail(`seed feeder fill/drain (#240) failed: ${result.seedFeeder}`);

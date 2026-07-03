@@ -43,6 +43,9 @@ export const GATES = {
   fair: (ctx) => ctx.weather !== WEATHER.RAIN,
   // Dusk/night — the raccoon is nocturnal.
   nocturnal: (ctx) => ctx.phase === 'Evening' || ctx.phase === 'Night',
+  // Full night only — the owl comes out strictly at night (isNight), a tighter window
+  // than the raccoon's dusk+night (#271).
+  night: (ctx) => ctx.phase === 'Night',
 };
 
 // ── The registry ─────────────────────────────────────────────────────────────
@@ -88,6 +91,14 @@ export const AMBIENT_EVENTS = [
     label: '🦝 Raccoon visit',
     needs: ['awake', 'fair', 'nocturnal'],
     fire: (s) => s._spawnRaccoon?.(),
+  },
+  {
+    id: 'owl_visit',
+    label: '🦉 Owl glides in (night)',
+    // Night-only ambient wildlife (#271): glides in, hoots, glides off. Fair weather
+    // + awake like the other critters, and strictly the full-night phase.
+    needs: ['awake', 'fair', 'night'],
+    fire: (s) => s._spawnOwl?.(),
   },
   {
     id: 'fish_surface',
