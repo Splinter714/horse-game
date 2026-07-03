@@ -29,7 +29,13 @@ export default defineConfig(({ command }) => ({
   },
   build: {
     outDir: 'dist',
-    assetsInlineLimit: 0
+    assetsInlineLimit: 0,
+    // Tree-shaking disabled: Rollup's tree-shake/link phase hangs indefinitely on this
+    // project's module graph (the ~125-module paddock/species/data web the game grew into).
+    // It's a safe disable — tree-shaking only *removes* unused exports, so keeping them all
+    // can't change behavior, and a Phaser game whose code is all reachable (Phaser itself is
+    // a bundled monolith) gets negligible size benefit from it. Root cause tracked separately.
+    rollupOptions: { treeshake: false }
   },
   plugins: [
     // Installable PWA (#37): manifest for the icon/name/splash + standalone launch,
