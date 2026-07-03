@@ -207,6 +207,10 @@ export const WithHerd = (Base) => class extends Base {
   }
 
   _rollInDirt(h, horse) {
+    // A foal (#15) wears the smaller foal art with no roll frames, so its roll anim was
+    // never created — skip rolling for it (playing a missing anim crashes Phaser's
+    // getFirstTick). It'll roll once grown up (full horse frames + anim rebuilt).
+    if (!this.anims.exists(`roll_${h.key}`)) return;
     h.state = 'rolling';
     if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
     const sprite = h.sprite;

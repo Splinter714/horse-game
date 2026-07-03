@@ -420,36 +420,27 @@ export const WithCreatures = (Base) => class extends Base {
         frames: [{ key: `${key}_sleep_0` }, { key: `${key}_sleep_1` }],
         frameRate: 1, repeat: -1
       });
-      // Tail-swish (#187): the idle pose with the tail swinging side to side, played
-      // for a short bout at the head-to-tail buddy moment (charm.js _charmTailSwish).
-      this.anims.create({
-        key: `swish_${key}`,
-        frames: [
+      // Tail-swish (#187) / legs-up roll (#70) / posture idles (#69). A FOAL (#15) wears
+      // the smaller foal art with NO swish/roll/posture frames, so gate each on its
+      // frames existing (like spawnAnimal does for optional wallow/lay/nap): creating an
+      // anim over missing textures makes anims.exists() true but its frames broken, so a
+      // later play() crashes Phaser's getFirstTick (reading `.duration` off undefined).
+      // Consumers all guard on anims.exists(), so a foal simply skips these until grown.
+      if (this.textures.exists(`${key}_swish_0`)) {
+        this.anims.create({ key: `swish_${key}`, frameRate: 5, repeat: -1, frames: [
           { key: `${key}_swish_0` }, { key: `${key}_swish_1` },
-          { key: `${key}_swish_2` }, { key: `${key}_swish_3` },
-        ],
-        frameRate: 5, repeat: -1,
-      });
-      // Legs-up roll (#70): the real self-grooming roll — on its back, legs waving —
-      // played by _rollInDirt in place of the old squash/scale tween. Loops for the
-      // roll's duration, then the horse pops back up to idle.
-      this.anims.create({
-        key: `roll_${key}`,
-        frames: [
+          { key: `${key}_swish_2` }, { key: `${key}_swish_3` }] });
+      }
+      if (this.textures.exists(`${key}_roll_0`)) {
+        this.anims.create({ key: `roll_${key}`, frameRate: 5, repeat: -1, frames: [
           { key: `${key}_roll_0` }, { key: `${key}_roll_1` },
-          { key: `${key}_roll_2` }, { key: `${key}_roll_3` },
-        ],
-        frameRate: 5, repeat: -1,
-      });
-      // Body-language posture idles (#69): mood-specific idle poses (pinned ears when
-      // neglected, drooped head + floppy ears when content). _applyPosture picks the
-      // right one per-horse from the pure horsePosture() selector each frame.
-      for (const id of HORSE_POSTURE_IDS) {
-        this.anims.create({
-          key: `idle_${id}_${key}`,
-          frames: [{ key: `${key}_idle_${id}_0` }, { key: `${key}_idle_${id}_1` }],
-          frameRate: 2, repeat: -1,
-        });
+          { key: `${key}_roll_2` }, { key: `${key}_roll_3` }] });
+      }
+      if (this.textures.exists(`${key}_idle_${HORSE_POSTURE_IDS[0]}_0`)) {
+        for (const id of HORSE_POSTURE_IDS) {
+          this.anims.create({ key: `idle_${id}_${key}`, frameRate: 2, repeat: -1,
+            frames: [{ key: `${key}_idle_${id}_0` }, { key: `${key}_idle_${id}_1` }] });
+        }
       }
     }
 

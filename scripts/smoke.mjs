@@ -24,7 +24,7 @@ const page = await browser.newPage();
 
 const pageErrors = [];
 const consoleErrors = [];
-page.on('pageerror', (e) => pageErrors.push(String(e)));
+page.on('pageerror', (e) => pageErrors.push(e.stack || String(e))); // keep the stack — it's what pinpointed the foal swish-anim crash (#15)
 page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text()); });
 
 try {
@@ -487,15 +487,39 @@ try {
       const bornFoal = !!(foalModel && foalModel.isFoal && foalModel.stayBaby === true);
       const foalInScene = !!(foalKey && paddock.horses.some((hh) => hh.key === foalKey));
       const gestCleared = (paddock._gestations?.length ?? -1) === 0;
+
+      // REGRESSION GUARD (#15): a foal wears the smaller foal art, which has NO
+      // swish/roll/posture frames. Those anims must NOT be created for it — creating an
+      // anim over missing textures makes anims.exists() true but its frames broken, so a
+      // later play() crashes Phaser's getFirstTick (reading `.duration` off undefined).
+      // Drive the exact paths that crashed on merged main (the head-to-tail tail-swish
+      // and the dirt roll) directly on the foal and assert they no-op without throwing.
+      const foalObj = paddock.horses.find((hh) => hh.key === foalKey);
+      const foalHasNoSwish = !paddock.anims.exists(`swish_${foalKey}`);
+      const foalHasNoRoll  = !paddock.anims.exists(`roll_${foalKey}`);
+      let foalCharmSafe = false;
+      try {
+        foalObj.state = 'idle';
+        paddock._charmTailSwish(foalObj);           // must skip (guarded on the missing anim)
+        paddock._faceHeadToTail(foalObj, paddock.horses[0]); // swishes both — must not crash
+        paddock._rollInDirt(foalObj, all[foalKey]); // must skip (no roll anim)
+        foalCharmSafe = true;
+      } catch (e) { foalCharmSafe = 'threw: ' + String(e); }
+
       // Stay-a-baby gate: with stayBaby on, growUpFoal must NOT grow it.
       const grewWhileBaby = paddock.growUpFoal(foalKey);
       const stayedBaby = grewWhileBaby === false && all[foalKey]?.isFoal === true;
-      // Allow growth: turning stayBaby off grows the foal up into a horse.
+      // Allow growth: turning stayBaby off grows the foal up into a horse — and the
+      // grown horse must now GAIN the swish/roll anims (so it tail-swishes like the herd).
       paddock.setStayBaby(foalKey, false);
       const grownUp = all[foalKey]?.isFoal === false;
-      breeding = (paired && grew && bornFoal && foalInScene && gestCleared && stayedBaby && grownUp)
+      const grownHasSwish = paddock.anims.exists(`swish_${foalKey}`);
+
+      breeding = (paired && grew && bornFoal && foalInScene && gestCleared &&
+                  foalHasNoSwish && foalHasNoRoll && foalCharmSafe === true &&
+                  stayedBaby && grownUp && grownHasSwish)
         ? 'pairs-births-and-gates-growth'
-        : `paired=${paired},grew=${grew},bornFoal=${bornFoal},foalInScene=${foalInScene},gestCleared=${gestCleared},stayedBaby=${stayedBaby},grownUp=${grownUp}`;
+        : `paired=${paired},grew=${grew},bornFoal=${bornFoal},foalInScene=${foalInScene},gestCleared=${gestCleared},foalHasNoSwish=${foalHasNoSwish},foalHasNoRoll=${foalHasNoRoll},foalCharmSafe=${foalCharmSafe},stayedBaby=${stayedBaby},grownUp=${grownUp},grownHasSwish=${grownHasSwish}`;
     } catch (e) { breeding = 'threw: ' + String(e); }
 
     return {
@@ -860,11 +884,29 @@ try {
     return key ?? null;
   });
   if (!bornFoalKey) fail('#15 persistence: no foal born to test reload with');
-  await page.reload({ waitUntil: 'load', timeout: 20000 });
-  await page.waitForFunction(() => {
-    const g = window.__game;
-    return !!(g && g.scene && g.scene.isActive('PaddockScene') && g.registry.get('allHorses'));
-  }, { timeout: 20000 });
+  // The reload can be timing-fragile under heavy machine load (parallel builds can
+  // leave the fresh page briefly stuck booting), so make it deterministic: retry the
+  // reload up to 3× with generous timeouts, and wait for the SPECIFIC foal to be both
+  // loaded into the roster (BootScene finished restoring the save) AND spawned into the
+  // world (spawnSavedFoals ran) — not merely for PaddockScene to be active. Coverage is
+  // unchanged (the foal must still survive the reload); only the wait is hardened.
+  let reloaded = false;
+  for (let attempt = 0; attempt < 3 && !reloaded; attempt++) {
+    try {
+      await page.reload({ waitUntil: 'load', timeout: 45000 });
+      await page.waitForFunction((key) => {
+        const g = window.__game;
+        if (!(g && g.scene && g.scene.isActive('PaddockScene'))) return false;
+        const all = g.registry.get('allHorses');
+        if (!all || !all[key]) return false;               // save restored the foal
+        const p = g.scene.getScene('PaddockScene');
+        return !!p.horses?.some((h) => h.key === key);      // world re-spawned it
+      }, bornFoalKey, { timeout: 45000, polling: 200 });
+      reloaded = true;
+    } catch (e) {
+      if (attempt === 2) fail(`#15 persistence: page did not settle after reload (${String(e).split('\n')[0]})`);
+    }
+  }
   const foalPersist = await page.evaluate((key) => {
     const g = window.__game, p = g.scene.getScene('PaddockScene');
     const model = g.registry.get('allHorses')?.[key];
