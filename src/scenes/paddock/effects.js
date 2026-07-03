@@ -59,6 +59,32 @@ export const WithEffects = (Base) => class extends Base {
     }
   }
 
+  // A ring of little sparkle stars bursting out and fading — the celebratory beat for
+  // a birth / a foal growing up / a pairing (#15). Purely cosmetic; the owner may swap
+  // it for a fuller cutscene later (art-directed). No game-state or audio dependency.
+  _sparkle(sprite) {
+    if (!sprite) return;
+    const cx = sprite.x, cy = sprite.y - 40;
+    const n = 10;
+    for (let i = 0; i < n; i++) {
+      const ang = (i / n) * Math.PI * 2 + Math.random() * 0.5;
+      const dist = 22 + Math.random() * 30;
+      const tint = Math.random() < 0.5 ? 0xffe066 : 0xfff6c0;
+      const star = this.add.star(cx, cy, 4, 2, 5, tint)
+        .setDepth(10001).setAlpha(0.95);
+      this.tweens.add({
+        targets: star,
+        x: cx + Math.cos(ang) * dist,
+        y: cy + Math.sin(ang) * dist - 10,
+        alpha: 0,
+        scale: 0.3 + Math.random() * 0.8,
+        duration: 700 + Math.random() * 400,
+        ease: 'Sine.easeOut',
+        onComplete: () => star.destroy(),
+      });
+    }
+  }
+
   hop(sprite) {
     this.tweens.add({
       targets: sprite, y: sprite.y - 12, duration: 120,

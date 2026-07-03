@@ -48,6 +48,16 @@ export class Animal {
     this.sex = data.sex ?? def.sex ?? 'female';
     this.lastSeen = data.lastSeen ?? Date.now();
 
+    // ── Breeding / foals (#15) ────────────────────────────────────────────────
+    // A newborn born from pairing two horses is flagged `isFoal` (smaller baby art +
+    // the grow-up gate) and carries a `stayBaby` toggle — a foal only grows up when
+    // the player allows it (kids get attached). `parents` records the two parent ids
+    // for flavour. All optional: an ordinary animal has isFoal=false and no parents.
+    this.isFoal = data.isFoal ?? false;
+    // Default true so a foal stays a baby until the player opts it into growing up.
+    this.stayBaby = data.stayBaby ?? true;
+    this.parents = data.parents ?? null;
+
     // ── Always-present traits with defaults (e.g. horse temperament/saddled,
     //    chicken personality). Stored top-level so existing call sites that read
     //    `animal.temperament` keep working. ───────────────────────────────────
@@ -239,6 +249,14 @@ export class Animal {
     };
     if (this.markings) out.markings = this.markings;
     if (this.look) out.look = this.look;
+    // Breeding/foal fields (#15) — only persisted for an actual foal, so an ordinary
+    // animal's save is unchanged. isFoal gates the smaller art + grow-up path;
+    // stayBaby is the player's "stay a baby forever" toggle; parents is flavour.
+    if (this.isFoal) {
+      out.isFoal = true;
+      out.stayBaby = this.stayBaby;
+      if (this.parents) out.parents = this.parents;
+    }
     // Persist the assigned personality profile so it's stable across reloads (it
     // would also re-derive deterministically from the id, but saving it pins it even
     // if the pools ever change).

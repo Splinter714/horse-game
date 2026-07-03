@@ -42,6 +42,10 @@ try {
     const horses = g.registry.get('allHorses');
     const chickens = g.registry.get('allChickens');
     const h = horses['horse'];
+    // Pristine herd counts captured BEFORE the breeding probe below births a foal
+    // (which grows allHorses), so the "expected 7" boot assertions stay meaningful.
+    const pristineHorseCount = Object.keys(horses).length;
+    const pristineHorsesInScene = g.scene.getScene('PaddockScene').horses?.length ?? 0;
 
     // Exercise the single-apply care path: drop hunger then apply one feed via the
     // model (the same call the grazing AI makes). Expect exactly +35 — proves the
@@ -100,6 +104,9 @@ try {
       'buildBeehive', '_setHoneyLevel', '_ripenHoneyTick', 'harvestBeehive',
       // fox taming (#266): wild-fox summon on fox-food drop + commit-to-roster.
       'buildFox', 'onFoodPlaced', '_lureWildFox', '_feedWildFox', '_commitFox', '_foxRosterFull',
+      // breeding & foals (#15): pairing, gestation, birth, roster growth, grow-up gate.
+      'buildBreeding', 'beginBreeding', 'updateBreeding', '_birthFoal', 'growUpFoal',
+      'setStayBaby', 'spawnSavedFoals', 'toggleBreedSelection',
     ];
     const missingMethods = expectMethods.filter((m) => typeof paddock[m] !== 'function');
 
@@ -415,9 +422,46 @@ try {
         : `owlTex=${owlTex},spawnedAtNight=${spawnedAtNight},oneAtATime=${oneAtATime},despawned=${despawned}`;
     } catch (e) { owl = 'threw: ' + String(e); }
 
+    // #15 breeding & foals: pair two horses, force the gestation clock to completion,
+    // and assert a NEW foal joined the horse roster (grew it) + spawned in the world as
+    // an isFoal horse. Then assert the "stay a baby forever" toggle gates growth: while
+    // stayBaby is on, growUpFoal is a no-op; turning it off grows the foal up. The pure
+    // timing/seed logic is unit-tested (data/breeding.test.js) — here we prove the
+    // scene wiring (roster growth, birth spawn, grow-up gate) actually fires.
+    let breeding = 'ok';
+    try {
+      paddock._suppressFoalCustomizer = true; // don't pop the editor mid-smoke
+      const before = Object.keys(g.registry.get('allHorses')).length;
+      // Player-initiated pairing: mark horse, then pick a mate → gestation begins.
+      paddock.toggleBreedSelection('horse');
+      paddock.toggleBreedSelection('horse2');
+      const paired = (paddock._gestations?.length ?? 0) === 1;
+      // Fast-forward: shove the gestation start well into the past and tick.
+      paddock._gestations[0].startedAt = Date.now() - 10 * 60 * 1000;
+      paddock._breedAccum = 9999; // force the ~1/s born-check to run this tick
+      paddock.updateBreeding(16);
+      const all = g.registry.get('allHorses');
+      const grew = Object.keys(all).length === before + 1;
+      const foalKey = Object.keys(all).find((k) => all[k].isFoal);
+      const foalModel = foalKey ? all[foalKey] : null;
+      const bornFoal = !!(foalModel && foalModel.isFoal && foalModel.stayBaby === true);
+      const foalInScene = !!(foalKey && paddock.horses.some((hh) => hh.key === foalKey));
+      const gestCleared = (paddock._gestations?.length ?? -1) === 0;
+      // Stay-a-baby gate: with stayBaby on, growUpFoal must NOT grow it.
+      const grewWhileBaby = paddock.growUpFoal(foalKey);
+      const stayedBaby = grewWhileBaby === false && all[foalKey]?.isFoal === true;
+      // Allow growth: turning stayBaby off grows the foal up into a horse.
+      paddock.setStayBaby(foalKey, false);
+      const grownUp = all[foalKey]?.isFoal === false;
+      breeding = (paired && grew && bornFoal && foalInScene && gestCleared && stayedBaby && grownUp)
+        ? 'pairs-births-and-gates-growth'
+        : `paired=${paired},grew=${grew},bornFoal=${bornFoal},foalInScene=${foalInScene},gestCleared=${gestCleared},stayedBaby=${stayedBaby},grownUp=${grownUp}`;
+    } catch (e) { breeding = 'threw: ' + String(e); }
+
     return {
       owl,
       charm,
+      breeding,
       rooster,
       roosterCount: Object.keys(g.registry.get('allRoosters') ?? {}).length,
       roostersInScene: paddock.animals.filter((a) => a.model?.species === 'rooster').length,
@@ -441,13 +485,13 @@ try {
       movementOk, movementError,
       behaviorDecision,
       gatherTargets,
-      horseCount: Object.keys(horses).length,
+      horseCount: pristineHorseCount,
       chickenCount: Object.keys(chickens).length,
       sampleHorse: { name: h.name, species: h.species, hasMood: typeof h.mood === 'function' },
       activeScenes: g.scene.scenes.filter((s) => s.scene.isActive()).map((s) => s.scene.key),
       feedDelta,
       missingMethods,
-      horsesInScene: paddock.horses?.length ?? 0,
+      horsesInScene: pristineHorsesInScene,
       hasFarmStand: !!paddock.farmStand,
       hasBirdBath: !!paddock.props.birdBath, // #219 decorative bird bath world object
       hasSeedFeeder: !!paddock.props.seedFeeder, // #240 refillable seed feeder
@@ -705,6 +749,8 @@ try {
   if (result.charm !== 'wired') fail(`charm behaviors (#187) failed: ${result.charm}`);
   // #271 ambient owl: night-only glide-in, one at a time, absent by day/asleep.
   if (result.owl !== 'night-only') fail(`ambient owl (#271) failed: ${result.owl}`);
+
+  if (result.breeding !== 'pairs-births-and-gates-growth') fail(`breeding & foals (#15) failed: ${result.breeding}`);
   // Rooster (#269): spawned as a flock bird, doesn't lay, is a breeding partner, crows at dawn.
   if (result.roosterCount !== 1) fail(`expected 1 rooster in roster, got ${result.roosterCount}`);
   if (result.roostersInScene !== 1) fail(`expected 1 rooster sprite in scene, got ${result.roostersInScene}`);
@@ -750,6 +796,46 @@ try {
     fail(`player look not persisted (got ${JSON.stringify(pc.saved)})`);
   }
   if (!pc.resumed) fail('world not restored / player customizer not closed after exit');
+
+  // ── #15 foal persistence across reload ──────────────────────────────────────
+  // Breed + birth a fresh foal, keep it a baby, then RELOAD the same page (same
+  // localStorage). The newborn — a runtime-grown horse-roster member — must be
+  // restored from the save and re-spawned into the world as an isFoal horse. Proves
+  // save.js's saved-key merge carries the grown roster and spawnSavedFoals re-shows it.
+  const bornFoalKey = await page.evaluate(() => {
+    const g = window.__game, p = g.scene.getScene('PaddockScene');
+    p._suppressFoalCustomizer = true; // don't pop the editor mid-smoke
+    const before = Object.keys(g.registry.get('allHorses'));
+    p.toggleBreedSelection('horse3');
+    p.toggleBreedSelection('horse4');
+    p._gestations[p._gestations.length - 1].startedAt = Date.now() - 10 * 60 * 1000;
+    p._breedAccum = 9999;
+    p.updateBreeding(16);
+    const all = g.registry.get('allHorses');
+    const key = Object.keys(all).find((k) => !before.includes(k) && all[k].isFoal);
+    return key ?? null;
+  });
+  if (!bornFoalKey) fail('#15 persistence: no foal born to test reload with');
+  await page.reload({ waitUntil: 'load', timeout: 20000 });
+  await page.waitForFunction(() => {
+    const g = window.__game;
+    return !!(g && g.scene && g.scene.isActive('PaddockScene') && g.registry.get('allHorses'));
+  }, { timeout: 20000 });
+  const foalPersist = await page.evaluate((key) => {
+    const g = window.__game, p = g.scene.getScene('PaddockScene');
+    const model = g.registry.get('allHorses')?.[key];
+    return {
+      inRoster: !!model,
+      stillFoal: model?.isFoal === true,
+      stillBaby: model?.stayBaby === true,
+      inScene: !!p.horses?.some((h) => h.key === key),
+    };
+  }, bornFoalKey);
+  if (!foalPersist.inRoster) fail(`#15 persistence: foal ${bornFoalKey} lost from roster after reload`);
+  if (!foalPersist.stillFoal) fail(`#15 persistence: reloaded foal is no longer a foal (grew up unexpectedly)`);
+  if (!foalPersist.stillBaby) fail(`#15 persistence: reloaded foal lost its stay-a-baby toggle`);
+  if (!foalPersist.inScene) fail(`#15 persistence: foal ${bornFoalKey} not re-spawned into the world after reload (spawnSavedFoals)`);
+  console.log(`Foal persistence (#15): ${JSON.stringify(foalPersist)} for ${bornFoalKey}`);
 
   // ── HiDPI rendering: the game must render at the device's PHYSICAL pixels so
   // pixel-art/text are crisp on Retina screens (e.g. iPad, devicePixelRatio 2).

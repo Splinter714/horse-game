@@ -244,6 +244,12 @@ export default class InfoPanelScene extends WithCustomizerShell(WithCustomizerNa
       bottomY = btnY + editBtn.height + 4;
     }
 
+    // ── Breeding & foals (#15) — horse-only in-panel controls ──────────────────
+    // A grown horse gets a "Breed" button (player-initiated pairing); a foal gets a
+    // "Stay a baby forever" toggle instead (kids get attached — a foal only grows up
+    // when it's turned off). Both act through PaddockScene's breeding mixin.
+    bottomY = this._addBreedingControls(animal, key, bottomY);
+
     const cardH = bottomY + PAD;
 
     // Card background, inserted behind everything in the container.
@@ -271,6 +277,77 @@ export default class InfoPanelScene extends WithCustomizerShell(WithCustomizerNa
     this.tweens.add({
       targets: this.panel, y: cardY, alpha: 1,
       duration: 160, ease: 'Quad.easeOut',
+    });
+  }
+
+  // ── Breeding & foals panel controls (#15) ──────────────────────────────────
+  // Grown horse → a "Breed" button that marks it as a mate (or, if another horse is
+  // already marked, "Breed with <name>" which starts the gestation). Foal → a "Stay a
+  // baby forever" toggle. Only for horses; other species get nothing. Returns the new
+  // bottom-y cursor. A small status line flashes feedback under the button.
+  _addBreedingControls(animal, key, y) {
+    if (animal.species !== 'horse') return y;
+    const paddock = this.scene.get('PaddockScene');
+    if (!paddock) return y;
+
+    let cy = y + 6;
+
+    // A newborn foal shows the growth toggle rather than a breed button.
+    if (animal.isFoal) {
+      const on = !animal.stayBaby; // "Allow growing up" is the inverse of stayBaby
+      const label = animal.stayBaby ? '🍼  Stays a baby forever' : '🌱  Allowed to grow up';
+      const toggle = this.add.text(CARD_W / 2, cy, label, {
+        fontFamily: 'system-ui, sans-serif', fontSize: '13px',
+        color: on ? '#eafff0' : '#4f4d47', fontStyle: 'bold',
+        backgroundColor: on ? '#3a6a44' : '#e3ded3', padding: { x: 12, y: 7 }, align: 'center',
+      }).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
+      growHitArea(toggle);
+      toggle.on('pointerdown', () => {
+        // Flip the toggle. Turning growth ON grows the foal up right away (and the
+        // panel will close as the world takes over); otherwise just re-render.
+        paddock.setStayBaby(key, !animal.stayBaby);
+        if (!animal.isFoal) this.close(); // it grew up — model no longer a foal
+        else this.refresh();
+      });
+      this.panel.add(toggle);
+      return cy + toggle.height + 4;
+    }
+
+    // Grown horse: the breed button. Its label reflects any pending mate.
+    const mate = paddock.pendingMateName?.(key);
+    const label = mate ? `💕  Breed with ${mate}` : '💕  Breed';
+    const breedBtn = this.add.text(CARD_W / 2, cy, label, {
+      fontFamily: 'system-ui, sans-serif', fontSize: '14px', color: '#5a1e3a',
+      fontStyle: 'bold', backgroundColor: '#ffc0d8', padding: { x: 14, y: 8 }, align: 'center',
+    }).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
+    growHitArea(breedBtn);
+    breedBtn.on('pointerdown', () => {
+      const status = paddock.toggleBreedSelection?.(key);
+      // If a gestation actually started (both horses picked), close the panel; else
+      // flash the status and stay open so the player can pick the second horse.
+      if (status && status.includes('expecting a foal')) { this.close(); return; }
+      this._flashBreedStatus(status);
+    });
+    this.panel.add(breedBtn);
+    cy += breedBtn.height + 4;
+    return cy;
+  }
+
+  // Flash a short breeding status message under the breed button (auto-fades).
+  _flashBreedStatus(text) {
+    if (!text) return;
+    this._breedStatus?.destroy();
+    this._breedStatus = this.add.text(CARD_W / 2, (this._cardY ? 0 : 0), text, {
+      fontFamily: 'system-ui, sans-serif', fontSize: '11px', color: '#7a4a5a',
+      align: 'center', wordWrap: { width: CARD_W - 24 },
+    }).setOrigin(0.5, 1).setDepth(20000);
+    // Position it just above the card's bottom edge in screen space.
+    const y = (this._cardY ?? 0) + (this.panel?.getBounds?.().height ?? 0) - 2;
+    this._breedStatus.setPosition((this._cardX ?? 0) + CARD_W / 2, y + 34);
+    this.tweens.add({
+      targets: this._breedStatus, alpha: 0, y: this._breedStatus.y - 10,
+      delay: 1400, duration: 600, ease: 'Sine.easeIn',
+      onComplete: () => { this._breedStatus?.destroy(); this._breedStatus = null; },
     });
   }
 
