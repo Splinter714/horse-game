@@ -68,6 +68,8 @@ try {
       // night settle/curl, head-to-tail swat.
       'dogGoHerd', '_sheepBunch', 'chickenScatterFrom', '_maybePigNap', '_charmNap',
       '_settleAnimalForNight', 'catCurlUp', '_restAnimalInPlace', '_dogContext', '_charmTailSwish',
+      // Generic stream-swim charm (#231): any `swims`-capability species (the dog for now).
+      'animalGoSwim', '_nearestSwimSpot',
       'runBehaviors', '_horseContext', '_chickenContext', '_nearestReachableHay',
       'onPhaseChange', 'depthSort', 'tickDecay',
       // Extracted concern mixins (issue #167): effects / persistence / rendering.
@@ -596,6 +598,46 @@ try {
   result.horsePanel = horsePanel;
   result.chickenPanel = chickenPanel;
 
+  // #231 stream swim: drive the dog directly into animalGoSwim (bypassing the random
+  // ambient trigger so the test is deterministic) and assert the whole round-trip —
+  // capability wiring, a reachable stream spot, the swim_0/1 textures + anim resolve,
+  // state flips to 'swimming' then back to 'idle'/wandering, no throw.
+  result.swim = await page.evaluate(async () => {
+    const g = window.__game;
+    const paddock = g.scene.getScene('PaddockScene');
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    try {
+      const dog = paddock.animals.find((a) => a.model?.species === 'dog');
+      const cap = !!(g.registry.get('allDogs') && dog); // roster + spawned
+      const hasSwimTex = g.textures.exists('dog_swim_0') && g.textures.exists('dog_swim_1');
+      const hasSwimAnim = g.anims.exists(`swim_${dog?.key}`);
+      let claimed = false, reachedSwimState = false;
+      if (dog) {
+        dog.state = 'idle';
+        if (dog.wanderTween) { dog.wanderTween.stop(); dog.wanderTween = null; }
+        claimed = paddock.animalGoSwim(dog);
+        // moveCreatureTo/tweens are async — give it a beat to walk to the bank,
+        // wade in, and settle into the 'swimming' state.
+        await sleep(700);
+        reachedSwimState = dog.state === 'swimming';
+        // Force it back out immediately (don't wait out the full multi-second dip)
+        // and confirm it lands back on idle/wandering, not stuck.
+        dog.state = 'idle';
+        if (dog.wanderTween) { dog.wanderTween.stop(); dog.wanderTween = null; }
+        paddock.scheduleAnimalWander(dog, 10);
+        await sleep(400);
+      }
+      // Any normal non-swimming state counts as "returned to normal" — the dog's
+      // per-frame companion-follow (#186, companion.js) can legitimately claim an
+      // idle dog into 'following'/'companion-sit' the instant it settles, which is
+      // just as much "back to normal" as 'idle'/'wandering'.
+      const settledOk = !dog || ['idle', 'wandering', 'following', 'companion-sit'].includes(dog.state);
+      return (cap && hasSwimTex && hasSwimAnim && claimed && reachedSwimState && settledOk)
+        ? 'swims-and-returns'
+        : `cap=${cap},hasSwimTex=${hasSwimTex},hasSwimAnim=${hasSwimAnim},claimed=${claimed},reachedSwimState=${reachedSwimState},settledOk=${settledOk},finalState=${dog?.state}`;
+    } catch (e) { return 'threw: ' + String(e); }
+  });
+
   // Appearance editor (#147): the per-horse info panel opens a sticky in-world
   // editor; applying a coat colour re-skins live and persists. Guards that the
   // ManagementPanelScene removal didn't break the relocated customizer, and that
@@ -812,6 +854,9 @@ try {
   if (result.cowMilk !== 'milked-once') fail(`cow generic produce path failed (got ${result.cowMilk}) — #167 B3 unified care`);
   // #187 charm behaviors: night settle/wake cycle + charm run primitives must hold.
   if (result.charm !== 'wired') fail(`charm behaviors (#187) failed: ${result.charm}`);
+  // #231 stream swim: the dog can be driven into the swim behavior, the capability +
+  // art wiring resolves, and it returns to normal wandering afterward.
+  if (result.swim !== 'swims-and-returns') fail(`stream swim (#231) failed: ${result.swim}`);
   // #271 ambient owl: night-only glide-in, one at a time, absent by day/asleep.
   if (result.owl !== 'night-only') fail(`ambient owl (#271) failed: ${result.owl}`);
 

@@ -141,6 +141,13 @@ export const CHARM = {
   // the dog beds down near the house; the cat curls by a companion or the house.
   CLUSTER_CHANCE: 0.7,  // odds an animal drifts to the night huddle (else rests put)
   CAT_CURL_CHANCE: 0.5, // odds the cat curls outside instead of going into the house
+  // Stream swim (#231): a GENERIC ambient charm behavior — any species with the
+  // `swims` capability occasionally wades into the stream and doggy-paddles a bit,
+  // like the pig wallow but with a walk to the bank first (mirrors horseGoToStream).
+  // Kept a rare, short background beat — occasional, not a centerpiece.
+  SWIM_CHANCE:   0.16,          // odds a swim-eligible animal takes a dip on a given AI tick
+  SWIM_COOLDOWN: 26000,         // min ms between swims (keeps it occasional)
+  SWIM_MS: [3200, 5200],        // how long a dip lasts once it's in the water
 };
 
 // Dog companion charm (#186): the farm dog trots alongside the player with slack —
