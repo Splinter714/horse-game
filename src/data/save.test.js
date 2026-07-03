@@ -172,29 +172,29 @@ describe('game state (hotbar / carriers)', () => {
     expect(gs.activeCarrier).toEqual({ basket: 'basket1', bucket: 'bucket1' });
   });
 
-  it('defaults to the trimmed hotbar (2 carriers + brush/saddle/lead/scooper, #118/#232)', () => {
+  it('defaults to the trimmed hotbar (2 carriers + brush/saddle/lead/scooper/shears, #118/#232/#254)', () => {
     const gs = save.loadGameState();
-    expect(gs.hotbar).toEqual(['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead', 'scooper']);
+    expect(gs.hotbar).toEqual(['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead', 'scooper', 'shears']);
   });
 
-  it('trims an older 10-slot grouped save down to the current slot count (#118)', () => {
+  it('trims an older over-long grouped save down to the current slot count (#118)', () => {
     globalThis.localStorage.setItem(GAME_STATE_KEY, JSON.stringify({
-      hotbar: ['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead', 'scooper', '', '', '', ''],
+      hotbar: ['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead', 'scooper', 'shears', '', '', ''],
       inventory: {}, carriers: {},
     }));
     const gs = save.loadGameState();
-    expect(gs.hotbar).toEqual(['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead', 'scooper']);
+    expect(gs.hotbar).toEqual(['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead', 'scooper', 'shears']);
   });
 
-  it('appends a newly-added default tool (scooper, #232) to an older grouped save that predates it', () => {
-    // A save written before the scooper existed had five grouped slots; loading it
-    // should surface the scooper without disturbing the player's arrangement.
+  it('appends a newly-added default tool (scooper #232, shears #254) to an older grouped save that predates it', () => {
+    // A save written before the scooper/shears existed had five grouped slots; loading
+    // it should surface the new tools without disturbing the player's arrangement.
     globalThis.localStorage.setItem(GAME_STATE_KEY, JSON.stringify({
       hotbar: ['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead'],
       inventory: {}, carriers: {},
     }));
     const gs = save.loadGameState();
-    expect(gs.hotbar).toEqual(['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead', 'scooper']);
+    expect(gs.hotbar).toEqual(['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead', 'scooper', 'shears']);
   });
 
   it('round-trips a saved game state including the active group members (#75)', () => {
@@ -317,6 +317,30 @@ describe('compost + scooper load persistence (#232)', () => {
     const gs = save.loadGameState();
     expect(gs.scooperLoad).toBe(0);  // negative → 0
     expect(gs.compost).toBe(8);      // floored
+  });
+});
+
+describe('shears wool-load persistence (#254)', () => {
+  it('defaults to 0 on a fresh save and for a save that predates the feature', () => {
+    expect(save.loadGameState().shearsLoad).toBe(0);
+    globalThis.localStorage.setItem(GAME_STATE_KEY, JSON.stringify({
+      hotbar: ['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead'],
+      inventory: {}, carriers: {}, money: 20,
+    }));
+    expect(save.loadGameState().shearsLoad).toBe(0);
+  });
+
+  it('round-trips a saved shears wool load, sanitizing corrupt values', () => {
+    save.saveGameState({
+      hotbar: [], inventory: {}, carriers: {}, activeCarrier: {}, money: 0,
+      scooperLoad: 0, compost: 0, shearsLoad: 5,
+    });
+    expect(save.loadGameState().shearsLoad).toBe(5);
+    save.saveGameState({
+      hotbar: [], inventory: {}, carriers: {}, activeCarrier: {}, money: 0,
+      scooperLoad: 0, compost: 0, shearsLoad: -2,
+    });
+    expect(save.loadGameState().shearsLoad).toBe(0); // negative → 0
   });
 });
 

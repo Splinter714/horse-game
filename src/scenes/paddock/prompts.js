@@ -184,6 +184,27 @@ export const WithPrompts = (Base) => class extends Base {
       return finish();
     }
 
+    // Shears (#254): mirror useActiveTool's dispatch so the Use prompt names what a Use
+    // would do — "Shear" a fleecy animal in reach, else "Trim" the nearest horse's coat,
+    // else fall through to the farm-stand wool-dump spot.
+    if (item.action === 'shear') {
+      const fleecy = this._nearestShearAnimal();
+      if (fleecy && (item.load ?? 0) < (item.capacity ?? Infinity)) {
+        const who = this._animalName(fleecy.key);
+        useLabel = 'Shear';
+        this._pushPrompt('use', who ? `Shear ${who}` : 'Shear');
+        return finish();
+      }
+      const horse = this._nearestTrimHorse();
+      if (horse) {
+        const who = this._animalName(horse.key);
+        useLabel = 'Trim';
+        this._pushPrompt('use', who ? `Trim ${who}` : 'Trim coat');
+        return finish();
+      }
+      // else: fall through to _nearestUseSpot (the farm-stand wool-dump descriptor).
+    }
+
     // Scooper (#232): standing near a dropping with room in the scooper → "Scoop".
     // If the scooper is full or no dropping is in reach, fall through to the world
     // spots so the compost bin's "Dump Compost" prompt can take over at the bin.

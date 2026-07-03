@@ -323,6 +323,26 @@ export function buildIconTextures(scene) {
     for (let x = 3; x <= 13; x += 2) g.fillRect(x, 14, 1, 4);
   });
 
+  // Shears tool (#254) — a pair of open sheep-shears/scissors. Two crossed steel
+  // blades opening to the upper-right with round finger-loop handles at the lower-left,
+  // pinned by a rivet at the cross. Reads as the "cut/clip" tool at hotbar size,
+  // distinct from the scooper's rake head.
+  gen(scene, 'iconShears', 20, 20, (g) => {
+    // handles — two dark finger loops at the lower-left, drawn as filled discs with a
+    // punched-out lighter center so they read as rings (fill-only, no stroke).
+    g.fillStyle(0x3a4048, 1); g.fillCircle(5, 15, 3); g.fillCircle(9, 16.5, 3);
+    g.fillStyle(0x20242a, 1); g.fillCircle(5, 15, 1.4); g.fillCircle(9, 16.5, 1.4); // loop holes
+    // blades — two tapering steel triangles crossing up toward the top-right
+    g.fillStyle(0xb8c0cc, 1);
+    g.fillTriangle(7, 13, 17, 4, 15, 6);   // upper blade
+    g.fillTriangle(6, 14, 15, 6, 17, 7);   // lower blade
+    g.fillStyle(0xdde3ec, 1);
+    g.fillTriangle(8, 12, 16, 5, 15, 6);   // blade highlight
+    // pivot rivet where the blades cross
+    g.fillStyle(0x6f7580, 1); g.fillCircle(8, 13, 1.6);
+    g.fillStyle(0x9aa3b0, 1); g.fillCircle(7.5, 12.5, 0.7);
+  });
+
   // Empty bucket — a metal pail tilted slightly forward so you see down into it.
   // The open mouth is a dark interior oval, so "empty" reads at a glance vs. the
   // water-filled version below (#125).

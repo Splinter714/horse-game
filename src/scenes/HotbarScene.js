@@ -38,6 +38,9 @@ export default class HotbarScene
     // it's the single writer of them in gameState, alongside money.
     this._scooperLoad = saved.scooperLoad ?? 0;
     this._compost     = saved.compost ?? 0;
+    // Shears mechanic (#254): the shears' current wool load (sheared, not yet dumped at
+    // the farm stand). HotbarScene owns it, like the scooper's load.
+    this._shearsLoad  = saved.shearsLoad ?? 0;
     this._slots      = [];
     this._invNodes   = [];
     this._flyoutNodes = []; // carrier-group fly-out picker (#75)

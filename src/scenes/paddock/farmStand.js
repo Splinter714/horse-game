@@ -97,6 +97,27 @@ export const WithFarmStand = (Base) => class extends Base {
     });
   }
 
+  // Dump the shears' whole wool load into the farm stand's wool stock (#254), to be
+  // sold to passing customers — the shears' equivalent of the scooper dumping compost
+  // at the bin. Takes the load from the hotbar (which clears it), adds it to the stand,
+  // and floats a wool icon as feedback. No-op when the shears are empty.
+  dumpShearsWool() {
+    const hot = this.scene.get('HotbarScene');
+    const n = hot?.takeShearsLoad?.() ?? 0;
+    if (n <= 0) return;
+    this.farmStand.stock.wool = (this.farmStand.stock.wool ?? 0) + n;
+    this._refreshStand();
+    playGather('wool');
+
+    const icon = this.add.image(this.farmStand.x, this.farmStand.y - 60, STAND_DEFS.wool.floatIcon)
+      .setScale(1.8).setDepth(10000);
+    this.tweens.add({
+      targets: icon, y: icon.y - 40, alpha: 0,
+      duration: 900, ease: 'Sine.easeOut',
+      onComplete: () => icon.destroy(),
+    });
+  }
+
   // ─── Spinning wheel — crafting (#233) ──────────────────────────────────────
 
   // Spin the active carrier's raw wool into yarn (1:1) at the spinning wheel. Reads

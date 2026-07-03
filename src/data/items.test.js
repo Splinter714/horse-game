@@ -3,7 +3,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { CARRIER_DEFS, CONTENT_DEFS, CARRIER_GROUPS, CARRIER_MEMBERS, ALL_ITEMS, ITEM_MAP, ITEMS, foodDemand,
-  SCOOPER, scoopAmount, scooperHasLoad, dumpScooper, emptyCarrier } from './items.js';
+  SCOOPER, scoopAmount, scooperHasLoad, dumpScooper, emptyCarrier,
+  SHEARS, shearAmount, dumpShears } from './items.js';
 
 describe('carrier definitions', () => {
   it('baskets hold solids, buckets hold liquids', () => {
@@ -117,8 +118,8 @@ describe('hotbar items', () => {
     const groups = ALL_ITEMS.filter((i) => i.type === 'carrierGroup');
     const tools  = ALL_ITEMS.filter((i) => i.type === 'tool');
     expect(groups.map((g) => g.key)).toEqual(['basketGroup', 'bucketGroup']);
-    // scooper added with poop-pickup (#232).
-    expect(tools.map((t) => t.key)).toEqual(['brush', 'saddle', 'lead', 'scooper']);
+    // scooper added with poop-pickup (#232); shears added with #254 (multi-use tool).
+    expect(tools.map((t) => t.key)).toEqual(['brush', 'saddle', 'lead', 'scooper', 'shears']);
     // The individual members aren't listed in the hotbar/inventory any more.
     expect(ALL_ITEMS.some((i) => i.type === 'carrier')).toBe(false);
   });
@@ -197,6 +198,59 @@ describe('scooper + compost (#232)', () => {
     ({ load, compost } = dumpScooper(load, compost));
     expect(load).toBe(0);
     expect(compost).toBe(3);
+  });
+});
+
+// Shears (#254) — a MULTI-USE cut/clip tool: shear sheep/llama into its own wool load
+// (like the scooper's compost load) AND trim horse coats (grooming). The pure load
+// helpers mirror the scooper's so the two load-tools share one verified contract.
+describe('shears + wool load (#254)', () => {
+  it('the shears are a load-carrying tool with a small wool capacity', () => {
+    const shears = ITEM_MAP.shears;
+    expect(shears.type).toBe('tool');
+    expect(shears.action).toBe('shear');
+    expect(SHEARS.capacity).toBeGreaterThan(0);
+    expect(SHEARS.content).toBe('wool');
+  });
+
+  it('has its own procedural icon, distinct from the other tools', () => {
+    expect(ITEM_MAP.shears.icon).toBe('iconShears');
+    expect(ITEM_MAP.shears.icon).not.toBe(ITEM_MAP.scooper.icon);
+  });
+
+  it('shearAmount adds one per shear until full, then nothing', () => {
+    expect(shearAmount(0)).toBe(1);
+    expect(shearAmount(SHEARS.capacity - 1)).toBe(1);
+    expect(shearAmount(SHEARS.capacity)).toBe(0);   // full → can't shear
+    expect(shearAmount(SHEARS.capacity + 5)).toBe(0);
+    // honours an explicit cap
+    expect(shearAmount(2, 2)).toBe(0);
+    expect(shearAmount(1, 2)).toBe(1);
+  });
+
+  it('dumpShears moves the whole wool load into the stand stock, emptying the shears', () => {
+    expect(dumpShears(3, 10)).toEqual({ load: 0, stock: 13 });
+    expect(dumpShears(SHEARS.capacity, 0)).toEqual({ load: 0, stock: SHEARS.capacity });
+  });
+
+  it('dumpShears is a no-op when the shears are empty', () => {
+    expect(dumpShears(0, 7)).toEqual({ load: 0, stock: 7 });
+  });
+
+  it('a full shear → dump cycle nets one wool per shear', () => {
+    let load = 0, stock = 0;
+    for (let i = 0; i < 3; i++) load += shearAmount(load); // shear three fleeces
+    expect(load).toBe(3);
+    ({ load, stock } = dumpShears(load, stock));
+    expect(load).toBe(0);
+    expect(stock).toBe(3);
+  });
+
+  it('sheared wool reuses the existing sellable wool content (#233), no new content type', () => {
+    // The shears land the same `wool` produce as basket-shearing — it sells at the
+    // stand (STAND_DEFS.wool) and spins into yarn (craftsTo). No parallel content.
+    expect(CONTENT_DEFS.wool.action).toBe('sell');
+    expect(CONTENT_DEFS.wool.craftsTo).toBe('yarn');
   });
 });
 

@@ -169,6 +169,16 @@ const TOOL_ITEMS = [
   // tracked in game state (scooperLoad), not in a carrier — so it has a Use action
   // both on a dropping (scoop) and at the bin (dump). Capacity is SCOOPER.capacity.
   { key: 'scooper', label: 'Scooper', icon: 'iconScooper', action: 'scoop', type: 'tool' },
+  // The shears (#254): a MULTI-USE cutting tool, not single-purpose. Two cut/clip jobs:
+  //   • SHEAR a fleecy animal (sheep/llama) → the fleece runs the same produce path as
+  //     basket-shearing (#233: markProduced + shorn look + regrowth timer), but the wool
+  //     lands in the shears' OWN load (like the scooper's compost load, SHEARS below) —
+  //     no basket needed. Dump that wool at the farm stand to sell it (dumpShears).
+  //   • TRIM a horse's coat → reuses the brush grooming path (useItemOnHorse): a tidy
+  //     clip that grooms out dust / bonds like a stroke on an already-neat coat.
+  // Basket-only shearing (#233) stays as the no-tool fallback — the shears are an
+  // additive alternative, not a replacement.
+  { key: 'shears', label: 'Shears', icon: 'iconShears', action: 'shear', type: 'tool' },
 ];
 
 // Inventory list: the grouped carriers + tools (individual members aren't shown).
@@ -187,6 +197,29 @@ export const ITEMS = ALL_ITEMS;
 // compost bin. Kept small so it's a genuine carry-and-dump chore (fill it, walk it
 // to the bin) rather than a bottomless bag. Its load persists in game state.
 export const SCOOPER = { capacity: 6, content: 'compost' };
+
+// ── Shears + wool load (#254) ─────────────────────────────────────────────────
+// The shears carry a small load of freshly-sheared wool until it's dumped at the
+// farm stand (which sells it). Kept modest so it's a genuine shear-and-sell chore,
+// mirroring the scooper's fill-and-dump loop. Its load persists in game state
+// (shearsLoad). The `wool` content is the same sellable produce as basket-shearing.
+export const SHEARS = { capacity: 12, content: 'wool' };
+
+// How much wool one shear adds to the shears, given the current load. One per shear,
+// never past capacity — a full shears shears nothing (must dump first). Mirrors
+// scoopAmount so the two load-tools share one pure contract.
+export function shearAmount(load, cap = SHEARS.capacity) {
+  return load < cap ? 1 : 0;
+}
+
+// Dumping the shears at the farm stand: the whole wool load moves into the stand's
+// wool stock (to be sold to passing customers). Returns the new { load, stock } after
+// the dump (load → 0). A no-op (unchanged) when the shears are empty. Pure so the
+// dump contract is unit-tested without Phaser, like dumpScooper.
+export function dumpShears(load, stock) {
+  if (load <= 0) return { load, stock };
+  return { load: 0, stock: stock + load };
+}
 
 // Pure loop helpers (unit-tested). All take/return plain numbers so the scoop/dump
 // mechanic can be verified without Phaser.
