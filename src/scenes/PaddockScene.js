@@ -12,6 +12,7 @@ import { WithHouseEntry } from './paddock/houseEntry.js';
 import { WithWildlife } from './paddock/wildlife.js';
 import { WithBirdEcosystem } from './paddock/birdEcosystem.js';
 import { WithBirdEcosystemVisits } from './paddock/birdEcosystemVisits.js';
+import { WithBirdFriendship } from './paddock/birdFriendship.js';
 import { WithRaccoon } from './paddock/raccoon.js';
 import { WithOwls } from './paddock/owls.js';
 import { WithAmbientEvents } from './paddock/ambientEvents.js';
@@ -60,7 +61,7 @@ import { applyDpr } from './uiUtils.js';
 // pure build-graph refactor — runtime behavior (method resolution order, `this`, super
 // calls) is unchanged.
 const PADDOCK_MIXINS = [
-  WithWorld, WithBirdEcosystem, WithBirdEcosystemVisits, WithBarn, WithBunny, WithFox, WithBreeding,
+  WithWorld, WithBirdEcosystem, WithBirdEcosystemVisits, WithBirdFriendship, WithBarn, WithBunny, WithFox, WithBreeding,
   WithHouseEntry, WithWildlife, WithRaccoon, WithOwls, WithAmbientEvents, WithCatAI,
   WithCompanion, WithCharm, WithCreatures, WithFlock, WithHerd, WithFarmStand, WithShop,
   WithGarden, WithDayNight, WithWeather, WithHorseAI, WithBehaviors, WithRiding, WithPlayer,
@@ -116,6 +117,7 @@ export default class PaddockScene extends PaddockBase {
     this.buildWildlife(); // ambient fish/birds/raccoon (needs the stream path + player)
     this.buildOwls(); // ambient nocturnal owl (#271) — night-only glide-in/hoot/glide-off
     this.buildFox(); // fox taming (#266): wild-fox anims + restore taming counter
+    this.buildBirdFriendship(); // bird befriending (#223): restore visit tallies + named regulars
     this.startAmbientEvents(); // unified data-driven ambient rotation (#253)
 
     // Periodic AI tick: direct idle horses to food/water

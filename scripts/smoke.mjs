@@ -975,6 +975,57 @@ try {
   if (!foalPersist.inScene) fail(`#15 persistence: foal ${bornFoalKey} not re-spawned into the world after reload (spawnSavedFoals)`);
   console.log(`Foal persistence (#15): ${JSON.stringify(foalPersist)} for ${bornFoalKey}`);
 
+  // ── #223 bird befriending: a specific bird's repeated qualifying visits build a
+  // relationship score, cross the threshold into a NAMED "befriended" regular (capped
+  // roster), and persist across reload. Drive registerBirdVisit directly (the same call
+  // the ambient bath/birdhouse/feeder visit beats make on landing) rather than waiting
+  // out the ambient timers — deterministic and mirrors the fox-taming smoke rigor.
+  const birdFriend = await page.evaluate(() => {
+    const g = window.__game, p = g.scene.getScene('PaddockScene');
+    const typeId = 'robin'; // an arbitrary bird type not used elsewhere in this run
+    const before = p._birdFriendRoster.length;
+    let befriendedAfter = null;
+    for (let i = 1; i <= 5; i++) {
+      p.registerBirdVisit('birdhouse', typeId, { x: 500, y: 260 });
+      if (p._birdFriendRoster.some((b) => b.typeId === typeId) && befriendedAfter == null) befriendedAfter = i;
+    }
+    const entry = p._birdFriendRoster.find((b) => b.typeId === typeId);
+    const sprite = p._friendlyBirds.find((r) => r.typeId === typeId);
+    return {
+      before,
+      after: p._birdFriendRoster.length,
+      befriendedAfter,
+      named: entry?.name ?? null,
+      spriteActive: !!sprite?.sprite?.active,
+      countTicked: p._birdFriendCounts[typeId],
+    };
+  });
+  if (birdFriend.after !== birdFriend.before + 1) fail(`#223 bird befriending: roster did not grow by exactly one (before=${birdFriend.before}, after=${birdFriend.after})`);
+  if (birdFriend.befriendedAfter == null) fail('#223 bird befriending: never crossed the threshold across 5 qualifying visits');
+  if (!birdFriend.named) fail('#223 bird befriending: committed bird has no name');
+  if (!birdFriend.spriteActive) fail('#223 bird befriending: committed bird has no active in-world sprite');
+  console.log(`Bird befriending (#223): ${JSON.stringify(birdFriend)}`);
+
+  // Reload and confirm the named regular + its visit tally survive (mirrors the foal
+  // persistence check above, and the fox-taming persistence unit test).
+  await page.reload({ waitUntil: 'load', timeout: 45000 });
+  await page.waitForFunction(() => {
+    const g = window.__game;
+    if (!(g && g.scene && g.scene.isActive('PaddockScene'))) return false;
+    const p = g.scene.getScene('PaddockScene');
+    return Array.isArray(p._birdFriendRoster) && p._birdFriendRoster.some((b) => b.typeId === 'robin');
+  }, { timeout: 45000, polling: 200 });
+  const birdFriendPersist = await page.evaluate(() => {
+    const g = window.__game, p = g.scene.getScene('PaddockScene');
+    const entry = p._birdFriendRoster.find((b) => b.typeId === 'robin');
+    const sprite = p._friendlyBirds.find((r) => r.typeId === 'robin');
+    return { inRoster: !!entry, named: entry?.name ?? null, spriteActive: !!sprite?.sprite?.active };
+  });
+  if (!birdFriendPersist.inRoster) fail('#223 bird befriending: named regular lost from roster after reload');
+  if (birdFriendPersist.named !== birdFriend.named) fail(`#223 bird befriending: name changed after reload (was ${birdFriend.named}, now ${birdFriendPersist.named})`);
+  if (!birdFriendPersist.spriteActive) fail('#223 bird befriending: named regular not re-spawned into the world after reload');
+  console.log(`Bird befriending persistence (#223): ${JSON.stringify(birdFriendPersist)}`);
+
   // ── HiDPI rendering: the game must render at the device's PHYSICAL pixels so
   // pixel-art/text are crisp on Retina screens (e.g. iPad, devicePixelRatio 2).
   // The main boot above runs at deviceScaleFactor 1, where the DPR path is a no-op
