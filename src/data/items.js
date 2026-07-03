@@ -26,13 +26,19 @@ export const CARRIER_DEFS = {
 // horses + pigs → horses + pigs). Multiple foods overlapping the same animals is fine
 // and intended — the owner wants "N apples for N horses", overlap with carrots and all.
 export const CONTENT_DEFS = {
-  hay:    { label: 'Hay',     icon: 'iconBasketHay',    action: 'feed',  ground: 'hayPile',    feeds: ['horse', 'cow', 'sheep'] },
+  // The GOAT (#267) is on EVERY edible pile's `feeds` list — that's her eat-everything
+  // charm quirk, realized as data: unlike the pickier grazers she'll trot over to any
+  // food the farm drops (hay, apples, carrots, even the chickens' seed). The grazing AI
+  // reads `feeds` (speciesEatsContent) when choosing which pile to walk to.
+  hay:    { label: 'Hay',     icon: 'iconBasketHay',    action: 'feed',  ground: 'hayPile',    feeds: ['horse', 'cow', 'sheep', 'goat'] },
   // Apples and carrots feed the pig too; hay does NOT (pigs won't touch it). This
   // `feeds` list is the single source of truth for the pig's pickier diet — the
   // grazing AI reads it (speciesEatsContent) when choosing which pile to walk to.
-  apple:  { label: 'Apples',  icon: 'iconBasketApple',  action: 'feed',  ground: 'applePile',  feeds: ['horse', 'cow', 'pig'] },
-  carrot: { label: 'Carrots', icon: 'iconBasketCarrot', action: 'feed',  ground: 'carrotPile', feeds: ['horse', 'cow', 'pig'] },
-  seed:   { label: 'Seed',    icon: 'iconBasketSeed',   action: 'feed',  ground: 'seedPile',   feeds: ['chicken'] },
+  apple:  { label: 'Apples',  icon: 'iconBasketApple',  action: 'feed',  ground: 'applePile',  feeds: ['horse', 'cow', 'pig', 'goat'] },
+  carrot: { label: 'Carrots', icon: 'iconBasketCarrot', action: 'feed',  ground: 'carrotPile', feeds: ['horse', 'cow', 'pig', 'goat'] },
+  // Seed feeds the chickens — and the goat (she eats everything). A dropped seed pile in
+  // the pasture is fair game for a wandering goat.
+  seed:   { label: 'Seed',    icon: 'iconBasketSeed',   action: 'feed',  ground: 'seedPile',   feeds: ['chicken', 'goat'] },
   // Cat food feeds only the cat (#202 rework) — scooped from the kibble sack into a
   // basket, then poured into the FOOD BOWL (fillCatBowl), which the cat eats from
   // directly. It is NOT dropped as a ground pile: `stocks: 'catFood'` marks it as a

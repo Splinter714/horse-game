@@ -21,6 +21,7 @@ import { Cat } from './species/cat/model.js';
 import { Sheep } from './species/sheep/model.js';
 import { Dog } from './species/dog/model.js';
 import { Bunny } from './species/bunny/model.js';
+import { Goat } from './species/goat/model.js';
 
 // The canonical herd. Every horse is equal — same persistence, same decay. The
 // only per-horse differences are data (name, coat, age, spawn) plus Ebony's
@@ -111,6 +112,14 @@ function defaultBunnyRoster() {
   return {};
 }
 
+// One goat for now, keyed `goat` (#267). Full stats + daily-care + milk readiness like
+// the cow (she's milkable). Offline decay is applied on load, forgiving like the herd.
+function defaultGoatRoster() {
+  return {
+    goat: { id: 'goat-1', name: 'Gruff', breed: 'Nubian', coat: 0, age: 3, sex: 'female' },
+  };
+}
+
 export const ROSTERS = {
   horse: {
     storageKey: 'horse-care-save-v2',
@@ -178,6 +187,14 @@ export const ROSTERS = {
     Model: Bunny,
     defaultRoster: defaultBunnyRoster, // empty — attracted at runtime, not seeded
     offlineDecay: true, // has hunger/thirst — forgiving offline decay like the herd
+    legacy: null,
+  },
+  goat: {
+    storageKey: 'horse-care-goats-v1',
+    registryKey: 'allGoats',
+    Model: Goat,
+    defaultRoster: defaultGoatRoster,
+    offlineDecay: true, // grazer with survival needs — forgiving offline decay
     legacy: null,
   },
 };

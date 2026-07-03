@@ -11,6 +11,7 @@ import { PIG } from './pig/index.js';
 import { SHEEP } from './sheep/index.js';
 import { DOG } from './dog/index.js';
 import { BUNNY } from './bunny/index.js';
+import { GOAT } from './goat/index.js';
 import * as horseBehaviors from './horse/behaviors.js';
 import * as chickenBehaviors from './chicken/behaviors.js';
 import * as catBehaviors from './cat/behaviors.js';
@@ -27,6 +28,7 @@ export const SPECIES = {
   sheep: SHEEP,
   dog: DOG,
   bunny: BUNNY,
+  goat: GOAT,
 };
 
 export function getSpecies(id) {
@@ -64,6 +66,11 @@ export const BEHAVIORS = {
   // seekBunnyWater, #224) — its own behavior module, same shape as the cat's
   // seekFood/seekWater. Falls through to a plain hop-wander when neither fires.
   bunny: indexById(bunnyBehaviors),
+  // The goat is a grazer like the cow — reuses the horse behavior modules; her
+  // `behaviors` list (goat/index.js) picks the subset she runs (food/water/graze, no
+  // begging). Her eat-everything diet (all pile contents) is enforced by the food data
+  // (items.js `feeds`), not a separate behavior. The run() primitives are species-generic.
+  goat: indexById(horseBehaviors),
 };
 
 function indexById(mod) {

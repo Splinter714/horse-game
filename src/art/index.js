@@ -17,6 +17,7 @@ import { buildSheepTextures } from './sheepArt.js';
 import { buildPigTextures } from './pigArt.js';
 import { buildDogTextures } from './dogArt.js';
 import { buildBunnyTextures } from './bunnyArt.js';
+import { buildGoatTextures } from './goatArt.js';
 import { buildPlayerTextures } from './playerArt.js';
 import { BUNNY_COATS } from '../data/species/bunny/index.js';
 import { buildWildlifeOldTextures } from './wildlifeArt.js'; // TEMP: old-vs-new gallery A/B
@@ -65,6 +66,8 @@ export const SPECIES_TEXTURES = {
   sheep(scene) { buildRosterLooks(scene, 'allSheep', 'sheep', buildSheepTextures); },
 
   dog(scene) { buildRosterLooks(scene, 'allDogs', 'dog', buildDogTextures); },
+
+  goat(scene) { buildRosterLooks(scene, 'allGoats', 'goat', buildGoatTextures); },
 
   // Bunnies (#224). The roster starts EMPTY and grows at runtime when the player
   // attracts a bunny with bunny food, so — unlike the other rosters — we can't build
@@ -115,6 +118,7 @@ const RESKIN = {
   pig:   (scene, key, look) => buildPigTextures(scene, key, look),
   dog:   (scene, key, look) => buildDogTextures(scene, key, look),
   cow:   (scene, key, look) => buildCowTextures(scene, key, look),
+  goat:  (scene, key, look) => buildGoatTextures(scene, key, look),
   cat:   (scene, key, look) => buildCatTextures(scene, key, look),
   // The chicken picks a whole coat (a STYLE), not per-part ramps: the customizer's
   // single 'style' part stores the chosen CHICKEN_COATS entry under look.style.

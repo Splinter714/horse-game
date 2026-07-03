@@ -144,6 +144,28 @@ try {
       }
     } catch (e) { cowMilk = 'threw: ' + String(e); }
 
+    // The goat (#267) is milkable the same data-driven way as the cow — same generic
+    // _produceFromAnimal path, no per-goat method. Proves a second milkable species
+    // rides the shared produce dispatch: a ready goat fills an empty bucket once.
+    let goatMilk = 'no goat';
+    try {
+      const goat = paddock.animals.find((a) => a.model?.species === 'goat');
+      if (goat) {
+        const hot = g.scene.getScene('HotbarScene');
+        hot.activeSlot = hot.hotbar.indexOf('bucketGroup');
+        hot.activeCarrier.bucket = 'bucket1';
+        hot.carriers.bucket1 = { content: null, count: 0 }; // empty bucket → can milk
+        goat.model.readyToProduce = true; goat.model.producedToday = false;
+        paddock._produceFromAnimal(goat);
+        const first = goat.model.producedToday === true
+          && hot.carriers.bucket1.content === 'milk' && hot.carriers.bucket1.count >= 1;
+        const before = hot.carriers.bucket1.count;
+        paddock._produceFromAnimal(goat); // same day → no-op (already produced)
+        goatMilk = (first && hot.carriers.bucket1.count === before) ? 'milked-once'
+          : `first=${first},count=${hot.carriers.bucket1.count}`;
+      }
+    } catch (e) { goatMilk = 'threw: ' + String(e); }
+
     // Pig diet (this feature): the pig is a grazer, but its pickier diet must make
     // the shared food-seek skip a hay pile while still targeting an apple pile. We
     // probe _nearestReachableHay directly (the diet gate) so the result is exact.
@@ -215,6 +237,9 @@ try {
       charm,
       catBowls,
       cowMilk,
+      goatMilk,
+      goatCount: Object.keys(g.registry.get('allGoats') ?? {}).length,
+      goatsInScene: paddock.animals.filter((a) => a.model?.species === 'goat').length,
       pigDiet,
       pigCount: Object.keys(g.registry.get('allPigs') ?? {}).length,
       pigsInScene: paddock.animals.filter((a) => a.model?.species === 'pig').length,
@@ -411,15 +436,16 @@ try {
   if (!result.movementOk) fail('creature movement/pathfinding threw: ' + result.movementError);
   if (result.behaviorDecision !== 'seekFood') fail(`hungry horse with hay nearby did not select seekFood (got ${result.behaviorDecision})`);
   // #136: gather one food per animal that eats it, water → capacity. Diets differ:
-  // hay feeds the 7 horses + the cow + the 1 sheep (9); apples/carrots also feed the
-  // pig but NOT the sheep, who refuse them (9). The split is the proof the pig/sheep
+  // hay feeds the 7 horses + the cow + the 1 sheep + the goat (10); apples/carrots feed
+  // the pig + goat but NOT the sheep, who refuse them (10). The goat eats EVERYTHING
+  // (#267), so she's on every food's demand. The split is the proof the pig/sheep
   // pickier diets are wired up. (Probed with a high capacity so demand isn't capped.)
   const gt = result.gatherTargets;
-  if (gt.hay !== 9) fail(`gather target for hay = ${gt.hay}, expected 9 (7 horses + 1 cow + 1 sheep)`);
+  if (gt.hay !== 10) fail(`gather target for hay = ${gt.hay}, expected 10 (7 horses + 1 cow + 1 sheep + 1 goat)`);
   for (const food of ['apple', 'carrot']) {
-    if (gt[food] !== 9) fail(`gather target for ${food} = ${gt[food]}, expected 9 (7 horses + 1 cow + 1 pig; sheep refuse them, #136)`);
+    if (gt[food] !== 10) fail(`gather target for ${food} = ${gt[food]}, expected 10 (7 horses + 1 cow + 1 pig + 1 goat; sheep refuse them, #136)`);
   }
-  if (gt.seed !== 5) fail(`gather target for seed = ${gt.seed}, expected 5 (one per chicken, #136)`);
+  if (gt.seed !== 6) fail(`gather target for seed = ${gt.seed}, expected 6 (5 chickens + 1 goat, who eats everything #267)`);
   if (gt.water !== 1) fail(`gather target for water = ${gt.water}, expected 1 (capacity — water ignores demand)`);
   if (result.cowMilk !== 'milked-once') fail(`cow generic produce path failed (got ${result.cowMilk}) — #167 B3 unified care`);
   // #187 charm behaviors: night settle/wake cycle + charm run primitives must hold.
@@ -435,6 +461,10 @@ try {
   if (result.sheepInScene !== 1) fail(`expected 1 sheep sprite in scene, got ${result.sheepInScene}`);
   if (result.dogCount !== 1) fail(`expected 1 dog in roster, got ${result.dogCount}`);
   if (result.dogsInScene !== 1) fail(`expected 1 dog sprite in scene, got ${result.dogsInScene}`);
+  // The goat (#267): spawns into the world and is milkable via the shared produce path.
+  if (result.goatCount !== 1) fail(`expected 1 goat in roster, got ${result.goatCount}`);
+  if (result.goatsInScene !== 1) fail(`expected 1 goat sprite in scene, got ${result.goatsInScene}`);
+  if (result.goatMilk !== 'milked-once') fail(`goat generic produce path failed (got ${result.goatMilk}) — #267 milkable`);
   if (!result.horsePanel.active) fail('InfoPanelScene did not open for a horse');
   if (result.horsePanel.parts < 15) fail(`horse panel looks too sparse (parts=${result.horsePanel.parts}) — identity/stat bars missing?`);
   if (!result.chickenPanel.active) fail('InfoPanelScene did not open for a chicken');
