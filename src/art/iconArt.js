@@ -359,6 +359,24 @@ export function buildIconTextures(scene) {
     g.fillStyle(0x7a8396, 1); g.fillEllipse(10, 18.4, 8.6, 2.2);
   });
 
+  // Nectar bucket (#226) — the tilted pail filled with rosy sugar-water (nectar) for
+  // the hummingbird feeder. Same pail as the water/milk buckets, tinted a warm pink so
+  // it reads as "sweet nectar" rather than plain water.
+  gen(scene, 'iconBucketNectar', 20, 20, (g) => {
+    g.fillStyle(0x6f7889, 1);
+    g.fillRect(3, 4, 1, 3); g.fillRect(16, 4, 1, 3);
+    g.fillRect(4, 2, 12, 1); g.fillRect(3, 3, 2, 1); g.fillRect(15, 3, 2, 1);
+    g.fillStyle(0x9aa3b6, 1);
+    g.fillTriangle(3, 8, 17, 8, 15, 17); g.fillTriangle(3, 8, 15, 17, 5, 17);
+    g.fillEllipse(10, 17, 11, 4.4); // rounded bottom bulge
+    g.fillStyle(0xb8c0d0, 1); g.fillEllipse(10, 8, 14, 5); // rim
+    // Rosy nectar filling the mouth oval, with a soft highlight near-left
+    g.fillStyle(0xe85a7a, 1); g.fillEllipse(10, 8, 10.5, 3.4);
+    g.fillStyle(0xf7a6bd, 1); g.fillEllipse(8.4, 7.4, 4.6, 1.6);
+    g.fillStyle(0xb8c0d0, 1); g.fillRect(5, 10, 1, 6);
+    g.fillStyle(0x7a8396, 1); g.fillEllipse(10, 18.4, 8.6, 2.2);
+  });
+
   // Milk jug/bottle — the saleable product shown on the farm-stand counter and as
   // the float icon when stocking milk (#cow).
   gen(scene, 'iconMilk', 20, 20, (g) => {

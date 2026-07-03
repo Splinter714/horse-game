@@ -513,6 +513,96 @@ export function buildWorldTextures(scene) {
   gen(scene, 'seedFeeder',      28, 56, (g) => drawSeedFeeder(g, true));
   gen(scene, 'seedFeederEmpty', 28, 56, (g) => drawSeedFeeder(g, false));
 
+  // --- hummingbird nectar feeder (24 × 52) — refillable sugar-water feeder (#226) ---
+  // A hanging nectar feeder: an inverted glass reservoir of rosy sugar water with a
+  // little red flower-shaped feeding base and yellow bee-guard ports. Two variants —
+  // stocked (`nectarFeeder`, nectar showing) and empty (`nectarFeederEmpty`, clear
+  // reservoir) — swapped by birdEcosystem.js as the nectar level crosses zero.
+  // Hummingbirds hover at the ports to drink. Origin (0.5,1) at the foot of the post.
+  const drawNectarFeeder = (g, stocked) => {
+    const post = 0x8a5a2e, postHi = 0xa9743c, postLo = 0x6a4420;
+    const glass = 0xcfe6ee, glassHi = 0xffffff;
+    const nectar = 0xe85a7a, nectarHi = 0xf7a6bd, nectarLo = 0xc23a5c;
+    const baseRed = 0xd83a3a, baseDark = 0xa82828, port = 0xf2d24a, portDark = 0xc89a1a;
+
+    // Post + hang loop
+    g.layer('post');
+    g.fillStyle(post, 1);   g.fillRect(11, 2, 2, 12);
+    g.fillStyle(postHi, 1); g.fillRect(11, 2, 1, 12);
+    g.fillStyle(postLo, 1); g.fillEllipse(12, 51, 6, 2); // ground shadow
+    g.fillStyle(postLo, 1); g.fillRect(10, 2, 4, 2);     // loop bar
+
+    // Reservoir (inverted rounded bottle)
+    g.layer('reservoir');
+    g.fillStyle(glass, 0.9); g.fillEllipse(12, 24, 16, 26);
+    g.fillStyle(glass, 0.9); g.fillRect(4, 14, 16, 12);
+    if (stocked) { // rosy nectar settling in the bottom of the reservoir
+      g.layer('nectar');
+      g.fillStyle(nectarLo, 1); g.fillEllipse(12, 28, 13, 16);
+      g.fillStyle(nectar, 1);   g.fillEllipse(12, 30, 12, 12);
+      g.fillStyle(nectarHi, 0.8); g.fillEllipse(8, 27, 4, 6);
+    }
+    g.layer('glassHi');
+    g.fillStyle(glassHi, 0.5); g.fillRect(7, 16, 2, 14); // vertical glass glint
+    g.fillStyle(glassHi, 0.35); g.fillEllipse(12, 14, 14, 4); // top curve sheen
+
+    // Red flower feeding base
+    g.layer('base');
+    g.fillStyle(baseDark, 1); g.fillEllipse(12, 40, 20, 8);
+    g.fillStyle(baseRed, 1);  g.fillEllipse(12, 39, 18, 7);
+    // petal lobes around the rim
+    g.fillStyle(baseRed, 1);
+    g.fillCircle(3, 39, 3); g.fillCircle(21, 39, 3); g.fillCircle(7, 42, 2); g.fillCircle(17, 42, 2);
+    g.fillStyle(baseDark, 1); g.fillEllipse(12, 41, 14, 4); // underside shade
+
+    // Yellow bee-guard feeding ports
+    g.layer('ports');
+    g.fillStyle(portDark, 1); g.fillCircle(6, 40, 2); g.fillCircle(18, 40, 2); g.fillCircle(12, 42, 2);
+    g.fillStyle(port, 1);     g.fillCircle(6, 39, 1.4); g.fillCircle(18, 39, 1.4); g.fillCircle(12, 41, 1.4);
+
+    // Little bottom drip tip
+    g.layer('tip');
+    g.fillStyle(baseDark, 1); g.fillTriangle(10, 43, 14, 43, 12, 47);
+  };
+  gen(scene, 'nectarFeeder',      24, 52, (g) => drawNectarFeeder(g, true));
+  gen(scene, 'nectarFeederEmpty', 24, 52, (g) => drawNectarFeeder(g, false));
+
+  // --- nectar station (22 × 26) — sugar-water jug the player fills a bucket at (#226) ---
+  // A stout glass jug of rosy nectar with a cork and a little spout, on a wooden stand
+  // by the house. A gathering SOURCE (like the kibble sack): fill a bucket here, then
+  // pour it into the hummingbird feeder. Origin (0.5,1) at the base.
+  gen(scene, 'nectarStation', 22, 26, (g) => {
+    const wood = 0x9a6a34, woodHi = 0xb98a4c;
+    const glass = 0xcfe6ee, glassHi = 0xffffff;
+    const nectar = 0xe85a7a, nectarHi = 0xf7a6bd, nectarLo = 0xc23a5c;
+    const cork = 0xb98a4c, corkDark = 0x8a5f2c;
+
+    // Wooden stand
+    g.layer('stand');
+    g.fillStyle(wood, 1);   g.fillRect(2, 23, 18, 3);
+    g.fillStyle(woodHi, 1); g.fillRect(2, 23, 18, 1);
+
+    // Jug body (rounded)
+    g.layer('jug');
+    g.fillStyle(glass, 0.92); g.fillEllipse(11, 15, 18, 18);
+    g.fillStyle(glass, 0.92); g.fillRect(4, 9, 14, 6);
+    // nectar fill
+    g.fillStyle(nectarLo, 1); g.fillEllipse(11, 17, 15, 13);
+    g.fillStyle(nectar, 1);   g.fillEllipse(11, 18, 14, 11);
+    g.fillStyle(nectarHi, 0.8); g.fillEllipse(7, 15, 4, 6);
+    g.fillStyle(glassHi, 0.5); g.fillRect(6, 9, 2, 10); // glint
+
+    // Neck + cork
+    g.layer('cork');
+    g.fillStyle(glass, 0.92); g.fillRect(8, 4, 6, 5);
+    g.fillStyle(cork, 1);     g.fillRect(8, 2, 6, 3);
+    g.fillStyle(corkDark, 1); g.fillRect(8, 4, 6, 1);
+
+    // Little pour spout on the side
+    g.layer('spout');
+    g.fillStyle(glass, 0.92); g.fillTriangle(18, 12, 21, 13, 18, 15);
+  });
+
   // --- nest (18 × 12) — woven straw ring ---
   gen(scene, 'nest', 18, 12, (g) => {
     // Outer straw ring

@@ -121,6 +121,24 @@ export const WithInteractables = (Base) => class extends Base {
       }];
     };
 
+    // Hummingbird nectar feeder (#226) — refill target near the house, its OWN resource
+    // (nectar, from the nectar station), distinct from the seed feeder. Offer "Fill
+    // Nectar" while holding a bucket of nectar until it's brim-full. Hummingbirds sip
+    // from it directly (ambient), draining it (birdEcosystem.js drainNectarFeeder).
+    const nectarFeeder = (item) => {
+      const f = this.props.nectarFeeder;
+      if (!f || f.level >= FEEDER_CAP || item?.content !== 'nectar' || item.count <= 0) return [];
+      return [{
+        x: f.x, y: f.y, tapRadius: 120, reachDist: 110, promptOffsetY: 90,
+        canAct: true, label: 'Fill Nectar',
+        approach: (world) => {
+          const refX = world ? world.x : this.player.sprite.x;
+          return { x: f.x + (refX < f.x ? -1 : 1) * 44, y: f.y + 8 };
+        },
+        activate: () => this.fillNectarFeeder(),
+      }];
+    };
+
     const sources = (item) => {
       if (!item || item.type !== 'carrier') return [];
       return this.props.sources
@@ -251,12 +269,12 @@ export const WithInteractables = (Base) => class extends Base {
     const gardenPlant   = gardenDescs.plant;
     const gardenHarvest = gardenDescs.harvest;
 
-    this.interactables = [gate, house, shop, barn, gardenPlant, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, sources, nests, farmStand, spinningWheel, compostBin, trashCan, gardenHarvest];
+    this.interactables = [gate, house, shop, barn, gardenPlant, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, sources, nests, farmStand, spinningWheel, compostBin, trashCan, gardenHarvest];
     // Split by input: gate/house/shop/barn/garden-plant are bare-hand "interact" targets
     // (tap/click/E); the rest require a carried tool/carrier and are triggered by Use (the
     // on-screen button / F / controller). See useActiveTool + handleTap.
     this.interactWorld = [gate, house, shop, barn, gardenPlant];
-    this.toolWorld     = [trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, sources, nests, farmStand, spinningWheel, compostBin, trashCan, gardenHarvest];
+    this.toolWorld     = [trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, sources, nests, farmStand, spinningWheel, compostBin, trashCan, gardenHarvest];
   }
 
   // Nearest activatable instance to (x, y) within each instance's own radius

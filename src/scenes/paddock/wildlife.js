@@ -47,6 +47,9 @@ export const WithWildlife = (Base) => class extends Base {
       anim(birdAnimKey(t.id, 'fly'), [birdTexKey(t.id, 'fly', 0), birdTexKey(t.id, 'fly', 1)], 10);
       anim(birdAnimKey(t.id, 'peck'), [birdTexKey(t.id, 'peck', 0), birdTexKey(t.id, 'peck', 1)], 4);
     }
+    // Hummingbird (#226): a fast wing-buzz — two blur poses swapped quickly so the
+    // wings read as a motion smear.
+    anim('hummer_buzz', ['hummer_0', 'hummer_1'], 20);
     anim('raccoon_idle', ['raccoon_idle_0', 'raccoon_idle_1'], 2);
     anim('raccoon_run', ['raccoon_run_0', 'raccoon_run_1', 'raccoon_run_2', 'raccoon_run_3'], 9);
 
@@ -107,12 +110,14 @@ export const WithWildlife = (Base) => class extends Base {
   }
 
   // Rain just started (called from onWeatherChange): send any critters currently
-  // out for cover. Birds in flight/perched fly off; ground raccoons scurry away.
-  // Fish are fire-and-forget tweens that fade on their own, so they need no help.
+  // out for cover. Birds in flight/perched fly off; hummingbirds (#226) zip away;
+  // ground raccoons scurry off. Fish are fire-and-forget tweens that fade on their
+  // own, so they need no help.
   _clearWildlifeForRain() {
     for (const c of [...(this._wildCritters ?? [])]) {
       if (!c.sprite?.active) continue;
       if (c.kind === 'bird') { c.perchHost = null; this._birdTakeOff(c); }
+      else if (c.kind === 'hummer') this._hummerLeave?.(c);
       else this._raccoonScurryOff?.(c);
     }
   }

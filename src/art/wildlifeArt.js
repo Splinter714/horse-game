@@ -128,6 +128,45 @@ export function buildBirdTextures(scene) {
   gen(scene, 'bird_peck_1', W, H, (g) => drawBirdPeck(scaledGraphics(g), true));
 }
 
+// ── Hummingbird (#226) ─────────────────────────────────────────────────────────
+// A tiny darting nectar-feeder: an iridescent emerald body, a rosy throat gorget, a
+// long needle beak, and a fast wing-buzz (two blur poses swapped quickly so the wings
+// read as a motion smear). Much smaller than the songbirds. It hovers near flowers and
+// the nectar feeder and darts off in a blink (paddock/birdEcosystem.js). Faces RIGHT,
+// origin (0.5, 0.5) — it hovers mid-air rather than perching on the ground.
+export const HUMMER_W = 18, HUMMER_H = 12;
+const H_BODY = 0x2fae72, H_BACK = 0x1c7a4e, H_BELLY = 0x9ad8b4, H_GORGET = 0xd83a6a,
+  H_BEAK = 0x20201c, H_WING = 0x4a5560, H_EYE = 0x0a0f0a;
+
+function drawHummingbird(g, wingsUp) {
+  g.layer('tail');
+  g.fillStyle(H_BACK, 1); g.fillTriangle(1, 5, 6, 4, 6, 8); // short fan tail
+  g.layer('body');
+  g.fillStyle(H_BODY, 1);  g.fillEllipse(8, 6, 8, 5);
+  g.fillStyle(H_BACK, 0.8); g.fillEllipse(7, 5, 6, 2.5);   // shaded back
+  g.fillStyle(H_BELLY, 0.9); g.fillEllipse(8, 7, 5, 2.5);  // pale belly
+  g.layer('gorget');
+  g.fillStyle(H_GORGET, 1); g.fillEllipse(11, 7, 3, 2);    // rosy throat patch
+  g.layer('head');
+  g.fillStyle(H_BODY, 1); g.fillCircle(12, 5, 2.2);
+  g.layer('beak');
+  g.fillStyle(H_BEAK, 1); g.fillRect(13, 5, 5, 1);         // long needle beak
+  g.layer('eye');
+  g.fillStyle(H_EYE, 1); g.fillRect(12, 4, 1, 1);
+  g.layer('wing');
+  // The wing buzz: a translucent blurred smear, up on one frame and down/forward on the
+  // other, so alternating them reads as a fast beat.
+  g.fillStyle(H_WING, 0.5);
+  if (wingsUp) { g.fillTriangle(7, 5, 13, 0, 3, 1); g.fillEllipse(8, 2, 9, 3); }
+  else         { g.fillTriangle(7, 6, 13, 11, 3, 10); g.fillEllipse(8, 10, 9, 3); }
+}
+
+export function buildHummingbirdTextures(scene) {
+  const W = HUMMER_W * ART_SCALE, H = HUMMER_H * ART_SCALE;
+  gen(scene, 'hummer_0', W, H, (g) => drawHummingbird(scaledGraphics(g), true));
+  gen(scene, 'hummer_1', W, H, (g) => drawHummingbird(scaledGraphics(g), false));
+}
+
 // ── Raccoon (#181) ─────────────────────────────────────────────────────────��─
 // Side view, facing right: grey body, black bandit mask across the eyes, pointed
 // ears, and a fat banded tail. Scampers, so it gets a 4-frame run plus a sit/idle.
@@ -327,6 +366,7 @@ export function buildRaccoonTextures(scene) {
 export function buildWildlifeTextures(scene) {
   buildFishTextures(scene);
   buildBirdTextures(scene);
+  buildHummingbirdTextures(scene);
   buildRaccoonTextures(scene);
 }
 

@@ -86,9 +86,11 @@ try {
       // wildlife: ambient bird beats incl. the bird-bath splash (#219) + feeder (#240).
       'buildWildlife', 'updateWildlife', '_scheduleBirdBathVisit', '_spawnBirdBathVisit',
       '_scheduleFeederVisit', '_spawnFeederVisit',
-      // birdEcosystem: fixed bird props + the seed-feeder fill/drain (#219/#240).
-      'buildBirdEcosystem', 'buildBirdBath', 'buildSeedFeeder',
+      // birdEcosystem: fixed bird props + feeder fill/drain (#219/#240) + hummingbirds (#226).
+      'buildBirdEcosystem', 'buildBirdBath', 'buildSeedFeeder', 'buildNectarFeeder',
       'fillSeedFeeder', '_setSeedFeederLevel', 'drainSeedFeeder',
+      'fillNectarFeeder', '_setNectarFeederLevel', 'drainNectarFeeder',
+      '_scheduleHummingbirdVisit', '_spawnHummingbird', '_hummerTargets',
     ];
     const missingMethods = expectMethods.filter((m) => typeof paddock[m] !== 'function');
 
@@ -218,6 +220,30 @@ try {
       }
     } catch (e) { seedFeeder = 'threw: ' + String(e); }
 
+    // #226 hummingbird nectar feeder: same fill/drain contract as the seed feeder but
+    // for the nectar resource, plus the hummingbird hover targets include the feeder
+    // only while it's stocked (flowers always count).
+    let nectarFeeder = 'no feeder';
+    try {
+      const f = paddock.props.nectarFeeder;
+      if (f) {
+        const startedEmpty = f.level === 0 && f.filled === false;
+        // Empty feeder → hover targets are flowers only (no feeder port).
+        const emptyTargets = paddock._hummerTargets();
+        const emptyNoFeederPort = emptyTargets.length > 0 && !emptyTargets.some((t) => t.feeder);
+        paddock._setNectarFeederLevel(8);
+        const stocked = f.filled === true && f.level === 8 && f.sprite.texture.key === 'nectarFeeder';
+        const stockedHasPort = paddock._hummerTargets().some((t) => t.feeder);
+        paddock.drainNectarFeeder();
+        const drained = f.level === 7;
+        paddock._setNectarFeederLevel(0);
+        const emptiedOff = f.filled === false && f.sprite.texture.key === 'nectarFeederEmpty';
+        nectarFeeder = (startedEmpty && emptyNoFeederPort && stocked && stockedHasPort && drained && emptiedOff)
+          ? 'fills-and-drains'
+          : `startedEmpty=${startedEmpty},emptyNoFeederPort=${emptyNoFeederPort},stocked=${stocked},stockedHasPort=${stockedHasPort},drained=${drained},emptiedOff=${emptiedOff}`;
+      }
+    } catch (e) { nectarFeeder = 'threw: ' + String(e); }
+
     // #187 charm behaviors: the night settle/wake cycle must round-trip without
     // throwing (it rewires restAllAnimals/wakeAllAnimals), and the new run primitives
     // must resolve. Probed last (it mutates animal state) and lenient — this proves
@@ -241,6 +267,7 @@ try {
       charm,
       catBowls,
       seedFeeder,
+      nectarFeeder,
       cowMilk,
       pigDiet,
       pigCount: Object.keys(g.registry.get('allPigs') ?? {}).length,
@@ -263,6 +290,7 @@ try {
       hasFarmStand: !!paddock.farmStand,
       hasBirdBath: !!paddock.props.birdBath, // #219 decorative bird bath world object
       hasSeedFeeder: !!paddock.props.seedFeeder, // #240 refillable seed feeder
+      hasNectarFeeder: !!paddock.props.nectarFeeder, // #226 hummingbird nectar feeder
       // Display scales: every animal is now super-sampled (ART_SCALE× art shown at
       // S/ART_SCALE), so the chicken and horse share the same base display scale. Guard
       // that ratio ≈ 1 — it jumps to ART_SCALE if a species' `superSampled` spawn flag
@@ -438,6 +466,7 @@ try {
   if (!result.hasFarmStand) fail('farm stand not built — farmStand mixin not wired');
   if (!result.hasBirdBath) fail('bird bath (#219) not built — world.js props.birdBath missing');
   if (!result.hasSeedFeeder) fail('seed feeder (#240) not built — props.seedFeeder missing');
+  if (!result.hasNectarFeeder) fail('nectar feeder (#226) not built — props.nectarFeeder missing');
   if (Math.abs(result.scaleRatio - 1) > 0.01) fail(`chicken/horse display-scale ratio ${result.scaleRatio} ≠ 1 — a species' superSampled spawn flag may be missing (chicken rendered 4× too big)?`);
   if (!result.movementOk) fail('creature movement/pathfinding threw: ' + result.movementError);
   if (result.behaviorDecision !== 'seekFood') fail(`hungry horse with hay nearby did not select seekFood (got ${result.behaviorDecision})`);
@@ -458,6 +487,7 @@ try {
   // #202 rework: the cat eats directly from a stocked bowl (not dropped piles).
   if (result.catBowls !== 'eats-from-bowl') fail(`cat bowl feeding (#202) failed: ${result.catBowls}`);
   if (result.seedFeeder !== 'fills-and-drains') fail(`seed feeder fill/drain (#240) failed: ${result.seedFeeder}`);
+  if (result.nectarFeeder !== 'fills-and-drains') fail(`nectar feeder fill/drain (#226) failed: ${result.nectarFeeder}`);
   // The pig: it spawned into the world and eats apples but not hay.
   if (result.pigCount !== 1) fail(`expected 1 pig in roster, got ${result.pigCount}`);
   if (result.pigsInScene !== 1) fail(`expected 1 pig sprite in scene, got ${result.pigsInScene}`);

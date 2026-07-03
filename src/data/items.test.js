@@ -21,8 +21,9 @@ describe('carrier definitions', () => {
     expect(CARRIER_DEFS.bucket.capacity).toBe(1);
     // milk added with the cow (#cow). catWater removed with the #202 rework, bunnyWater
     // removed with #283 — pet water bowls (cat's and the bunny's) both fill from a plain
-    // bucket of water; there's no per-species water content anymore.
-    expect(CARRIER_DEFS.bucket.accepts).toEqual(['water', 'milk']);
+    // bucket of water; there's no per-species water content anymore. nectar added with the
+    // hummingbird feeder (#226) — sugar water gathered at the nectar station into a bucket.
+    expect(CARRIER_DEFS.bucket.accepts).toEqual(['water', 'milk', 'nectar']);
   });
 
   it('every content a basket accepts has a content definition', () => {

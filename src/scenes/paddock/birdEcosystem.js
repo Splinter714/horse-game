@@ -20,8 +20,9 @@ export const WithBirdEcosystem = (Base) => class extends Base {
   // footprints for every bird-ecosystem object into one array world.js spreads.
   buildBirdEcosystem() {
     this.birdEcosystemObstacles = [];
-    this.buildBirdBath();   // #219
-    this.buildSeedFeeder(); // #240
+    this.buildBirdBath();     // #219
+    this.buildSeedFeeder();   // #240
+    this.buildNectarFeeder(); // #226
   }
 
   // ─── Bird bath (#219) ────────────────────────────────────────────────────────
@@ -98,6 +99,51 @@ export const WithBirdEcosystem = (Base) => class extends Base {
     this._setSeedFeederLevel(drainFeederLevel(f.level));
   }
 
+  // ─── Hummingbird nectar feeder (#226) ────────────────────────────────────────
+  // A fixed hanging nectar feeder near the house. Refillable with its OWN resource —
+  // `nectar` (sugar water), gathered at the nectar station and distinct from the seed
+  // feeder's seed (#240) — through the gather-and-fill carrier loop (fillNectarFeeder).
+  // It holds a numeric nectar `level` (0..FEEDER_CAP): hummingbirds sipping at it drain
+  // it (drainNectarFeeder), and an empty feeder draws no hummingbirds to it (they'll
+  // still visit the flowers). The sprite swaps stocked↔empty as the level crosses zero.
+  // Starts empty so the first chore is to stock it. FIRST-PASS spot (250, 420).
+  buildNectarFeeder() {
+    const x = 250, y = 420;
+    const sprite = this.add.image(x, y, 'nectarFeederEmpty')
+      .setScale(S).setDepth(y).setOrigin(0.5, 1);
+    this.props.nectarFeeder = { x, y, sprite, level: 0, filled: false, fillContent: 'nectar' };
+    // Sprite 24×52 at S (origin 0.5,1); it hangs, so only a small foot footprint.
+    this.birdEcosystemObstacles.push({ x: x - 10, y: y - 14, w: 20, h: 12 });
+  }
+
+  _setNectarFeederLevel(level) {
+    const f = this.props.nectarFeeder;
+    if (!f) return;
+    f.level  = Phaser.Math.Clamp(level, 0, FEEDER_CAP);
+    f.filled = feederHasSeed(f.level);
+    f.sprite.setTexture(f.filled ? 'nectarFeeder' : 'nectarFeederEmpty');
+  }
+
+  // Pour the active nectar bucket into the feeder, topping it to FEEDER_CAP. Mirrors
+  // fillSeedFeeder but for the nectar resource (a bucket liquid, so one pour = one fill).
+  fillNectarFeeder() {
+    const f = this.props.nectarFeeder;
+    if (!f || f.level >= FEEDER_CAP) return; // already full
+    const item = this.getActiveItem();
+    if (!item || item.content !== 'nectar' || item.count <= 0) return;
+    this.scene.get('HotbarScene')?.useActiveCarrier(item.count); // empty the bucket
+    this._setNectarFeederLevel(fillFeederLevel());
+    playSplash();
+  }
+
+  // A hummingbird sips at the feeder: drain one serving. Called from the hummingbird
+  // visit beat when it hovers at the feeder ports (#226).
+  drainNectarFeeder() {
+    const f = this.props.nectarFeeder;
+    if (!f || !f.filled) return;
+    this._setNectarFeederLevel(drainFeederLevel(f.level));
+  }
+
   // ─── Object-anchored bird visits (#219 bath, #240 feeder) ─────────────────────
   // These beats are birds visiting THIS mixin's props, so they live here rather than in
   // wildlife.js (which owns the generic critters). They reuse wildlife.js's shared bird
@@ -108,8 +154,9 @@ export const WithBirdEcosystem = (Base) => class extends Base {
   // buildWildlife via startBirdEcosystemVisits so the timers start with the rest.
 
   startBirdEcosystemVisits() {
-    this._scheduleBirdBathVisit(Phaser.Math.Between(14000, 30000)); // #219 bath splashes
-    this._scheduleFeederVisit(Phaser.Math.Between(10000, 22000));   // #240 feeder visits
+    this._scheduleBirdBathVisit(Phaser.Math.Between(14000, 30000));   // #219 bath splashes
+    this._scheduleFeederVisit(Phaser.Math.Between(10000, 22000));     // #240 feeder visits
+    this._scheduleHummingbirdVisit(Phaser.Math.Between(20000, 40000)); // #226 hummingbirds
   }
 
   // ── Bird bath (#219) ── a bird swoops onto the basin rim, bobs and splashes a few
@@ -236,6 +283,98 @@ export const WithBirdEcosystem = (Base) => class extends Base {
       targets: sprite, y: sprite.y - 4, duration: 130, yoyo: true, ease: 'Quad.easeOut',
       onComplete: () => this.time.delayedCall(Phaser.Math.Between(400, 1100),
         () => this._feederPeck(c, n - 1)),
+    });
+  }
+
+  // ─── Hummingbird (#226) ───────────────────────────────────────────────────────
+  // A rare hover-and-dart visitor with a distinct shape from the perching songbirds:
+  // it never lands — it hovers in the air near a target (a flower, or the STOCKED
+  // nectar feeder), bobbing with its wing-buzz, then DARTS quickly to the next target a
+  // few times before zipping off. Attracted BOTH by the nectar feeder (while filled;
+  // sipping there drains it) AND by the existing flowers (world.js props.flowers). It's
+  // its own critter kind (`hummer`) so updateWildlife leaves it alone — it's airborne,
+  // so it isn't depth-sorted to the ground or startled by the player (like a fly-by).
+
+  // A shuffled list of hover targets: every flower, plus the nectar feeder's port when
+  // it's stocked (so a filled feeder is one more place it visits, on top of the flowers).
+  _hummerTargets() {
+    const pts = (this.props.flowers ?? []).map((fl) => ({ x: fl.x, y: fl.y - 6, feeder: false }));
+    const nf = this.props.nectarFeeder;
+    if (nf?.filled) pts.push({ x: nf.x, y: nf.y - 38, feeder: true }); // hover at the ports
+    return pts;
+  }
+
+  _scheduleHummingbirdVisit(delay) {
+    this.time.delayedCall(delay, () => {
+      // Daylit, awake, fair weather. Only when there's somewhere to visit (flowers
+      // always exist, so this is effectively always true) and none is already here.
+      if (!this._sleeping && this._phase !== 'Night' && this._weatherAllowsWildlife() &&
+          this._hummerTargets().length && !this._wildCritters?.some((c) => c.kind === 'hummer')) {
+        this._spawnHummingbird();
+      }
+      // Rare — a treat, like the rarer bird types. A touch more common in the morning.
+      const morning = this._phase === 'Morning';
+      this._scheduleHummingbirdVisit(morning ? Phaser.Math.Between(16000, 32000)
+                                             : Phaser.Math.Between(28000, 60000));
+    });
+  }
+
+  _spawnHummingbird() {
+    const targets = this._hummerTargets();
+    const first = targets[Phaser.Math.Between(0, targets.length - 1)];
+    const dir = first.x < WORLD_W / 2 ? 1 : -1; // enter from the nearer side
+    const sprite = this.add.sprite(dir === 1 ? -30 : WORLD_W + 30, first.y - 40, 'hummer_0')
+      .setOrigin(0.5, 0.5).setScale(WILD_SCALE).setDepth(100000).setFlipX(dir === -1)
+      .play('hummer_buzz');
+    const c = { sprite, kind: 'hummer', ground: false, state: 'arriving', tween: null };
+    this._wildCritters.push(c);
+    this._hummerDartTo(c, first, Phaser.Math.Between(3, 6));
+  }
+
+  // Dart quickly to `target`, hover-bob there a moment (sipping if it's the feeder),
+  // then repeat to another random target `n` more times before zipping off-screen.
+  _hummerDartTo(c, target, n) {
+    if (!c.sprite.active) return;
+    const sprite = c.sprite;
+    sprite.setFlipX(target.x < sprite.x); // face the way it's darting
+    c.tween = this.tweens.add({
+      targets: sprite, x: target.x, y: target.y,
+      duration: Phaser.Math.Between(280, 520), ease: 'Sine.easeOut', // fast dart
+      onComplete: () => {
+        if (!sprite.active) return;
+        if (target.feeder) this.drainNectarFeeder?.(); // a sip lowers the feeder
+        this._hummerHover(c, n, target);
+      },
+    });
+  }
+
+  // Hover in place with a tiny bob for a beat, then dart on (or leave when out of hops).
+  _hummerHover(c, n, target) {
+    if (!c.sprite.active) return;
+    const sprite = c.sprite;
+    c.tween = this.tweens.add({
+      targets: sprite, y: sprite.y + Phaser.Math.Between(3, 6),
+      duration: 220, yoyo: true, repeat: 1, ease: 'Sine.easeInOut',
+      onComplete: () => {
+        if (!sprite.active) return;
+        if (n <= 0) { this._hummerLeave(c); return; }
+        const targets = this._hummerTargets();
+        const next = targets[Phaser.Math.Between(0, targets.length - 1)];
+        this.time.delayedCall(Phaser.Math.Between(120, 400), () => this._hummerDartTo(c, next, n - 1));
+      },
+    });
+  }
+
+  // Zip off the nearest edge and despawn (reuses wildlife.js _despawnCritter cleanup).
+  _hummerLeave(c) {
+    if (!c.sprite.active) { this._despawnCritter(c); return; }
+    const sprite = c.sprite;
+    const toLeft = sprite.x < WORLD_W / 2;
+    sprite.setFlipX(toLeft);
+    c.tween = this.tweens.add({
+      targets: sprite, x: toLeft ? -40 : WORLD_W + 40, y: Phaser.Math.Between(60, 180),
+      duration: Phaser.Math.Between(700, 1200), ease: 'Sine.easeIn',
+      onComplete: () => this._despawnCritter(c),
     });
   }
 };
