@@ -345,7 +345,11 @@ export const WithHorseSections = (Base) => class extends Base {
   // art-preview host leaves it null (live-recolor only).
   _applyEdit() {
     const data = this.allHorses[this._editKey];
-    const build = this._custSpecies === 'foal' ? buildFoalTextures : buildHorseTextures;
+    // Foal art for a foal — either the demo-foal species path (`_custSpecies === 'foal'`)
+    // OR an in-world newborn foal (a horse-roster member flagged `isFoal`, #15). Both
+    // wear the smaller baby frames; every other horse uses the full horse art.
+    const isFoal = this._custSpecies === 'foal' || data.isFoal;
+    const build = isFoal ? buildFoalTextures : buildHorseTextures;
     build(this, this._editKey, composeCoat(data.coat, data.markings));
     this._custPersist?.();
     this._custHeader();

@@ -18,6 +18,7 @@ import { WithAmbientEvents } from './paddock/ambientEvents.js';
 import { WithCatAI } from './paddock/catAI.js';
 import { WithBunny } from './paddock/bunny.js';
 import { WithFox } from './paddock/fox.js';
+import { WithBreeding } from './paddock/breeding.js';
 import { WithCreatures } from './paddock/creatures.js';
 import { WithFlock } from './paddock/flock.js';
 import { WithHerd } from './paddock/herd.js';
@@ -46,9 +47,9 @@ import { WithInput } from './paddock/input.js';
 import { applyDpr } from './uiUtils.js';
 
 export default class PaddockScene
-  extends WithWorld(WithBirdEcosystem(WithBirdEcosystemVisits(WithBarn(WithBunny(WithFox(WithHouseEntry(WithWildlife(WithRaccoon(WithOwls(WithAmbientEvents(WithCatAI(WithCompanion(WithCharm(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithShop(WithGarden(WithDayNight(WithWeather(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
+  extends WithWorld(WithBirdEcosystem(WithBirdEcosystemVisits(WithBarn(WithBunny(WithFox(WithBreeding(WithHouseEntry(WithWildlife(WithRaccoon(WithOwls(WithAmbientEvents(WithCatAI(WithCompanion(WithCharm(WithCreatures(WithFlock(WithHerd(WithFarmStand(WithShop(WithGarden(WithDayNight(WithWeather(WithHorseAI(WithBehaviors(WithRiding(WithPlayer(
     WithEffects(WithPersistence(WithRendering(WithWorldObjects(WithCareActions(WithInteraction(WithInput(
-    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene))))))))))))))))))))))))))))))))))))) {
+    WithPlayerMovement(WithPrompts(WithInteractables(WithUseDispatch(Phaser.Scene)))))))))))))))))))))))))))))))))))))) {
   constructor() {
     super('PaddockScene');
   }
@@ -192,10 +193,11 @@ export default class PaddockScene
     // horses linger head-to-tail (seekBuddy behavior). Purely charm — no stat effect.
     this.assignHerdBonds();
 
-    // Foals disabled for now — re-enable by uncommenting
-    // this.spawnFoal(h3.sprite.x + 80,  h3.sprite.y, 'foal1', h3); // grey foal → Ash
-    // this.spawnFoal(h4.sprite.x - 70,  h4.sprite.y, 'foal2', h4); // paint foal → Splash
-    // this.spawnFoal(h2.sprite.x + 60,  h2.sprite.y, 'foal3', h2); // bay foal → Clover
+    // Breeding & foals (#15): restore any in-flight pregnancies, then spawn any foals
+    // the player has already bred (roster members beyond the seven default herd) so a
+    // reloaded game re-shows them. New foals are born via the gestation timer in play.
+    this.buildBreeding();
+    this.spawnSavedFoals();
   }
 
   // ─── Update ──────────────────────────────────────────────────────────────
@@ -210,6 +212,7 @@ export default class PaddockScene
     this.movePlayer(delta);
     this.updateLeading(delta);
     this.updateFoals(delta);
+    this.updateBreeding(delta); // #15: tick gestations, birth ready foals
     this.updateDogCompanion(delta); // dog trots alongside the player, sits when idle (#186)
     this.checkProximity();
     this.checkToolProximity();

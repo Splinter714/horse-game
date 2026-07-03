@@ -333,6 +333,30 @@ export function saveFoxTaming(count) {
   } catch {}
 }
 
+// ── Breeding gestations (#15) ─────────────────────────────────────────────────
+// In-flight pregnancies: an array of { aKey, bKey, startedAt, seed } that must
+// survive a reload so a foal paired before closing the game is still born on time
+// (the gestation clock runs in wall time, like offline decay). Its own tiny storage
+// key (not the wholesale-rewritten gameState). Stays species-agnostic in spirit — a
+// plain list keyed by the breeding feature. The foals themselves, once born, live in
+// the ordinary horse roster and persist there.
+const GESTATIONS_KEY = 'horse-game-gestations-v1';
+
+export function loadGestations() {
+  try {
+    const data = JSON.parse(localStorage.getItem(GESTATIONS_KEY));
+    return Array.isArray(data) ? data.filter((g) => g && typeof g.startedAt === 'number') : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveGestations(list) {
+  try {
+    localStorage.setItem(GESTATIONS_KEY, JSON.stringify(Array.isArray(list) ? list : []));
+  } catch {}
+}
+
 // ── Dev settings (pause-menu dev tools) ──────────────────────────────────────
 // Persisted "start state" knobs so the owner can test things without replaying
 // from scratch: which time-of-day the day/night clock boots into, and whether

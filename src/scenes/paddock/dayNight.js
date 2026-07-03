@@ -81,6 +81,12 @@ export const WithDayNight = (Base) => class extends Base {
       allHorses[h.key]?.rollNewDay();
       this._dirtyHorse(h.key, OVERNIGHT_DIRTY);
     }
+    // Breeding (#15): a night passing is when a foal the player has allowed to grow
+    // (stayBaby === false) becomes a young horse. growUpFoal is a no-op while stayBaby
+    // is on, so a foal the player keeps a baby stays a baby forever.
+    for (const key of Object.keys(allHorses)) {
+      if (allHorses[key]?.isFoal) this.growUpFoal?.(key);
+    }
     // Any spawned animal whose species has a daily-care cycle rolls over too:
     // yesterday's care decides whether it wakes grumpy AND (for the cow) whether
     // she's ready to be milked today (#cow). Generic over species data so a new

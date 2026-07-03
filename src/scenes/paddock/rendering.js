@@ -7,7 +7,7 @@
 import Phaser from 'phaser';
 import { S, DUST_CLEAN_AT, DUST_MAX_ALPHA, STINK_AT, PLAYER_SPEED } from './constants.js';
 import { composeCoat } from '../../data/species/horse/coats.js';
-import { buildHorseTextures, horsePosture } from '../../art/horseArt.js';
+import { buildHorseTextures, buildFoalTextures, horsePosture } from '../../art/horseArt.js';
 
 export const WithRendering = (Base) => class extends Base {
   // Body-language posture (#69): while a horse is standing idle, swap its idle
@@ -49,7 +49,10 @@ export const WithRendering = (Base) => class extends Base {
     const data = this.registry.get('allHorses')?.[key];
     if (!data) return;
     const coat = composeCoat(data.coat, data.markings);
-    buildHorseTextures(this, key, coat); // the side-view frames the world + panel use
+    // A newborn foal (#15) is a horse-roster member wearing the smaller baby art —
+    // rebuild its foal frames; every other horse uses the full horse art.
+    const build = data.isFoal ? buildFoalTextures : buildHorseTextures;
+    build(this, key, coat); // the side-view frames the world + panel use
   }
 
   updateFoals(delta) {
