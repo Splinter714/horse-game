@@ -4,6 +4,10 @@ import { loadDevSettings } from '../data/save.js';
 import { applyDpr, logicalW, logicalH } from './uiUtils.js';
 import { WEATHER, nextWeather } from '../data/weather.js';
 import { seasonForDay, seasonPalette, nextSeason, SEASON_ORDER } from '../data/seasons.js';
+import {
+  nightProgress, isLateNightWarning, isPastLateNightLock,
+  LATE_NIGHT_WARN_FRACTION, LATE_NIGHT_LOCK_FRACTION,
+} from '../data/lateNight.js';
 
 // Rain adds a subtle cool darkening on TOP of the day/night tint (composed, not
 // replacing it — a blue-grey wash at low alpha). Kept gentle so it reads as
@@ -85,12 +89,20 @@ export default class DayNightScene extends Phaser.Scene {
     // Full-screen black used for the sleep fade. Sits above the day/night tint
     // (and, while sleeping, above the UI scenes — see doSleep).
     this.fade = this.add.graphics().setDepth(100_000).setScrollFactor(0);
+
+    // Late-night forced sleep (#300): a vignette fading in past the warn fraction of
+    // Night, deepening toward the hard-lock — a "getting sleepy" tell so auto-sleep
+    // doesn't feel random. First-pass visual, owner-art-reviewed at playtest.
+    this.lateNightVignette = this.add.graphics().setDepth(505).setScrollFactor(0);
+    this.lateNightLabel = this.add.text(0, 0, '💤 Getting late...', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '16px', fontStyle: 'italic',
+      color: '#ffffff', backgroundColor: '#00000099', padding: { x: 10, y: 6 },
+    }).setDepth(520).setOrigin(0.5, 0).setScrollFactor(0).setVisible(false);
+    this._lateNightLocked = false; // guards the forced-sleep trigger to once per night
+
     this.label   = this.add.text(0, 0, '', {
-      fontFamily: 'system-ui, sans-serif',
-      fontSize: '22px',
-      fontStyle: 'bold',
-      color: '#ffffff',
-      backgroundColor: '#000000bf', // more opaque box so it reads over the bright world (#120)
+      fontFamily: 'system-ui, sans-serif', fontSize: '22px', fontStyle: 'bold',
+      color: '#ffffff', backgroundColor: '#000000bf', // opaque box reads over a bright world (#120)
       padding: { x: 12, y: 8 },
     }).setDepth(520).setOrigin(1, 0).setScrollFactor(0);
 
@@ -105,12 +117,8 @@ export default class DayNightScene extends Phaser.Scene {
     // other dev skips) so the owner can eyeball each season's look without waiting
     // out the day cycle.
     this.seasonLabel = this.add.text(0, 0, '', {
-      fontFamily: 'system-ui, sans-serif',
-      fontSize: '18px',
-      fontStyle: 'bold',
-      color: '#ffffff',
-      backgroundColor: '#000000bf',
-      padding: { x: 10, y: 6 },
+      fontFamily: 'system-ui, sans-serif', fontSize: '18px', fontStyle: 'bold',
+      color: '#ffffff', backgroundColor: '#000000bf', padding: { x: 10, y: 6 },
     }).setDepth(520).setOrigin(1, 0).setScrollFactor(0);
     if (import.meta.env.DEV) {
       this.seasonLabel.setInteractive({ useHandCursor: true });
@@ -128,6 +136,7 @@ export default class DayNightScene extends Phaser.Scene {
       this._sh = logicalH(this);
       this._applyWeather?.(); // rain wash covers the whole (resized) screen
       this._applySeason?.();  // seasonal wash covers the whole (resized) screen
+      this._applyLateNight?.(0); // vignette covers the whole (resized) screen
     });
 
     this.game.events.on(EVENTS.SLEEP, this.doSleep, this);
@@ -451,7 +460,40 @@ export default class DayNightScene extends Phaser.Scene {
       if (p0.name === 'Morning' && prevPhase !== -1 && prevPhase !== phaseIdx) {
         this._advanceDay?.();
       }
+      // Leaving Night resets the forced-sleep guard so next night can fire again.
+      if (p0.name !== 'Night') this._lateNightLocked = false;
       this.game.events.emit(EVENTS.PHASE_CHANGE, { phase: p0.name, isNight: p0.name === 'Night' });
+    }
+
+    // Late-night forced sleep (#300): drive the warning vignette + hard-lock off how
+    // far into the CURRENT Night phase we are (intoPhase/dur from the tint math above).
+    this._applyLateNight(p0.name === 'Night' ? nightProgress(intoPhase, dur) : 0, p0.name);
+  }
+
+  // Warning vignette + forced-sleep trigger (#300). `progress` is 0..1 into Night (0
+  // outside it). Pure decisions live in data/lateNight.js; this applies the visual and
+  // fires the SAME EVENTS.SLEEP → doSleep flow a bed uses (a second, automatic trigger
+  // path, not a parallel sleep system).
+  _applyLateNight(progress, phase) {
+    const warning = isLateNightWarning(phase, progress);
+    this.lateNightVignette.clear();
+    if (warning) {
+      const t = Math.min(1, (progress - LATE_NIGHT_WARN_FRACTION) / (LATE_NIGHT_LOCK_FRACTION - LATE_NIGHT_WARN_FRACTION || 1));
+      const alpha = 0.12 + 0.28 * t; // deepens as the lock approaches
+      const sw = this._sw, sh = this._sh, edge = Math.min(sw, sh) * 0.28;
+      this.lateNightVignette.fillStyle(0x000010, alpha);
+      this.lateNightVignette.fillRect(0, 0, sw, edge);
+      this.lateNightVignette.fillRect(0, sh - edge, sw, edge);
+      this.lateNightVignette.fillRect(0, 0, edge, sh);
+      this.lateNightVignette.fillRect(sw - edge, 0, edge, sh);
+    }
+    this.lateNightLabel.setVisible(warning);
+    if (warning) this.lateNightLabel.setPosition(this._sw / 2, 8);
+
+    // Past the threshold, sleep becomes involuntary — fires once per night.
+    if (isPastLateNightLock(phase, progress) && !this._lateNightLocked && !this._sleeping) {
+      this._lateNightLocked = true;
+      this.game.events.emit(EVENTS.SLEEP);
     }
   }
 }
