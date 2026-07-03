@@ -431,6 +431,32 @@ export function saveReadyBirths(list) {
   } catch {}
 }
 
+// ── Chick incubations (#274) ──────────────────────────────────────────────────
+// In-flight fertilized eggs: an array of { henKey, roosterKey, startedAt, seed }
+// that must survive a reload so an egg started incubating before closing the game
+// is still hatched on time (the incubation clock runs in wall time, like offline
+// decay and the horse gestation above). Its own tiny storage key, kept separate
+// from GESTATIONS_KEY on purpose — chicks are a parallel system to horse breeding,
+// not sharing its files (#274 builds alongside #114's horse-breeding UX rework
+// without touching it). The chicks themselves, once hatched, live in the ordinary
+// chicken roster and persist there.
+const INCUBATIONS_KEY = 'horse-game-incubations-v1';
+
+export function loadIncubations() {
+  try {
+    const data = JSON.parse(localStorage.getItem(INCUBATIONS_KEY));
+    return Array.isArray(data) ? data.filter((g) => g && typeof g.startedAt === 'number') : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveIncubations(list) {
+  try {
+    localStorage.setItem(INCUBATIONS_KEY, JSON.stringify(Array.isArray(list) ? list : []));
+  } catch {}
+}
+
 // ── Dev settings (pause-menu dev tools) ──────────────────────────────────────
 // Persisted "start state" knobs so the owner can test things without replaying
 // from scratch: which time-of-day the day/night clock boots into, and whether

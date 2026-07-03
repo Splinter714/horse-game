@@ -46,6 +46,10 @@ try {
     // (which grows allHorses), so the "expected 7" boot assertions stay meaningful.
     const pristineHorseCount = Object.keys(horses).length;
     const pristineHorsesInScene = g.scene.getScene('PaddockScene').horses?.length ?? 0;
+    // Same reasoning for chickens: the #274 incubation probe below hatches a chick
+    // into the SAME allChickens object (mutated in place, not replaced), so snapshot
+    // the pristine count now, before that probe runs.
+    const pristineChickenCount = Object.keys(chickens).length;
 
     // Exercise the single-apply care path: drop hunger then apply one feed via the
     // model (the same call the grazing AI makes). Expect exactly +35 — proves the
@@ -118,6 +122,11 @@ try {
       'buildBreeding', 'beginBreeding', 'updateBreeding', '_birthFoal', 'growUpFoal',
       'setStayBaby', 'spawnSavedFoals', 'toggleBreedSelection',
       'flushReadyBirths', '_announceOvernightBirths',
+      // baby chicks (#274): rooster-gated incubation, hatch, roster growth, grow-up gate.
+      // Its own parallel system (data/species/chicken/incubation.js + this mixin) —
+      // never touches the horse breeding files above.
+      'buildIncubation', 'startIncubation', 'updateIncubation', '_hatchChick', 'growUpChick',
+      'setChickStayBaby', '_hasBreedingRooster', '_isIncubating',
     ];
     const missingMethods = expectMethods.filter((m) => typeof paddock[m] !== 'function');
 
@@ -590,10 +599,62 @@ try {
         : `paired=${paired},noLiveBirth=${noLiveBirth},heldForWake=${heldForWake},gestClearedPreWake=${gestClearedPreWake},grew=${grew},flushedQueue=${flushedQueue},bornFoal=${bornFoal},foalInScene=${foalInScene},gestCleared=${gestCleared},foalHasNoSwish=${foalHasNoSwish},foalHasNoRoll=${foalHasNoRoll},foalCharmSafe=${foalCharmSafe},stayedBaby=${stayedBaby},grownUp=${grownUp},grownHasSwish=${grownHasSwish}`;
     } catch (e) { breeding = 'threw: ' + String(e); }
 
+    // #274 baby chicks: rooster-bred incubation, mirroring the horse breeding probe
+    // above in shape (its own parallel system — paddock/incubation.js, data/species/
+    // chicken/incubation.js — never touching breeding.js/data/breeding.js). Proves:
+    // the rooster-present gate, the fertilized-egg → incubate → hatch flow, the new
+    // chick joining allChickens (isFoal + stayBaby:true per #298), and the stay-a-
+    // baby toggle gating growth exactly like the foal's.
+    let incubation = 'ok';
+    try {
+      const henKey = 'chicken0';
+      const beforeChickens = Object.keys(g.registry.get('allChickens')).length;
+      // Without a rooster present, incubation must be refused. Temporarily pull the
+      // rooster out of the allRoosters registry (the roster _hasBreedingRooster/
+      // _breedingRooster actually read), then put it right back.
+      const savedRoosters = g.registry.get('allRoosters');
+      g.registry.set('allRoosters', {});
+      const noRoosterBlocked = !paddock._hasBreedingRooster();
+      const refusedNoRooster = !paddock.startIncubation(henKey)?.includes('incubating');
+      g.registry.set('allRoosters', savedRoosters);
+      const roosterPresent = paddock._hasBreedingRooster();
+
+      // Player-initiated: start incubation on a hen.
+      const status = paddock.startIncubation(henKey);
+      const started = !!status?.includes('incubating') && paddock._isIncubating(henKey);
+      const alreadyBlocked = paddock.startIncubation(henKey)?.includes('already incubating');
+
+      // Fast-forward: shove the incubation start well into the past and tick.
+      paddock._incubations[0].startedAt = Date.now() - 10 * 60 * 1000;
+      paddock._incubationAccum = 9999; // force the ~1/s hatch-check to run this tick
+      paddock.updateIncubation(16);
+      const allChickens = g.registry.get('allChickens');
+      const grew = Object.keys(allChickens).length === beforeChickens + 1;
+      const chickKey = Object.keys(allChickens).find((k) => allChickens[k].isFoal);
+      const chickModel = chickKey ? allChickens[chickKey] : null;
+      const hatchedChick = !!(chickModel && chickModel.isFoal && chickModel.stayBaby === true);
+      const chickInScene = !!(chickKey && paddock.animals.some((a) => a.key === chickKey));
+      const incCleared = (paddock._incubations?.length ?? -1) === 0;
+
+      // Stay-a-baby gate: with stayBaby on, growUpChick must NOT grow it.
+      const grewWhileBaby = paddock.growUpChick(chickKey);
+      const stayedBaby = grewWhileBaby === false && allChickens[chickKey]?.isFoal === true;
+      // Allow growth: turning stayBaby off grows the chick up into a hen.
+      paddock.setChickStayBaby(chickKey, false);
+      const grownUp = allChickens[chickKey]?.isFoal === false;
+
+      incubation = (noRoosterBlocked && refusedNoRooster && roosterPresent && started &&
+                    alreadyBlocked && grew && hatchedChick && chickInScene && incCleared &&
+                    stayedBaby && grownUp)
+        ? 'hatches-and-gates-growth'
+        : `noRoosterBlocked=${noRoosterBlocked},refusedNoRooster=${refusedNoRooster},roosterPresent=${roosterPresent},started=${started},alreadyBlocked=${alreadyBlocked},grew=${grew},hatchedChick=${hatchedChick},chickInScene=${chickInScene},incCleared=${incCleared},stayedBaby=${stayedBaby},grownUp=${grownUp}`;
+    } catch (e) { incubation = 'threw: ' + String(e); }
+
     return {
       owl,
       charm,
       breeding,
+      incubation,
       rooster,
       roosterCount: Object.keys(g.registry.get('allRoosters') ?? {}).length,
       roostersInScene: paddock.animals.filter((a) => a.model?.species === 'rooster').length,
@@ -620,7 +681,7 @@ try {
       behaviorDecision,
       gatherTargets,
       horseCount: pristineHorseCount,
-      chickenCount: Object.keys(chickens).length,
+      chickenCount: pristineChickenCount,
       sampleHorse: { name: h.name, species: h.species, hasMood: typeof h.mood === 'function' },
       activeScenes: g.scene.scenes.filter((s) => s.scene.isActive()).map((s) => s.scene.key),
       feedDelta,
@@ -992,6 +1053,8 @@ try {
   if (result.roosterCount !== 1) fail(`expected 1 rooster in roster, got ${result.roosterCount}`);
   if (result.roostersInScene !== 1) fail(`expected 1 rooster sprite in scene, got ${result.roostersInScene}`);
   if (result.rooster !== 'crows-at-dawn') fail(`rooster (#269) failed: ${result.rooster}`);
+  // #274 baby chicks: rooster-gated incubation, hatch, and the stay-a-baby toggle.
+  if (result.incubation !== 'hatches-and-gates-growth') fail(`baby chicks (#274) failed: ${result.incubation}`);
   // #266 foxes: wild fox summons on fox food, tames into the roster once, capped, then seeks.
   if (result.fox !== 'tamed-and-capped') fail(`fox taming (#266) failed: ${result.fox}`);
   // #275 ducks: wild duck summons on duck food near the stream, tames into the roster
@@ -1060,6 +1123,26 @@ try {
     return key ?? null;
   });
   if (!bornFoalKey) fail('#15 persistence: no foal born to test reload with');
+
+  // ── #274 chick persistence across reload (same reload as the foal, below) ────
+  // Hatch a fresh chick, keep it a baby, so the upcoming reload proves it too
+  // survives — a runtime-grown chicken-roster member restored from the save and
+  // re-spawned into the world as an isFoal chicken (mirrors the foal check above).
+  const hatchedChickKey = await page.evaluate(() => {
+    const g = window.__game, p = g.scene.getScene('PaddockScene');
+    const before = Object.keys(g.registry.get('allChickens'));
+    // The earlier in-page probe already hatched+grew a chick on 'chicken0'; use a
+    // different hen so this is a clean, independent incubation.
+    const status = p.startIncubation('chicken1');
+    if (!status?.includes('incubating')) return null;
+    p._incubations[p._incubations.length - 1].startedAt = Date.now() - 10 * 60 * 1000;
+    p._incubationAccum = 9999;
+    p.updateIncubation(16);
+    const all = g.registry.get('allChickens');
+    const key = Object.keys(all).find((k) => !before.includes(k) && all[k].isFoal);
+    return key ?? null;
+  });
+  if (!hatchedChickKey) fail('#274 persistence: no chick hatched to test reload with');
   // The reload can be timing-fragile under heavy machine load (parallel builds can
   // leave the fresh page briefly stuck booting), so make it deterministic: retry the
   // reload up to 3× with generous timeouts, and wait for the SPECIFIC foal to be both
@@ -1070,17 +1153,20 @@ try {
   for (let attempt = 0; attempt < 3 && !reloaded; attempt++) {
     try {
       await page.reload({ waitUntil: 'load', timeout: 45000 });
-      await page.waitForFunction((key) => {
+      await page.waitForFunction(({ foalKey, chickKey }) => {
         const g = window.__game;
         if (!(g && g.scene && g.scene.isActive('PaddockScene'))) return false;
-        const all = g.registry.get('allHorses');
-        if (!all || !all[key]) return false;               // save restored the foal
+        const allH = g.registry.get('allHorses');
+        if (!allH || !allH[foalKey]) return false;          // save restored the foal
+        const allC = g.registry.get('allChickens');
+        if (!allC || !allC[chickKey]) return false;         // save restored the chick
         const p = g.scene.getScene('PaddockScene');
-        return !!p.horses?.some((h) => h.key === key);      // world re-spawned it
-      }, bornFoalKey, { timeout: 45000, polling: 200 });
+        return !!p.horses?.some((h) => h.key === foalKey)   // world re-spawned the foal
+          && !!p.animals?.some((a) => a.key === chickKey);  // world re-spawned the chick
+      }, { foalKey: bornFoalKey, chickKey: hatchedChickKey }, { timeout: 45000, polling: 200 });
       reloaded = true;
     } catch (e) {
-      if (attempt === 2) fail(`#15 persistence: page did not settle after reload (${String(e).split('\n')[0]})`);
+      if (attempt === 2) fail(`#15/#274 persistence: page did not settle after reload (${String(e).split('\n')[0]})`);
     }
   }
   const foalPersist = await page.evaluate((key) => {
@@ -1098,6 +1184,23 @@ try {
   if (!foalPersist.stillBaby) fail(`#15 persistence: reloaded foal lost its stay-a-baby toggle`);
   if (!foalPersist.inScene) fail(`#15 persistence: foal ${bornFoalKey} not re-spawned into the world after reload (spawnSavedFoals)`);
   console.log(`Foal persistence (#15): ${JSON.stringify(foalPersist)} for ${bornFoalKey}`);
+
+  // ── #274 chick persistence assertions (same reload as the foal, above) ───────
+  const chickPersist = await page.evaluate((key) => {
+    const g = window.__game, p = g.scene.getScene('PaddockScene');
+    const model = g.registry.get('allChickens')?.[key];
+    return {
+      inRoster: !!model,
+      stillFoal: model?.isFoal === true,
+      stillBaby: model?.stayBaby === true,
+      inScene: !!p.animals?.some((a) => a.key === key),
+    };
+  }, hatchedChickKey);
+  if (!chickPersist.inRoster) fail(`#274 persistence: chick ${hatchedChickKey} lost from roster after reload`);
+  if (!chickPersist.stillFoal) fail(`#274 persistence: reloaded chick is no longer a chick (grew up unexpectedly)`);
+  if (!chickPersist.stillBaby) fail(`#274 persistence: reloaded chick lost its stay-a-baby toggle`);
+  if (!chickPersist.inScene) fail(`#274 persistence: chick ${hatchedChickKey} not re-spawned into the world after reload (buildAnimals)`);
+  console.log(`Chick persistence (#274): ${JSON.stringify(chickPersist)} for ${hatchedChickKey}`);
 
   // ── #223 bird befriending: a specific bird's repeated qualifying visits build a
   // relationship score, cross the threshold into a NAMED "befriended" regular (capped

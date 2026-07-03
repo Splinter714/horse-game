@@ -10,6 +10,7 @@
 
 import { buildHorseTextures, buildFoalTextures } from './horseArt.js';
 import { buildChickenTextures, CHICKEN_COATS } from './chickenArt.js';
+import { buildChickTextures } from './chickArt.js';
 import { buildRoosterTextures, ROOSTER_COATS } from './roosterArt.js';
 import { buildChickenPortraitTexture, buildRoosterPortraitTexture } from './portraitArt.js';
 import { buildCatTextures } from './catArt.js';
@@ -53,9 +54,19 @@ export const SPECIES_TEXTURES = {
     // Each hen's feather coat = its saved customizer STYLE (look.style index) if it's
     // been customized, else its roster `coat` index. One frame set + portrait per hen,
     // keyed by its registry key, so a persisted style survives reload.
+    //
+    // A still-a-baby CHICK (#274, isFoal:true) gets the smaller chick frames instead
+    // of the full hen frames (and no portrait yet — the info panel falls back to the
+    // hen portrait style for baby chicks) — mirrors how a still-a-baby foal reload
+    // gets buildFoalTextures instead of buildHorseTextures (paddock/breeding.js
+    // spawnSavedFoals). A grown-up former chick already reads as an ordinary hen here.
     const allChickens = scene.registry.get('allChickens');
     let i = 0;
     for (const [key, c] of Object.entries(allChickens)) {
+      if (c.isFoal) {
+        buildChickTextures(scene, key, c.coat ?? 0);
+        continue; // no portrait texture for a baby chick — nothing references it yet
+      }
       const coat = CHICKEN_COATS[chickenCoatIndex(c)];
       buildChickenTextures(scene, key, coat);
       buildChickenPortraitTexture(scene, `portrait_chicken${i++}`, coat);
