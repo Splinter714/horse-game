@@ -128,9 +128,78 @@ function drawDogSit(g, look) {
   g.fillStyle(0xffffff, 0.7); g.fillRect(23, 4, 1, 1);
 }
 
+// Doggy-paddle swim pose (#231): the classic reference — head and back riding above
+// the waterline, legs paddling below the surface (mostly hidden), body sitting lower
+// and flatter than standing. `kick` alternates a little paddle-splash left/right for
+// a lazy two-frame stroke, mirroring the pig wallow's kick alternation. The waterline
+// itself isn't drawn here — the animal is placed to visually sit in the stream water
+// graphic (world.js buildStream, depth -96) and the shallow submersion reads from the
+// lowered body + hidden legs + the splash flecks either side.
+function drawDogSwim(g, kick, look) {
+  const c = look?.coat || DEFAULT_LOOK.coat;
+  const { hi, mid, shad, legNear, tailHi, jaw, ear, earShad, snout, snoutShad } = c;
+  const dy = 6; // drop the whole pose toward the waterline, well below the standing pose
+
+  g.layer('legs');
+  // Paddling legs — only the very tops break the surface; mostly submerged/hidden, a
+  // couple of pixels alternate up on each frame for a lazy "kicking" read.
+  const nearUp = kick ? 1 : 0;
+  const farUp  = kick ? 0 : 1;
+  g.fillStyle(shad, 0.55);    g.fillRect(6,  16 + dy - farUp,  2, 3);
+  g.fillStyle(shad, 0.55);    g.fillRect(18, 16 + dy - farUp,  2, 3);
+  g.fillStyle(legNear, 0.7);  g.fillRect(9,  15 + dy - nearUp, 2, 3);
+  g.fillStyle(legNear, 0.7);  g.fillRect(21, 15 + dy - nearUp, 2, 3);
+
+  g.layer('splash');
+  // Little paddle-splash flecks either side, alternating with the kick.
+  g.fillStyle(0xeaf7ff, 0.85);
+  if (kick) { g.fillRect(4, 17 + dy, 2, 1); g.fillRect(23, 15 + dy, 2, 1); }
+  else      { g.fillRect(5, 15 + dy, 2, 1); g.fillRect(22, 17 + dy, 2, 1); }
+
+  g.layer('tail');
+  // Tail trails flat on the surface behind, just a damp streak.
+  g.fillStyle(legNear, 0.8); g.fillRect(2, 14 + dy, 3, 2);
+
+  g.layer('body');
+  // Body riding low and flat in the water — shallower silhouette than standing, no
+  // belly/legs visible, top half catching the light.
+  g.fillStyle(mid, 1); g.fillRect(4, 11 + dy, 20, 6);
+  g.fillStyle(hi, 1);  g.fillRect(4, 11 + dy, 20, 2);
+  g.fillStyle(shad, 1); g.fillRect(4, 15 + dy, 20, 2);
+
+  g.layer('neck');
+  g.fillStyle(mid, 1); g.fillRect(20, 8 + dy, 5, 5);
+  g.fillStyle(hi, 1);  g.fillRect(20, 8 + dy, 5, 2);
+
+  g.layer('head');
+  // Head and snout held up clear of the water — the whole point of the pose.
+  g.fillStyle(mid, 1); g.fillRect(22, 3 + dy, 6, 7);   // skull
+  g.fillStyle(hi, 1);  g.fillRect(22, 3 + dy, 6, 2);   // top highlight
+  g.fillStyle(jaw, 1); g.fillRect(22, 9 + dy, 4, 1);   // jaw shade
+  g.fillStyle(snout, 1); g.fillRect(25, 7 + dy, 3, 4);
+  g.fillStyle(snoutShad, 1); g.fillRect(25, 10 + dy, 3, 1);
+  g.fillStyle(0x2a1810, 1); g.fillRect(26, 7 + dy, 2, 1); // nose
+
+  g.layer('ear');
+  // Ears pinned back/down against the head, wet-look (a touch darker + tighter).
+  g.fillStyle(earShad, 1); g.fillRect(20, 4 + dy, 3, 5);
+  g.fillStyle(ear, 1);     g.fillRect(20, 4 + dy, 2, 3);
+
+  g.layer('eye');
+  g.fillStyle(0x2a1808, 1); g.fillRect(24, 6 + dy, 1, 2);
+  g.fillStyle(0xffffff, 0.7); g.fillRect(24, 6 + dy, 1, 1);
+}
+
 export function buildDogTextures(scene, key, look) {
   buildFrames(scene, key, DOG_W, DOG_H, (g, bob, legs) => drawDog(g, bob, legs, look), idleWalkLegs(2));
   // Extra single-frame sit pose (#186), same super-sampled grid as the walk frames.
   gen(scene, `${key}_sit_0`, DOG_W * ART_SCALE, DOG_H * ART_SCALE,
     (g0) => drawDogSit(scaledGraphics(g0), look));
+
+  // Doggy-paddle swim frames (#231), same super-sampled grid, gated on by the
+  // `swims` capability (creatures.js only registers swim_0/1 anims when these exist).
+  ['swim_0', 'swim_1'].forEach((name, i) => {
+    gen(scene, `${key}_${name}`, DOG_W * ART_SCALE, DOG_H * ART_SCALE,
+      (g0) => drawDogSwim(scaledGraphics(g0), i === 1, look));
+  });
 }

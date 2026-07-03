@@ -147,9 +147,12 @@ export const WithBehaviors = (Base) => class extends Base {
     };
   }
 
-  // Context for the dog's charm behavior (#187). Only what dogHerdSheep needs: how
-  // close the nearest sheep is (Infinity when none are within herding range), and a
-  // per-dog cooldown so the herding bout stays an occasional beat, not a constant.
+  // Context for the dog's charm behaviors (#187/#231). dogHerdSheep needs how close
+  // the nearest sheep is (Infinity when none are within herding range) plus a per-dog
+  // cooldown; swimStream (species-generic, ./swim.js) needs the distance to the
+  // nearest reachable stream point plus its own cooldown+chance. The dog roams the
+  // whole world (`spawn.roam: 'world'`), so _nearestReachableWater's pasture-gate
+  // check is a no-op for it — same lookup the horses' seekStream uses.
   _dogContext(a) {
     const flock = this._sheepNear(a, CHARM.HERD_RANGE);
     let nearestSheepDist = Infinity;
@@ -158,12 +161,21 @@ export const WithBehaviors = (Base) => class extends Base {
         nearestSheepDist,
         Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, s.sprite.x, s.sprite.y));
     }
+    const water = this._nearestReachableWater(a);
+    const streamDist = water
+      ? Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, water.x, water.y)
+      : Infinity;
     return {
       isNight: !!this.isNight,
       nearestSheepDist,
       now: this.time.now,
       lastHerd: a._lastHerd ?? null,
       herdCooldown: CHARM.HERD_COOLDOWN,
+      // Stream swim (#231, generic — any `swims` capability species).
+      streamDist,
+      lastSwim: a._lastSwim ?? null,
+      swimChance: CHARM.SWIM_CHANCE,
+      swimCooldown: CHARM.SWIM_COOLDOWN,
     };
   }
 

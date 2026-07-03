@@ -24,6 +24,7 @@ import * as pigBehaviors from './pig/behaviors.js';
 import * as bunnyBehaviors from './bunny/behaviors.js';
 import * as llamaBehaviors from './llama/behaviors.js';
 import * as foxBehaviors from './fox/behaviors.js';
+import * as swimBehaviors from './swim.js';
 
 export const SPECIES = {
   horse: HORSE,
@@ -74,7 +75,9 @@ export const BEHAVIORS = {
   cat: indexById(catBehaviors),
   // The dog occasionally noses the sheep flock into a bunch (#187 charm) — its own
   // one-behavior module. A fuller "dog job" (companion-follow / real herding) is #186.
-  dog: indexById(dogBehaviors),
+  // Layered with the GENERIC swimStream module (#231, ./swim.js): any species with
+  // the `swims` capability can pick it up the same way — no dog-specific code in it.
+  dog: { ...indexById(dogBehaviors), ...indexById(swimBehaviors) },
   // The bunny hops to its own dropped bunny-food/water piles (seekBunnyFood/
   // seekBunnyWater, #224) — its own behavior module, same shape as the cat's
   // seekFood/seekWater. Falls through to a plain hop-wander when neither fires.

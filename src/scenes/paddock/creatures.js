@@ -151,6 +151,13 @@ export const WithCreatures = (Base) => class extends Base {
     // `herds` (the dog, #187): same goal-tick shape as hunts — runs the dog's
     // behavior list (occasionally noses the sheep into a bunch) before a plain wander.
     if (cap.herds) { a.needTarget = null; a.tick = (c) => this.runBehaviors(c); }
+    // `swims` (#231): same goal-tick shape — runs the species' behavior list, which
+    // picks up the generic swimStream module (species/swim.js) if declared. Only
+    // wires a fresh tick when nothing above already did (e.g. herds/hunts/grazes),
+    // so `swims` composes with any other capability instead of overriding its tick —
+    // this is what lets a future swimmer (ducks, #275) opt in with no core changes
+    // regardless of what other capabilities it also declares.
+    if (cap.swims && !a.tick) { a.needTarget = null; a.tick = (c) => this.runBehaviors(c); }
     // `sunbathes` (the pig, #187): an onSettle nap, like the horse roll / chicken
     // peck — a content pig occasionally flops for a sunbathe when it finishes a wander.
     if (cap.sunbathes) a.onSettle = (c) => this._maybePigNap(c);
@@ -201,6 +208,16 @@ export const WithCreatures = (Base) => class extends Base {
         this.anims.create({
           key: `wallow_${key}`,
           frames: [{ key: `${key}_wallow_0` }, { key: `${key}_wallow_1` }],
+          frameRate: 4, repeat: -1,
+        });
+      }
+      // Stream swim (#231): only registered when the species actually has dedicated
+      // swim_0/1 frames (currently just the dog) — same gated pattern as wallow, so
+      // a future swimmer just needs its own frames, no core changes.
+      if (this.textures.exists(`${key}_swim_0`)) {
+        this.anims.create({
+          key: `swim_${key}`,
+          frames: [{ key: `${key}_swim_0` }, { key: `${key}_swim_1` }],
           frameRate: 4, repeat: -1,
         });
       }

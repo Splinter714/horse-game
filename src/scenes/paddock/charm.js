@@ -238,6 +238,91 @@ export const WithCharm = (Base) => class extends Base {
     return true;
   }
 
+  // ─── Stream swim (#231 — GENERIC, any `swims`-capability species) ───────────
+
+  // A content, off-cooldown swimmer wades to the nearest stream bank and doggy-
+  // paddles for a short bout, then wades out and resumes wandering. Species-neutral:
+  // reads only `a.sprite`/`a.key`/`a.state`, so a future swimmer (ducks, #275) with
+  // its own `${key}_swim_0/1` frames plugs into this exact primitive — no dog-specific
+  // logic here. Returns true once it claims the agent (mirrors pigGoWallow/dogGoHerd).
+  animalGoSwim(a) {
+    const spot = this._nearestSwimSpot(a);
+    if (!spot) return false;
+
+    a.state = 'swimming';
+    a._lastSwim = this.time.now;
+    if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
+
+    // Wade-in anchor: just past the bank on the field side (like the horses' drink
+    // anchor, horseGoToStream) — close enough that the short "step into the water"
+    // hop below reads as wading in, not teleporting.
+    const [bx, by] = spot.bank;
+    const [nx, ny] = spot.nrm;
+    const tx = bx + nx * 26, ty = by + ny * 26;
+    const faceWater = nx > 0; // face towards the water (opposite the field normal)
+
+    this.moveCreatureTo(a, tx, ty, () => {
+      if (a.state !== 'swimming' || !a.sprite.active) return;
+      a.sprite.setFlipX(faceWater);
+
+      // Step a few px further in (past the bank rim, into the shallow water) so the
+      // pose visually sits in the stream — depth sort (rendering.js) already keys off
+      // sprite.y so it draws over the water graphic (fixed depth -96) automatically.
+      const wx = bx - nx * 6, wy = by - ny * 6;
+      this._fishRipple?.(wx, wy - 4); // a little splash on entry
+      a._swimShadowAlpha = a.shadow.alpha;
+      this.tweens.add({
+        targets: a.sprite, x: wx, y: wy, duration: 260, ease: 'Quad.easeOut',
+        onComplete: () => {
+          if (a.state !== 'swimming' || !a.sprite.active) return;
+          if (this.anims.exists(`swim_${a.key}`)) a.sprite.play(`swim_${a.key}`, true);
+          this.tweens.add({ targets: a.shadow, alpha: 0.15, duration: 200 }); // faint underwater shadow
+        },
+      });
+
+      const duration = Phaser.Math.Between(CHARM.SWIM_MS[0], CHARM.SWIM_MS[1]);
+      // A couple of ripples mid-swim so it reads as active paddling, not a static float.
+      this.time.delayedCall(duration * 0.4, () => { if (a.state === 'swimming') this._fishRipple?.(a.sprite.x, a.sprite.y - 4); });
+      this.time.delayedCall(duration * 0.75, () => { if (a.state === 'swimming') this._fishRipple?.(a.sprite.x, a.sprite.y - 4); });
+
+      this.time.delayedCall(duration, () => {
+        if (a.state !== 'swimming' || !a.sprite.active) {
+          if (a.sprite?.active) this.tweens.add({ targets: a.shadow, alpha: 1, duration: 200 });
+          return;
+        }
+        // Wade back out to the bank anchor, restore the shadow, and resume wandering.
+        this.tweens.add({
+          targets: a.sprite, x: tx, y: ty, duration: 260, ease: 'Quad.easeIn',
+          onComplete: () => {
+            if (!a.sprite.active) return;
+            a.sprite.play(`idle_${a.key}`, true);
+            this.tweens.add({ targets: a.shadow, alpha: a._swimShadowAlpha ?? 1, duration: 200 });
+            a.state = 'idle';
+            this.scheduleAnimalWander(a, Phaser.Math.Between(1200, 2400));
+          },
+        });
+      });
+    });
+    return true;
+  }
+
+  // Nearest reachable stream source (carrying a `bank` centreline + field-ward
+  // `nrm`) for agent `a` — the same source shape horseGoToStream reads, but without
+  // the grazer-only occupancy claiming (_claimStreamSource): swims are rare/short
+  // enough that overlap isn't worth the bookkeeping. Species-neutral — no pasture
+  // gate check, since swimmers so far (the dog) roam the whole world; a future
+  // pasture-bound swimmer would need the same `_inPasture`/gate guard the grazers use.
+  _nearestSwimSpot(a) {
+    const srcs = this.props.sources?.filter(s => s.content === 'water' && s.bank);
+    if (!srcs?.length) return null;
+    let closest = null, closestDist = Infinity;
+    for (const s of srcs) {
+      const d = Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, s.x, s.y);
+      if (d < closestDist) { closestDist = d; closest = s; }
+    }
+    return closest;
+  }
+
   // ─── Shared nap visuals (pig flop + cat curl) ───────────────────────────────
 
   // Settle a sprite into a cozy nap: a gentle squash (no lying-down art needed) and
