@@ -30,12 +30,12 @@ export default defineConfig(({ command }) => ({
   build: {
     outDir: 'dist',
     assetsInlineLimit: 0,
-    // Tree-shaking disabled: Rollup's tree-shake/link phase hangs indefinitely on this
-    // project's module graph (the ~125-module paddock/species/data web the game grew into).
-    // It's a safe disable — tree-shaking only *removes* unused exports, so keeping them all
-    // can't change behavior, and a Phaser game whose code is all reachable (Phaser itself is
-    // a bundled monolith) gets negligible size benefit from it. Root cause tracked separately.
-    rollupOptions: { treeshake: false }
+    // Tree-shaking is ON (Rollup's default). It was previously disabled (#291) because the
+    // production build hung forever in Rollup 4's tree-shake/link phase — root-caused to the
+    // ~37-level-deep nested `class extends A(B(C(…)))` mixin expression in PaddockScene, whose
+    // static analysis is super-linear in nesting depth. That composition is now folded with a
+    // `reduceRight` loop (see src/scenes/PaddockScene.js), which removes the pathological
+    // expression, so tree-shaking terminates in ~2s and stays enabled here.
   },
   plugins: [
     // Installable PWA (#37): manifest for the icon/name/splash + standalone launch,
