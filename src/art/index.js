@@ -10,7 +10,8 @@
 
 import { buildHorseTextures, buildFoalTextures } from './horseArt.js';
 import { buildChickenTextures, CHICKEN_COATS } from './chickenArt.js';
-import { buildChickenPortraitTexture } from './portraitArt.js';
+import { buildRoosterTextures, ROOSTER_COATS } from './roosterArt.js';
+import { buildChickenPortraitTexture, buildRoosterPortraitTexture } from './portraitArt.js';
 import { buildCatTextures } from './catArt.js';
 import { buildCowTextures } from './cowArt.js';
 import { buildSheepTextures } from './sheepArt.js';
@@ -54,6 +55,18 @@ export const SPECIES_TEXTURES = {
       const coat = CHICKEN_COATS[chickenCoatIndex(c)];
       buildChickenTextures(scene, key, coat);
       buildChickenPortraitTexture(scene, `portrait_chicken${i++}`, coat);
+    }
+  },
+
+  rooster(scene) {
+    // One frame set + portrait per rooster, keyed by its registry key, from its coat
+    // (its customized STYLE if set, else its roster `coat` index) — mirrors the hen.
+    const all = scene.registry.get('allRoosters') || {};
+    let i = 0;
+    for (const [key, r] of Object.entries(all)) {
+      const coat = ROOSTER_COATS[roosterCoatIndex(r)];
+      buildRoosterTextures(scene, key, coat);
+      buildRoosterPortraitTexture(scene, `portrait_rooster${i++}`, coat);
     }
   },
 
@@ -105,6 +118,11 @@ function chickenCoatIndex(c) {
   return c.look?.style != null ? Number(c.look.style) : (c.coat ?? 0);
 }
 
+// A rooster's coat index — same STYLE-or-roster-default rule as the hen.
+function roosterCoatIndex(r) {
+  return r.look?.style != null ? Number(r.look.style) : (r.coat ?? 0);
+}
+
 // Build every individual in a roster from its saved `look` (swatch keys → ramps).
 // A cooldown-produce animal (a sheep sheared before this reload) whose fleece hasn't
 // regrown yet is built in its shorn state, so the trimmed look survives a reload
@@ -143,6 +161,9 @@ const RESKIN = {
   // The chicken picks a whole coat (a STYLE), not per-part ramps: the customizer's
   // single 'style' part stores the chosen CHICKEN_COATS entry under look.style.
   chicken: (scene, key, look) => buildChickenTextures(scene, key, look.style ?? look),
+  // The rooster picks a whole coat (a STYLE) like the hen: the single 'style' part
+  // stores the chosen ROOSTER_COATS entry under look.style.
+  rooster: (scene, key, look) => buildRoosterTextures(scene, key, look.style ?? look),
   // The player isn't a keyed roster — one shared set of textures — so `key` is ignored
   // and the whole look (colour ramps + shape keys) rebuilds every player frame (#44).
   player: (scene, key, look) => buildPlayerTextures(scene, look),

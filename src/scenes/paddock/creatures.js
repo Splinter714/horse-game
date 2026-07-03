@@ -47,6 +47,21 @@ export const WithCreatures = (Base) => class extends Base {
   // animal whose species declares the `grazes` capability (the cow). Used for the
   // shared "one per pile / spread at the trough" occupancy checks so cows and horses
   // don't stack on the same spot.
+  // A flock bird — any animal whose species roosts in the coop (hens AND roosters,
+  // #269). The coop/roost/flock machinery (dayNight.js night-roost & morning-emerge,
+  // flock.js chickenTick movement) keys off THIS capability, not a `chicken` sprite
+  // key, so a rooster joins the flock with no per-species hardcoding.
+  _isFlockBird(a) {
+    return !!SPECIES[a.model?.species]?.capabilities?.roosts;
+  }
+
+  // An egg-laying hen — a flock bird whose species declares `laysEggs`. The rooster
+  // roosts with the flock but does NOT lay (`laysEggs:false`), so eggLayTick uses this
+  // to pick only hens, never the rooster (#269).
+  _isLayingHen(a) {
+    return !!SPECIES[a.model?.species]?.capabilities?.laysEggs;
+  }
+
   _grazers() {
     const out = [...this.horses];
     for (const a of this.animals) {
@@ -207,6 +222,16 @@ export const WithCreatures = (Base) => class extends Base {
           key: `nap_${key}`,
           frames: [{ key: `${key}_nap_0` }, { key: `${key}_nap_1` }],
           frameRate: 1, repeat: -1,
+        });
+      }
+      // Rooster crow pose (#269): only registered when dedicated crow_0/1 frames exist
+      // (currently just the rooster) — same gated pattern as lay/nap. Loops while the
+      // crow plays; roosterCrow() stops it and returns to idle after.
+      if (this.textures.exists(`${key}_crow_0`)) {
+        this.anims.create({
+          key: `crow_${key}`,
+          frames: [{ key: `${key}_crow_0` }, { key: `${key}_crow_1` }],
+          frameRate: 6, repeat: -1,
         });
       }
     }

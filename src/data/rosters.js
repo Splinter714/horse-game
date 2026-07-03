@@ -15,6 +15,7 @@
 
 import { Horse, EBONY_BASE_STATS } from './species/horse/model.js';
 import { Chicken } from './species/chicken/model.js';
+import { Rooster } from './species/rooster/model.js';
 import { Cow } from './species/cow/model.js';
 import { Pig } from './species/pig/model.js';
 import { Cat } from './species/cat/model.js';
@@ -55,6 +56,16 @@ function defaultChickenRoster() {
     chicken2: { id: 'chicken-3', name: 'Shadow', coat: 2, personality: 'adventurous', sex: 'female' },
     chicken3: { id: 'chicken-4', name: 'Sunny',  coat: 3, personality: 'cheerful',    sex: 'female' },
     chicken4: { id: 'chicken-5', name: 'Pearl',  coat: 4, personality: 'calm',        sex: 'female' },
+  };
+}
+
+// Roosters persist alongside the hens (identity only, like the chicken — no survival
+// needs, so no offline decay). One rooster for now, keyed `rooster0`. He crows at dawn
+// and is the flock's breeding partner (#274); the spawn block (rooster/index.js) places
+// him by the coop with the hens.
+function defaultRoosterRoster() {
+  return {
+    rooster0: { id: 'rooster-1', name: 'Chanticleer', coat: 0, personality: 'proud', sex: 'male' },
   };
 }
 
@@ -150,6 +161,14 @@ export const ROSTERS = {
     Model: Chicken,
     defaultRoster: defaultChickenRoster,
     offlineDecay: false,
+    legacy: null,
+  },
+  rooster: {
+    storageKey: 'horse-care-roosters-v1',
+    registryKey: 'allRoosters',
+    Model: Rooster,
+    defaultRoster: defaultRoosterRoster,
+    offlineDecay: false, // identity-only (no survival needs) — don't decay offline
     legacy: null,
   },
   cow: {

@@ -5,6 +5,7 @@
 
 import { HORSE } from './horse/index.js';
 import { CHICKEN } from './chicken/index.js';
+import { ROOSTER } from './rooster/index.js';
 import { CAT } from './cat/index.js';
 import { COW } from './cow/index.js';
 import { PIG } from './pig/index.js';
@@ -15,6 +16,7 @@ import { GOAT } from './goat/index.js';
 import { LLAMA } from './llama/index.js';
 import * as horseBehaviors from './horse/behaviors.js';
 import * as chickenBehaviors from './chicken/behaviors.js';
+import * as roosterBehaviors from './rooster/behaviors.js';
 import * as catBehaviors from './cat/behaviors.js';
 import * as dogBehaviors from './dog/behaviors.js';
 import * as pigBehaviors from './pig/behaviors.js';
@@ -24,6 +26,7 @@ import * as llamaBehaviors from './llama/behaviors.js';
 export const SPECIES = {
   horse: HORSE,
   chicken: CHICKEN,
+  rooster: ROOSTER,
   cat: CAT,
   cow: COW,
   pig: PIG,
@@ -45,6 +48,10 @@ export function getSpecies(id) {
 export const BEHAVIORS = {
   horse: indexById(horseBehaviors),
   chicken: indexById(chickenBehaviors),
+  // The rooster is a flock bird like the hen — it REUSES the chicken behavior modules
+  // (flee dog / seed / follow / gather at bin) and layers its own `crowAtDawn` (#269)
+  // on top. Its `behaviors` list (rooster/index.js) picks the subset it runs.
+  rooster: { ...indexById(chickenBehaviors), ...indexById(roosterBehaviors) },
   // The cow is a herbivore grazer like the horse, so she reuses the horse behavior
   // modules; her own `behaviors` list (cow/index.js) picks the subset she runs
   // (food/water/graze, no begging). The run() primitives are species-generic.

@@ -24,6 +24,9 @@ export const WithBehaviors = (Base) => class extends Base {
     // 'horse', 'chicken0' → 'chicken'.
     const species = this._speciesOf(agent.key);
     const ctx = species === 'chicken' ? this._chickenContext(agent)
+      // The rooster reuses the chicken flock behaviors (same flock context) plus its
+      // own dawn crow, gated by `crowing` — armed on the Morning phase (#269).
+      : species === 'rooster' ? { ...this._chickenContext(agent), crowing: !!agent._crowing }
       : species === 'cat' ? this._catContext(agent)
       : species === 'dog' ? this._dogContext(agent)
       : species === 'bunny' ? this._bunnyContext(agent)

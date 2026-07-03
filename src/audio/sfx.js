@@ -641,3 +641,50 @@ export function playSqueal() {
   osc.stop(now + 0.52);
 }
 
+// ─── Rooster crow (dawn cock-a-doodle-doo) ───────────────────────────────────
+
+// The classic four-syllable dawn crow: "cock-a-doodle-DOO". A voiced sawtooth run
+// through a formant-ish bandpass (so it reads as a bird's throat, like the nicker),
+// stepping up through a couple of short syllables, holding a bright note, then a
+// long confident fall. Plays on the morning phase change (dayNight mixin, #269).
+export function playRoosterCrow() {
+  const c = getCtx();
+  const now = c.currentTime;
+
+  const osc = c.createOscillator();
+  osc.type = 'sawtooth';
+  // Syllable pitch contour: two quick rising chirps → held bright note → long fall.
+  osc.frequency.setValueAtTime(440, now);              // "cock"
+  osc.frequency.linearRampToValueAtTime(560, now + 0.10);
+  osc.frequency.setValueAtTime(500, now + 0.14);        // "a"
+  osc.frequency.linearRampToValueAtTime(680, now + 0.24);
+  osc.frequency.setValueAtTime(760, now + 0.30);        // "doodle" — the bright peak
+  osc.frequency.linearRampToValueAtTime(720, now + 0.55);
+  osc.frequency.exponentialRampToValueAtTime(320, now + 0.95); // "dooo" — the long fall
+
+  // Bandpass to give it a voiced, throaty timbre.
+  const band = c.createBiquadFilter();
+  band.type = 'bandpass';
+  band.frequency.value = 950;
+  band.Q.value = 1.6;
+
+  // Amplitude envelope with little dips between the syllables so it reads as
+  // separate "cock / a / doodle / doo" pulses, not one continuous slide.
+  const env = c.createGain();
+  env.gain.setValueAtTime(0.001, now);
+  env.gain.linearRampToValueAtTime(0.24, now + 0.03);
+  env.gain.setValueAtTime(0.24, now + 0.10);
+  env.gain.linearRampToValueAtTime(0.10, now + 0.13);  // dip before "a"
+  env.gain.linearRampToValueAtTime(0.26, now + 0.18);
+  env.gain.linearRampToValueAtTime(0.12, now + 0.27);  // dip before "doodle"
+  env.gain.linearRampToValueAtTime(0.30, now + 0.33);  // the loud held note
+  env.gain.setValueAtTime(0.30, now + 0.55);
+  env.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
+
+  osc.connect(band);
+  band.connect(env);
+  env.connect(master(1));
+  osc.start(now);
+  osc.stop(now + 1.02);
+}
+
