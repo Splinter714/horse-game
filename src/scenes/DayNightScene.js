@@ -3,6 +3,7 @@ import { EVENTS } from '../data/events.js';
 import { loadDevSettings } from '../data/save.js';
 import { applyDpr, logicalW, logicalH } from './uiUtils.js';
 import { WEATHER, nextWeather } from '../data/weather.js';
+import { seasonForDay, seasonPalette, nextSeason, SEASON_ORDER } from '../data/seasons.js';
 
 // Rain adds a subtle cool darkening on TOP of the day/night tint (composed, not
 // replacing it — a blue-grey wash at low alpha). Kept gentle so it reads as
@@ -30,6 +31,11 @@ const DAY_MS = PHASES.reduce((s, p) => s + p.dur, 0);
 const TRANSITION_MS = 15_000;
 
 const PHASE_ICONS = ['🌅', '☀️', '🌇', '🌙'];
+
+// Winter snow particle field (#272): thin pale flakes drifting down across the whole
+// (logical) screen. Mirrors the rain field — drawn once per frame into a single
+// Graphics object so it's renderer-agnostic (works under Phaser.CANVAS in smoke).
+const SNOW_FLAKES = 90;
 
 export default class DayNightScene extends Phaser.Scene {
   constructor() {
@@ -66,6 +72,16 @@ export default class DayNightScene extends Phaser.Scene {
     this._buildRain();
     this._startWeather();
 
+    // ── Seasons (#272, VISUAL FIRST) ─────────────────────────────────────────
+    // A seasonal palette wash composed on top of the day/night + weather tint
+    // (spring green, summer near-neutral, fall amber, winter cold blue), plus a
+    // winter snow particle field. The season advances one day at each Morning; a
+    // dev-only tap on the season label skips a season. All logic is pure in
+    // data/seasons.js; this scene only applies the look + emits SEASON_CHANGE.
+    this.seasonTint = this.add.graphics().setDepth(502).setScrollFactor(0);
+    this._buildSnow();
+    this._startSeasons();
+
     // Full-screen black used for the sleep fade. Sits above the day/night tint
     // (and, while sleeping, above the UI scenes — see doSleep).
     this.fade = this.add.graphics().setDepth(100_000).setScrollFactor(0);
@@ -84,6 +100,23 @@ export default class DayNightScene extends Phaser.Scene {
     this.label.setInteractive({ useHandCursor: true });
     this.label.on('pointerdown', () => this._advancePhase());
 
+    // Season readout, tucked under the time label (top-right). Dev-only: tapping it
+    // skips to the next season (gated behind import.meta.env.DEV, like the world's
+    // other dev skips) so the owner can eyeball each season's look without waiting
+    // out the day cycle.
+    this.seasonLabel = this.add.text(0, 0, '', {
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: '18px',
+      fontStyle: 'bold',
+      color: '#ffffff',
+      backgroundColor: '#000000bf',
+      padding: { x: 10, y: 6 },
+    }).setDepth(520).setOrigin(1, 0).setScrollFactor(0);
+    if (import.meta.env.DEV) {
+      this.seasonLabel.setInteractive({ useHandCursor: true });
+      this.seasonLabel.on('pointerdown', () => this._advanceSeason());
+    }
+
     this.overlay.setScrollFactor(0);
 
     // Full-screen overlay/label work in LOGICAL px (the camera zoom scales them to
@@ -94,6 +127,7 @@ export default class DayNightScene extends Phaser.Scene {
       this._sw = logicalW(this);
       this._sh = logicalH(this);
       this._applyWeather?.(); // rain wash covers the whole (resized) screen
+      this._applySeason?.();  // seasonal wash covers the whole (resized) screen
     });
 
     this.game.events.on(EVENTS.SLEEP, this.doSleep, this);
@@ -172,6 +206,7 @@ export default class DayNightScene extends Phaser.Scene {
     this.elapsed = (this.elapsed + delta) % DAY_MS;
     this._applyClock();
     this._tickWeather(delta);
+    this._animateSnow(delta);
   }
 
   // ── Weather state machine (#188) ──────────────────────────────────────────
@@ -266,6 +301,100 @@ export default class DayNightScene extends Phaser.Scene {
     if (!raining) this.rainGfx?.clear();
   }
 
+  // ── Seasons (#272, VISUAL FIRST) ───────────────────────────────────────────
+  // A day counter advances at each Morning; the season is derived from it (pure
+  // seasonForDay). Season changes fan out on EVENTS.SEASON_CHANGE and re-apply the
+  // seasonal tint + snow. VISUAL ONLY in v1 — no gameplay hooks yet.
+
+  _startSeasons() {
+    this._day = 0;
+    this._season = null; // forces the first _setSeason to announce + apply
+    // Emit the starting season once other scenes have had a chance to subscribe.
+    this.time.delayedCall(0, () => {
+      this._setSeason(seasonForDay(this._day), /* announce */ true);
+    });
+  }
+
+  // Called when a new in-game day begins (Morning). Bumps the day counter and, if the
+  // day crossed a season boundary, switches season (which announces + re-applies).
+  _advanceDay() {
+    this._day += 1;
+    const season = seasonForDay(this._day);
+    if (season !== this._season) this._setSeason(season, /* announce */ true);
+  }
+
+  _setSeason(season, announce) {
+    this._season = season;
+    this._applySeason();
+    if (announce) this.game.events.emit(EVENTS.SEASON_CHANGE, { season });
+  }
+
+  // Dev tool: skip to the next season on demand (wired to the season label's tap in
+  // create(), gated behind import.meta.env.DEV). Jumps the day counter to the start
+  // of the next season so the derived season stays consistent with the day count.
+  _advanceSeason() {
+    const target = nextSeason(this._season ?? seasonForDay(this._day));
+    // Walk the day forward to the first day of the target season (at most a full
+    // year of steps — cheap, and keeps _day authoritative).
+    for (let i = 0; i < SEASON_ORDER.length * 366; i++) {
+      this._day += 1;
+      if (seasonForDay(this._day) === target) break;
+    }
+    this._setSeason(target, /* announce */ true);
+  }
+
+  // Build the snow particle field (winter only): a pool of pale flakes that drift and
+  // wrap. Same single-Graphics approach as the rain field so it's renderer-agnostic.
+  _buildSnow() {
+    this.snowGfx = this.add.graphics().setDepth(511).setScrollFactor(0).setVisible(false);
+    this._snowFlakes = [];
+    for (let i = 0; i < SNOW_FLAKES; i++) {
+      this._snowFlakes.push({
+        x: Math.random() * this._sw,
+        y: Math.random() * this._sh,
+        r: 1 + Math.random() * 2,
+        speed: 30 + Math.random() * 40, // px/sec — slow, floaty fall
+        sway: Math.random() * Math.PI * 2,
+        swaySpeed: 0.5 + Math.random() * 1.2,
+      });
+    }
+  }
+
+  _animateSnow(delta) {
+    if (!this.snowGfx?.visible) return;
+    const sw = this._sw, sh = this._sh;
+    const dt = delta / 1000;
+    this.snowGfx.clear();
+    this.snowGfx.fillStyle(0xffffff, 0.85);
+    for (const f of this._snowFlakes) {
+      f.y += f.speed * dt;
+      f.sway += f.swaySpeed * dt;
+      f.x += Math.sin(f.sway) * 12 * dt; // gentle horizontal drift
+      if (f.y > sh) { f.y = -f.r; f.x = Math.random() * sw; }
+      if (f.x > sw) f.x -= sw;
+      if (f.x < 0)  f.x += sw;
+      this.snowGfx.fillCircle(f.x, f.y, f.r);
+    }
+  }
+
+  // Apply the current season's palette wash + snow visibility. The wash is a low-alpha
+  // layer composited over the day/night + weather tints (not merged), so all three
+  // read together — an ambient seasonal cast at any time of day.
+  _applySeason() {
+    const pal = seasonPalette(this._season);
+    this.seasonTint.clear();
+    if (pal.alpha > 0.005) {
+      this.seasonTint.fillStyle(pal.tint, pal.alpha);
+      this.seasonTint.fillRect(0, 0, this._sw, this._sh);
+    }
+    this.snowGfx?.setVisible(!!pal.snow);
+    if (!pal.snow) this.snowGfx?.clear();
+    if (this.seasonLabel) {
+      this.seasonLabel.setText(`${pal.icon} ${pal.label}`);
+      this.seasonLabel.setPosition(this._sw - 8, 44);
+    }
+  }
+
   // Recompute the lighting overlay + clock label from the current `elapsed` time
   // and emit any phase change. Split out of update() so the dev-tools "Advance
   // Time" button can refresh the clock on demand WITHOUT unpausing — a paused
@@ -313,7 +442,15 @@ export default class DayNightScene extends Phaser.Scene {
     this.label.setPosition(sw - 8, 8);
 
     if (phaseIdx !== this.currentPhase) {
+      const prevPhase = this.currentPhase;
       this.currentPhase = phaseIdx;
+      // A new in-game day begins when we (re)enter Morning — but NOT on the very first
+      // clock tick (prevPhase === -1), which is just the initial phase, not a rollover.
+      // Sleeping also resets to Morning via this path, so a night's sleep counts as a
+      // day. Advance the season day counter (#272) on that transition.
+      if (p0.name === 'Morning' && prevPhase !== -1 && prevPhase !== phaseIdx) {
+        this._advanceDay?.();
+      }
       this.game.events.emit(EVENTS.PHASE_CHANGE, { phase: p0.name, isNight: p0.name === 'Night' });
     }
   }

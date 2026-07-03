@@ -537,6 +537,51 @@ try {
   });
   result.weather = weather;
 
+  // Seasons pass (#272, VISUAL FIRST): drive the DayNightScene's season cycle and
+  // assert the seasonal tint + snow track it, a SEASON_CHANGE event fires, and the
+  // derived season matches the pure logic. All renderer-agnostic.
+  const season = await page.evaluate(async () => {
+    const g = window.__game;
+    const dn = g.scene.getScene('DayNightScene');
+    const { seasonForDay, seasonPalette } = await import('/src/data/seasons.js');
+
+    // Listen for the next SEASON_CHANGE so we can confirm the event actually fires.
+    let announced = null;
+    const onSeason = ({ season }) => { announced = season; };
+    g.events.on('season-change', onSeason);
+
+    const startSeason = dn._season;
+    const startTintVisible = dn.seasonTint.commandBuffer.length > 0;
+
+    // Skip forward until we land on winter (at most a couple of years of days) and
+    // confirm the snow field turns on and the tint updates for it.
+    let guard = 0;
+    while (dn._season !== 'winter' && guard++ < 40) dn._advanceSeason();
+    const winterSnowVisible = dn.snowGfx.visible;
+    const winterSeason = dn._season;
+    const winterDerivedMatches = seasonForDay(dn._day) === dn._season;
+
+    // Advance once more off winter → snow should switch back off (only winter snows).
+    dn._advanceSeason();
+    const offWinterSnowVisible = dn.snowGfx.visible;
+
+    // The season tint should be applied (winter has a non-zero alpha wash).
+    const tintDrawnForWinter = seasonPalette('winter').alpha > 0;
+
+    g.events.off('season-change', onSeason);
+    return {
+      startSeason,
+      startTintVisible,
+      winterSeason,
+      winterSnowVisible,
+      winterDerivedMatches,
+      offWinterSnowVisible,
+      tintDrawnForWinter,
+      announced,
+    };
+  });
+  result.season = season;
+
   console.log(JSON.stringify(result, null, 2));
 
   const wx = result.weather;
@@ -546,6 +591,15 @@ try {
   if (wx.rainLoss !== wx.sunLoss * 2) fail(`rain dirt multiplier ≠ 2 (sunLoss=${wx.sunLoss}, rainLoss=${wx.rainLoss})`);
   if (!(wx.rainTroughLevel > 0)) fail('rain did not fill the trough at all');
   if (wx.rainTroughLevel >= 9) fail(`rain filled the trough to ${wx.rainTroughLevel}/9 — should be PARTIAL, not full (bucket loop undercut)`);
+
+  const sn = result.season;
+  if (!['spring', 'summer', 'fall', 'winter'].includes(sn.startSeason)) fail(`season cycle not started (startSeason=${sn.startSeason})`);
+  if (sn.winterSeason !== 'winter') fail(`season cycle could not reach winter (stuck at ${sn.winterSeason})`);
+  if (!sn.winterDerivedMatches) fail('winter season does not match the pure seasonForDay(day) derivation');
+  if (!sn.winterSnowVisible) fail('winter snow field not visible in winter');
+  if (sn.offWinterSnowVisible) fail('snow field still visible after leaving winter (should be winter-only)');
+  if (!sn.tintDrawnForWinter) fail('winter seasonal tint has no alpha (season wash not applied)');
+  if (sn.announced == null) fail('SEASON_CHANGE event never fired on season advance (not wired)');
 
   if (pageErrors.length) fail('uncaught page errors:\n' + pageErrors.join('\n'));
   if (consoleErrors.length) fail('console errors:\n' + consoleErrors.join('\n'));
