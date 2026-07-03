@@ -603,6 +603,61 @@ export function buildWorldTextures(scene) {
     g.fillStyle(glass, 0.92); g.fillTriangle(18, 12, 21, 13, 18, 15);
   });
 
+  // --- beehive (30 × 44) — stacked-box hive, fixed world object (#239) ---
+  // A classic langstroth-style beehive: two stacked wooden supers on a base board with
+  // a peaked lid, a landing board + entrance slot, and (when ripe) golden honey glowing
+  // in the seams. Two variants — `beehive` (working) and `beehiveReady` (honey ripe,
+  // ready to harvest: warm honey glow in the box seams + a drip at the entrance).
+  // Placed like the birdhouse (fixed spot). Origin (0.5,1) at the base. Dissect-tagged.
+  const drawBeehive = (g, ripe) => {
+    const box = 0xd8a24a, boxHi = 0xecc06a, boxLo = 0xb07e2e, seam = 0x9a6a24;
+    const lid = 0xb07e2e, lidHi = 0xcf9a44, lidDark = 0x7f5a1e;
+    const board = 0x9a6a34, dark = 0x2a1c08, glow = 0xf6c94e, honey = 0xe8a828;
+
+    // Base board / stand
+    g.layer('base');
+    g.fillStyle(boxLo, 1); g.fillEllipse(15, 43, 30, 5); // ground shadow
+    g.fillStyle(board, 1); g.fillRect(3, 38, 24, 4);
+    g.fillStyle(0xb98a4c, 1); g.fillRect(3, 38, 24, 1);
+    // landing board sticking out the front
+    g.fillStyle(board, 1); g.fillRect(6, 36, 18, 2);
+
+    // Lower super (box)
+    g.layer('super_lower');
+    g.fillStyle(box, 1);   g.fillRect(5, 26, 20, 12);
+    g.fillStyle(boxHi, 1); g.fillRect(5, 26, 20, 2);
+    g.fillStyle(boxLo, 1); g.fillRect(5, 36, 20, 2);
+    g.fillStyle(seam, 1);  g.fillRect(5, 31, 20, 1); // frame seam
+    // entrance slot + landing
+    g.fillStyle(dark, 1);  g.fillRect(11, 35, 8, 2);
+
+    // Upper super (box)
+    g.layer('super_upper');
+    g.fillStyle(box, 1);   g.fillRect(6, 14, 18, 12);
+    g.fillStyle(boxHi, 1); g.fillRect(6, 14, 18, 2);
+    g.fillStyle(boxLo, 1); g.fillRect(6, 24, 18, 2);
+    g.fillStyle(seam, 1);  g.fillRect(6, 19, 18, 1);
+
+    // Honey glow in the seams when ripe
+    if (ripe) {
+      g.layer('honey');
+      g.fillStyle(glow, 0.9); g.fillRect(6, 19, 18, 1); g.fillRect(5, 31, 20, 1);
+      g.fillStyle(glow, 0.55); g.fillRect(6, 18, 18, 3); g.fillRect(5, 30, 20, 3);
+      // a honey drip at the entrance
+      g.fillStyle(honey, 1); g.fillRect(14, 37, 2, 3); g.fillCircle(15, 40, 1.4);
+      g.fillStyle(glow, 1);  g.fillRect(14, 37, 1, 2);
+    }
+
+    // Peaked telescoping lid
+    g.layer('lid');
+    g.fillStyle(lidDark, 1); g.fillRect(4, 12, 22, 3);
+    g.fillStyle(lid, 1);     g.fillTriangle(3, 12, 15, 4, 27, 12);
+    g.fillStyle(lidHi, 1);   g.fillTriangle(6, 12, 15, 6, 12, 12); // lit left slope
+    g.fillStyle(lidDark, 1); g.fillRect(14, 4, 2, 3);              // ridge cap
+  };
+  gen(scene, 'beehive',      30, 44, (g) => drawBeehive(g, false));
+  gen(scene, 'beehiveReady', 30, 44, (g) => drawBeehive(g, true));
+
   // --- nest (18 × 12) — woven straw ring ---
   gen(scene, 'nest', 18, 12, (g) => {
     // Outer straw ring

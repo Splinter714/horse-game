@@ -10,10 +10,10 @@
 // spreads that array into this.obstacles, mirroring doghouseObstacles/barnObstacles.
 
 import Phaser from 'phaser';
-import { S, WORLD_W } from './constants.js';
-import { WILD_SCALE } from './wildlife.js';
+import { S } from './constants.js';
 import { FEEDER_CAP, fillFeederLevel, drainFeederLevel, feederHasSeed } from '../../data/feeder.js';
-import { playSplash } from '../../audio/sounds.js';
+import { HONEY_CAP, ripenHoney, honeyReady, harvestHoney } from '../../data/hive.js';
+import { playSplash, playGather } from '../../audio/sounds.js';
 
 export const WithBirdEcosystem = (Base) => class extends Base {
   // One entry point buildWorld calls after the yard props are down. Accumulates the
@@ -23,6 +23,7 @@ export const WithBirdEcosystem = (Base) => class extends Base {
     this.buildBirdBath();     // #219
     this.buildSeedFeeder();   // #240
     this.buildNectarFeeder(); // #226
+    this.buildBeehive();      // #239
   }
 
   // ─── Bird bath (#219) ────────────────────────────────────────────────────────
@@ -144,237 +145,59 @@ export const WithBirdEcosystem = (Base) => class extends Base {
     this._setNectarFeederLevel(drainFeederLevel(f.level));
   }
 
-  // ─── Object-anchored bird visits (#219 bath, #240 feeder) ─────────────────────
-  // These beats are birds visiting THIS mixin's props, so they live here rather than in
-  // wildlife.js (which owns the generic critters). They reuse wildlife.js's shared bird
-  // plumbing on the same `this`: _pickBird (a random weighted bird + its keys),
-  // _birdTakeOff (flush toward the nearest edge + despawn) and the _wildCritters list
-  // (so updateWildlife depth-sorts them and startles them off if the player crowds them,
-  // via the c.ground flag), plus WILD_SCALE for their display size. Kicked off from
-  // buildWildlife via startBirdEcosystemVisits so the timers start with the rest.
-
-  startBirdEcosystemVisits() {
-    this._scheduleBirdBathVisit(Phaser.Math.Between(14000, 30000));   // #219 bath splashes
-    this._scheduleFeederVisit(Phaser.Math.Between(10000, 22000));     // #240 feeder visits
-    this._scheduleHummingbirdVisit(Phaser.Math.Between(20000, 40000)); // #226 hummingbirds
+  // ─── Beehive + honey (#239) ──────────────────────────────────────────────────
+  // A beehive placed like the birdhouse (a FIXED world object). Honey ripens on a slow
+  // timer up to HONEY_CAP; once ripe the sprite swaps to the honey-glowing variant and a
+  // basket can harvest the whole batch (harvestBeehive), resetting it. Bees buzz benignly
+  // around the hive + nearby flowers — no sting, purely cosmetic (spawnBeeVisit). Honey
+  // sells at the farm stand and is a future cooking ingredient. FIRST-PASS spot (760, 300)
+  // near the flowers/carrot garden the bees also visit.
+  buildBeehive() {
+    const x = 760, y = 300;
+    const sprite = this.add.image(x, y, 'beehive').setScale(S).setDepth(y).setOrigin(0.5, 1);
+    this.props.beehive = { x, y, sprite, honey: 0, ready: false };
+    // Sprite 30×44 at S (origin 0.5,1); solid box body ≈ 26 wide, lower ~30px → footprint.
+    this.birdEcosystemObstacles.push({ x: x - 13, y: y - 30, w: 26, h: 28 });
+    // Honey ripens slowly (mirrors the egg-lay timer cadence). Kept generous so it's a
+    // gentle passive income, not a chore — a balance lever to tune at playtest.
+    this.time.addEvent({ delay: 60_000, loop: true, callback: this._ripenHoneyTick, callbackScope: this });
+    // A benign bee or two buzzing about, kicked off on its own timer.
+    this._scheduleBeeVisit(Phaser.Math.Between(6000, 14000));
   }
 
-  // ── Bird bath (#219) ── a bird swoops onto the basin rim, bobs and splashes a few
-  // times (a water fleck each dip), then flushes. Purely ambient — no water level.
-  _scheduleBirdBathVisit(delay) {
-    this.time.delayedCall(delay, () => {
-      // Daylit, awake, fair weather. Skip while a bath visitor is already splashing.
-      if (!this._sleeping && this._phase !== 'Night' && this._weatherAllowsWildlife() &&
-          this.props?.birdBath && !this._wildCritters?.some((c) => c.atBath)) {
-        this._spawnBirdBathVisit();
-      }
-      const morning = this._phase === 'Morning';
-      this._scheduleBirdBathVisit(morning ? Phaser.Math.Between(9000, 18000)
-                                          : Phaser.Math.Between(18000, 40000));
-    });
+  // Set the hive's honey level (clamped), keep `ready` in sync, and swap the sprite to
+  // the honey-glowing variant when ripe. Single owner of hive-level changes.
+  _setHoneyLevel(level) {
+    const h = this.props.beehive;
+    if (!h) return;
+    h.honey = Phaser.Math.Clamp(level, 0, HONEY_CAP);
+    h.ready = honeyReady(h.honey);
+    h.sprite.setTexture(h.ready ? 'beehiveReady' : 'beehive');
   }
 
-  _spawnBirdBathVisit() {
-    const bath = this.props.birdBath;
-    // Land on the front rim. Sprite 34×40 at S (origin 0.5,1) → water ~26px up.
-    const rimX = bath.x + Phaser.Math.Between(-6, 6);
-    const rimY = bath.y - 26;
-    const dir = Math.random() < 0.5 ? 1 : -1;
-    const b = this._pickBird();
-    const sprite = this.add.sprite(dir === 1 ? -40 : WORLD_W + 40, rimY - 200, b.tex)
-      .setOrigin(0.5, 1).setScale(WILD_SCALE).setDepth(bath.y + 1)
-      .setFlipX(dir === -1).play(b.flyAnim);
-    const c = { sprite, kind: 'bird', ground: false, state: 'descending',
-                tween: null, fleeing: false, bird: b, atBath: true };
-    this._wildCritters.push(c);
-
-    sprite.setFlipX(sprite.x > rimX);
-    const dist = Phaser.Math.Distance.Between(sprite.x, sprite.y, rimX, rimY);
-    c.tween = this.tweens.add({
-      targets: sprite, x: rimX, y: rimY, duration: Math.max(900, dist * 4), ease: 'Sine.easeIn',
-      onComplete: () => {
-        if (!sprite.active) return;
-        c.ground = true; c.state = 'perched';
-        sprite.play(b.peckAnim);
-        this._birdBathSplash(c, Phaser.Math.Between(4, 7));
-      },
-    });
+  // Slow production tick: ripen one jar (up to the cap).
+  _ripenHoneyTick() {
+    const h = this.props.beehive;
+    if (!h) return;
+    this._setHoneyLevel(ripenHoney(h.honey));
   }
 
-  // Dip + splash `n` times (a droplet each dip), then flush via _birdTakeOff — so the
-  // rain/night clear and player-crowd startle all behave like a ground perch.
-  _birdBathSplash(c, n) {
-    if (!c.sprite.active || c.state !== 'perched') return;
-    if (n <= 0) { this._birdTakeOff(c); return; }
-    const sprite = c.sprite;
-    if (Math.random() < 0.4) sprite.setFlipX(!sprite.flipX);
-    c.tween = this.tweens.add({
-      targets: sprite, y: sprite.y + 4, duration: 130, yoyo: true, ease: 'Quad.easeIn',
-      onStart: () => this._bathDroplet(sprite.x, sprite.y),
-      onComplete: () => this.time.delayedCall(Phaser.Math.Between(350, 900),
-        () => this._birdBathSplash(c, n - 1)),
-    });
+  // Harvest the ripe honey batch into the active basket (like collecting eggs). Yields
+  // the whole ripened amount and resets the hive; no-op if it isn't ripe or the carrier
+  // won't take it. A basket-only, bare produce harvest — honey isn't dropped or gathered
+  // from a source, it's produced here over time.
+  harvestBeehive() {
+    const h = this.props.beehive;
+    if (!h || !h.ready) return;
+    const item = this.getActiveItem();
+    if (item?.carrier !== 'basket') return;
+    const { yield: amount } = harvestHoney(h.honey);
+    if (amount <= 0) return;
+    const added = this.scene.get('HotbarScene')?.fillActiveCarrier('honey', amount) ?? 0;
+    if (added <= 0) return; // basket already holds something else / is full
+    this._setHoneyLevel(0);
+    playGather('honey');
+    this.showIcon?.('iconHoney', this.player.sprite);
   }
 
-  // A tiny water droplet arcing off the basin as a bird splashes — cosmetic sparkle.
-  _bathDroplet(x, y) {
-    const dx = Phaser.Math.Between(-14, 14);
-    const drop = this.add.image(x, y, 'fishRipple')
-      .setScale(S * 0.18).setDepth(y + 2).setAlpha(0.85).setTint(0xbfeaff);
-    this.tweens.add({
-      targets: drop, x: x + dx, y: y - Phaser.Math.Between(6, 14),
-      alpha: 0, scaleX: S * 0.05, scaleY: S * 0.05,
-      duration: Phaser.Math.Between(350, 550), ease: 'Sine.easeOut',
-      onComplete: () => drop.destroy(),
-    });
-  }
-
-  // ── Seed feeder (#240) ── when the feeder is STOCKED, songbirds land on its tray to
-  // eat (draining one serving each via drainSeedFeeder). An empty feeder attracts none,
-  // so refilling it is what brings the birds back.
-  _scheduleFeederVisit(delay) {
-    this.time.delayedCall(delay, () => {
-      const f = this.props?.seedFeeder;
-      if (!this._sleeping && this._phase !== 'Night' && this._weatherAllowsWildlife() &&
-          f?.filled && !this._wildCritters?.some((c) => c.atFeeder)) {
-        this._spawnFeederVisit();
-      }
-      const morning = this._phase === 'Morning';
-      this._scheduleFeederVisit(morning ? Phaser.Math.Between(6000, 13000)
-                                        : Phaser.Math.Between(13000, 28000));
-    });
-  }
-
-  _spawnFeederVisit() {
-    const f = this.props.seedFeeder;
-    // Land on the tray. Sprite 28×56 at S (origin 0.5,1) → tray ~28px up.
-    const tx = f.x + Phaser.Math.Between(-8, 8);
-    const ty = f.y - 28;
-    const dir = Math.random() < 0.5 ? 1 : -1;
-    const b = this._pickBird();
-    const sprite = this.add.sprite(dir === 1 ? -40 : WORLD_W + 40, ty - 200, b.tex)
-      .setOrigin(0.5, 1).setScale(WILD_SCALE).setDepth(f.y + 1)
-      .setFlipX(dir === -1).play(b.flyAnim);
-    const c = { sprite, kind: 'bird', ground: false, state: 'descending',
-                tween: null, fleeing: false, bird: b, atFeeder: true };
-    this._wildCritters.push(c);
-
-    sprite.setFlipX(sprite.x > tx);
-    const dist = Phaser.Math.Distance.Between(sprite.x, sprite.y, tx, ty);
-    c.tween = this.tweens.add({
-      targets: sprite, x: tx, y: ty, duration: Math.max(900, dist * 4), ease: 'Sine.easeIn',
-      onComplete: () => {
-        if (!sprite.active) return;
-        c.ground = true; c.state = 'perched';
-        this.drainSeedFeeder?.(); // eat one serving
-        sprite.play(b.peckAnim);
-        this._feederPeck(c, Phaser.Math.Between(3, 6));
-      },
-    });
-  }
-
-  // Peck `n` times at the tray, then flush (or when startled) — like the ground perch.
-  _feederPeck(c, n) {
-    if (!c.sprite.active || c.state !== 'perched') return;
-    if (n <= 0) { this._birdTakeOff(c); return; }
-    const sprite = c.sprite;
-    if (Math.random() < 0.4) sprite.setFlipX(!sprite.flipX);
-    c.tween = this.tweens.add({
-      targets: sprite, y: sprite.y - 4, duration: 130, yoyo: true, ease: 'Quad.easeOut',
-      onComplete: () => this.time.delayedCall(Phaser.Math.Between(400, 1100),
-        () => this._feederPeck(c, n - 1)),
-    });
-  }
-
-  // ─── Hummingbird (#226) ───────────────────────────────────────────────────────
-  // A rare hover-and-dart visitor with a distinct shape from the perching songbirds:
-  // it never lands — it hovers in the air near a target (a flower, or the STOCKED
-  // nectar feeder), bobbing with its wing-buzz, then DARTS quickly to the next target a
-  // few times before zipping off. Attracted BOTH by the nectar feeder (while filled;
-  // sipping there drains it) AND by the existing flowers (world.js props.flowers). It's
-  // its own critter kind (`hummer`) so updateWildlife leaves it alone — it's airborne,
-  // so it isn't depth-sorted to the ground or startled by the player (like a fly-by).
-
-  // A shuffled list of hover targets: every flower, plus the nectar feeder's port when
-  // it's stocked (so a filled feeder is one more place it visits, on top of the flowers).
-  _hummerTargets() {
-    const pts = (this.props.flowers ?? []).map((fl) => ({ x: fl.x, y: fl.y - 6, feeder: false }));
-    const nf = this.props.nectarFeeder;
-    if (nf?.filled) pts.push({ x: nf.x, y: nf.y - 38, feeder: true }); // hover at the ports
-    return pts;
-  }
-
-  _scheduleHummingbirdVisit(delay) {
-    this.time.delayedCall(delay, () => {
-      // Daylit, awake, fair weather. Only when there's somewhere to visit (flowers
-      // always exist, so this is effectively always true) and none is already here.
-      if (!this._sleeping && this._phase !== 'Night' && this._weatherAllowsWildlife() &&
-          this._hummerTargets().length && !this._wildCritters?.some((c) => c.kind === 'hummer')) {
-        this._spawnHummingbird();
-      }
-      // Rare — a treat, like the rarer bird types. A touch more common in the morning.
-      const morning = this._phase === 'Morning';
-      this._scheduleHummingbirdVisit(morning ? Phaser.Math.Between(16000, 32000)
-                                             : Phaser.Math.Between(28000, 60000));
-    });
-  }
-
-  _spawnHummingbird() {
-    const targets = this._hummerTargets();
-    const first = targets[Phaser.Math.Between(0, targets.length - 1)];
-    const dir = first.x < WORLD_W / 2 ? 1 : -1; // enter from the nearer side
-    const sprite = this.add.sprite(dir === 1 ? -30 : WORLD_W + 30, first.y - 40, 'hummer_0')
-      .setOrigin(0.5, 0.5).setScale(WILD_SCALE).setDepth(100000).setFlipX(dir === -1)
-      .play('hummer_buzz');
-    const c = { sprite, kind: 'hummer', ground: false, state: 'arriving', tween: null };
-    this._wildCritters.push(c);
-    this._hummerDartTo(c, first, Phaser.Math.Between(3, 6));
-  }
-
-  // Dart quickly to `target`, hover-bob there a moment (sipping if it's the feeder),
-  // then repeat to another random target `n` more times before zipping off-screen.
-  _hummerDartTo(c, target, n) {
-    if (!c.sprite.active) return;
-    const sprite = c.sprite;
-    sprite.setFlipX(target.x < sprite.x); // face the way it's darting
-    c.tween = this.tweens.add({
-      targets: sprite, x: target.x, y: target.y,
-      duration: Phaser.Math.Between(280, 520), ease: 'Sine.easeOut', // fast dart
-      onComplete: () => {
-        if (!sprite.active) return;
-        if (target.feeder) this.drainNectarFeeder?.(); // a sip lowers the feeder
-        this._hummerHover(c, n, target);
-      },
-    });
-  }
-
-  // Hover in place with a tiny bob for a beat, then dart on (or leave when out of hops).
-  _hummerHover(c, n, target) {
-    if (!c.sprite.active) return;
-    const sprite = c.sprite;
-    c.tween = this.tweens.add({
-      targets: sprite, y: sprite.y + Phaser.Math.Between(3, 6),
-      duration: 220, yoyo: true, repeat: 1, ease: 'Sine.easeInOut',
-      onComplete: () => {
-        if (!sprite.active) return;
-        if (n <= 0) { this._hummerLeave(c); return; }
-        const targets = this._hummerTargets();
-        const next = targets[Phaser.Math.Between(0, targets.length - 1)];
-        this.time.delayedCall(Phaser.Math.Between(120, 400), () => this._hummerDartTo(c, next, n - 1));
-      },
-    });
-  }
-
-  // Zip off the nearest edge and despawn (reuses wildlife.js _despawnCritter cleanup).
-  _hummerLeave(c) {
-    if (!c.sprite.active) { this._despawnCritter(c); return; }
-    const sprite = c.sprite;
-    const toLeft = sprite.x < WORLD_W / 2;
-    sprite.setFlipX(toLeft);
-    c.tween = this.tweens.add({
-      targets: sprite, x: toLeft ? -40 : WORLD_W + 40, y: Phaser.Math.Between(60, 180),
-      duration: Phaser.Math.Between(700, 1200), ease: 'Sine.easeIn',
-      onComplete: () => this._despawnCritter(c),
-    });
-  }
 };

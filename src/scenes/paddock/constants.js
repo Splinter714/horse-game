@@ -180,6 +180,9 @@ export const STAND_DEFS = {
   // a bit less (bulk grain → future flour / pig feed).
   strawberry: { price: 6, tex: 'iconStrawberry', scale: 0.9, emoji: '🍓', floatIcon: 'iconStrawberry' },
   wheat:      { price: 4, tex: 'iconWheat',       scale: 0.9, emoji: '🌾', floatIcon: 'iconWheat' },
+  // Honey (#239): a premium produce — harvested from the beehive on a timer, sold like
+  // eggs/milk. Priced high (a jar of honey is a treat); a balance lever to tune at playtest.
+  honey:      { price: 12, tex: 'iconHoney',       scale: 0.9, emoji: '🍯', floatIcon: 'iconHoney' },
 };
 export const STAND_TYPES = Object.keys(STAND_DEFS);
 

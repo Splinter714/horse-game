@@ -50,6 +50,8 @@ export const WithWildlife = (Base) => class extends Base {
     // Hummingbird (#226): a fast wing-buzz — two blur poses swapped quickly so the
     // wings read as a motion smear.
     anim('hummer_buzz', ['hummer_0', 'hummer_1'], 20);
+    // Bee (#239): a fast wing-buzz, like the hummingbird's.
+    anim('bee_buzz', ['bee_0', 'bee_1'], 18);
     anim('raccoon_idle', ['raccoon_idle_0', 'raccoon_idle_1'], 2);
     anim('raccoon_run', ['raccoon_run_0', 'raccoon_run_1', 'raccoon_run_2', 'raccoon_run_3'], 9);
 
@@ -118,6 +120,7 @@ export const WithWildlife = (Base) => class extends Base {
       if (!c.sprite?.active) continue;
       if (c.kind === 'bird') { c.perchHost = null; this._birdTakeOff(c); }
       else if (c.kind === 'hummer') this._hummerLeave?.(c);
+      else if (c.kind === 'bee') this._beeLeave?.(c);
       else this._raccoonScurryOff?.(c);
     }
   }

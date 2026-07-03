@@ -167,6 +167,40 @@ export function buildHummingbirdTextures(scene) {
   gen(scene, 'hummer_1', W, H, (g) => drawHummingbird(scaledGraphics(g), false));
 }
 
+// ── Bee (#239) ─────────────────────────────────────────────────────────────────
+// A tiny benign honeybee: a fuzzy amber-and-black striped abdomen, a small dark head,
+// and translucent blur wings (two poses swapped fast for the buzz). Buzzes benignly
+// around the beehive and the flowers (paddock/birdEcosystem.js). No sting — purely
+// ambient charm. Faces RIGHT, origin (0.5, 0.5) since it hovers in the air.
+export const BEE_W = 12, BEE_H = 9;
+const BEE_BODY = 0xe8a828, BEE_STRIPE = 0x2a1c08, BEE_HEAD = 0x201810,
+  BEE_WING = 0xdfeef6, BEE_LEG = 0x201810;
+
+function drawBee(g, wingsUp) {
+  g.layer('legs');
+  g.fillStyle(BEE_LEG, 1); g.fillRect(4, 7, 1, 1); g.fillRect(6, 7, 1, 1); g.fillRect(8, 7, 1, 1);
+  g.layer('body');
+  g.fillStyle(BEE_BODY, 1); g.fillEllipse(6, 5, 9, 6);   // fuzzy amber abdomen
+  g.layer('stripes');
+  g.fillStyle(BEE_STRIPE, 1);
+  g.fillRect(4, 3, 1, 4); g.fillRect(7, 3, 1, 4); g.fillRect(9, 4, 1, 2); // bands
+  g.fillTriangle(1, 5, 3, 3, 3, 7); // dark stinger-less tail tip
+  g.layer('head');
+  g.fillStyle(BEE_HEAD, 1); g.fillCircle(10, 5, 2);
+  g.fillStyle(0xf0e0a0, 1); g.fillRect(11, 4, 1, 1);     // tiny eye glint
+  g.fillStyle(BEE_STRIPE, 1); g.fillRect(11, 3, 1, 1); g.fillRect(12, 2, 1, 1); // antenna
+  g.layer('wing');
+  g.fillStyle(BEE_WING, 0.6);
+  if (wingsUp) g.fillEllipse(6, 1, 7, 3);
+  else         g.fillEllipse(6, 8, 7, 3);
+}
+
+export function buildBeeTextures(scene) {
+  const W = BEE_W * ART_SCALE, H = BEE_H * ART_SCALE;
+  gen(scene, 'bee_0', W, H, (g) => drawBee(scaledGraphics(g), true));
+  gen(scene, 'bee_1', W, H, (g) => drawBee(scaledGraphics(g), false));
+}
+
 // ── Raccoon (#181) ─────────────────────────────────────────────────────────��─
 // Side view, facing right: grey body, black bandit mask across the eyes, pointed
 // ears, and a fat banded tail. Scampers, so it gets a 4-frame run plus a sit/idle.
@@ -367,6 +401,7 @@ export function buildWildlifeTextures(scene) {
   buildFishTextures(scene);
   buildBirdTextures(scene);
   buildHummingbirdTextures(scene);
+  buildBeeTextures(scene);
   buildRaccoonTextures(scene);
 }
 

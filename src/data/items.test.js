@@ -16,8 +16,9 @@ describe('carrier definitions', () => {
     // compost added with poop-pickup (#232) — a solid that rides in the basket for
     // future crop use, even though the scoop/dump loop uses the scooper's own load.
     // strawberry/wheat added with crop farming (#242) — harvested crops ride the basket
-    // → farm-stand → sell pipeline (carrots reuse the existing 'carrot' content).
-    expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat']);
+    // → farm-stand → sell pipeline (carrots reuse the existing 'carrot' content). honey
+    // added with the beehive (#239) — harvested into a basket, then sold at the stand.
+    expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey']);
     expect(CARRIER_DEFS.bucket.capacity).toBe(1);
     // milk added with the cow (#cow). catWater removed with the #202 rework, bunnyWater
     // removed with #283 — pet water bowls (cat's and the bunny's) both fill from a plain
