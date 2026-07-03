@@ -3,7 +3,7 @@
 // (#75) and their fly-out picker, and the getActiveItem public API the rest of the
 // game reads. Extracted from the monolithic HotbarScene (issue #167).
 
-import { ITEM_MAP, CARRIER_DEFS, CONTENT_DEFS, SCOOPER, dumpScooper, emptyCarrier } from '../../data/items.js';
+import { ITEM_MAP, CARRIER_DEFS, CONTENT_DEFS, SCOOPER, SHEARS, dumpScooper, emptyCarrier } from '../../data/items.js';
 import { saveGameState } from '../../data/save.js';
 import { FLYOUT_CLOSE_MS } from './constants.js';
 
@@ -16,10 +16,11 @@ export const WithCarriers = (Base) => class extends Base {
       return this._slotView(ITEM_MAP[m], m);
     }
     if (item.type !== 'carrier') {
-      // The scooper (#232) shows its scooped-droppings load as a count badge (like a
-      // carrier), so you can see at a glance it's filling up and needs dumping.
-      const count = item.action === 'scoop' && (this._scooperLoad ?? 0) > 0
-        ? this._scooperLoad : undefined;
+      // The scooper (#232) / shears (#254) show their carried load as a count badge
+      // (like a carrier), so you can see at a glance they're filling up and need dumping.
+      let count;
+      if (item.action === 'scoop' && (this._scooperLoad ?? 0) > 0) count = this._scooperLoad;
+      else if (item.action === 'shear' && (this._shearsLoad ?? 0) > 0) count = this._shearsLoad;
       return { icon: item.icon, label: item.label, count };
     }
     const st  = this.carriers[key] ?? { content: null, count: 0 };
@@ -46,6 +47,7 @@ export const WithCarriers = (Base) => class extends Base {
       money: this._money,
       scooperLoad: this._scooperLoad ?? 0,
       compost: this._compost ?? 0,
+      shearsLoad: this._shearsLoad ?? 0,
     });
   }
 
@@ -76,6 +78,34 @@ export const WithCarriers = (Base) => class extends Base {
     this._persistGameState();
     this._buildHotbar();
     return dumped;
+  }
+
+  // ── Shears wool load (#254) ─────────────────────────────────────────────────
+  // The shears carry a small wool load until dumped at the farm stand. Mirrors the
+  // scooper's load accessors; the load persists so it survives a reload.
+
+  // Add sheared wool to the shears (returns how many were added — 0 when full).
+  addShearsLoad(n = 1) {
+    const cap = SHEARS.capacity;
+    const added = Math.min(cap - (this._shearsLoad ?? 0), Math.max(0, n));
+    if (added <= 0) return 0;
+    this._shearsLoad = (this._shearsLoad ?? 0) + added;
+    this._persistGameState();
+    this._buildHotbar();
+    return added;
+  }
+
+  // Take (and clear) the shears' whole wool load, for the paddock to deposit into the
+  // farm stand's wool stock. Returns the amount taken (0 when empty). Kept as a
+  // take-and-zero (not a self-contained dump) because the destination stock lives on
+  // the PaddockScene's farm stand, not here — the paddock's dumpShearsWool wires it.
+  takeShearsLoad() {
+    const load = this._shearsLoad ?? 0;
+    if (load <= 0) return 0;
+    this._shearsLoad = 0;
+    this._persistGameState();
+    this._buildHotbar();
+    return load;
   }
 
   // ── Carrier groups (#75) ───────────────────────────────────────────────────
@@ -284,6 +314,11 @@ export const WithCarriers = (Base) => class extends Base {
     // go dump" without reaching back into the hotbar scene.
     if (item.action === 'scoop') {
       return { ...item, load: this._scooperLoad ?? 0, capacity: SCOOPER.capacity };
+    }
+    // The shears (#254) likewise carry a wool load — surface it so the Use dispatch/
+    // prompt can tell "shear" (room left) from "full, go dump at the stand".
+    if (item.action === 'shear') {
+      return { ...item, load: this._shearsLoad ?? 0, capacity: SHEARS.capacity };
     }
     if (item.type !== 'carrier') return item;
 

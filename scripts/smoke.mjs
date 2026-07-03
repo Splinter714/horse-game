@@ -84,6 +84,8 @@ try {
       '_stepNav', 'tapMoveTo', '_renderPrompts', 'checkToolProximity',
       'buildInteractables', '_proximityInteractable', 'useActiveTool', '_nearestToolHorse',
       '_animalUseAction', '_nearestCareAnimal',
+      // shears (#254): shear fleecy animals into the tool's own wool load + trim horses.
+      '_nearestShearAnimal', '_nearestTrimHorse', 'shearWithTool', 'dumpShearsWool',
       // wildlife: ambient bird beats incl. the bird-bath splash (#219) + feeder (#240).
       'buildWildlife', 'updateWildlife', '_scheduleBirdBathVisit', '_spawnBirdBathVisit',
       '_scheduleFeederVisit', '_spawnFeederVisit',
@@ -299,6 +301,45 @@ try {
       }
     } catch (e) { beehive = 'threw: ' + String(e); }
 
+    // #254 shears (multi-use tool): equip the shears, shear a ready sheep → +1 wool in
+    // the shears' OWN load (not a basket) and the sheep flips shorn/not-ready; then dump
+    // the shears' wool into the farm stand's wool stock (the scooper-style dump). Also
+    // the secondary "trim a horse" job routes through the brush grooming path.
+    let shears = 'no sheep';
+    try {
+      const hot = g.scene.getScene('HotbarScene');
+      const sheep = paddock.animals.find((a) => a.model?.species === 'sheep');
+      if (sheep && typeof paddock.shearWithTool === 'function') {
+        hot.activeSlot = hot.hotbar.indexOf('shears');
+        hot._shearsLoad = 0;
+        sheep.model.lastProducedAt = 0; // force "fully regrown" → ready to shear
+        const readyBefore = sheep.model.canProduce();
+        paddock.shearWithTool(sheep);
+        const loadedOne = (hot._shearsLoad ?? 0) === 1;
+        const nowShorn  = sheep.model.isShorn() === true;
+        const notReady  = sheep.model.canProduce() === false; // on regrowth cooldown now
+
+        // Dump the shears' wool into the farm stand's wool stock.
+        const woolBefore = paddock.farmStand.stock.wool ?? 0;
+        paddock.dumpShearsWool();
+        const dumped = (paddock.farmStand.stock.wool ?? 0) === woolBefore + 1
+          && (hot._shearsLoad ?? 0) === 0;
+
+        // Secondary job: trimming the nearest horse routes through the brush path
+        // without throwing (grooming benefit reused, #254).
+        let trimmedOk = true;
+        try {
+          const horse = paddock.horses[0];
+          const shearsItem = hot.getActiveItem();
+          paddock.useItemOnHorse(shearsItem, horse);
+        } catch { trimmedOk = false; }
+
+        shears = (readyBefore && loadedOne && nowShorn && notReady && dumped && trimmedOk)
+          ? 'shears-and-dumps'
+          : `readyBefore=${readyBefore},loadedOne=${loadedOne},nowShorn=${nowShorn},notReady=${notReady},dumped=${dumped},trimmedOk=${trimmedOk}`;
+      }
+    } catch (e) { shears = 'threw: ' + String(e); }
+
     // #187 charm behaviors: the night settle/wake cycle must round-trip without
     // throwing (it rewires restAllAnimals/wakeAllAnimals), and the new run primitives
     // must resolve. Probed last (it mutates animal state) and lenient — this proves
@@ -352,6 +393,7 @@ try {
     return {
       owl,
       charm,
+      shears,
       catBowls,
       seedFeeder,
       nectarFeeder,
@@ -586,6 +628,9 @@ try {
   if (result.seedFeeder !== 'fills-and-drains') fail(`seed feeder fill/drain (#240) failed: ${result.seedFeeder}`);
   if (result.nectarFeeder !== 'fills-and-drains') fail(`nectar feeder fill/drain (#226) failed: ${result.nectarFeeder}`);
   if (result.beehive !== 'ripens-and-harvests') fail(`beehive honey (#239) failed: ${result.beehive}`);
+  // #254 shears (multi-use tool): shear a sheep into the shears' own wool load, dump it
+  // into the farm stand's wool stock, and trim a horse via the brush grooming path.
+  if (result.shears !== 'shears-and-dumps') fail(`shears tool (#254) failed: ${result.shears}`);
   // The pig: it spawned into the world and eats apples but not hay.
   if (result.pigCount !== 1) fail(`expected 1 pig in roster, got ${result.pigCount}`);
   if (result.pigsInScene !== 1) fail(`expected 1 pig sprite in scene, got ${result.pigsInScene}`);

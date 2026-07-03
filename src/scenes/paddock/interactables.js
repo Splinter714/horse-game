@@ -235,6 +235,28 @@ export const WithInteractables = (Base) => class extends Base {
       }];
     };
 
+    // Farm-stand wool dump (#254) — the dump spot for the shears' wool load, mirroring
+    // the compost bin for the scooper. Only prompts when the shears are equipped: "Dump
+    // Wool" when they're carrying a load, else a passive hint. Reuses the same farm-stand
+    // prop (its `wool` stock), so no new world object.
+    const standWoolDump = (item) => {
+      const s = this.farmStand;
+      if (!s || item?.action !== 'shear') return [];
+      const load = item.load ?? 0;
+      const canDump = load > 0;
+      return [{
+        x: s.x, y: s.y, tapRadius: 160, reachDist: 120, promptOffsetY: 100,
+        canAct: canDump,
+        label: canDump ? `Dump Wool at stand  (${load})`
+                       : 'Farm Stand  •  shear a sheep or llama to fill the shears',
+        approach: (world) => {
+          const refX = world ? world.x : this.player.sprite.x;
+          return { x: s.x + (refX < s.x ? -1 : 1) * 90, y: s.y + 20 };
+        },
+        activate: () => this.dumpShearsWool(),
+      }];
+    };
+
     // Compost bin (#232) — the dump spot for the scooper. Only prompts when the
     // scooper is equipped: "Dump Compost" when it's carrying a load, else a passive
     // hint. Data-driven off the scooper's reported load (getActiveItem surfaces it).
@@ -288,12 +310,12 @@ export const WithInteractables = (Base) => class extends Base {
     const gardenPlant   = gardenDescs.plant;
     const gardenHarvest = gardenDescs.harvest;
 
-    this.interactables = [gate, house, shop, barn, gardenPlant, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, spinningWheel, compostBin, trashCan, gardenHarvest];
+    this.interactables = [gate, house, shop, barn, gardenPlant, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, compostBin, trashCan, gardenHarvest];
     // Split by input: gate/house/shop/barn/garden-plant are bare-hand "interact" targets
     // (tap/click/E); the rest require a carried tool/carrier and are triggered by Use (the
     // on-screen button / F / controller). See useActiveTool + handleTap.
     this.interactWorld = [gate, house, shop, barn, gardenPlant];
-    this.toolWorld     = [trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, spinningWheel, compostBin, trashCan, gardenHarvest];
+    this.toolWorld     = [trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, compostBin, trashCan, gardenHarvest];
   }
 
   // Nearest activatable instance to (x, y) within each instance's own radius

@@ -110,7 +110,7 @@ const GAME_STATE_KEY = 'horse-game-state-v1';
 // baskets collapse into one "Basket" slot and the buckets into one "Bucket" slot
 // (each a fly-out picker), plus the three tools. Five slots, keys 1–5. Add more as
 // new tools/items arrive. No "hand" slot — interacting is the universal default.
-const DEFAULT_HOTBAR = ['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead', 'scooper'];
+const DEFAULT_HOTBAR = ['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead', 'scooper', 'shears'];
 
 // Which member of each carrier group is currently active in its grouped slot.
 function defaultActiveCarrier() {
@@ -159,7 +159,7 @@ export function loadGameState() {
     hotbar: [...DEFAULT_HOTBAR], inventory: defaultInventory(),
     carriers: defaultCarriers(), activeCarrier: defaultActiveCarrier(),
     money: DEFAULT_MONEY,
-    scooperLoad: 0, compost: 0,
+    scooperLoad: 0, compost: 0, shearsLoad: 0,
   });
   try {
     const raw = localStorage.getItem(GAME_STATE_KEY);
@@ -191,17 +191,21 @@ export function loadGameState() {
       // store. Both default to 0 for a save written before the feature existed.
       scooperLoad:   sanitizeCount(data.scooperLoad),
       compost:       sanitizeCount(data.compost),
+      // Shears mechanic (#254): the shears' current wool load. Defaults to 0 for a
+      // save written before the feature existed.
+      shearsLoad:    sanitizeCount(data.shearsLoad),
     };
   } catch {
     return fresh();
   }
 }
 
-export function saveGameState({ hotbar, inventory, carriers, activeCarrier, money, scooperLoad, compost }) {
+export function saveGameState({ hotbar, inventory, carriers, activeCarrier, money, scooperLoad, compost, shearsLoad }) {
   try {
     localStorage.setItem(GAME_STATE_KEY, JSON.stringify({
       hotbar, inventory, carriers, activeCarrier, money: sanitizeMoney(money),
       scooperLoad: sanitizeCount(scooperLoad), compost: sanitizeCount(compost),
+      shearsLoad: sanitizeCount(shearsLoad),
     }));
   } catch {}
 }

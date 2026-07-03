@@ -10,10 +10,10 @@ export const PAUSABLE_SCENES = ['PaddockScene', 'DayNightScene', 'InfoPanelScene
 // the viewport width.
 export const SLOT_SIZE = 84;
 export const SLOT_GAP  = 8;
-// Only as many slots as we actually use (2 carrier groups + 4 tools: brush, saddle,
-// lead, scooper #232). Add more here as new tools/items arrive rather than
-// pre-allocating empties (#118).
-export const NUM_SLOTS = 6;
+// Only as many slots as we actually use (2 carrier groups + 5 tools: brush, saddle,
+// lead, scooper #232, shears #254). Add more here as new tools/items arrive rather
+// than pre-allocating empties (#118).
+export const NUM_SLOTS = 7;
 export const INV_COLS  = 5;
 export const INV_ROWS  = 10;
 // The carrier fly-out is now a deliberate "show all instances" picker: a quick

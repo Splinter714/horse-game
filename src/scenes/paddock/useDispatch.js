@@ -11,7 +11,7 @@ import { CONTENT_DEFS, foodDemand } from '../../data/items.js';
 import { getSpecies } from '../../data/species/index.js';
 import { ROSTER_SPECIES } from '../../data/save.js';
 import { CARE_DIST, USE_REACH } from './constants.js';
-import { playGather, playSplash } from '../../audio/sounds.js';
+import { playGather, playSplash, playBrush } from '../../audio/sounds.js';
 
 export const WithUseDispatch = (Base) => class extends Base {
   getActiveItem() {
@@ -110,6 +110,56 @@ export const WithUseDispatch = (Base) => class extends Base {
     if (bin) this.showIcon('iconBasketCompost', bin.sprite ?? bin);
   }
 
+  // ── Shears (#254) ───────────────────────────────────────────────────────────
+
+  // Nearest in-reach fleecy animal ready to shear, or null. "Fleecy" = a cooldown-
+  // produce species (sheep/llama, `produces.mode === 'cooldown'`) that canProduce right
+  // now. Registry-driven off species data, so a future woolly animal needs no edit here.
+  // Shared by useActiveTool (to shear) and checkToolProximity (to label "Shear").
+  _nearestShearAnimal() {
+    let best = null, bestD = Infinity;
+    for (const a of this.animals) {
+      if (!a.model || !a.sprite.visible) continue;
+      const spec = getSpecies(a.model.species);
+      if (spec.produces?.mode !== 'cooldown') continue; // fleece regrows on a timer
+      if (!a.model.canProduce?.()) continue;             // not grown back yet
+      const d = Phaser.Math.Distance.Between(
+        this.player.sprite.x, this.player.sprite.y, a.sprite.x, a.sprite.y);
+      if (d <= USE_REACH && d < bestD) { bestD = d; best = a; }
+    }
+    return best;
+  }
+
+  // Nearest horse within Use reach, or null — the shears' secondary "trim the coat"
+  // target (grooming via the brush path). Unlike the brush's dirtiest-first pick this
+  // just takes the nearest horse: a trim is always available (grooms dust or bonds).
+  _nearestTrimHorse() {
+    let best = null, bestD = Infinity;
+    for (const h of this.horses) {
+      const d = Phaser.Math.Distance.Between(
+        this.player.sprite.x, this.player.sprite.y, h.sprite.x, h.sprite.y);
+      if (d <= USE_REACH && d < bestD) { bestD = d; best = h; }
+    }
+    return best;
+  }
+
+  // Shear a fleecy animal with the shears tool: run the SAME produce path as basket-
+  // shearing (#233) — markProduced + shorn look + regrowth timer — but land the wool in
+  // the shears' OWN load (like the scooper's compost load) instead of a basket. No-op
+  // if the fleece isn't ready or the shears are full.
+  shearWithTool(animal) {
+    const model = animal.model;
+    const prod = model && getSpecies(model.species).produces;
+    if (!prod || !model.canProduce?.()) return;
+    const added = this.scene.get('HotbarScene')?.addShearsLoad?.(1) ?? 0;
+    if (added <= 0) return; // shears full — go dump at the stand first
+    model.markProduced();
+    this._saveAnimal(model);
+    playBrush();                       // the shear-snip harvest sound (as #233)
+    this.showIcon(prod.icon, animal.sprite);
+    if (prod.mode === 'cooldown') this._refreshShornLook(animal); // shorn until regrown
+  }
+
   // ── Trash can (#284) ────────────────────────────────────────────────────────
 
   // Empty the ACTIVE carrier's whole load into the trash can — a discard, not a
@@ -190,6 +240,23 @@ export const WithUseDispatch = (Base) => class extends Base {
       if (item.action === 'saddle')    this.toggleSaddle(target);
       else if (item.action === 'lead') this.toggleLead(target);
       else                             this.useItemOnHorse(item, target);
+      return;
+    }
+
+    // Shears (#254): a MULTI-USE cut/clip tool. Priority in reach:
+    //   1. SHEAR the nearest fleecy animal (sheep/llama) that's ready → wool into the
+    //      shears' own load (same produce path as basket-shearing #233).
+    //   2. else TRIM the nearest horse's coat → the brush grooming path (a tidy clip).
+    //   3. else fall through to world spots so the farm stand (dump wool) can win.
+    if (item.action === 'shear') {
+      const fleecy = this._nearestShearAnimal();
+      if (fleecy && (item.load ?? 0) < (item.capacity ?? Infinity)) {
+        this.shearWithTool(fleecy);
+        return;
+      }
+      const horse = this._nearestTrimHorse();
+      if (horse) { this.useItemOnHorse(item, horse); return; }
+      this._nearestUseSpot(item)?.activate(); // dump wool at the farm stand, if there
       return;
     }
 
