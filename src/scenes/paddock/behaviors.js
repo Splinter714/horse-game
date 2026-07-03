@@ -100,6 +100,11 @@ export const WithBehaviors = (Base) => class extends Base {
       lastWallow: h._lastWallow ?? null,
       wallowChance: CHARM.WALLOW_CHANCE,
       wallowCooldown: CHARM.WALLOW_COOLDOWN,
+      // Llama spit (#268): purely cosmetic charm, same shape as the pig wallow — needs
+      // daytime + a per-llama cooldown + a random roll. Shared via ctx like the above.
+      lastSpit: h._lastSpit ?? null,
+      spitChance: CHARM.SPIT_CHANCE,
+      spitCooldown: CHARM.SPIT_COOLDOWN,
       // Herd bond (#31) tuning + state, shared with the seekBuddy behavior.
       buddyDist,
       bondHappy: HERD.HAPPY_AT,

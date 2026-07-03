@@ -33,6 +33,25 @@ const SHEEP_SKIN = [
   sw('tan',  'Tan',  { lit: 0xc8a888, mid: 0xb08c68, dk: 0x947050, dkr: 0x77563c }),
 ];
 
+// ── Llama / alpaca (#268): fleece (body/neck) + skin (legs + face + muzzle) ────
+// Same ramp shapes as the sheep (fleece = hi/lit/mid/shad, skin = lit/mid/dk/dkr) so
+// the art (llamaArt.js) reads them the same way. The llama vs alpaca SHAPE is a
+// separate `variant` OPTION part below, not a colour.
+const LLAMA_FLEECE = [
+  sw('cream', 'Cream', { hi: 0xf3e9d2, lit: 0xe8dabb, mid: 0xd6c39c, shad: 0xbca67e }),
+  sw('white', 'White', { hi: 0xfbf9f6, lit: 0xf0ece8, mid: 0xddd8d2, shad: 0xc4bdb5 }),
+  sw('fawn',  'Fawn',  { hi: 0xd8b48a, lit: 0xc79b6e, mid: 0xac8153, shad: 0x8c663d }),
+  sw('brown', 'Brown', { hi: 0xa07e5a, lit: 0x876346, mid: 0x6c4c34, shad: 0x513826 }),
+  sw('grey',  'Grey',  { hi: 0xcfcfd2, lit: 0xb6b6ba, mid: 0x98989e, shad: 0x78787e }),
+  sw('black', 'Black', { hi: 0x4a4a50, lit: 0x36363c, mid: 0x242428, shad: 0x161618 }),
+];
+const LLAMA_SKIN = [
+  sw('brown', 'Brown', { lit: 0x8a7a68, mid: 0x776656, dk: 0x635444, dkr: 0x4e4235 }),
+  sw('grey',  'Grey',  { lit: 0x7d7d7d, mid: 0x6b6b6b, dk: 0x5a5a5a, dkr: 0x4c4c4c }),
+  sw('dark',  'Dark',  { lit: 0x4a4038, mid: 0x382f28, dk: 0x28211c, dkr: 0x1a1512 }),
+  sw('tan',   'Tan',   { lit: 0xc8a888, mid: 0xb08c68, dk: 0x947050, dkr: 0x77563c }),
+];
+
 // ── Cow: coat (white/legs/neck/head base) + spots (Holstein patches) ──────────
 const COW_COAT = [
   sw('white', 'White', { hi: 0xffffff, mid: 0xf0ece4, shad: 0xe0dcd4, legFar: 0xdedacf, legNear: 0xf0ece4 }),
@@ -182,6 +201,16 @@ export const CUSTOMIZE = {
   chicken: {
     parts: [
       { id: 'style', label: 'Style', palette: CHICKEN_STYLES },
+    ],
+  },
+  // Llama / alpaca (#268): the llama-vs-alpaca SHAPE is a `variant` OPTION part (a key
+  // the art reads to pick the silhouette), plus fleece + skin colour parts. Ordering
+  // = top-to-bottom in the panel.
+  llama: {
+    parts: [
+      { id: 'variant', label: 'Type', options: [opt('llama', 'Llama'), opt('alpaca', 'Alpaca')] },
+      { id: 'fleece',  label: 'Fleece', palette: LLAMA_FLEECE },
+      { id: 'skin',    label: 'Skin',   palette: LLAMA_SKIN },
     ],
   },
 

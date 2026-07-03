@@ -188,6 +188,56 @@ export const WithCharm = (Base) => class extends Base {
     return true;
   }
 
+  // ─── Llama spit (#268 — a low-priority AI-list behavior, like the pig wallow) ──
+
+  // A content, off-cooldown llama does a charming, harmless little "ptooey": a quick
+  // head/neck rock forward and a small blob of spit that arcs out ahead of her and
+  // fizzles. Purely cosmetic — no stats, no target, no harm. Reuses only generic
+  // display primitives (a throwaway blob + a tween), no dedicated art frames. Returns
+  // true — this always claims the llama once `spit.test` has fired.
+  llamaGoSpit(a) {
+    a.state = 'spitting';
+    a._lastSpit = this.time.now;
+    if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
+    const sprite = a.sprite;
+    sprite.play(`idle_${a.key}`, true);
+
+    // Little forward head-rock (she leans in to spit, then recoils).
+    const baseAngle = sprite.angle;
+    this.tweens.add({
+      targets: sprite, angle: baseAngle - 5,
+      duration: 130, yoyo: true, ease: 'Quad.easeOut',
+    });
+
+    // The spit blob: a small pale globule that arcs forward and up, then drops and
+    // fizzles out. Faces the way the sprite faces (flipX → spit left instead of right).
+    const dir = sprite.flipX ? -1 : 1;
+    const bx = sprite.x + dir * 40, by = sprite.y - 96;
+    const blob = this.add.circle(bx, by, 4, 0xeaf3f0, 0.85).setDepth(10000);
+    this.tweens.add({
+      targets: blob,
+      x: bx + dir * 70,
+      y: by - 18,          // arc up
+      duration: 260, ease: 'Quad.easeOut',
+      onComplete: () => {
+        // ...then fall and fade.
+        this.tweens.add({
+          targets: blob, y: by + 26, alpha: 0, scale: 0.6,
+          duration: 260, ease: 'Quad.easeIn',
+          onComplete: () => blob.destroy(),
+        });
+      },
+    });
+
+    this.time.delayedCall(CHARM.SPIT_MS, () => {
+      if (a.state === 'spitting') {
+        a.state = 'idle';
+        this.scheduleAnimalWander(a, Phaser.Math.Between(1500, 3500));
+      }
+    });
+    return true;
+  }
+
   // ─── Shared nap visuals (pig flop + cat curl) ───────────────────────────────
 
   // Settle a sprite into a cozy nap: a gentle squash (no lying-down art needed) and

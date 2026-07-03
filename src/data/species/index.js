@@ -11,12 +11,14 @@ import { PIG } from './pig/index.js';
 import { SHEEP } from './sheep/index.js';
 import { DOG } from './dog/index.js';
 import { BUNNY } from './bunny/index.js';
+import { LLAMA } from './llama/index.js';
 import * as horseBehaviors from './horse/behaviors.js';
 import * as chickenBehaviors from './chicken/behaviors.js';
 import * as catBehaviors from './cat/behaviors.js';
 import * as dogBehaviors from './dog/behaviors.js';
 import * as pigBehaviors from './pig/behaviors.js';
 import * as bunnyBehaviors from './bunny/behaviors.js';
+import * as llamaBehaviors from './llama/behaviors.js';
 
 export const SPECIES = {
   horse: HORSE,
@@ -27,6 +29,7 @@ export const SPECIES = {
   sheep: SHEEP,
   dog: DOG,
   bunny: BUNNY,
+  llama: LLAMA,
 };
 
 export function getSpecies(id) {
@@ -64,6 +67,11 @@ export const BEHAVIORS = {
   // seekBunnyWater, #224) — its own behavior module, same shape as the cat's
   // seekFood/seekWater. Falls through to a plain hop-wander when neither fires.
   bunny: indexById(bunnyBehaviors),
+  // The llama is a grazer like the sheep/cow/pig — reuses the horse grazer behavior
+  // modules; her `behaviors` list (llama/index.js) picks the subset (hay/water/graze,
+  // no begging). She also gets her own `spit` module (#268) — a low-priority charm
+  // behavior (a harmless "ptooey"), layered on top of the reused horse modules.
+  llama: { ...indexById(horseBehaviors), ...indexById(llamaBehaviors) },
 };
 
 function indexById(mod) {

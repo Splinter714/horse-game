@@ -411,11 +411,12 @@ try {
   if (!result.movementOk) fail('creature movement/pathfinding threw: ' + result.movementError);
   if (result.behaviorDecision !== 'seekFood') fail(`hungry horse with hay nearby did not select seekFood (got ${result.behaviorDecision})`);
   // #136: gather one food per animal that eats it, water → capacity. Diets differ:
-  // hay feeds the 7 horses + the cow + the 1 sheep (9); apples/carrots also feed the
-  // pig but NOT the sheep, who refuse them (9). The split is the proof the pig/sheep
-  // pickier diets are wired up. (Probed with a high capacity so demand isn't capped.)
+  // hay feeds the 7 horses + the cow + the 1 sheep + the 2 llamas (11); apples/carrots
+  // also feed the pig but NOT the sheep/llamas, who refuse them (9). The split is the
+  // proof the pig/sheep/llama pickier diets are wired up. (Probed with a high capacity
+  // so demand isn't capped.)
   const gt = result.gatherTargets;
-  if (gt.hay !== 9) fail(`gather target for hay = ${gt.hay}, expected 9 (7 horses + 1 cow + 1 sheep)`);
+  if (gt.hay !== 11) fail(`gather target for hay = ${gt.hay}, expected 11 (7 horses + 1 cow + 1 sheep + 2 llamas)`);
   for (const food of ['apple', 'carrot']) {
     if (gt[food] !== 9) fail(`gather target for ${food} = ${gt[food]}, expected 9 (7 horses + 1 cow + 1 pig; sheep refuse them, #136)`);
   }

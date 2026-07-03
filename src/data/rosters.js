@@ -21,6 +21,7 @@ import { Cat } from './species/cat/model.js';
 import { Sheep } from './species/sheep/model.js';
 import { Dog } from './species/dog/model.js';
 import { Bunny } from './species/bunny/model.js';
+import { Llama } from './species/llama/model.js';
 
 // The canonical herd. Every horse is equal — same persistence, same decay. The
 // only per-horse differences are data (name, coat, age, spawn) plus Ebony's
@@ -111,6 +112,18 @@ function defaultBunnyRoster() {
   return {};
 }
 
+// Llamas / alpacas (#268). One species, two appearance VARIANTS (coat 0 = llama, coat 1
+// = alpaca). Grazers with full stats + daily-care like the sheep/cow/pig; offline decay
+// applies on load, forgiving like the herd. Keyed llama0..1 like the chickens; the spawn
+// block (llama/index.js) places one per individual near the sheep flock. Each is a
+// fleece producer (shearable on a regrowth timer).
+function defaultLlamaRoster() {
+  return {
+    llama0: { id: 'llama-1', name: 'Kuzco', breed: 'Llama',  coat: 0, variant: 'llama',  age: 4, sex: 'male' },
+    llama1: { id: 'llama-2', name: 'Fluff', breed: 'Alpaca', coat: 1, variant: 'alpaca', age: 3, sex: 'female' },
+  };
+}
+
 export const ROSTERS = {
   horse: {
     storageKey: 'horse-care-save-v2',
@@ -178,6 +191,14 @@ export const ROSTERS = {
     Model: Bunny,
     defaultRoster: defaultBunnyRoster, // empty — attracted at runtime, not seeded
     offlineDecay: true, // has hunger/thirst — forgiving offline decay like the herd
+    legacy: null,
+  },
+  llama: {
+    storageKey: 'horse-care-llamas-v1',
+    registryKey: 'allLlamas',
+    Model: Llama,
+    defaultRoster: defaultLlamaRoster,
+    offlineDecay: true, // grazer with survival needs — forgiving offline decay
     legacy: null,
   },
 };
