@@ -18,7 +18,7 @@ export const WithFlock = (Base) => class extends Base {
   chickenTick() {
     if (this.isNight) return;
     for (const a of this.animals) {
-      if (!a.key.startsWith('chicken')) continue;
+      if (!this._isFlockBird(a)) continue; // hens AND roosters mill with the flock (#269)
       // Only redirect a chicken that's free to move — never yank one out of
       // eating, laying, roosting, or leaving the coop.
       if (!['idle', 'wandering', 'following', 'gathering'].includes(a.state)) continue;
@@ -184,8 +184,8 @@ export const WithFlock = (Base) => class extends Base {
     const freeNests = this.props.nests.filter(n => !n.hasEgg && !n.occupant);
     if (!freeNests.length) return;
 
-    // Pick a random idle chicken
-    const chickens = this.animals.filter(a => a.key.startsWith('chicken') && a.state === 'idle');
+    // Pick a random idle HEN (roosters roost with the flock but don't lay, #269)
+    const chickens = this.animals.filter(a => this._isLayingHen(a) && a.state === 'idle');
     if (!chickens.length) return;
 
     const chicken = Phaser.Utils.Array.GetRandom(chickens);

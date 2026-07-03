@@ -297,6 +297,31 @@ try {
       }
     } catch (e) { beehive = 'threw: ' + String(e); }
 
+    // Rooster (#269): spawns into the world as a flock bird (roosts/pecks like the hen),
+    // does NOT lay eggs (laysEggs:false → excluded from eggLayTick), IS a breeding partner
+    // (the marker #274's chick-hatching hooks into), and CROWS at dawn. We exercise the
+    // whole crow path (arm → runBehaviors picks crowAtDawn → roosterCrow plays the anim +
+    // sound and sets state 'crowing'), and confirm the crow anim + sound wiring exists.
+    let rooster = 'no rooster';
+    try {
+      const r = paddock.animals.find((a) => a.model?.species === 'rooster');
+      if (r) {
+        const caps = r.model?._spec?.capabilities ?? {};
+        const isFlockBird = paddock._isFlockBird(r);            // roosts with the flock
+        const notLayingHen = paddock._isLayingHen(r) === false; // never picked to lay
+        const breedingPartner = caps.breedingPartner === true;  // the #274 marker
+        const crowAnimReady = g.anims.exists(`crow_${r.key}`);
+        // Arm + fire the crow through the real behavior dispatch.
+        r.state = 'idle';
+        r._crowing = true;
+        const claimed = paddock.runBehaviors(r);               // → crowAtDawn.run → roosterCrow
+        const crowed = claimed && r.state === 'crowing' && r._crowing === false;
+        rooster = (isFlockBird && notLayingHen && breedingPartner && crowAnimReady && crowed)
+          ? 'crows-at-dawn'
+          : `isFlockBird=${isFlockBird},notLayingHen=${notLayingHen},breedingPartner=${breedingPartner},crowAnimReady=${crowAnimReady},crowed=${crowed}(claimed=${claimed},state=${r.state})`;
+      }
+    } catch (e) { rooster = 'threw: ' + String(e); }
+
     // #187 charm behaviors: the night settle/wake cycle must round-trip without
     // throwing (it rewires restAllAnimals/wakeAllAnimals), and the new run primitives
     // must resolve. Probed last (it mutates animal state) and lenient — this proves
@@ -318,6 +343,9 @@ try {
 
     return {
       charm,
+      rooster,
+      roosterCount: Object.keys(g.registry.get('allRoosters') ?? {}).length,
+      roostersInScene: paddock.animals.filter((a) => a.model?.species === 'rooster').length,
       catBowls,
       seedFeeder,
       nectarFeeder,
@@ -545,6 +573,10 @@ try {
   if (result.cowMilk !== 'milked-once') fail(`cow generic produce path failed (got ${result.cowMilk}) — #167 B3 unified care`);
   // #187 charm behaviors: night settle/wake cycle + charm run primitives must hold.
   if (result.charm !== 'wired') fail(`charm behaviors (#187) failed: ${result.charm}`);
+  // Rooster (#269): spawned as a flock bird, doesn't lay, is a breeding partner, crows at dawn.
+  if (result.roosterCount !== 1) fail(`expected 1 rooster in roster, got ${result.roosterCount}`);
+  if (result.roostersInScene !== 1) fail(`expected 1 rooster sprite in scene, got ${result.roostersInScene}`);
+  if (result.rooster !== 'crows-at-dawn') fail(`rooster (#269) failed: ${result.rooster}`);
   // #202 rework: the cat eats directly from a stocked bowl (not dropped piles).
   if (result.catBowls !== 'eats-from-bowl') fail(`cat bowl feeding (#202) failed: ${result.catBowls}`);
   if (result.seedFeeder !== 'fills-and-drains') fail(`seed feeder fill/drain (#240) failed: ${result.seedFeeder}`);

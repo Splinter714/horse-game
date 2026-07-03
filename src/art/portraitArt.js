@@ -5,6 +5,7 @@
 const WHITE = 0xf4efe6;
 const HORSE_SIZE = 200;
 const CHICKEN_SIZE = 120;
+const ROOSTER_SIZE = 120;
 
 // DEPRECATED: the front-facing horse portrait looked worse than the animated
 // side-view sprite, so the info panel and the Stable both use the side view now and
@@ -119,5 +120,60 @@ export function buildChickenPortraitTexture(scene, key, coat) {
   g.fillStyle(0xe0c030, 1); g.fillRect(15*s, 4*s, 1*s, 2*s);
 
   g.generateTexture(key, CHICKEN_SIZE, CHICKEN_SIZE);
+  g.destroy();
+}
+
+// The rooster info-panel portrait (#269) — the same static-showcase treatment as the
+// hen, but drawn from the rooster's proportions: taller upright stance, big serrated
+// comb, long dangling wattle, golden neck hackles and a sweeping arched sickle tail.
+export function buildRoosterPortraitTexture(scene, key, coat) {
+  const { body, bodyHi, bodyLo, wing, wingLo, saddle, tail, tailHi, tailDark } = coat;
+  const COMB = 0xe22222, COMB_HI = 0xf25050, LEG = 0xe0b028, LEG_LO = 0xb88818, BEAK = 0xf0c838, BEAK_LO = 0xc89818;
+  const g = scene.make.graphics({ x: 0, y: 0, add: false });
+  const s = 4.4; // scale factor to match the rooster's larger in-world proportions
+
+  // Legs (with spurs)
+  g.fillStyle(LEG, 1);
+  g.fillRect(6*s, 18*s, 2*s, 6*s); g.fillRect(11*s, 18*s, 2*s, 6*s);
+  g.fillStyle(LEG_LO, 1);
+  g.fillRect(4*s, 24*s, 5*s, 1*s); g.fillRect(9*s, 24*s, 5*s, 1*s);
+  g.fillRect(5*s, 21*s, 1*s, 2*s); g.fillRect(10*s, 21*s, 1*s, 2*s);
+
+  // Arched sickle tail
+  g.fillStyle(tailDark, 1); g.fillRect(0*s, 8*s, 3*s, 8*s);
+  g.fillStyle(tail, 1);     g.fillRect(1*s, 4*s, 3*s, 8*s);
+  g.fillStyle(tailHi, 1);   g.fillRect(2*s, 2*s, 3*s, 6*s);
+  g.fillStyle(tail, 1);     g.fillRect(3*s, 1*s, 2*s, 4*s);
+
+  // Body + proud chest
+  g.fillStyle(body, 1);   g.fillRect(3*s, 11*s, 12*s, 9*s);
+  g.fillStyle(bodyHi, 1); g.fillRect(3*s, 11*s, 12*s, 2*s);
+  g.fillStyle(bodyLo, 1); g.fillRect(3*s, 17*s, 12*s, 3*s);
+  g.fillStyle(body, 1);   g.fillRect(13*s, 13*s, 3*s, 6*s);
+  g.fillStyle(wing, 1);   g.fillRect(4*s, 12*s, 9*s, 6*s);
+  g.fillStyle(wingLo, 1); g.fillRect(4*s, 16*s, 9*s, 2*s);
+
+  // Golden hackle neck + head
+  g.fillStyle(saddle, 1); g.fillRect(13*s, 7*s, 4*s, 7*s);
+  g.fillStyle(body, 1);   g.fillRect(13*s, 2*s, 5*s, 6*s);
+  g.fillStyle(bodyHi, 1); g.fillRect(13*s, 2*s, 5*s, 2*s);
+
+  // Big serrated comb
+  g.fillStyle(COMB, 1);
+  g.fillRect(13*s, -1*s, 2*s, 3*s); g.fillRect(15*s, -2*s, 2*s, 4*s);
+  g.fillRect(17*s, -1*s, 2*s, 3*s); g.fillRect(14*s, 1*s, 5*s, 2*s);
+  g.fillStyle(COMB_HI, 1); g.fillRect(15*s, -2*s, 1*s, 2*s);
+
+  // Long wattle
+  g.fillStyle(COMB, 1);   g.fillRect(15*s, 8*s, 2*s, 4*s); g.fillRect(17*s, 7*s, 1*s, 3*s);
+  g.fillStyle(COMB_HI, 1); g.fillRect(15*s, 8*s, 1*s, 2*s);
+
+  // Beak + eye
+  g.fillStyle(BEAK, 1);    g.fillRect(18*s, 4*s, 2*s, 2*s);
+  g.fillStyle(BEAK_LO, 1); g.fillRect(18*s, 6*s, 2*s, 1*s);
+  g.fillStyle(0x1a0800, 1); g.fillRect(15*s, 4*s, 2*s, 2*s);
+  g.fillStyle(0xffffff, 0.85); g.fillRect(15*s, 4*s, 1*s, 1*s);
+
+  g.generateTexture(key, ROOSTER_SIZE, ROOSTER_SIZE);
   g.destroy();
 }

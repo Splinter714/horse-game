@@ -4,7 +4,7 @@
 import Phaser from 'phaser';
 import { EVENTS } from '../../data/events.js';
 import { getSpecies } from '../../data/species/index.js';
-import { playBirdChirp, setMusicMode } from '../../audio/sounds.js';
+import { playBirdChirp, playRoosterCrow, setMusicMode } from '../../audio/sounds.js';
 import { CHARM } from './constants.js';
 import { dirtMultiplier } from '../../data/weather.js';
 
@@ -30,7 +30,7 @@ export const WithDayNight = (Base) => class extends Base {
 
   onPhaseChange({ isNight, phase }) {
     this._phase = phase;
-    if (phase === 'Morning') this._dawnNewDay();
+    if (phase === 'Morning') { this._dawnNewDay(); this._crowRoostersAtDawn(); }
     if (isNight && !this.isNight) {
       this.isNight = true;
       this.restAllAnimals();
@@ -52,7 +52,7 @@ export const WithDayNight = (Base) => class extends Base {
   _enterChickensForStart(isNight, phase) {
     if (isNight) return;
     for (const a of this.animals) {
-      if (!a.key.startsWith('chicken')) continue;
+      if (!this._isFlockBird(a)) continue; // hens AND roosters roost/emerge together (#269)
       if (phase === 'Morning') {
         this.chickenLeaveCoop(a);
       } else {
@@ -95,13 +95,51 @@ export const WithDayNight = (Base) => class extends Base {
     this.advanceGarden?.();
   }
 
+  // Dawn crow (#269): every morning the roosters greet the sunrise with a cock-a-
+  // doodle-doo. Scheduler-driven (fired by the Morning PHASE_CHANGE), like egg-laying
+  // and roosting — NOT a free per-tick decision. Each rooster is armed (`_crowing`)
+  // and its behavior list is walked so the pure `crowAtDawn` behavior fires (which
+  // calls roosterCrow below); a small stagger keeps two roosters from crowing in
+  // perfect unison. Skipped on the very first boot-phase (the flock is still filing
+  // out of the coop and _crowRoostersAtDawn would fight the emerge tween).
+  _crowRoostersAtDawn() {
+    if (!this._sawFirstMorning) return; // set true by _dawnNewDay on the first Morning
+    const roosters = this.animals.filter((a) => a.model?.species === 'rooster');
+    roosters.forEach((a, i) => {
+      this.time.delayedCall(400 + i * 900, () => {
+        if (this.isNight || !a.sprite?.active) return;
+        a._crowing = true;
+        this.runBehaviors(a); // walks the list → crowAtDawn.test fires → roosterCrow(a)
+      });
+    });
+  }
+
+  // The crow primitive the `crowAtDawn` behavior runs: play the head-back crow pose
+  // and the cock-a-doodle-doo sound, then drop back to idle and resume wandering. Only
+  // interrupts a free-to-move rooster (never yanks one out of roosting / leaving-coop).
+  roosterCrow(a) {
+    a._crowing = false; // one crow per arming
+    if (!['idle', 'wandering', 'following', 'gathering'].includes(a.state)) return;
+    if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
+    a.state = 'crowing';
+    a.sprite.setFlipX(false); // crow facing right (toward the rising sun)
+    if (this.anims.exists(`crow_${a.key}`)) a.sprite.play(`crow_${a.key}`, true);
+    playRoosterCrow();
+    this.time.delayedCall(1100, () => {
+      if (!a.sprite?.active || a.state !== 'crowing') return;
+      a.state = 'idle';
+      a.sprite.play(`idle_${a.key}`, true);
+      this.scheduleAnimalWander(a, Phaser.Math.Between(500, 2500));
+    });
+  }
+
   restAllAnimals() {
     // The barnyard beds down together (#187, charm.js): horses + other pasture
     // animals settle (the non-horses drift in to join the herd); the cat sometimes
     // curls up outside instead of going into the house.
     for (const h of this.horses) this._settleAnimalForNight(h);
     for (const a of this.animals) {
-      if (a.key.startsWith('chicken')) this.chickenRoost(a);
+      if (this._isFlockBird(a)) this.chickenRoost(a); // hens + roosters into the coop (#269)
       else if (a.key === 'cat') {
         if (Math.random() < CHARM.CAT_CURL_CHANCE) this.catCurlUp(a);
         else this.catGoHome(a);
@@ -168,7 +206,7 @@ export const WithDayNight = (Base) => class extends Base {
     }
     for (const a of this.animals) {
       if (a._sleepTimer) { this.time.removeEvent(a._sleepTimer); a._sleepTimer = null; }
-      if (a.key.startsWith('chicken')) {
+      if (this._isFlockBird(a)) { // hens + roosters file out of the coop (#269)
         if (a.state === 'roosting') this.chickenLeaveCoop(a);
       } else if (a.key === 'cat') {
         if (a.state === 'homing') this.catLeaveHome(a);
