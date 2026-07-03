@@ -4,6 +4,9 @@ import { saveDevSettings } from '../data/save.js';
 import { CUSTOMIZE } from '../data/customize.js';
 import { DEMO_FOALS } from '../data/demoFoals.js';
 import { BIRD_TYPES } from '../data/wildlife.js';
+import { SPECIES } from '../data/species/index.js';
+import { ROSTERS } from '../data/rosters.js';
+import { buildChickTextures } from '../art/chickArt.js';
 
 // ── Art preview (dev tool) ───────────────────────────────────────────────────
 // A standalone gallery for art-directing the creatures. Boots straight into a
@@ -22,44 +25,107 @@ import { BIRD_TYPES } from '../data/wildlife.js';
 // produced (no hardcoded frame lists), so it always reflects the live art-
 // generation path — e.g. the current buildHorseTextures, not any stale guess.
 
+// A dedicated fixed key for a sample baby CHICK (mirrors DEMO_FOALS: fixed sample
+// art, not part of any persisted roster) — built unconditionally below so the
+// Chicken family can show the adult next to its baby, same "family" pattern as
+// the Horse row (adult + foal) for a relative-size comparison at a glance.
+const PREVIEW_CHICK_KEY = '__previewChick';
+
+// AUTO-DERIVED roster families (#292-ish dev-tool fix): every species registered in
+// SPECIES (src/data/species/index.js) gets a gallery row automatically — adding a
+// new species (goat/llama/duck/rooster/fox/…) never requires touching this file.
+// One sample individual is picked per species:
+//   - if its ROSTERS default roster has individuals, use the first one's key
+//   - if the roster starts EMPTY (bunny/fox/duck — attracted/tamed at runtime),
+//     BootScene still builds a base texture unconditionally under the `${id}0`
+//     convention (see art/index.js SPECIES_TEXTURES.bunny/fox/duck) — use that.
+// Species with multiple visually distinct COAT VARIANTS in their default roster
+// (llama: llama0=llama, llama1=alpaca) show one member per variant instead of
+// just the first, so every look is visible in the gallery.
+function autoRosterFamilies() {
+  const families = [];
+  for (const id of Object.keys(SPECIES)) {
+    if (id === 'horse' || id === 'chicken') continue; // hand-curated below (family groupings)
+    const roster = ROSTERS[id];
+    const defaults = roster ? roster.defaultRoster() : {};
+    const keys = Object.keys(defaults);
+    const label = id.charAt(0).toUpperCase() + id.slice(1);
+
+    if (!keys.length) {
+      // Empty default roster (attracted/tamed at runtime) — sample the base texture
+      // BootScene builds unconditionally for the untamed/wild sprite.
+      families.push({ label, members: [{ key: `${id}0` }] });
+      continue;
+    }
+
+    // Multiple default individuals whose `variant` differs (e.g. llama/alpaca) —
+    // show one member per distinct variant. Otherwise just the first individual.
+    const variants = new Set(keys.map((k) => defaults[k].variant).filter(Boolean));
+    if (variants.size > 1) {
+      const seen = new Set();
+      const members = [];
+      for (const k of keys) {
+        const v = defaults[k].variant;
+        if (v && seen.has(v)) continue;
+        if (v) seen.add(v);
+        members.push({ key: k, label: v ? v.charAt(0).toUpperCase() + v.slice(1) : undefined });
+      }
+      families.push({ label, members });
+    } else {
+      families.push({ label, members: [{ key: keys[0] }] });
+    }
+  }
+  return families;
+}
+
 // What to show, grouped into FAMILIES. A family's members (e.g. an adult and its
 // young) share ONE display scale and a common ground line, so their on-screen
 // sizes reflect the art's TRUE relative proportions — that's how we check a
 // foal really reads as smaller than its dam. Across families each is normalized
 // so the tallest member fills TARGET_H (keeps the gallery readable when a 16px
 // chicken sits beside a 256px horse). `key` is the texture base key the builder
-// used; frames are `${key}_${frameName}` textures. Cow/sheep/pig/dog are the
-// drawn-but-disabled animals; add their young (calf/lamb/piglet/pup) as a second
-// member here once that art exists and the relative-size check comes for free.
-const FAMILIES = [
-  { label: 'Horse', members: [{ key: 'horse', label: 'Adult' }, { key: 'foal1', label: 'Foal' }] },
-  { label: 'Chicken', members: [{ key: 'chicken0' }] },
-  { label: 'Cat',     members: [{ key: 'cat' }] },
-  { label: 'Cow',     members: [{ key: 'cow' }] },
-  { label: 'Sheep',   members: [{ key: 'sheep0' }] }, // flock roster keys sheep0..2 (like chicken0)
-  { label: 'Pig',     members: [{ key: 'pig' }] },
-  { label: 'Dog',     members: [{ key: 'dog' }] },
-  // Ambient wildlife (#181/#182/#183) — shown here so its art can be eyeballed even
-  // though these critters only flit through the world on timers. Not tap-to-customize
-  // (no customizer parts). The raccoon's run + the bird's flap animate (see the
-  // locomotion-cycle filter below); the fish does its tail-flick.
-  // New (crisp, super-sampled) next to the old (soft, 1×) for an A/B — the *Old keys
-  // are gallery-only (PREVIEW_TEXTURES.wildlifeOld), so they just don't appear in
-  // normal play. Each family normalizes to the same on-screen height, so the only
-  // difference you see is edge crispness. TEMP: drop the (old 1×) rows once decided.
-  { label: 'Raccoon',            members: [{ key: 'raccoon5' }] },
-  // One row per bird type (visual variety, #220) so each palette/silhouette can be
-  // eyeballed. Keys are `bird_<id>` (the per-type texture prefix from wildlifeArt.js).
-  ...BIRD_TYPES.map((t) => ({ label: `Bird — ${t.name}`, members: [{ key: `bird_${t.id}` }] })),
-  { label: 'Bird (old 1×)',     members: [{ key: 'birdOld' }] },
-  { label: 'Fish (new 4×)',     members: [{ key: 'fish' }] },
-  { label: 'Fish (old 1×)',     members: [{ key: 'fishOld' }] },
-];
+// used; frames are `${key}_${frameName}` textures.
+//
+// Horse and Chicken stay hand-curated here (adult + young family groupings); every
+// OTHER roster species (cat/cow/sheep/pig/dog/bunny/goat/llama/fox/duck/rooster/…)
+// is derived automatically from the SPECIES + ROSTERS registries by
+// autoRosterFamilies() — see above. Ambient wildlife (raccoon/birds/fish) isn't a
+// roster species, so it stays hand-curated below the auto block.
+function buildFamilies() {
+  return [
+    { label: 'Horse', members: [{ key: 'horse', label: 'Adult' }, { key: 'foal1', label: 'Foal' }] },
+    { label: 'Chicken', members: [{ key: 'chicken0', label: 'Adult' }, { key: PREVIEW_CHICK_KEY, label: 'Chick' }] },
+    ...autoRosterFamilies(),
+    // Ambient wildlife (#181/#182/#183) — shown here so its art can be eyeballed even
+    // though these critters only flit through the world on timers. Not tap-to-customize
+    // (no customizer parts). The raccoon's run + the bird's flap animate (see the
+    // locomotion-cycle filter below); the fish does its tail-flick.
+    // New (crisp, super-sampled) next to the old (soft, 1×) for an A/B — the *Old keys
+    // are gallery-only (PREVIEW_TEXTURES.wildlifeOld), so they just don't appear in
+    // normal play. Each family normalizes to the same on-screen height, so the only
+    // difference you see is edge crispness. TEMP: drop the (old 1×) rows once decided.
+    { label: 'Raccoon',            members: [{ key: 'raccoon5' }] },
+    // One row per bird type (visual variety, #220) so each palette/silhouette can be
+    // eyeballed. Keys are `bird_<id>` (the per-type texture prefix from wildlifeArt.js).
+    ...BIRD_TYPES.map((t) => ({ label: `Bird — ${t.name}`, members: [{ key: `bird_${t.id}` }] })),
+    { label: 'Bird (old 1×)',     members: [{ key: 'birdOld' }] },
+    { label: 'Fish (new 4×)',     members: [{ key: 'fish' }] },
+    { label: 'Fish (old 1×)',     members: [{ key: 'fishOld' }] },
+  ];
+}
 
 const TARGET_H = 200;       // tallest family member's on-screen height (logical px)
 const PAD = 24;             // gap between family cells
 const INNER_GAP = 14;       // gap between members within a family
 const TOP = 56;             // y where the grid starts (below the title)
+
+// A real animation-frame suffix is a pose name followed by a numeric index
+// (idle_0, walk_2, idle_content_1, swim_0, crow_1, …) — every species' texture
+// builder names frames this way, so a pose is recognized STRUCTURALLY, not by a
+// hardcoded per-species pose list. Mirrors scripts/sprite-preview.mjs's
+// isFrameSuffix (git blame: the frame-discovery fix that dropped its hardcoded
+// pose allowlist) — same principle applies to the animation picker below.
+const isFrameSuffix = (s) => /^[a-z][a-z_]*_\d+$/.test(s);
 
 export default class ArtPreviewScene extends Phaser.Scene {
   constructor() {
@@ -69,12 +135,18 @@ export default class ArtPreviewScene extends Phaser.Scene {
   create() {
     applyDpr(this, { topLeft: true });
 
+    // Build the fixed sample-chick texture (mirrors how DEMO_FOALS are built
+    // unconditionally for the gallery) so the Chicken family can show it.
+    if (!this.textures.exists(`${PREVIEW_CHICK_KEY}_idle_0`)) {
+      buildChickTextures(this, PREVIEW_CHICK_KEY, 0);
+    }
+
     this._bg = this.add.graphics().setDepth(0);
 
     // Build each family: gather its available members, pick ONE shared scale from
     // the tallest, then make an animated sprite + label per member.
     this._families = [];
-    for (const fam of FAMILIES) {
+    for (const fam of buildFamilies()) {
       const built = [];
       let maxH = 0;
       for (const m of fam.members) {
@@ -114,7 +186,10 @@ export default class ArtPreviewScene extends Phaser.Scene {
           this._pressedSprite = null;
           if (!pressedHere || this._moved) return;
           if (globalThis.__dissect) {
+            // Open the static part-breakdown AND surface this creature's poses/
+            // animations in the same dock (#improve-art-preview) — see setPoses.
             globalThis.__dissect.show(b.m.key);
+            globalThis.__dissect.setPoses?.(b.m.key, this._posesFor(b.m.key));
           } else if (this._isEditable(speciesId, b.m.key)) {
             this._openCustomizer(speciesId, b.m.key);
           }
@@ -193,13 +268,19 @@ export default class ArtPreviewScene extends Phaser.Scene {
   }
 
   // Texture key → species id. Horses/foals map to 'horse'; chickens to 'chicken';
-  // everything else is its own id (cat/cow/sheep/pig/dog).
+  // everything else is its own id (cat/cow/sheep/pig/dog/goat/llama/fox/duck/…).
   _speciesIdFor(key) {
     if (key.startsWith('foal')) return 'foal';   // young horse — its own (smaller) art
     if (key.startsWith('horse')) return 'horse';
+    if (key === PREVIEW_CHICK_KEY) return 'chicken'; // baby chick — same species as the hen
     if (key.startsWith('chicken')) return 'chicken';
     if (key.startsWith('sheep')) return 'sheep'; // flock roster keys sheep0..2 → the sheep species
-    return key;
+    if (key.startsWith('llama')) return 'llama'; // llama0=llama, llama1=alpaca variant
+    // Strip a trailing roster-index digit (bunny0../fox0/duck0/rooster0/…) to get the
+    // species id, but only for ids that are actually registered — 'cat'/'cow'/'pig'/
+    // 'dog'/'goat' have no numeric suffix at all and pass through unchanged.
+    const stripped = key.replace(/\d+$/, '');
+    return SPECIES[stripped] ? stripped : key;
   }
 
   // A creature is editable if its species declares customizable parts, a horse with a
@@ -215,6 +296,26 @@ export default class ArtPreviewScene extends Phaser.Scene {
   _openCustomizer(speciesId, key) {
     this._dragY = null;
     this.scene.launch('CustomizerScene', { speciesId, key, host: 'ArtPreviewScene' });
+  }
+
+  // Discover a creature's available POSES structurally (no hardcoded per-species pose
+  // list) — same principle as scripts/sprite-preview.mjs's isFrameSuffix/ORDER. Each
+  // texture key `${key}_<pose>_<index>` groups into one pose entry with its ordered
+  // frame keys, so the dissect dock's animation picker can play any of them (idle,
+  // walk, eat, roll, wallow, swim, lay, sleep, nap, pounce, crow, spit, fly, run…).
+  _posesFor(key) {
+    const prefix = `${key}_`;
+    const byPose = new Map();
+    for (const k of this.textures.getTextureKeys()) {
+      if (!k.startsWith(prefix)) continue;
+      const suffix = k.slice(prefix.length);
+      if (!isFrameSuffix(suffix)) continue;
+      const pose = suffix.replace(/_\d+$/, '');
+      if (!byPose.has(pose)) byPose.set(pose, []);
+      byPose.get(pose).push(k);
+    }
+    for (const frames of byPose.values()) frames.sort();
+    return [...byPose.entries()].map(([pose, frames]) => ({ pose, frames }));
   }
 
   _scrollBy(dy) { this._setScroll(this._scrollY + dy); }

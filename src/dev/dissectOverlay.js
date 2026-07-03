@@ -25,11 +25,16 @@ const bbox = (o) => o.t === 'rect'    ? [o.x, o.y, o.x+o.w, o.y+o.h]
   : [Math.min(...o.points.map(p=>p.x)), Math.min(...o.points.map(p=>p.y)),
      Math.max(...o.points.map(p=>p.x)), Math.max(...o.points.map(p=>p.y))];
 
-// State: key = texture base key, crumb = stack of parent parts (null = top level)
-const state = { key: null, crumb: [] };
-let wrap, breadcrumbEl, panelsEl;
+// State: key = texture base key, crumb = stack of parent parts (null = top level).
+// poses = [{ pose, frames }] discovered by ArtPreviewScene for the current key (for
+// the animation picker); activePose = which pose's frames drive the dissected frame
+// AND the little live-preview canvas; playing = whether the preview canvas cycles
+// through activePose's frames on a timer (vs. showing a single static frame).
+const state = { key: null, crumb: [], poses: [], activePose: null, playing: false };
+let wrap, breadcrumbEl, panelsEl, posesEl, previewCv, previewCtx;
 let SCALE = 3;        // working scale, recomputed per render to fit the dock width
 let MAX_SCALE = 3;    // upper bound (overridable with ?scale=)
+let playTimer = null, playFrameIdx = 0;
 
 export function setupDissectOverlay() {
   const params = new URLSearchParams(location.search);
@@ -59,8 +64,24 @@ export function setupDissectOverlay() {
   const closeBtn = document.createElement('span');
   closeBtn.textContent = '×';
   Object.assign(closeBtn.style, { cursor: 'pointer', opacity: '0.6', padding: '0 7px', fontSize: '16px', flexShrink: '0' });
-  closeBtn.addEventListener('click', () => { state.key = null; state.crumb = []; idle(); });
+  closeBtn.addEventListener('click', () => { stopPlaying(); state.key = null; state.crumb = []; state.poses = []; state.activePose = null; idle(); });
   headerRow.appendChild(closeBtn);
+
+  // ── animation/pose picker row (pinned, below the header) ──────────────────
+  // One button per pose this creature has frames for (idle/walk/eat/roll/wallow/
+  // swim/lay/sleep/nap/pounce/crow/spit/fly/run/…) — discovered structurally by
+  // ArtPreviewScene (_posesFor), never hardcoded here. Picking a pose both (a)
+  // switches which frame the static panels below dissect, and (b) drives a small
+  // live-preview canvas that can play through that pose's frames on a timer.
+  posesEl = document.createElement('div');
+  Object.assign(posesEl.style, {
+    display: 'flex', flexWrap: 'wrap', gap: '4px', padding: '6px 8px',
+    background: '#25282f', borderTop: '1px solid #3a3d45', borderBottom: '1px solid #3a3d45',
+    flexShrink: '0',
+  });
+  posesEl.style.display = 'none'; // hidden until a creature with discovered poses is shown
+
+  wrap.append(headerRow, posesEl);
 
   // ── panels column (stack vertically, scroll vertically) ───────────────────
   panelsEl = document.createElement('div');
@@ -70,7 +91,7 @@ export function setupDissectOverlay() {
     flex: '1', minHeight: '0',
   });
 
-  wrap.append(headerRow, panelsEl);
+  wrap.append(panelsEl);
   document.body.appendChild(wrap);
 
   // Block clicks/drags from reaching Phaser's input (which fires on window for events not
@@ -84,9 +105,22 @@ export function setupDissectOverlay() {
   globalThis.__dissect = {
     // crumb stores the navigation stack; last element = current part (null = top level)
     show(key, part = null) {
+      stopPlaying();
       state.key = key;
       state.crumb = part == null ? [] : [part];
+      state.poses = [];
+      state.activePose = null;
       render();
+    },
+    // Called by ArtPreviewScene right after show() with this creature's discovered
+    // poses ([{ pose, frames }]) so the picker row can render. Optional — dissecting
+    // via the ?dissect= URL param (no gallery, no ArtPreviewScene) just won't show one.
+    setPoses(key, poses) {
+      if (key !== state.key) return; // stale call from a since-replaced selection
+      state.poses = poses;
+      state.activePose = poses.find((p) => p.pose === 'idle') ?? poses[0] ?? null;
+      renderPoses();
+      renderPreview();
     },
   };
 
@@ -97,9 +131,12 @@ export function setupDissectOverlay() {
 }
 
 function idle() {
+  stopPlaying();
   wrap.style.display = 'none';
   breadcrumbEl.innerHTML = '<span style="opacity:0.4">click an animal to dissect</span>';
   panelsEl.innerHTML = '';
+  posesEl.innerHTML = '';
+  posesEl.style.display = 'none';
   fireDock(0); // tell the gallery to reclaim the reserved space
 }
 
@@ -111,8 +148,13 @@ function render() {
   const part   = state.crumb.length ? state.crumb[state.crumb.length - 1] : null;
 
   const reg = globalThis.__artLayers || {};
-  // Try the bare key, then common first-frame suffixes (idle_0, fly_0, _0)
-  const key = [rawKey, `${rawKey}_idle_0`, `${rawKey}_fly_0`, `${rawKey}_0`].find(k => reg[k]) ?? null;
+  // The pose picker's active pose (if any) pins the dissected frame to its current
+  // playback frame (playFrameIdx) — so switching poses, or letting one play, updates
+  // what's being dissected below, not just the little preview canvas. Falls back to
+  // the bare key, then common first-frame suffixes (idle_0, fly_0, _0) when no pose
+  // has been discovered yet (e.g. dissecting via the ?dissect= URL param, no gallery).
+  const poseFrame = state.activePose?.frames?.[playFrameIdx % (state.activePose.frames.length || 1)];
+  const key = [poseFrame, rawKey, `${rawKey}_idle_0`, `${rawKey}_fly_0`, `${rawKey}_0`].find(k => k && reg[k]) ?? null;
   if (!key) { breadcrumbEl.textContent = `no layers for "${rawKey}"`; panelsEl.innerHTML = ''; return; }
 
   const data = reg[key];
@@ -209,4 +251,86 @@ function render() {
 
     panelsEl.appendChild(cv);
   }
+
+  renderPoses();
+  renderPreview();
+}
+
+// ── Animation/pose picker ───────────────────────────────────────────────────
+// One button per discovered pose (idle/walk/eat/roll/wallow/swim/lay/sleep/nap/
+// pounce/crow/spit/…), plus a live-preview canvas + a play/pause toggle so the
+// owner can actually see the animation cycle, not just one static dissected frame.
+function renderPoses() {
+  posesEl.innerHTML = '';
+  if (!state.poses.length) { posesEl.style.display = 'none'; return; }
+  posesEl.style.display = 'flex';
+
+  for (const p of state.poses) {
+    const btn = document.createElement('button');
+    btn.textContent = `${p.pose} (${p.frames.length})`;
+    const active = state.activePose === p;
+    Object.assign(btn.style, {
+      font: '11px monospace', padding: '3px 7px', borderRadius: '4px', cursor: 'pointer',
+      background: active ? '#4a7fd8' : '#33363e', color: active ? '#fff' : '#cfd3da',
+      border: '1px solid ' + (active ? '#6a9bee' : '#454852'),
+    });
+    btn.addEventListener('click', () => {
+      stopPlaying();
+      state.activePose = p;
+      render();
+    });
+    posesEl.appendChild(btn);
+  }
+
+  // Play/pause the active pose's frames in the little preview canvas (and, since
+  // render() pins the dissected frame to playFrameIdx, in the panels below too).
+  const playBtn = document.createElement('button');
+  const framesN = state.activePose?.frames?.length ?? 0;
+  playBtn.textContent = state.playing ? '⏸ pause' : '▶ play';
+  playBtn.disabled = framesN < 2;
+  Object.assign(playBtn.style, {
+    font: '11px monospace', padding: '3px 7px', borderRadius: '4px',
+    cursor: playBtn.disabled ? 'default' : 'pointer', marginLeft: 'auto',
+    background: '#33363e', color: playBtn.disabled ? '#6a6d75' : '#cfd3da', border: '1px solid #454852',
+  });
+  playBtn.addEventListener('click', () => { state.playing ? stopPlaying() : startPlaying(); renderPoses(); });
+  posesEl.appendChild(playBtn);
+
+  if (!previewCv) {
+    previewCv = document.createElement('canvas');
+    Object.assign(previewCv.style, { display: 'block', imageRendering: 'pixelated', marginLeft: '6px', flexShrink: '0' });
+    previewCtx = previewCv.getContext('2d');
+    previewCtx.imageSmoothingEnabled = false;
+  }
+  posesEl.appendChild(previewCv);
+}
+
+function renderPreview() {
+  if (!previewCv || !state.activePose) return;
+  const frameKey = state.activePose.frames[playFrameIdx % state.activePose.frames.length];
+  const tex = globalThis.__game?.textures?.get(frameKey);
+  const img = tex?.getSourceImage?.();
+  if (!img) return;
+  const PREVIEW_SCALE = 4;
+  previewCv.width = img.width * PREVIEW_SCALE;
+  previewCv.height = img.height * PREVIEW_SCALE;
+  previewCtx.imageSmoothingEnabled = false;
+  previewCtx.clearRect(0, 0, previewCv.width, previewCv.height);
+  previewCtx.drawImage(img, 0, 0, previewCv.width, previewCv.height);
+}
+
+function startPlaying() {
+  if (!state.activePose || state.activePose.frames.length < 2) return;
+  state.playing = true;
+  playTimer = setInterval(() => {
+    playFrameIdx = (playFrameIdx + 1) % state.activePose.frames.length;
+    renderPreview();
+    render(); // keep the dissected panels in step with the playing pose
+  }, 160);
+}
+
+function stopPlaying() {
+  state.playing = false;
+  playFrameIdx = 0;
+  if (playTimer) { clearInterval(playTimer); playTimer = null; }
 }
