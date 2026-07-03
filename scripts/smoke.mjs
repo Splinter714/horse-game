@@ -101,9 +101,12 @@ try {
       'buildBirdEcosystem', 'buildBirdBath', 'buildSeedFeeder', 'buildNectarFeeder',
       'fillSeedFeeder', '_setSeedFeederLevel', 'drainSeedFeeder',
       'fillNectarFeeder', '_setNectarFeederLevel', 'drainNectarFeeder',
+      // birdhouse (#218): decorative post-mounted nesting box, ambient bird attractor.
+      'buildBirdhouse',
       // birdEcosystemVisits: the object-anchored flying-critter visit beats.
       'startBirdEcosystemVisits', '_scheduleHummingbirdVisit', '_spawnHummingbird', '_hummerTargets',
       '_scheduleBeeVisit', '_spawnBeeVisit', '_beeTargets',
+      '_scheduleBirdhouseVisit', '_spawnBirdhouseVisit', '_birdhouseLook',
       // beehive + honey (#239).
       'buildBeehive', '_setHoneyLevel', '_ripenHoneyTick', 'harvestBeehive',
       // fox taming (#266): wild-fox summon on fox-food drop + commit-to-roster.
@@ -564,6 +567,8 @@ try {
       hasSeedFeeder: !!paddock.props.seedFeeder, // #240 refillable seed feeder
       hasNectarFeeder: !!paddock.props.nectarFeeder, // #226 hummingbird nectar feeder
       hasBeehive: !!paddock.props.beehive, // #239 beehive world object
+      hasBirdhouse: !!paddock.props.birdhouse, // #218 decorative birdhouse world object
+      birdhouseTextureOk: g.textures.exists('birdhouse'),
       // Display scales: every animal is now super-sampled (ART_SCALE× art shown at
       // S/ART_SCALE), so the chicken and horse share the same base display scale. Guard
       // that ratio ≈ 1 — it jumps to ART_SCALE if a species' `superSampled` spawn flag
@@ -835,6 +840,8 @@ try {
   if (!result.hasSeedFeeder) fail('seed feeder (#240) not built — props.seedFeeder missing');
   if (!result.hasNectarFeeder) fail('nectar feeder (#226) not built — props.nectarFeeder missing');
   if (!result.hasBeehive) fail('beehive (#239) not built — props.beehive missing');
+  if (!result.hasBirdhouse) fail('birdhouse (#218) not built — props.birdhouse missing');
+  if (!result.birdhouseTextureOk) fail('birdhouse (#218) texture missing — worldArt.js gen() failed');
   if (Math.abs(result.scaleRatio - 1) > 0.01) fail(`chicken/horse display-scale ratio ${result.scaleRatio} ≠ 1 — a species' superSampled spawn flag may be missing (chicken rendered 4× too big)?`);
   if (!result.movementOk) fail('creature movement/pathfinding threw: ' + result.movementError);
   if (result.behaviorDecision !== 'seekFood') fail(`hungry horse with hay nearby did not select seekFood (got ${result.behaviorDecision})`);

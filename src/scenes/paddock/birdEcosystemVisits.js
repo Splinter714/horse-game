@@ -19,6 +19,7 @@ export const WithBirdEcosystemVisits = (Base) => class extends Base {
     this._scheduleBirdBathVisit(Phaser.Math.Between(14000, 30000));   // #219 bath splashes
     this._scheduleFeederVisit(Phaser.Math.Between(10000, 22000));     // #240 feeder visits
     this._scheduleHummingbirdVisit(Phaser.Math.Between(20000, 40000)); // #226 hummingbirds
+    this._scheduleBirdhouseVisit(Phaser.Math.Between(12000, 26000));   // #218 birdhouse perches
   }
 
   // ── Bird bath (#219) ── a bird swoops onto the basin rim, bobs and splashes a few
@@ -88,6 +89,62 @@ export const WithBirdEcosystemVisits = (Base) => class extends Base {
       alpha: 0, scaleX: S * 0.05, scaleY: S * 0.05,
       duration: Phaser.Math.Between(350, 550), ease: 'Sine.easeOut',
       onComplete: () => drop.destroy(),
+    });
+  }
+
+  // ── Birdhouse (#218) ── a songbird flies to the perch dowel below the entrance hole,
+  // bobs/looks around a few times (as if checking the nest), then flushes. Purely
+  // decorative + ambient — no fill/drain, no naming (that's future #223) — the
+  // birdhouse is always "active" so this beat just needs it to exist.
+  _scheduleBirdhouseVisit(delay) {
+    this.time.delayedCall(delay, () => {
+      if (!this._sleeping && this._phase !== 'Night' && this._weatherAllowsWildlife() &&
+          this.props?.birdhouse && !this._wildCritters?.some((c) => c.atBirdhouse)) {
+        this._spawnBirdhouseVisit();
+      }
+      const morning = this._phase === 'Morning';
+      this._scheduleBirdhouseVisit(morning ? Phaser.Math.Between(8000, 16000)
+                                           : Phaser.Math.Between(16000, 34000));
+    });
+  }
+
+  _spawnBirdhouseVisit() {
+    const bh = this.props.birdhouse;
+    // Land on the perch dowel. Sprite 26×58 at S (origin 0.5,1) → perch ~29px up.
+    const px = bh.x + Phaser.Math.Between(-2, 2);
+    const py = bh.y - 29;
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    const b = this._pickBird();
+    const sprite = this.add.sprite(dir === 1 ? -40 : WORLD_W + 40, py - 200, b.tex)
+      .setOrigin(0.5, 1).setScale(WILD_SCALE).setDepth(bh.y + 1)
+      .setFlipX(dir === -1).play(b.flyAnim);
+    const c = { sprite, kind: 'bird', ground: false, state: 'descending',
+                tween: null, fleeing: false, bird: b, atBirdhouse: true };
+    this._wildCritters.push(c);
+
+    sprite.setFlipX(sprite.x > px);
+    const dist = Phaser.Math.Distance.Between(sprite.x, sprite.y, px, py);
+    c.tween = this.tweens.add({
+      targets: sprite, x: px, y: py, duration: Math.max(900, dist * 4), ease: 'Sine.easeIn',
+      onComplete: () => {
+        if (!sprite.active) return;
+        c.ground = true; c.state = 'perched';
+        sprite.play(b.peckAnim);
+        this._birdhouseLook(c, Phaser.Math.Between(3, 6));
+      },
+    });
+  }
+
+  // Bob/look around `n` times on the perch (like checking the nest hole), then flush.
+  _birdhouseLook(c, n) {
+    if (!c.sprite.active || c.state !== 'perched') return;
+    if (n <= 0) { this._birdTakeOff(c); return; }
+    const sprite = c.sprite;
+    if (Math.random() < 0.4) sprite.setFlipX(!sprite.flipX);
+    c.tween = this.tweens.add({
+      targets: sprite, y: sprite.y - 3, duration: 140, yoyo: true, ease: 'Quad.easeOut',
+      onComplete: () => this.time.delayedCall(Phaser.Math.Between(400, 1000),
+        () => this._birdhouseLook(c, n - 1)),
     });
   }
 
