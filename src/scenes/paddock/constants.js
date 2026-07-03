@@ -131,6 +131,12 @@ export const CHARM = {
   WALLOW_CHANCE:   0.18,  // odds a wallow-eligible pig wallows on a given AI tick
   WALLOW_COOLDOWN: 20000, // min ms between wallows (keeps it occasional)
   WALLOW_MS: 1800,        // how long the flop/roll lasts
+  // Llama spit (#268): an occasional charm behavior in the AI priority list — a content,
+  // not-hungry-or-thirsty llama sometimes does a harmless little "ptooey" spit. Purely
+  // cosmetic (no stats/mood), like the pig wallow.
+  SPIT_CHANCE:   0.14,  // odds a spit-eligible llama spits on a given AI tick
+  SPIT_COOLDOWN: 24000, // min ms between spits (keeps it a rare, charming beat)
+  SPIT_MS: 900,         // how long the spit gesture lasts
   // Night settling: non-horse pasture animals drift in to bed down with the herd;
   // the dog beds down near the house; the cat curls by a companion or the house.
   CLUSTER_CHANCE: 0.7,  // odds an animal drifts to the night huddle (else rests put)

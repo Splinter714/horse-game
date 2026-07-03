@@ -12,12 +12,14 @@ import { SHEEP } from './sheep/index.js';
 import { DOG } from './dog/index.js';
 import { BUNNY } from './bunny/index.js';
 import { GOAT } from './goat/index.js';
+import { LLAMA } from './llama/index.js';
 import * as horseBehaviors from './horse/behaviors.js';
 import * as chickenBehaviors from './chicken/behaviors.js';
 import * as catBehaviors from './cat/behaviors.js';
 import * as dogBehaviors from './dog/behaviors.js';
 import * as pigBehaviors from './pig/behaviors.js';
 import * as bunnyBehaviors from './bunny/behaviors.js';
+import * as llamaBehaviors from './llama/behaviors.js';
 
 export const SPECIES = {
   horse: HORSE,
@@ -29,6 +31,7 @@ export const SPECIES = {
   dog: DOG,
   bunny: BUNNY,
   goat: GOAT,
+  llama: LLAMA,
 };
 
 export function getSpecies(id) {
@@ -71,6 +74,11 @@ export const BEHAVIORS = {
   // begging). Her eat-everything diet (all pile contents) is enforced by the food data
   // (items.js `feeds`), not a separate behavior. The run() primitives are species-generic.
   goat: indexById(horseBehaviors),
+  // The llama is a grazer like the sheep/cow/pig — reuses the horse grazer behavior
+  // modules; her `behaviors` list (llama/index.js) picks the subset (hay/water/graze,
+  // no begging). She also gets her own `spit` module (#268) — a low-priority charm
+  // behavior (a harmless "ptooey"), layered on top of the reused horse modules.
+  llama: { ...indexById(horseBehaviors), ...indexById(llamaBehaviors) },
 };
 
 function indexById(mod) {

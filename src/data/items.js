@@ -29,8 +29,9 @@ export const CONTENT_DEFS = {
   // The GOAT (#267) is on EVERY edible pile's `feeds` list — that's her eat-everything
   // charm quirk, realized as data: unlike the pickier grazers she'll trot over to any
   // food the farm drops (hay, apples, carrots, even the chickens' seed). The grazing AI
-  // reads `feeds` (speciesEatsContent) when choosing which pile to walk to.
-  hay:    { label: 'Hay',     icon: 'iconBasketHay',    action: 'feed',  ground: 'hayPile',    feeds: ['horse', 'cow', 'sheep', 'goat'] },
+  // reads `feeds` (speciesEatsContent) when choosing which pile to walk to. Llamas (#268)
+  // eat hay like the sheep/cow but refuse apples/carrots.
+  hay:    { label: 'Hay',     icon: 'iconBasketHay',    action: 'feed',  ground: 'hayPile',    feeds: ['horse', 'cow', 'sheep', 'goat', 'llama'] },
   // Apples and carrots feed the pig too; hay does NOT (pigs won't touch it). This
   // `feeds` list is the single source of truth for the pig's pickier diet — the
   // grazing AI reads it (speciesEatsContent) when choosing which pile to walk to.

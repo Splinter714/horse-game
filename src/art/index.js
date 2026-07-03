@@ -18,6 +18,8 @@ import { buildPigTextures } from './pigArt.js';
 import { buildDogTextures } from './dogArt.js';
 import { buildBunnyTextures } from './bunnyArt.js';
 import { buildGoatTextures } from './goatArt.js';
+import { buildLlamaTextures } from './llamaArt.js';
+import { LLAMA_VARIANTS } from '../data/species/llama/index.js';
 import { buildPlayerTextures } from './playerArt.js';
 import { BUNNY_COATS } from '../data/species/bunny/index.js';
 import { buildWildlifeOldTextures } from './wildlifeArt.js'; // TEMP: old-vs-new gallery A/B
@@ -68,6 +70,21 @@ export const SPECIES_TEXTURES = {
   dog(scene) { buildRosterLooks(scene, 'allDogs', 'dog', buildDogTextures); },
 
   goat(scene) { buildRosterLooks(scene, 'allGoats', 'goat', buildGoatTextures); },
+  // Llamas / alpacas (#268). One species, two appearance VARIANTS (llama | alpaca)
+  // chosen per-individual by the roster `variant` field (default: the individual's
+  // `coat` slot → LLAMA_VARIANTS[coat]). Built per saved individual like the other
+  // roster animals, threading the variant + any customizer `look` + the shorn state
+  // (so a sheared fleece survives a reload, #233) into the art.
+  llama(scene) {
+    const all = scene.registry.get('allLlamas') || {};
+    for (const [key, model] of Object.entries(all)) {
+      const look = (model.look ? lookFromKeys('llama', model.look) : {}) || {};
+      // Variant precedence: a saved customizer look wins, else the roster `variant`
+      // field, else the `coat` slot (0 = llama, 1 = alpaca), else the llama default.
+      const variant = look.variant ?? model.variant ?? LLAMA_VARIANTS[model.coat ?? 0] ?? 'llama';
+      buildLlamaTextures(scene, key, { ...look, variant, shorn: model.isShorn?.() ?? false });
+    }
+  },
 
   // Bunnies (#224). The roster starts EMPTY and grows at runtime when the player
   // attracts a bunny with bunny food, so — unlike the other rosters — we can't build
@@ -117,6 +134,9 @@ const RESKIN = {
   sheep: (scene, key, look) => buildSheepTextures(scene, key, look),
   pig:   (scene, key, look) => buildPigTextures(scene, key, look),
   dog:   (scene, key, look) => buildDogTextures(scene, key, look),
+  // The llama keeps its variant (llama|alpaca) across a live recolor — the customizer
+  // look carries the variant through so a recolored alpaca stays an alpaca.
+  llama: (scene, key, look) => buildLlamaTextures(scene, key, look),
   cow:   (scene, key, look) => buildCowTextures(scene, key, look),
   goat:  (scene, key, look) => buildGoatTextures(scene, key, look),
   cat:   (scene, key, look) => buildCatTextures(scene, key, look),
