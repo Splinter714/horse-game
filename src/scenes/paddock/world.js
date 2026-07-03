@@ -164,9 +164,8 @@ export const WithWorld = (Base) => class extends Base {
     // Solid counter footprint the player bumps into (mirrors the farm stand's), added
     // to this.obstacles once that array exists — see the obstacle list below.
 
-    // Gathering sources (issue #63) — static, infinite props the player fills
-    // their carriers at. Each holds one content type. Placed across the open
-    // farm band (north of the pasture) so the gather→carry→use loop has room.
+    // Gathering sources (issue #63) — static, infinite props the player fills their
+    // carriers at (one content each), across the farm band north of the pasture.
     this.buildSources();
 
     // Pet food + water bowls (#202 cat rework, #283 generalized) — fillable dishes the
@@ -174,7 +173,7 @@ export const WithWorld = (Base) => class extends Base {
     this.buildCatBowls();
     this.buildBunnyBowls();
     this.buildDoghouse(); // #237 decorative yard prop; sets this.doghouseObstacles
-
+    this.buildBirdEcosystem(); // #219/#240/#226/#239 bird-ecosystem props; paddock/birdEcosystem.js
     // Scenery stream cutting across the top-right corner of the world.
     this.buildStream();
 
@@ -409,6 +408,7 @@ export const WithWorld = (Base) => class extends Base {
         : []),
       // Compost bin (#232) — solid ~80×40 footprint at S=2.
       ...(this.props.compostBin ? [{ x: this.props.compostBin.x - 40, y: this.props.compostBin.y - 40, w: 80, h: 40 }] : []),
+      ...(this.birdEcosystemObstacles || []), // #219/#240/#226/#239 bird-ecosystem props
     ];
 
     // ── Solid pasture fence ── (perimeter walls with a single gap at the gate)

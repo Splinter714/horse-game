@@ -17,7 +17,8 @@ core orchestrator.
 |---|---|---|
 | Orchestration | `PaddockScene.js` (core) | `constructor`/`create`/`update`, `buildHorses`, `checkProximity`, `movePlayer`, sleep/wake |
 | World build | `paddock/world.js` (`WithWorld`) | terrain/props, obstacles, collision helpers, stream + `streamPath` |
-| Ambient wildlife | `paddock/wildlife.js` (`WithWildlife`) | scenery critters (stream fish, fly-by/peck birds, horse-back perch) — spawn timers, tween movement, skittish flee. Not roster/care animals |
+| Ambient wildlife | `paddock/wildlife.js` (`WithWildlife`) | scenery critters (stream fish, fly-by/peck birds, horse-back perch, bird-bath splash #219) — spawn timers, tween movement, skittish flee. Not roster/care animals |
+| Bird ecosystem | `paddock/birdEcosystem.js` (`WithBirdEcosystem`) | the fixed bird-ecosystem props the flying wildlife hooks onto — bird bath (#219), and later the seed feeder (#240), hummingbird sugar-water feeder (#226) + beehive (#239). `buildBirdEcosystem` places sprites/`props.*` and collects footprints into `this.birdEcosystemObstacles` (spread by `world.js`) |
 | Ambient raccoon | `paddock/raccoon.js` (`WithRaccoon`) | the nocturnal raccoon's spawn/potter/scurry flow, trash-can rummaging + cosmetic loot (#191). Pure decisions in `data/wildlife.js` |
 | Ambient events registry | `paddock/ambientEvents.js` (`WithAmbientEvents`) | the unified data-driven event scheduler (#253): one timer picks eligible events from `data/ambientEvents.js` and fires them; also hosts the dev cheats `_devForceWeather` (#188) and `_devForceMood` (#69). The registry drives BOTH this scheduler and the pause-menu dev overlay — declare an event once ⇒ auto-scheduled + auto-listed |
 | Creatures | `paddock/creatures.js` (`WithCreatures`) | species-neutral spawn + shared wander/movement primitives, foals, horse spawn |

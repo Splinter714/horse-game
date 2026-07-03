@@ -83,6 +83,8 @@ try {
       '_stepNav', 'tapMoveTo', '_renderPrompts', 'checkToolProximity',
       'buildInteractables', '_proximityInteractable', 'useActiveTool', '_nearestToolHorse',
       '_animalUseAction', '_nearestCareAnimal',
+      // wildlife: ambient bird beats incl. the bird-bath splash (#219).
+      'buildWildlife', 'updateWildlife', '_scheduleBirdBathVisit', '_spawnBirdBathVisit',
     ];
     const missingMethods = expectMethods.filter((m) => typeof paddock[m] !== 'function');
 
@@ -234,6 +236,7 @@ try {
       missingMethods,
       horsesInScene: paddock.horses?.length ?? 0,
       hasFarmStand: !!paddock.farmStand,
+      hasBirdBath: !!paddock.props.birdBath, // #219 decorative bird bath world object
       // Display scales: every animal is now super-sampled (ART_SCALE× art shown at
       // S/ART_SCALE), so the chicken and horse share the same base display scale. Guard
       // that ratio ≈ 1 — it jumps to ART_SCALE if a species' `superSampled` spawn flag
@@ -407,6 +410,7 @@ try {
   if (result.missingMethods.length) fail('PaddockScene missing methods (mixin not wired?): ' + result.missingMethods.join(', '));
   if (result.horsesInScene !== 7) fail(`expected 7 horse sprites in scene, got ${result.horsesInScene}`);
   if (!result.hasFarmStand) fail('farm stand not built — farmStand mixin not wired');
+  if (!result.hasBirdBath) fail('bird bath (#219) not built — world.js props.birdBath missing');
   if (Math.abs(result.scaleRatio - 1) > 0.01) fail(`chicken/horse display-scale ratio ${result.scaleRatio} ≠ 1 — a species' superSampled spawn flag may be missing (chicken rendered 4× too big)?`);
   if (!result.movementOk) fail('creature movement/pathfinding threw: ' + result.movementError);
   if (result.behaviorDecision !== 'seekFood') fail(`hungry horse with hay nearby did not select seekFood (got ${result.behaviorDecision})`);

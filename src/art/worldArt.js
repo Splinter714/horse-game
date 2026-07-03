@@ -407,8 +407,54 @@ export function buildWorldTextures(scene) {
     g.fillCircle(11, 37, 1); g.fillCircle(11, 39, 1);
   });
 
+  // --- bird bath (34 × 40) — decorative garden bird bath (#219) ---
+  // A classic pedestal bird bath: a fluted stone column on a wide foot, topped by
+  // a shallow round basin of water. Purely decorative + ambient — birds fly in to
+  // splash/drink (paddock/wildlife.js), no refilling/upkeep. Origin (0.5,1) at the
+  // foot so it depth-sorts on its base like the other pedestal props. Dissect tags
+  // (g.layer) per logical part for the dev dissect tool.
+  gen(scene, 'birdBath', 34, 40, (g) => {
+    const stone = 0xb8b2a6, stoneHi = 0xd6d0c4, stoneLo = 0x8f897d, moss = 0x7a8a52;
+    const rim = 0xa8a294, water = 0x5aa6d6, waterHi = 0x9ad2f0, waterLo = 0x3f83b8;
+
+    // Wide base foot
+    g.layer('base');
+    g.fillStyle(stoneLo, 1); g.fillEllipse(17, 38, 22, 7);   // ground shadow ring
+    g.fillStyle(stone, 1);   g.fillEllipse(17, 36, 20, 6);
+    g.fillStyle(stoneHi, 1); g.fillEllipse(17, 35, 16, 3);
+    g.fillStyle(moss, 0.7);  g.fillRect(7, 36, 2, 1); g.fillRect(25, 35, 2, 1); // moss flecks
+
+    // Fluted pedestal column
+    g.layer('column');
+    g.fillStyle(stone, 1);   g.fillRect(12, 16, 10, 20);
+    g.fillStyle(stoneHi, 1); g.fillRect(12, 16, 2, 20);      // lit left edge
+    g.fillStyle(stoneLo, 1); g.fillRect(20, 16, 2, 20);      // shaded right edge
+    g.fillStyle(stoneLo, 1);                                  // flute seams
+    g.fillRect(15, 18, 1, 16); g.fillRect(18, 18, 1, 16);
+    g.fillStyle(moss, 0.6);  g.fillRect(13, 30, 2, 2);       // a little moss on the shaft
+
+    // Basin bowl (wide shallow dish on top)
+    g.layer('basin');
+    g.fillStyle(stoneLo, 1); g.fillEllipse(17, 16, 32, 12);  // underside rim shadow
+    g.fillStyle(stone, 1);   g.fillEllipse(17, 14, 32, 12);  // outer bowl
+    g.fillStyle(rim, 1);     g.fillEllipse(17, 13, 30, 11);  // rim lip
+    g.fillStyle(stoneHi, 1); g.fillEllipse(17, 12, 30, 9);   // lit inner rim
+
+    // Water surface in the basin
+    g.layer('water');
+    g.fillStyle(waterLo, 1); g.fillEllipse(17, 13, 24, 8);
+    g.fillStyle(water, 1);   g.fillEllipse(17, 12, 24, 7);
+    g.fillStyle(waterHi, 0.85);
+    g.fillEllipse(12, 11, 6, 2);                             // sun glint
+    g.fillRect(20, 13, 5, 1); g.fillRect(15, 14, 4, 1);      // little ripple lines
+    g.layer('rim');
+    g.fillStyle(stoneHi, 1); g.fillEllipse(17, 10, 30, 3);   // front rim highlight
+  });
+
   // --- nest (18 × 12) — woven straw ring ---
   gen(scene, 'nest', 18, 12, (g) => {
+    // Outer straw ring
+    g.fillStyle(0xb87828, 1); g.fillEllipse(9, 8, 18, 10);
     // Outer straw ring
     g.fillStyle(0xb87828, 1); g.fillEllipse(9, 8, 18, 10);
     g.fillStyle(0xd4a030, 1); g.fillEllipse(9, 7, 16, 8);
