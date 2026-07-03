@@ -872,6 +872,52 @@ try {
   });
   result.season = season;
 
+  // Late-night forced sleep (#300): drive the clock into Night and confirm (a) normal
+  // night play is untouched early on — no warning, no lock, owls/ambient content still
+  // reachable — and (b) past the hard-lock threshold, sleep auto-triggers via the SAME
+  // EVENTS.SLEEP → doSleep flow a bed uses, without the player manually sleeping.
+  const lateNight = await page.evaluate(async () => {
+    const g = window.__game;
+    const dn = g.scene.getScene('DayNightScene');
+    const { LATE_NIGHT_WARN_FRACTION, LATE_NIGHT_LOCK_FRACTION } = await import('/src/data/lateNight.js');
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    // Jump straight into Night (index 3) and settle just past its start.
+    const nightStart = 120_000 + 300_000 + 120_000; // Morning + Afternoon + Evening durs
+    const nightDur = 90_000;
+    dn.elapsed = nightStart + 1000;
+    dn.currentPhase = -1;
+    dn._applyClock();
+    const enteredNight = dn.currentPhase === 3; // index 3 = Night in the PHASES table
+
+    // Early night (well before the warn fraction): free roam, no cues, no lock.
+    const noEarlyWarning = dn.lateNightLabel.visible === false;
+    const noEarlyLock = dn._sleeping === false;
+    const owlActiveEarly = (await import('/src/data/owls.js')).isOwlActivePhase('Night'); // untouched by this feature
+
+    // Advance to just past the warn fraction, before the lock: the vignette/label tell
+    // should show, but sleep must NOT be forced yet.
+    dn.elapsed = nightStart + nightDur * (LATE_NIGHT_WARN_FRACTION + 0.05);
+    dn._applyClock();
+    const warningShows = dn.lateNightLabel.visible === true;
+    const stillNotSleepingAtWarn = dn._sleeping === false;
+
+    // Advance past the hard-lock threshold WITHOUT manually sleeping: doSleep must
+    // auto-fire (this._sleeping flips true and the fade tween starts).
+    dn.elapsed = nightStart + nightDur * (LATE_NIGHT_LOCK_FRACTION + 0.02);
+    dn._applyClock();
+    const lockedSleepFired = dn._sleeping === true;
+    // Let the fade-to-morning tween resolve so it doesn't bleed into later probes.
+    await sleep(2200);
+    const wokeUpAfterLock = dn._sleeping === false && dn.currentPhase === 0; // back at Morning
+
+    return {
+      enteredNight, noEarlyWarning, noEarlyLock, owlActiveEarly,
+      warningShows, stillNotSleepingAtWarn, lockedSleepFired, wokeUpAfterLock,
+    };
+  });
+  result.lateNight = lateNight;
+
   console.log(JSON.stringify(result, null, 2));
 
   const wx = result.weather;
@@ -890,6 +936,16 @@ try {
   if (sn.offWinterSnowVisible) fail('snow field still visible after leaving winter (should be winter-only)');
   if (!sn.tintDrawnForWinter) fail('winter seasonal tint has no alpha (season wash not applied)');
   if (sn.announced == null) fail('SEASON_CHANGE event never fired on season advance (not wired)');
+
+  const ln = result.lateNight;
+  if (!ln.enteredNight) fail('late-night probe (#300): clock did not land in the Night phase');
+  if (!ln.noEarlyWarning) fail('late-night (#300): warning cue showing too early in Night (should be free roam)');
+  if (!ln.noEarlyLock) fail('late-night (#300): sleep locked too early in Night (should be free roam)');
+  if (!ln.owlActiveEarly) fail('late-night (#300): owls (#271) night-active gate was disturbed by this feature');
+  if (!ln.warningShows) fail('late-night (#300): warning cue did not show past the warn-fraction threshold');
+  if (!ln.stillNotSleepingAtWarn) fail('late-night (#300): sleep force-triggered at the warning stage, not just past the lock');
+  if (!ln.lockedSleepFired) fail('late-night (#300): sleep did NOT auto-trigger past the hard-lock threshold');
+  if (!ln.wokeUpAfterLock) fail('late-night (#300): forced sleep did not resolve back to Morning');
 
   if (pageErrors.length) fail('uncaught page errors:\n' + pageErrors.join('\n'));
   if (consoleErrors.length) fail('console errors:\n' + consoleErrors.join('\n'));
