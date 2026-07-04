@@ -219,6 +219,29 @@ export const WithInteractables = (Base) => class extends Base {
       }];
     };
 
+    // Kitchen counter (#40) — process a basket of raw crop into its processed form
+    // (jam/flour/pig feed). Only offers the action when the held carrier holds a
+    // craftable input; shows a passive hint otherwise. Data-driven off the counter's
+    // `recipes` list (from → to), so it's not crop-specific — mirrors the spinning
+    // wheel but generalized to several recipes on one station.
+    const kitchenCounter = (item) => {
+      const k = this.props.kitchenCounter;
+      if (!k) return [];
+      const recipe = k.recipes.find(r => r.from === item?.content && item.count > 0);
+      return [{
+        x: k.x, y: k.y, tapRadius: 130, reachDist: 110, promptOffsetY: 60,
+        canAct: !!recipe,
+        label: recipe
+          ? `Process ${CONTENT_DEFS[recipe.from].label} → ${CONTENT_DEFS[recipe.to].label}  (basket: ${item.count})`
+          : 'Kitchen Counter  •  bring a basket of strawberries, wheat, or carrots to process',
+        approach: (world) => {
+          const refX = world ? world.x : this.player.sprite.x;
+          return { x: k.x + (refX < k.x ? -1 : 1) * 70, y: k.y + 10 };
+        },
+        activate: () => this.processCrop(),
+      }];
+    };
+
     const farmStand = (item) => {
       const s = this.farmStand;
       const type = item?.content;
@@ -310,12 +333,12 @@ export const WithInteractables = (Base) => class extends Base {
     const gardenPlant   = gardenDescs.plant;
     const gardenHarvest = gardenDescs.harvest;
 
-    this.interactables = [gate, house, shop, barn, gardenPlant, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, compostBin, trashCan, gardenHarvest];
+    this.interactables = [gate, house, shop, barn, gardenPlant, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenHarvest];
     // Split by input: gate/house/shop/barn/garden-plant are bare-hand "interact" targets
     // (tap/click/E); the rest require a carried tool/carrier and are triggered by Use (the
     // on-screen button / F / controller). See useActiveTool + handleTap.
     this.interactWorld = [gate, house, shop, barn, gardenPlant];
-    this.toolWorld     = [trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, compostBin, trashCan, gardenHarvest];
+    this.toolWorld     = [trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenHarvest];
   }
 
   // Nearest activatable instance to (x, y) within each instance's own radius

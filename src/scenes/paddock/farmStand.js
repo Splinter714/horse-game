@@ -141,6 +141,53 @@ export const WithFarmStand = (Base) => class extends Base {
     });
   }
 
+  // ─── Kitchen counter — crop processing (#40) ───────────────────────────────
+
+  // Build the kitchen counter world prop: grinds a basket of raw crop into jam/flour/
+  // pig feed. Near the garden plot. Called from buildWorld (world.js) so its solid
+  // footprint can be registered alongside the other props in buildObstacles. `recipes`
+  // (unlike the spinning wheel's single fixed craft) lists every from→to conversion
+  // the counter knows; useDispatch/interactables pick whichever matches the held basket.
+  buildKitchenCounter() {
+    const kcx = 1420, kcy = 620;
+    const kitchenSprite = this.add.image(kcx, kcy, 'kitchenCounter')
+      .setScale(S).setDepth(kcy).setOrigin(0.5, 1);
+    this.props.kitchenCounter = {
+      x: kcx, y: kcy, sprite: kitchenSprite,
+      recipes: [
+        { from: 'strawberry', to: 'jam' },
+        { from: 'wheat',      to: 'flour' },
+        { from: 'carrot',     to: 'pigFeed' },
+      ],
+    };
+  }
+
+
+  // Process the active carrier's whole load at the kitchen counter, converting a raw
+  // crop into its processed form (jam/flour/pig feed) per the counter's `recipes`
+  // list. Data-driven off whichever recipe matches the held content — not crop-
+  // specific — mirroring spinWool's single from→to craft, generalized to several.
+  // No-op unless the carrier holds a craftable input. Floats the output icon as
+  // feedback, mirroring spinWool/stockStand.
+  processCrop() {
+    const k = this.props.kitchenCounter;
+    if (!k) return;
+    const item = this.getActiveItem();
+    const recipe = k.recipes.find(r => r.from === item?.content);
+    if (!recipe) return;
+    const { from, to } = recipe;
+    const n = this.scene.get('HotbarScene')?.convertActiveCarrier(from, to) ?? 0;
+    if (n <= 0) return;
+    playGather(to); // a soft thud/grind, mirroring the wheel's whirr
+    const icon = this.add.image(k.x, k.y - 40, CONTENT_DEFS[to].icon)
+      .setScale(1.8).setDepth(10000);
+    this.tweens.add({
+      targets: icon, y: icon.y - 40, alpha: 0,
+      duration: 900, ease: 'Sine.easeOut',
+      onComplete: () => icon.destroy(),
+    });
+  }
+
   // Briefly spin the wheel's spoked disc so the craft reads as motion (#233 playtest).
   // The spokes overlay is normally hidden and pinned on the hub; here we reveal it and
   // rotate it a couple of turns over ~0.8s, easing out to a stop, then hide it again so

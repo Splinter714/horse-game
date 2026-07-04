@@ -23,7 +23,9 @@ describe('carrier definitions', () => {
     // befriend/feed the fox (the only ground-drop pet food; cat/bunny food fill bowls).
     // duckFood added with ducks (#275) — same ground-drop taming shape as the fox,
     // gathered at the duck feeder by the stream.
-    expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey']);
+    // jam/flour/pigFeed added with crop processing (#40) — the kitchen counter's
+    // processed forms of strawberry/wheat/carrot.
+    expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey', 'jam', 'flour', 'pigFeed']);
     expect(CARRIER_DEFS.bucket.capacity).toBe(1);
     // milk added with the cow (#cow). catWater removed with the #202 rework, bunnyWater
     // removed with #283 — pet water bowls (cat's and the bunny's) both fill from a plain
@@ -64,6 +66,21 @@ describe('content definitions', () => {
     expect(CONTENT_DEFS.wool.craftsTo).toBe('yarn');
     expect(CONTENT_DEFS.yarn.action).toBe('sell');
     expect(CONTENT_DEFS.yarn.craftsTo).toBeUndefined(); // yarn is the end product
+  });
+
+  it('crop processing (#40): strawberry/wheat/carrot each craft into one processed good', () => {
+    // Mirrors wool → yarn (#233): each raw crop's craftsTo names the kitchen counter's
+    // processed output. Strawberry/wheat are still sellable raw too; the processed
+    // forms (jam/flour) sell for more (constants.js STAND_DEFS) — the payoff for the
+    // extra step. Ground pig feed isn't sellable — it's a feed, not a stand product.
+    expect(CONTENT_DEFS.strawberry.craftsTo).toBe('jam');
+    expect(CONTENT_DEFS.wheat.craftsTo).toBe('flour');
+    expect(CONTENT_DEFS.carrot.craftsTo).toBe('pigFeed');
+    expect(CONTENT_DEFS.jam.action).toBe('sell');
+    expect(CONTENT_DEFS.flour.action).toBe('sell');
+    expect(CONTENT_DEFS.pigFeed.action).toBe('feed');
+    expect(CONTENT_DEFS.pigFeed.feeds).toEqual(['pig']);
+    expect(CONTENT_DEFS.pigFeed.ground).toBe('pigFeedPile');
   });
 
   it('the goat eats every dropped food (#267 eat-everything quirk)', () => {

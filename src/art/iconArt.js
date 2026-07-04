@@ -90,6 +90,24 @@ export function buildIconTextures(scene) {
     g.fillRect(5, 6, 10, 1);
     g.fillStyle(0x8a5f2c, 1); g.fillRect(15, 4, 1, 8); g.fillCircle(16, 12, 1.5); // dipper
   });
+  gen(scene, 'iconJam', 20, 20, (g) => { // jam jar (#40) — processed strawberries, sold at the stand
+    g.fillStyle(0xc4283a, 1); g.fillRoundedRect(5, 7, 10, 11, 2); // jam body
+    g.fillStyle(0xe8546a, 1); g.fillRect(6, 8, 3, 9);              // lit left face
+    g.fillStyle(0x9c1e2c, 1); g.fillRect(12, 8, 2, 9);             // shaded right
+    g.fillStyle(0xf7a6bd, 0.7); g.fillRect(7, 9, 2, 3);            // glass glint
+    g.fillStyle(0xd8b84a, 1); g.fillRect(4, 5, 12, 3);             // cloth lid overhang
+    g.fillStyle(0xbf9a34, 1); g.fillRect(4, 7, 12, 1);             // rim band
+    g.fillStyle(0xf2e8c0, 1); g.fillRect(5, 6, 10, 1);             // tied string
+  });
+  gen(scene, 'iconFlour', 20, 20, (g) => { // sack of flour (#40) — processed wheat, sold at the stand
+    g.fillStyle(0xe4dcc0, 1); g.fillEllipse(10, 17, 11, 4); // rounded sack base
+    g.fillStyle(0xf2ecd8, 1); g.fillRect(4, 8, 12, 10);      // sack body
+    g.fillStyle(0xfffdf6, 1); g.fillRect(4, 8, 3, 10);       // left highlight
+    g.fillStyle(0xd8d0b4, 1); g.fillRect(13, 8, 3, 10);      // right shade
+    g.fillStyle(0xbfa860, 1); g.fillRect(6, 5, 8, 3);        // cinched neck tie
+    g.fillStyle(0xa9862b, 1); g.fillRect(7, 4, 6, 1);        // knot
+    g.fillStyle(0xffffff, 0.6); g.fillCircle(6, 12, 1); g.fillCircle(14, 15, 1); // flour dusting
+  });
   gen(scene, 'iconTreat', 20, 20, (g) => { // sugar cube with sparkle
     g.fillStyle(0xf5ecd0, 1); g.fillRoundedRect(4, 7, 12, 10, 2);
     g.fillStyle(0xe8d8a8, 1);
@@ -335,6 +353,34 @@ export function buildIconTextures(scene) {
     };
     ball(7, 7, 3.6, 0xd88a6a, 0xe8a888);   // terracotta ball
     ball(13, 6, 3.4, 0x6f9bb8, 0x94bcd6);  // dusty-blue ball
+  });
+  // Basket of jam — a couple of little glass jars of red jam (#40), the processed form
+  // of strawberries. Distinct from the loose basket-of-strawberries at a glance.
+  gen(scene, 'iconBasketJam', 20, 20, (g) => {
+    drawBasketBody(g);
+    const jar = (x) => {
+      g.fillStyle(0xc4283a, 1); g.fillRoundedRect(x, 4, 5, 6, 1);   // jam body
+      g.fillStyle(0xe8546a, 1); g.fillRect(x + 1, 5, 2, 4);          // glint
+      g.fillStyle(0xd8b84a, 1); g.fillRect(x - 1, 3, 7, 2);          // cloth lid
+    };
+    jar(4); jar(11);
+    g.fillStyle(0xf2a8bc, 0.5); g.fillRect(5, 5, 1, 2); g.fillRect(12, 5, 1, 2); // glints
+  });
+  // Basket of flour — a couple of paper-wrapped sacks dusted white (#40), the
+  // processed form of wheat. Distinct from the loose basket-of-wheat at a glance.
+  gen(scene, 'iconBasketFlour', 20, 20, (g) => {
+    drawBasketBody(g);
+    g.fillStyle(0xf2ecd8, 1); g.fillRoundedRect(4, 4, 12, 7, 2); // mound of flour
+    g.fillStyle(0xe4dcc0, 1); g.fillRect(4, 7, 12, 1); g.fillRect(4, 9, 12, 1);
+    g.fillStyle(0xfffdf6, 1); g.fillRect(5, 2, 1, 3); g.fillRect(10, 1, 1, 4); g.fillRect(14, 2, 1, 3); // dusting
+  });
+  // Basket of ground pig feed (#40) — coarse brownish mash, the processed/ground form of
+  // carrots, distinct from the loose orange basket-of-carrots.
+  gen(scene, 'iconBasketPigFeed', 20, 20, (g) => {
+    drawBasketBody(g);
+    g.fillStyle(0x8a6a3c, 1); g.fillRoundedRect(4, 4, 12, 7, 2); // mound of ground mash
+    g.fillStyle(0x6e5230, 1); g.fillRect(4, 7, 12, 1); g.fillRect(4, 9, 12, 1);
+    g.fillStyle(0xf07830, 1); g.fillCircle(7, 5, 1); g.fillCircle(12, 6, 1); // fleck of carrot
   });
   // Basket of compost (#232) — dark crumbly earth mounded above the rim, flecked
   // with a couple of bits of straw so it reads "rich soil / manure" not just dirt.

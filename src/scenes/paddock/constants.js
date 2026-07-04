@@ -196,6 +196,13 @@ export const STAND_DEFS = {
   // Honey (#239): a premium produce — harvested from the beehive on a timer, sold like
   // eggs/milk. Priced high (a jar of honey is a treat); a balance lever to tune at playtest.
   honey:      { price: 12, tex: 'iconHoney',       scale: 0.9, emoji: '🍯', floatIcon: 'iconHoney' },
+  // Crop processing (#40): jam/flour are the kitchen counter's processed forms of
+  // strawberries/wheat — priced noticeably above their raw crop (the payoff for the
+  // extra crafting step, mirrors wool→yarn roughly doubling). A first-pass balance
+  // lever to tune at playtest. (Ground pig feed isn't sellable — it's a feed, not a
+  // stand product, mirroring hay/apple/carrot's other feed siblings.)
+  jam:        { price: 13, tex: 'iconJam',        scale: 0.9, emoji: '🍓', floatIcon: 'iconJam' },
+  flour:      { price: 9,  tex: 'iconFlour',      scale: 0.9, emoji: '🌾', floatIcon: 'iconFlour' },
 };
 export const STAND_TYPES = Object.keys(STAND_DEFS);
 

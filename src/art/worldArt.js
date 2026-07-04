@@ -875,6 +875,34 @@ export function buildWorldTextures(scene) {
     g.fillStyle(IRON, 1);   g.fillCircle(cx, cy, 2);           // iron hub
   });
 
+  // --- Kitchen counter (32 × 30) — the crop-processing station (#40): grinds/mashes a
+  // basket of raw fruit/grain/veg into jam / flour / pig feed. Origin (0.5, 1). A sturdy
+  // wooden counter with a mortar-and-pestle bowl set on top and a cutting board leaning
+  // against the front, so it reads as "food prep" distinct from the spinning wheel's
+  // fiber-craft silhouette. ---
+  gen(scene, 'kitchenCounter', 32, 30, (g) => {
+    const WOOD = 0x8a5a2c, WOOD_D = 0x6a4420, WOOD_L = 0xa8763c;
+    const STONE = 0x9aa0a8, STONE_L = 0xbcc2ca, STONE_D = 0x767c84;
+    // Counter legs
+    g.fillStyle(WOOD_D, 1); g.fillRect(4, 22, 4, 8); g.fillRect(24, 22, 4, 8);
+    // Counter top slab
+    g.fillStyle(WOOD, 1);   g.fillRect(2, 14, 28, 9);
+    g.fillStyle(WOOD_L, 1); g.fillRect(2, 14, 28, 2);
+    g.fillStyle(WOOD_D, 1); g.fillRect(2, 21, 28, 2);
+    // Cutting board leaning on the front face
+    g.fillStyle(0xc99a5c, 1); g.fillRoundedRect(5, 23, 8, 6, 1);
+    g.fillStyle(0xdcb476, 1); g.fillRect(6, 24, 6, 1);
+    // Mortar bowl on the counter top
+    const mx = 20, my = 12;
+    g.fillStyle(STONE_D, 1); g.fillEllipse(mx, my + 2, 12, 6);
+    g.fillStyle(STONE, 1);   g.fillEllipse(mx, my, 11, 5);
+    g.fillStyle(STONE_D, 1); g.fillEllipse(mx, my - 1, 8, 3); // inner well
+    g.fillStyle(STONE_L, 1); g.fillEllipse(mx - 3, my - 1, 3, 1.4); // rim highlight
+    // Pestle resting diagonally in the bowl
+    g.fillStyle(WOOD_L, 1); g.fillRect(mx - 2, my - 6, 3, 8);
+    g.fillStyle(WOOD, 1);   g.fillCircle(mx - 1, my - 6, 2);
+  });
+
   // --- NPC customer sprite (16 × 24, same layout as player) ---
   const NPC_SKIN  = 0xf0c080;
   const NPC_HAIR  = 0x5a3a20;
