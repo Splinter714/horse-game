@@ -9,6 +9,7 @@
 
 import { ROSTERS } from './rosters.js';
 import { sanitizeGarden } from './garden.js';
+import { DEFAULT_SADDLE_TYPE, SADDLE_TYPES } from './items.js';
 
 // Build a { load, save } pair for one species' roster from its config. Collapses the
 // three formerly-duplicated loaders into one generic implementation:
@@ -117,6 +118,12 @@ function defaultActiveCarrier() {
   return { basket: 'basket1', bucket: 'bucket1' };
 }
 
+// Coerce a persisted saddle-type key into a known SADDLE_TYPES id, falling back
+// to the default for a missing/corrupt/unknown value (#134 follow-up to #21).
+function sanitizeSaddleType(v) {
+  return typeof v === 'string' && SADDLE_TYPES[v] ? v : DEFAULT_SADDLE_TYPE;
+}
+
 function defaultInventory() {
   // Tools are infinite; carriers track their own contents. Nothing to stock.
   return {};
@@ -160,6 +167,7 @@ export function loadGameState() {
     carriers: defaultCarriers(), activeCarrier: defaultActiveCarrier(),
     money: DEFAULT_MONEY,
     scooperLoad: 0, compost: 0, shearsLoad: 0,
+    activeSaddleType: DEFAULT_SADDLE_TYPE,
   });
   try {
     const raw = localStorage.getItem(GAME_STATE_KEY);
@@ -194,17 +202,22 @@ export function loadGameState() {
       // Shears mechanic (#254): the shears' current wool load. Defaults to 0 for a
       // save written before the feature existed.
       shearsLoad:    sanitizeCount(data.shearsLoad),
+      // Tack rack (#134 follow-up to #21): which saddle type is currently selected
+      // at the rack — the type the saddle tool equips next. Defaults to western
+      // for a save written before the feature existed.
+      activeSaddleType: sanitizeSaddleType(data.activeSaddleType),
     };
   } catch {
     return fresh();
   }
 }
 
-export function saveGameState({ hotbar, inventory, carriers, activeCarrier, money, scooperLoad, compost, shearsLoad }) {
+export function saveGameState({ hotbar, inventory, carriers, activeCarrier, money, scooperLoad, compost, shearsLoad, activeSaddleType }) {
   try {
     localStorage.setItem(GAME_STATE_KEY, JSON.stringify({
       hotbar, inventory, carriers, activeCarrier, money: sanitizeMoney(money),
       scooperLoad: sanitizeCount(scooperLoad), compost: sanitizeCount(compost),
+      activeSaddleType: sanitizeSaddleType(activeSaddleType),
       shearsLoad: sanitizeCount(shearsLoad),
     }));
   } catch {}

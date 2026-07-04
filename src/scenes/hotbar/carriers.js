@@ -3,7 +3,7 @@
 // (#75) and their fly-out picker, and the getActiveItem public API the rest of the
 // game reads. Extracted from the monolithic HotbarScene (issue #167).
 
-import { ITEM_MAP, CARRIER_DEFS, CONTENT_DEFS, SCOOPER, SHEARS, dumpScooper, emptyCarrier } from '../../data/items.js';
+import { ITEM_MAP, CARRIER_DEFS, CONTENT_DEFS, SCOOPER, SHEARS, dumpScooper, emptyCarrier, SADDLE_TYPE_ORDER, DEFAULT_SADDLE_TYPE } from '../../data/items.js';
 import { saveGameState } from '../../data/save.js';
 import { FLYOUT_CLOSE_MS } from './constants.js';
 
@@ -48,7 +48,29 @@ export const WithCarriers = (Base) => class extends Base {
       scooperLoad: this._scooperLoad ?? 0,
       compost: this._compost ?? 0,
       shearsLoad: this._shearsLoad ?? 0,
+      activeSaddleType: this._activeSaddleType ?? DEFAULT_SADDLE_TYPE,
     });
+  }
+
+  // ── Tack rack / saddle type (#134 follow-up to #21) ─────────────────────────
+  // Which saddle type is "active" — the type the saddle tool equips next. Set by
+  // cycling the tack rack in the barn (PaddockScene._barnCycleSaddleType). Read by
+  // riding.js's equipSaddle via this accessor so the mechanic stays hotbar-owned,
+  // like activeCarrier.
+
+  getActiveSaddleType() {
+    return this._activeSaddleType ?? DEFAULT_SADDLE_TYPE;
+  }
+
+  // Cycle to the next saddle type in SADDLE_TYPE_ORDER (western → english →
+  // bareback → western…). Returns the new active type id.
+  cycleActiveSaddleType() {
+    const cur = this.getActiveSaddleType();
+    const idx = SADDLE_TYPE_ORDER.indexOf(cur);
+    const next = SADDLE_TYPE_ORDER[(idx + 1) % SADDLE_TYPE_ORDER.length] ?? DEFAULT_SADDLE_TYPE;
+    this._activeSaddleType = next;
+    this._persistGameState();
+    return next;
   }
 
   // ── Scooper load + compost store (#232) ─────────────────────────────────────

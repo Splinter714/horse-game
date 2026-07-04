@@ -57,8 +57,10 @@ export const HORSE = {
   ],
 
   // Always serialized, with defaults. Temperament shapes paddock behavior; saddled
-  // persists and gates riding.
-  traits: { temperament: 'calm', saddled: false },
+  // persists and gates riding. saddleType (#134 follow-up to #21) remembers which
+  // tack was equipped (western/english/bareback — see data/items.js SADDLE_TYPES)
+  // so the right art/ride-speed variant is restored across a reload.
+  traits: { temperament: 'calm', saddled: false, saddleType: 'western' },
   // Serialized only when present (e.g. Ebony the Friesian).
   optionalAttrs: ['health', 'speed', 'stamina'],
 

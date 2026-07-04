@@ -15,6 +15,7 @@
 import Phaser from 'phaser';
 import { S } from './constants.js';
 import { NUM_STALLS, loadBarnState, saveBarnState, assignStall, nextStallOccupant, stallOfHorse } from '../../data/barn.js';
+import { SADDLE_TYPES } from '../../data/items.js';
 
 // Design-grid footprint of the barn textures (must match worldArt BARN_W/BARN_H).
 const BARN_DW = 160, BARN_DH = 132;
@@ -123,6 +124,26 @@ export const WithBarn = (Base) => class extends Base {
     return this._animalName?.(key) ?? key;
   }
 
+  // ─── Tack rack (#134 follow-up to #21) ──────────────────────────────────────
+  // Fetch-a-saddle-type flow, first pass: the rack is a fixed rack of the three
+  // types, permanently in stock (not a physical single item you carry off — the
+  // saddle TOOL still lives in the hotbar and equip/remove is unchanged). What the
+  // rack picks is WHICH type equipSaddle (riding.js) reaches for next: cycling the
+  // rack sets HotbarScene's activeSaddleType, so the next Saddle use on a horse
+  // equips (or re-equips, switching type) with that tack. Kept this shape rather
+  // than a full pick-up-and-carry item because the existing saddle-as-permanent-
+  // hotbar-tool model is load-bearing (mount gating, persistence, riding.js) and a
+  // full rework was flagged as bigger/riskier in #134 — this is the additive,
+  // clean-integration first pass the issue calls out as acceptable scope.
+  _barnCycleSaddleType() {
+    const hot = this.scene.get('HotbarScene');
+    return hot?.cycleActiveSaddleType?.() ?? 'western';
+  }
+
+  _barnActiveSaddleType() {
+    return this.scene.get('HotbarScene')?.getActiveSaddleType?.() ?? 'western';
+  }
+
   // Move each assigned horse to stand in its stall; nudge others just out of the
   // doorway so a freshly-unassigned horse doesn't stay parked inside. Purely a
   // teleport of the sprite — the horse AI takes over from there on its next tick.
@@ -153,12 +174,15 @@ export const WithBarn = (Base) => class extends Base {
         activate: () => this._barnCycleStall(st.index),
       });
     }
-    // Tack room — visual for now; a passive discover-me hint (canAct:false).
+    // Tack rack (#134 follow-up to #21): interact to cycle which saddle type is
+    // active — western → english → bareback → western… The saddle tool itself
+    // still equips/removes as before; this just picks which tack it reaches for.
     insts.push({
       x: this.barnTack.x, y: this.barnTack.y, tapRadius: 40, reachDist: 60, promptOffsetY: 20,
-      canAct: false, label: 'Tack Room',
+      canAct: true,
+      label: `Tack Rack: ${SADDLE_TYPES[this._barnActiveSaddleType()].label}  •  switch`,
       approach: () => ({ x: this.barnTack.x, y: this.barnTack.y + 30 }),
-      activate: () => {},
+      activate: () => this._barnCycleSaddleType(),
     });
     return insts;
   }
