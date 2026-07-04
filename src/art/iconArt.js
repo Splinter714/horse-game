@@ -98,13 +98,38 @@ export function buildIconTextures(scene) {
     g.fillRect(14, 3, 2, 2); g.fillRect(15, 2, 1, 4); g.fillRect(13, 4, 4, 1);
     g.fillRect(3, 3, 1, 1);
   });
-  gen(scene, 'iconSaddle', 20, 20, (g) => { // saddle
+  gen(scene, 'iconSaddle', 20, 20, (g) => { // saddle (the hotbar tool icon — unchanged)
     g.fillStyle(0x8a5020, 1); g.fillRect(3, 7, 14, 5);
     g.fillStyle(0x6a3c18, 1); g.fillRect(2, 9, 4, 5); g.fillRect(14, 9, 4, 5);
     g.fillStyle(0xb07040, 1); g.fillRect(4, 8, 12, 2);
     g.fillStyle(0x6a3c18, 1);
     g.fillRect(5, 12, 1, 5); g.fillRect(14, 12, 1, 5);
     g.fillRect(3, 16, 4, 2); g.fillRect(12, 16, 4, 2);
+  });
+
+  // Tack-rack picker icons (#134 follow-up to #21) — one per SADDLE_TYPES entry,
+  // small silhouettes distinct enough to tell apart in the rack prompt/preview.
+  gen(scene, 'iconSaddleWestern', 20, 20, (g) => { // boxy saddle + horn (same family as iconSaddle)
+    g.fillStyle(0x8a5020, 1); g.fillRect(3, 8, 14, 5);
+    g.fillStyle(0x6a3c18, 1); g.fillRect(2, 10, 4, 5); g.fillRect(14, 10, 4, 5);
+    g.fillStyle(0xb07040, 1); g.fillRect(4, 9, 12, 2);
+    g.fillStyle(0x9a6428, 1); g.fillRect(8, 5, 3, 4); g.fillCircle(9, 5, 2); // horn
+    g.fillStyle(0x6a3c18, 1);
+    g.fillRect(5, 13, 1, 5); g.fillRect(14, 13, 1, 5);
+    g.fillRect(3, 17, 4, 2); g.fillRect(12, 17, 4, 2);
+  });
+  gen(scene, 'iconSaddleEnglish', 20, 20, (g) => { // slim dark saddle, no horn
+    g.fillStyle(0x2e2420, 1); g.fillRect(4, 8, 12, 4);
+    g.fillStyle(0x1c1512, 1); g.fillRect(3, 10, 3, 5); g.fillRect(14, 10, 3, 5);
+    g.fillStyle(0x4a3c34, 1); g.fillRect(5, 8, 10, 1);
+    g.fillStyle(0x1c1512, 1);
+    g.fillRect(6, 12, 1, 5); g.fillRect(13, 12, 1, 5);
+    g.fillRect(5, 16, 3, 2); g.fillRect(12, 16, 3, 2);
+  });
+  gen(scene, 'iconSaddleBareback', 20, 20, (g) => { // simple folded pad, no rigid tree
+    g.fillStyle(0x8a3a2e, 1); g.fillRect(3, 9, 14, 4);
+    g.fillStyle(0xa8503e, 1); g.fillRect(4, 9, 12, 1);
+    g.fillStyle(0x6a2a20, 1); g.fillRect(2, 12, 16, 1); // fold shadow
   });
   gen(scene, 'iconLead', 20, 20, (g) => { // rope coil
     g.fillStyle(0xd4a84a, 1); g.fillCircle(9, 11, 7);

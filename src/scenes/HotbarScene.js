@@ -41,6 +41,9 @@ export default class HotbarScene
     // Shears mechanic (#254): the shears' current wool load (sheared, not yet dumped at
     // the farm stand). HotbarScene owns it, like the scooper's load.
     this._shearsLoad  = saved.shearsLoad ?? 0;
+    // Tack rack (#134 follow-up to #21): which saddle type the rack has selected as
+    // active — the type equipSaddle (riding.js) reaches for next.
+    this._activeSaddleType = saved.activeSaddleType ?? 'western';
     this._slots      = [];
     this._invNodes   = [];
     this._flyoutNodes = []; // carrier-group fly-out picker (#75)

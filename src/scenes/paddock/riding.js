@@ -4,6 +4,7 @@
 import Phaser from 'phaser';
 import { playBrush } from '../../audio/sounds.js';
 import { PLAYER_SPEED, RIDE_SPEED, PLAYER_BOUNDS, S } from './constants.js';
+import { SADDLE_TYPES, DEFAULT_SADDLE_TYPE } from '../../data/items.js';
 
 export const WithRiding = (Base) => class extends Base {
   // ─── Riding ──────────────────────────────────────────────────────────────
@@ -11,24 +12,49 @@ export const WithRiding = (Base) => class extends Base {
   // ─── Saddle (equip/remove) ───────────────────────────────────────────────
   // The saddle is a persistent, visible piece of tack. Riding is gated behind it
   // (see mountHorse). Equipping/removing is independent of mounting (issue #54).
+  // #134 follow-up: WHICH saddle gets equipped is now data-driven (SADDLE_TYPES) —
+  // the tack rack in the barn (barn.js) picks the active type; the saddle tool
+  // itself still just toggles equip/remove, unchanged.
 
   toggleSaddle(h) {
     if (h.saddled) this.removeSaddle(h);
     else           this.equipSaddle(h);
   }
 
+  // Resolve the active saddle type from the tack rack (HotbarScene owns the
+  // persisted `activeSaddleType`, mirroring activeCarrier), falling back to the
+  // default if the hotbar isn't ready yet.
+  _activeSaddleType() {
+    return this.scene.get('HotbarScene')?.getActiveSaddleType?.() ?? DEFAULT_SADDLE_TYPE;
+  }
+
   equipSaddle(h) {
-    if (!h.saddleImg) {
-      h.saddleImg = this.add.image(h.sprite.x, h.sprite.y, 'saddleOverlay')
+    const typeId = this._activeSaddleType();
+    const def = SADDLE_TYPES[typeId] ?? SADDLE_TYPES[DEFAULT_SADDLE_TYPE];
+
+    // Swap/create the saddle overlay image for the chosen type. A bareback pad
+    // has no rigid overlay texture (def.overlay is null) — no saddle silhouette
+    // shows on the horse, matching its "just a pad" look.
+    if (h.saddleImg) { h.saddleImg.destroy(); h.saddleImg = null; }
+    if (def.overlay) {
+      h.saddleImg = this.add.image(h.sprite.x, h.sprite.y, def.overlay)
         .setScale(S).setOrigin(0.5, 1).setDepth(h.sprite.depth + 1)
         .setFlipX(h.sprite.flipX);
     }
+    h.saddleType = typeId;
+
     if (!h.saddled) {
       h.saddled = true;
       const model = this.registry.get('allHorses')[h.key];
-      if (model) model.saddled = true;
+      if (model) { model.saddled = true; model.saddleType = typeId; }
       playBrush();
-      this.showIcon('iconSaddle', h.sprite);
+      this.showIcon(def.icon, h.sprite);
+      this._saveHorses();
+    } else {
+      // Re-equipping while already saddled (switching type mid-game): still
+      // persist the new type on the model.
+      const model = this.registry.get('allHorses')[h.key];
+      if (model) model.saddleType = typeId;
       this._saveHorses();
     }
   }
@@ -108,22 +134,30 @@ export const WithRiding = (Base) => class extends Base {
     const manual = vx !== 0 || vy !== 0;
     if (manual) this._cancelRideNav();
 
-    const step = RIDE_SPEED * (delta / 1000);
+    // Saddle type nudges ride speed (#134 follow-up): english a touch faster,
+    // bareback a touch slower, western the baseline. Falls back to 1.0 for an
+    // unrecognized/legacy type so an older save never breaks.
+    const speedMult = SADDLE_TYPES[h.saddleType]?.rideSpeedMult ?? 1.0;
+    const step = RIDE_SPEED * speedMult * (delta / 1000);
     let moving = false;
     if (manual) {
       if (vx !== 0 && vy !== 0) { vx *= 0.707; vy *= 0.707; }
       moving = this._moveHorseBy(h, vx * step, vy * step);
       if (vx !== 0) h.sprite.setFlipX(vx < 0);
     } else if (this.rideNav) {
-      moving = this._stepRideNav(delta);
+      moving = this._stepRideNav(delta, speedMult);
     }
 
     h.sprite.play(moving ? `walk_${h.key}` : `idle_${h.key}`, true);
 
-    saddleImg.x = h.sprite.x;
-    saddleImg.y = h.sprite.y;
-    saddleImg.setFlipX(h.sprite.flipX);
-    saddleImg.setDepth(h.sprite.y + 1);
+    // A bareback pad has no overlay image (h.saddleImg stays null) — nothing to
+    // reposition, matching its "no saddle silhouette" look.
+    if (saddleImg) {
+      saddleImg.x = h.sprite.x;
+      saddleImg.y = h.sprite.y;
+      saddleImg.setFlipX(h.sprite.flipX);
+      saddleImg.setDepth(h.sprite.y + 1);
+    }
 
     // Position rider on horse's back (saddle is ~55px above horse feet at scale 2)
     const riderXOff = h.sprite.flipX ? 10 : -10;
@@ -169,7 +203,8 @@ export const WithRiding = (Base) => class extends Base {
   _cancelRideNav() { this.rideNav = null; this._rideStuck = 0; }
 
   // Advance the ridden horse one frame along rideNav; abandons if wedged.
-  _stepRideNav(delta) {
+  // speedMult (default 1.0) is the active saddle type's rideSpeedMult (#134).
+  _stepRideNav(delta, speedMult = 1.0) {
     const s = this.riding.h.sprite;
     let wp = this.rideNav[0];
     while (wp && Phaser.Math.Distance.Between(s.x, s.y, wp.x, wp.y) < 10) {
@@ -180,7 +215,7 @@ export const WithRiding = (Base) => class extends Base {
 
     const dx = wp.x - s.x, dy = wp.y - s.y;
     const dist = Math.hypot(dx, dy) || 1;
-    const step = RIDE_SPEED * (delta / 1000);
+    const step = RIDE_SPEED * speedMult * (delta / 1000);
     const moved = this._moveHorseBy(this.riding.h, (dx / dist) * step, (dy / dist) * step);
     if (Math.abs(dx) > 1) s.setFlipX(dx < 0);
 

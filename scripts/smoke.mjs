@@ -684,12 +684,58 @@ try {
         : `noRoosterBlocked=${noRoosterBlocked},refusedNoRooster=${refusedNoRooster},roosterPresent=${roosterPresent},started=${started},alreadyBlocked=${alreadyBlocked},grew=${grew},hatchedChick=${hatchedChick},chickInScene=${chickInScene},incCleared=${incCleared},stayedBaby=${stayedBaby},grownUp=${grownUp}`;
     } catch (e) { incubation = 'threw: ' + String(e); }
 
+    // #134 follow-up to #21: the tack rack in the barn + multiple saddle types.
+    // Assert the rack interactable exists/is actionable, cycling it steps through
+    // all 3 SADDLE_TYPES (western → english → bareback → western), and equipping
+    // the saddle tool on a horse picks up the rack's active type — a distinct
+    // overlay texture per type (bareback = none) and its own ride-speed multiplier.
+    let tackRack = 'ok';
+    try {
+      const hot = g.scene.getScene('HotbarScene');
+      const insts = paddock._barnInteractables();
+      const rack = insts.find((i) => i.label.startsWith('Tack Rack'));
+      const rackExists = !!rack && rack.canAct === true;
+
+      // Cycling steps through all three types in order and wraps.
+      hot._activeSaddleType = 'western';
+      const afterFirst  = paddock._barnCycleSaddleType();  // → english
+      const afterSecond = paddock._barnCycleSaddleType();  // → bareback
+      const afterThird  = paddock._barnCycleSaddleType();  // → western (wraps)
+      const cyclesAll = afterFirst === 'english' && afterSecond === 'bareback' && afterThird === 'western';
+
+      // Equip picks up the rack's active type: distinct overlay per type, no
+      // overlay image for bareback, and the horse model persists saddleType.
+      const horse = paddock.horses.find((h) => h.key !== paddock.riding?.h?.key);
+      hot._activeSaddleType = 'english';
+      paddock.equipSaddle(horse);
+      const englishOk = horse.saddled === true && horse.saddleType === 'english'
+        && horse.saddleImg?.texture?.key === 'saddleOverlayEnglish'
+        && horses[horse.key].saddleType === 'english';
+
+      hot._activeSaddleType = 'bareback';
+      paddock.equipSaddle(horse); // switch type while still saddled
+      const barebackOk = horse.saddled === true && horse.saddleType === 'bareback'
+        && horse.saddleImg === null; // no rigid overlay for a bareback pad
+
+      hot._activeSaddleType = 'western';
+      paddock.equipSaddle(horse);
+      const westernOk = horse.saddleType === 'western'
+        && horse.saddleImg?.texture?.key === 'saddleOverlayWestern';
+
+      paddock.removeSaddle(horse); // leave the probed horse as we found it
+
+      tackRack = (rackExists && cyclesAll && englishOk && barebackOk && westernOk)
+        ? 'rack-cycles-and-equips'
+        : `rackExists=${rackExists},cyclesAll=${cyclesAll}(${afterFirst},${afterSecond},${afterThird}),englishOk=${englishOk},barebackOk=${barebackOk},westernOk=${westernOk}`;
+    } catch (e) { tackRack = 'threw: ' + String(e); }
+
     return {
       owl,
       charm,
       breeding,
       incubation,
       rooster,
+      tackRack,
       roosterCount: Object.keys(g.registry.get('allRoosters') ?? {}).length,
       roostersInScene: paddock.animals.filter((a) => a.model?.species === 'rooster').length,
       fox,
@@ -1102,6 +1148,11 @@ try {
   // #254 shears (multi-use tool): shear a sheep into the shears' own wool load, dump it
   // into the farm stand's wool stock, and trim a horse via the brush grooming path.
   if (result.shears !== 'shears-and-dumps') fail(`shears tool (#254) failed: ${result.shears}`);
+  // #134 follow-up to #21: tack rack (barn) + multiple saddle types — the rack
+  // interactable exists and is actionable, cycling steps through all 3 types, and
+  // equipping picks up the rack's active type (distinct overlay per type, bareback
+  // has none) while riding/saddle gating stays exactly as before.
+  if (result.tackRack !== 'rack-cycles-and-equips') fail(`tack rack / saddle types (#134) failed: ${result.tackRack}`);
   // The pig: it spawned into the world and eats apples but not hay.
   if (result.pigCount !== 1) fail(`expected 1 pig in roster, got ${result.pigCount}`);
   if (result.pigsInScene !== 1) fail(`expected 1 pig sprite in scene, got ${result.pigsInScene}`);

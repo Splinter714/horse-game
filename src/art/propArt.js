@@ -140,13 +140,41 @@ export function buildPropTextures(scene) {
     g.fillRect(7, 7, 2, 1); g.fillRect(16, 8, 3, 1); g.fillRect(25, 7, 2, 1);
   });
 
-  gen(scene, 'saddleOverlay', 64, 54, (g) => { // drawn at horse-back position (x=19-38, y=16-22)
+  // Saddle overlays (#134 follow-up to #21): three cosmetically distinct types,
+  // all drawn at the same horse-back position (x=19-38, y=16-22) so riding.js can
+  // swap textures without repositioning. `withLayer` keeps dissect tags harmless.
+  // Western — sturdy, boxy, with a visible horn and skirt (the original silhouette).
+  gen(scene, 'saddleOverlayWestern', 64, 54, (g) => { withLayer(g);
+    g.layer('seat');
     g.fillStyle(0x8a5020, 1); g.fillRect(19, 16, 20, 6);
     g.fillStyle(0x6a3c18, 1); g.fillRect(18, 18, 4, 5); g.fillRect(35, 18, 4, 5);
     g.fillStyle(0xb07040, 1); g.fillRect(20, 17, 17, 2);
+    g.layer('horn');
+    g.fillStyle(0x9a6428, 1); g.fillRect(27, 13, 3, 4); g.fillCircle(28, 13, 2); // saddle horn
+    g.layer('straps');
     g.fillStyle(0x6a3c18, 1);
     g.fillRect(22, 22, 1, 9); g.fillRect(33, 22, 1, 9);
-    g.fillRect(20, 30, 4, 2); g.fillRect(31, 30, 4, 2);
+    g.fillRect(20, 30, 4, 2); g.fillRect(31, 30, 4, 2); // wide fenders/skirt
+  });
+  // English — lighter, sleeker, no horn, a slimmer flap.
+  gen(scene, 'saddleOverlayEnglish', 64, 54, (g) => { withLayer(g);
+    g.layer('seat');
+    g.fillStyle(0x2e2420, 1); g.fillRect(20, 16, 18, 5);
+    g.fillStyle(0x1c1512, 1); g.fillRect(19, 18, 3, 4); g.fillRect(35, 18, 3, 4);
+    g.fillStyle(0x4a3c34, 1); g.fillRect(21, 16, 15, 2);
+    g.layer('straps');
+    g.fillStyle(0x1c1512, 1);
+    g.fillRect(23, 21, 1, 7); g.fillRect(33, 21, 1, 7); // slim, close-contact flaps
+    g.fillRect(22, 27, 3, 2); g.fillRect(32, 27, 3, 2);
+  });
+  // Bareback pad: no rigid saddle silhouette on the horse (SADDLE_TYPES.overlay is
+  // null for it in items.js), just a soft folded pad — kept here for completeness/
+  // preview tooling even though riding.js won't attach it in-world.
+  gen(scene, 'saddleOverlayBareback', 64, 54, (g) => { withLayer(g);
+    g.layer('pad');
+    g.fillStyle(0x8a3a2e, 1); g.fillRect(20, 17, 18, 4);
+    g.fillStyle(0xa8503e, 1); g.fillRect(21, 17, 16, 1);
+    g.fillStyle(0x6a2a20, 1); g.fillRect(19, 19, 20, 1); // fold shadow
   });
 
   gen(scene, 'seedPile', 22, 8, (g) => { // seeds scattered on ground

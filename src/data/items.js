@@ -166,6 +166,30 @@ const GROUP_ITEMS = Object.entries(CARRIER_GROUPS).map(([key, g]) => ({
   key, label: g.label, type: 'carrierGroup', carrier: g.carrier, members: g.members,
 }));
 
+// ── Saddle types (#134 follow-up to #21) ─────────────────────────────────────
+// The saddle TOOL itself is unchanged (equip/remove is still its own action,
+// gates riding, persists on the horse — see paddock/riding.js). What's new is
+// WHICH saddle gets equipped: a physical tack rack in the barn (barn.js) lets
+// the player pick the active type, stored in game state (activeSaddleType,
+// mirroring activeCarrier) and then in the horse's own `saddleType` trait once
+// equipped (species/horse/index.js) so it survives a reload per-horse.
+// Cosmetically distinct art (propArt.js) and a small, clearly-flagged ride-speed
+// difference — keep it simple, playtest can retune the numbers:
+//   western  — the default, sturdiest-looking saddle, baseline ride speed.
+//   english  — a lighter, sleeker saddle, modest ride-speed boost.
+//   bareback — a folded pad, no rigid saddle silhouette on the horse, but still
+//              "equipped" (required to ride) — a little slower, less secure.
+export const SADDLE_TYPES = {
+  western:  { label: 'Western Saddle',  icon: 'iconSaddleWestern',  overlay: 'saddleOverlayWestern',  rideSpeedMult: 1.0 },
+  english:  { label: 'English Saddle',  icon: 'iconSaddleEnglish',  overlay: 'saddleOverlayEnglish',  rideSpeedMult: 1.12 },
+  bareback: { label: 'Bareback Pad',    icon: 'iconSaddleBareback', overlay: null,                    rideSpeedMult: 0.92 },
+};
+export const DEFAULT_SADDLE_TYPE = 'western';
+
+// The tack rack's fixed display order (western → english → bareback), for the
+// barn interactable's cycle-through-types action (mirrors barn.js's stall cycle).
+export const SADDLE_TYPE_ORDER = Object.keys(SADDLE_TYPES);
+
 // Tools. (There's no "hand" tool — interacting/petting is the universal default
 // on tap/click/E/controller; tools apply via the Use button / F / controller-X.)
 const TOOL_ITEMS = [
