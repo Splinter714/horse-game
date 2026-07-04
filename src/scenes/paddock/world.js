@@ -148,6 +148,7 @@ export const WithWorld = (Base) => class extends Base {
       x: swx, y: swy, sprite: spinSprite, spokes, craft: { from: 'wool', to: 'yarn' },
     };
     // (Its solid footprint is added to this.obstacles below, once that array exists.)
+    this.buildKitchenCounter(); // crop processing (#40); paddock/farmStand.js
     this.props.compostBin = { x: 300, y: 1000, sprite: this.add.image(300, 1000, 'compostBin').setScale(S).setDepth(1000).setOrigin(0.5, 1) }; // Compost bin (#232) — dump spot, pasture NW.
 
     // Shop / market stall (#29) — where the player SPENDS gold on feed. West of the
@@ -397,15 +398,12 @@ export const WithWorld = (Base) => class extends Base {
       ...centredBox(this.props.trough, 176, 44, { isTrough: true }),
       // Fence line (6 segments at y=320, origin 0,0.5; 96×48 each → x=300..876)
       { x: 300, y: 300, w: 576, h: 40 },
-      // Spinning wheel (#233) — solid footprint (origin 0.5,1 at swx,swy; ~52×20 body).
-      ...(this.props.spinningWheel
-        ? [{ x: this.props.spinningWheel.x - 26, y: this.props.spinningWheel.y - 20, w: 52, h: 20 }]
-        : []),
-      // Shop stall (#29) — solid counter (origin 0.5,1; 72×48 at S=2, counter body
-      // ~x4–68 y24–36 → ~128 wide, ~48 tall base at shopY). Mirrors the farm stand.
-      ...(this.props.shop
-        ? [{ x: this.props.shop.x - 64, y: this.props.shop.y - 48, w: 128, h: 48, isShop: true }]
-        : []),
+      // Spinning wheel (#233) — solid ~52×20 footprint at swx,swy.
+      ...(this.props.spinningWheel ? [{ x: this.props.spinningWheel.x - 26, y: this.props.spinningWheel.y - 20, w: 52, h: 20 }] : []),
+      // Kitchen counter (#40) — solid ~56×16 counter-top footprint at S=2.
+      ...(this.props.kitchenCounter ? [{ x: this.props.kitchenCounter.x - 28, y: this.props.kitchenCounter.y - 16, w: 56, h: 16 }] : []),
+      // Shop stall (#29) — solid ~128×48 counter footprint at S=2. Mirrors the farm stand.
+      ...(this.props.shop ? [{ x: this.props.shop.x - 64, y: this.props.shop.y - 48, w: 128, h: 48, isShop: true }] : []),
       // Compost bin (#232) — solid ~80×40 footprint at S=2.
       ...(this.props.compostBin ? [{ x: this.props.compostBin.x - 40, y: this.props.compostBin.y - 40, w: 80, h: 40 }] : []),
       ...(this.birdEcosystemObstacles || []), // #219/#240/#226/#239/#218 bird-ecosystem props

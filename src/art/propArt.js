@@ -250,6 +250,17 @@ export function buildPropTextures(scene) {
     g.fillStyle(0x7a3a72, 1); g.fillCircle(8.5, 5.5, 0.6); g.fillCircle(14.5, 6.5, 0.6);
   });
 
+  // Pig feed pile (#40) — a dropped serving of ground pig chow the pig trots over to
+  // eat. A coarse brownish mash mound, distinct at a glance from the golden hay /
+  // orange carrot pile / green bunny pellets. Origin default (placed by placeFood).
+  gen(scene, 'pigFeedPile', 22, 10, (g) => {
+    g.fillStyle(0x000000, 0.1); g.fillEllipse(11, 9, 20, 3); // ground shadow
+    g.fillStyle(0x6e5230, 1); g.fillEllipse(11, 6, 18, 6);   // mash mound
+    g.fillStyle(0x8a6a3c, 1); g.fillEllipse(9, 5, 12, 4);    // lit crown
+    g.fillStyle(0xa8845a, 1); g.fillCircle(6, 5, 1); g.fillCircle(14, 4, 1); g.fillCircle(17, 6, 1);
+    g.fillStyle(0xf07830, 1); g.fillCircle(9, 4, 0.9); g.fillCircle(15, 5, 0.9); // carrot flecks
+  });
+
   // Duck feeder (#275) — the gather SOURCE for duck food: a rustic wooden feed tray
   // set on a post by the stream bank, scattered with grain. The player fills a basket
   // here, then drops duck-food piles to befriend the wild duck. Origin bottom-centre

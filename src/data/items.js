@@ -12,7 +12,7 @@ export const CARRIER_DEFS = {
   // animal that eats it, #136), so the basket's cap is just a safety ceiling, not a
   // limit you should hit. Kept finite (not Infinity) so it never trips serialization
   // or UI maths — but high enough that the demand always fits (and you can hoard eggs).
-  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey'] },
+  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey', 'jam', 'flour', 'pigFeed'] },
   bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'milk', 'nectar'] },
 };
 
@@ -36,7 +36,11 @@ export const CONTENT_DEFS = {
   // `feeds` list is the single source of truth for the pig's pickier diet — the
   // grazing AI reads it (speciesEatsContent) when choosing which pile to walk to.
   apple:  { label: 'Apples',  icon: 'iconBasketApple',  action: 'feed',  ground: 'applePile',  feeds: ['horse', 'cow', 'pig', 'goat'] },
-  carrot: { label: 'Carrots', icon: 'iconBasketCarrot', action: 'feed',  ground: 'carrotPile', feeds: ['horse', 'cow', 'pig', 'goat'] },
+  // Carrots are also grindable into pig feed at the kitchen counter (#40) — `craftsTo`
+  // names the processed content the grind converts a basket of carrots into, mirroring
+  // wool → yarn (#233). Raw carrots still feed/sell exactly as before; grinding is an
+  // additional option, not a replacement.
+  carrot: { label: 'Carrots', icon: 'iconBasketCarrot', action: 'feed',  ground: 'carrotPile', feeds: ['horse', 'cow', 'pig', 'goat'], craftsTo: 'pigFeed' },
   // Seed feeds the chickens — and the goat (she eats everything). A dropped seed pile in
   // the pasture is fair game for a wandering goat.
   seed:   { label: 'Seed',    icon: 'iconBasketSeed',   action: 'feed',  ground: 'seedPile',   feeds: ['chicken', 'goat'] },
@@ -109,10 +113,23 @@ export const CONTENT_DEFS = {
   compost: { label: 'Compost', icon: 'iconBasketCompost', action: 'store' },
   // Crops (#242): harvested from the garden plot into a basket, then sold at the farm
   // stand (action 'sell', like eggs/wool). Strawberries and wheat are new sellables;
-  // carrots reuse the existing `carrot` content (already sold + basket-accepted). These
-  // are the future inputs to crop processing (#40: jam / flour / pig feed).
-  strawberry: { label: 'Strawberries', icon: 'iconBasketStrawberry', action: 'sell' },
-  wheat:      { label: 'Wheat',        icon: 'iconBasketWheat',      action: 'sell' },
+  // carrots reuse the existing `carrot` content (already sold + basket-accepted).
+  // Crop processing (#40): each fruit/grain crop also has a `craftsTo` — the kitchen
+  // counter converts a basket of the raw crop into its processed form (mirrors
+  // wool → yarn, #233). Strawberries → jam, wheat → flour; carrots (above) → pig feed.
+  strawberry: { label: 'Strawberries', icon: 'iconBasketStrawberry', action: 'sell', craftsTo: 'jam' },
+  wheat:      { label: 'Wheat',        icon: 'iconBasketWheat',      action: 'sell', craftsTo: 'flour' },
+  // Jam — the processed form of strawberries (#40), worth more at the stand than raw
+  // fruit (the payoff for the extra crafting step, mirrors yarn).
+  jam:        { label: 'Jam',          icon: 'iconBasketJam',        action: 'sell' },
+  // Flour — the processed form of wheat (#40), worth more at the stand than raw grain.
+  flour:      { label: 'Flour',        icon: 'iconBasketFlour',      action: 'sell' },
+  // Ground pig feed (#40) — carrots ground at the kitchen counter into a dedicated pig
+  // chow. Unlike raw carrots (sold OR fed to several grazers), pig feed is a DROPPED
+  // ground pile only the pig eats (`feeds: ['pig']`), like fox/duck food — a richer,
+  // pig-specific ration that's the payoff for the extra grinding step. Not sellable
+  // (it's a feed, like hay/apple/carrot's siblings).
+  pigFeed:    { label: 'Pig Feed',     icon: 'iconBasketPigFeed',    action: 'feed', ground: 'pigFeedPile', feeds: ['pig'] },
   // Honey (#239): harvested from the beehive into a basket once it's ripened on the
   // hive's timer, then sold at the farm stand (action 'sell', like eggs/milk/wool). A
   // future cooking ingredient (#41). No `feeds`/`ground` — nobody eats it, it doesn't

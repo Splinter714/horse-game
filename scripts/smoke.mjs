@@ -10,6 +10,7 @@
 
 import { chromium } from 'playwright';
 import { resolveDevServerUrl } from './dev-server-url.mjs';
+import { STAND_DEFS } from '../src/scenes/paddock/constants.js';
 
 // `?canvas` forces Phaser's Canvas renderer (headless Chromium lacks WebGL
 // framebuffers). The logic we assert on here is renderer-agnostic.
@@ -37,7 +38,7 @@ try {
               g.scene.isActive('PaddockScene') && g.registry.get('allHorses'));
   }, { timeout: 20000 });
 
-  const result = await page.evaluate(() => {
+  const result = await page.evaluate((STAND_DEFS) => {
     const g = window.__game;
     const horses = g.registry.get('allHorses');
     const chickens = g.registry.get('allChickens');
@@ -62,7 +63,7 @@ try {
     // resolve on the prototype chain, and the scene state they own must exist.
     const paddock = g.scene.getScene('PaddockScene');
     const expectMethods = [
-      'buildWorld', 'buildObstacles', 'buildFarmStand', '_npcShop', 'stockStand',
+      'buildWorld', 'buildObstacles', 'buildFarmStand', '_npcShop', 'stockStand', 'processCrop', 'buildKitchenCounter',
       'buildPlayer', 'movePlayer', 'handleTap', '_findPath', 'gatherFrom',
       'mountHorse', 'dismount', 'toggleSaddle', 'toggleLead',
       'horseTick', 'horseGoEat', 'horseGoDrink', 'spawnHorse', 'spawnAnimal',
@@ -478,6 +479,54 @@ try {
       }
     } catch (e) { shears = 'threw: ' + String(e); }
 
+    // Crop processing (#40): a basket of raw strawberries processed at the kitchen
+    // counter becomes jam (converts, doesn't just no-op), a basket of carrots ground
+    // there becomes pig feed that a hungry pig will actually walk to and eat, and the
+    // processed goods (jam/flour) sell at the stand for MORE than their raw crop.
+    let cropProcessing = 'no basket';
+    try {
+      const hot = g.scene.getScene('HotbarScene');
+      hot.activeSlot = hot.hotbar.indexOf('basketGroup');
+      const basketKey = hot._resolveKey ? hot._resolveKey('basketGroup') : null;
+
+      // Strawberry → jam.
+      hot.carriers[basketKey] = { content: 'strawberry', count: 3 };
+      const jamMade = paddock.processCrop();
+      const jamItem = hot.getActiveItem();
+      const gotJam = jamItem?.content === 'jam' && jamItem?.count === 3;
+
+      // Wheat → flour.
+      hot.carriers[basketKey] = { content: 'wheat', count: 2 };
+      paddock.processCrop();
+      const gotFlour = hot.getActiveItem()?.content === 'flour';
+
+      // Carrot → ground pig feed, then a hungry pig seeks the dropped pile (mirrors
+      // the duck-food taming probe's seek check above).
+      hot.carriers[basketKey] = { content: 'carrot', count: 2 };
+      paddock.processCrop();
+      const gotPigFeed = hot.getActiveItem()?.content === 'pigFeed';
+      let pigSeeks = false;
+      const pigA = paddock.animals.find((a) => a.model?.species === 'pig');
+      if (pigA) {
+        pigA.model.stats.hunger = 20;
+        paddock.props.hayPiles.push({ x: pigA.sprite.x + 20, y: pigA.sprite.y, sprite: { destroy() {} }, content: 'pigFeed' });
+        pigA.state = 'idle';
+        const claimed = paddock.runBehaviors(pigA);
+        pigSeeks = claimed && pigA.state === 'eating';
+        paddock.props.hayPiles = [];
+      }
+
+      // Processed goods sell for more than their raw crop at the stand.
+      const pricesUp = STAND_DEFS.jam.price > STAND_DEFS.strawberry.price
+        && STAND_DEFS.flour.price > STAND_DEFS.wheat.price;
+
+      hot.carriers[basketKey] = { content: null, count: 0 }; // leave the basket clean
+
+      cropProcessing = (gotJam && gotFlour && gotPigFeed && pigSeeks && pricesUp)
+        ? 'processes-and-sells-higher'
+        : `gotJam=${gotJam},gotFlour=${gotFlour},gotPigFeed=${gotPigFeed},pigSeeks=${pigSeeks},pricesUp=${pricesUp}`;
+    } catch (e) { cropProcessing = 'threw: ' + String(e); }
+
     // #187 charm behaviors: the night settle/wake cycle must round-trip without
     // throwing (it rewires restAllAnimals/wakeAllAnimals), and the new run primitives
     // must resolve. Probed last (it mutates animal state) and lenient — this proves
@@ -695,6 +744,7 @@ try {
       fox,
       duck,
       shears,
+      cropProcessing,
       catBowls,
       seedFeeder,
       nectarFeeder,
@@ -735,7 +785,7 @@ try {
       scaleRatio: (paddock.animals.find((a) => a.key.startsWith('chicken'))?.sprite?.scaleX ?? 0)
                 / (paddock.horses[0]?.sprite?.scaleX ?? 1),
     };
-  });
+  }, STAND_DEFS);
 
   await page.screenshot({ path: '/tmp/horsegame-smoke.png' });
 
@@ -1102,6 +1152,10 @@ try {
   // #254 shears (multi-use tool): shear a sheep into the shears' own wool load, dump it
   // into the farm stand's wool stock, and trim a horse via the brush grooming path.
   if (result.shears !== 'shears-and-dumps') fail(`shears tool (#254) failed: ${result.shears}`);
+  // Crop processing (#40): kitchen counter converts strawberry→jam, wheat→flour,
+  // carrot→pig feed (a hungry pig seeks the dropped pile), and jam/flour sell for
+  // more than their raw crop at the stand.
+  if (result.cropProcessing !== 'processes-and-sells-higher') fail(`crop processing (#40) failed: ${result.cropProcessing}`);
   // The pig: it spawned into the world and eats apples but not hay.
   if (result.pigCount !== 1) fail(`expected 1 pig in roster, got ${result.pigCount}`);
   if (result.pigsInScene !== 1) fail(`expected 1 pig sprite in scene, got ${result.pigsInScene}`);
