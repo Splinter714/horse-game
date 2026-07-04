@@ -90,18 +90,14 @@ export const WithWorld = (Base) => class extends Base {
       this.add.image(300 + i * 96, 320, 'fence').setScale(S).setDepth(320).setOrigin(0, 0.5);
     }
 
-    // Chicken coop — right of the fence line (fence ends ~x=876)
+    // Chicken coop — right of the fence line (fence ends ~x=876). Built as an
+    // in-world CUTAWAY (#53), mirroring the barn's walk-in pattern (#35): the
+    // interior (floor/nestboxes/roost bar) built here under the flock, the front
+    // façade fade + roost-spot placement owned by the chickenCoop concern mixin
+    // (paddock/chickenCoop.js), so a roosting flock is visible inside instead of
+    // vanishing at night.
     const coopX = 930, coopY = 400;
-    this.add.image(coopX, coopY, 'coop').setScale(S).setDepth(coopY).setOrigin(0.5, 1);
-
-    // Roost geometry: the pop-door and the foot of its ramp, in world space.
-    // (Coop sprite is 64×52, origin 0.5,1 at coopX,coopY, scale S; door ≈ local
-    // (17,39), ramp foot ≈ local (10,52).) Chickens file in here at nightfall.
-    this.props.coop = {
-      x: coopX, y: coopY,
-      doorX: coopX + (17 - 32) * S, doorY: coopY + (39 - 52) * S, // ≈ (900, 374)
-      rampX: coopX + (10 - 32) * S, rampY: coopY,                 // ≈ (886, 400)
-    };
+    this.buildChickenCoop(coopX, coopY); // places props.coop + the interior/façade sprites
 
     // Nests in front of (below) the coop
     const nestPositions = [[906, 410], [930, 416], [954, 410]];

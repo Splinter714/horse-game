@@ -283,21 +283,46 @@ export function buildWorldTextures(scene) {
     });
   }
 
-  // --- chicken coop (64 × 52) ---
-  // A raised hen-house: short legs, a chicken-sized pop-door with a ramp, a
-  // hinged nesting box on the side, a wire vent (no glass), and a rooster
-  // weathervane — all to read as a coop, not a dwelling.
-  gen(scene, 'coop', 64, 52, (g) => {
+  // --- chicken coop cutaway (#53), mirroring the barn's walk-in pattern (#35) ---
+  // Two textures at the SAME 64×52 design footprint (origin 0.5,1 at the coop
+  // anchor): `coopInterior` (floor + nesting boxes + a roosting bar, drawn UNDER
+  // the flock so roosting hens/rooster read as visibly tucked inside) and
+  // `coopFront` (the walls/roof/pop-door/ramp — the old single `coop` sprite,
+  // now the overlay that FADES for the cutaway, same technique as barnFront).
+  // See scenes/paddock/chickenCoop.js (WithChickenCoop) for the fade + roost-spot
+  // wiring.
+  const COOP_W = 64, COOP_H = 52;
+
+  // INTERIOR — packed-straw floor, a back roosting bar (perches, drawn UNDER any
+  // roosting bird), and two nesting boxes tucked in the back corners.
+  gen(scene, 'coopInterior', COOP_W, COOP_H, (g) => {
+    g.layer('floor');
+    g.fillStyle(0x6a5236, 1); g.fillRect(9, 21, 38, 21);             // floor
+    g.fillStyle(0x8a6a42, 1);                                        // straw scatter
+    for (const [sx, sy] of [[14, 36], [30, 40], [22, 32], [38, 37]]) g.fillRect(sx, sy, 4, 1);
+    g.layer('nestboxes');
+    g.fillStyle(0x8a5a2e, 1); g.fillRect(10, 34, 10, 8);  // left nest box
+    g.fillStyle(0x8a5a2e, 1); g.fillRect(38, 34, 9, 8);   // right nest box
+    g.fillStyle(0xe8c34a, 1); g.fillRect(11, 35, 8, 2); g.fillRect(39, 35, 7, 2); // straw lining
+    g.layer('roost');
+    g.fillStyle(0x6e4a26, 1); g.fillRect(14, 26, 34, 2); // roosting bar, back wall
+  });
+
+  // FRONT FAÇADE — the old `coop` sprite (walls, roof, pop-door, ramp), now the
+  // overlay drawn OVER the interior + roosting flock; fades out for the cutaway.
+  gen(scene, 'coopFront', COOP_W, COOP_H, (g) => {
     const wall = 0xcf9a5c, wallDark = 0xa9743c, post = 0x8a5a2e;
     const roofDark = 0x5a3418, roofMid = 0x8a5024, roofHi = 0xb87040;
     const dark = 0x2a1808, legWood = 0x6e4a26, lid = 0x9a6030;
     const wire = 0x9a8a6a, comb = 0xd23a2a, beak = 0xe0a020;
     const straw = 0xe8c34a;
 
+    g.layer('legs');
     // Legs (drawn behind the body so they peek out below)
     g.fillStyle(legWood, 1);
     g.fillRect(12, 44, 4, 8); g.fillRect(38, 44, 4, 8); g.fillRect(54, 42, 3, 10);
 
+    g.layer('body');
     // Main body box
     g.fillStyle(wall, 1);     g.fillRect(8, 20, 40, 26);
     g.fillStyle(wallDark, 1); g.fillRect(8, 20, 40, 3);  // eave shadow
@@ -306,6 +331,7 @@ export function buildWorldTextures(scene) {
     for (let y = 25; y < 42; y += 4) g.fillRect(8, y, 40, 1);
     g.fillStyle(post, 1); g.fillRect(8, 20, 3, 26); g.fillRect(45, 20, 3, 26);
 
+    g.layer('nestbox_bumpout');
     // Nesting box bump-out on the right with a hinged, slanted lid
     g.fillStyle(wall, 1);     g.fillRect(46, 30, 14, 12);
     g.fillStyle(wallDark, 1); g.fillRect(46, 38, 14, 4);
@@ -314,6 +340,7 @@ export function buildWorldTextures(scene) {
     g.fillStyle(0x3a2410, 1); g.fillCircle(58, 28, 1);    // lid knob
     g.fillStyle(straw, 1);    g.fillRect(47, 41, 3, 1); g.fillRect(55, 41, 3, 1);
 
+    g.layer('roof');
     // Gable roof over the body
     g.fillStyle(roofDark, 1); g.fillTriangle(3, 23, 28, 7, 53, 23);
     g.fillStyle(roofMid, 1);  g.fillTriangle(6, 23, 28, 10, 50, 23);
@@ -321,6 +348,7 @@ export function buildWorldTextures(scene) {
     g.fillRect(11, 18, 2, 4); g.fillRect(16, 15, 2, 5); g.fillRect(21, 12, 2, 6);
     g.fillStyle(0x6e4326, 1); g.fillRect(3, 22, 50, 2); // eave board
 
+    g.layer('weathervane');
     // Rooster weathervane on the ridge
     g.fillStyle(0x3a2410, 1);
     g.fillRect(30, 1, 1, 7);          // pole
@@ -329,6 +357,7 @@ export function buildWorldTextures(scene) {
     g.fillStyle(comb, 1); g.fillRect(32, 0, 1, 2); // comb
     g.fillStyle(beak, 1); g.fillRect(33, 1, 1, 1); // beak
 
+    g.layer('vent');
     // Wire vent (barred, not glass) high-center on the wall
     g.fillStyle(dark, 1);     g.fillRect(27, 24, 10, 8);
     g.fillStyle(wire, 1);
@@ -338,10 +367,12 @@ export function buildWorldTextures(scene) {
     g.fillRect(26, 23, 12, 1); g.fillRect(26, 32, 12, 1);
     g.fillRect(26, 23, 1, 10); g.fillRect(37, 23, 1, 10);
 
+    g.layer('popdoor');
     // Pop-door (chicken sized)
     g.fillStyle(0x6e4326, 1); g.fillRect(12, 33, 11, 12); // frame
     g.fillStyle(dark, 1);     g.fillRect(13, 34, 9, 11);  // opening
 
+    g.layer('ramp');
     // Ramp from the pop-door down to the ground, with rungs
     g.fillStyle(0xb5824a, 1);
     g.fillTriangle(13, 44, 22, 44, 6, 52);
