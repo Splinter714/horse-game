@@ -55,6 +55,8 @@ export class Animal {
     // for flavour. All optional: an ordinary animal has isFoal=false and no parents.
     this.isFoal = data.isFoal ?? false;
     // Default true so a foal stays a baby until the player opts it into growing up.
+    // BINDING for every species with babies, not just horses — see CLAUDE.md
+    // "Breeding & baby-animal design constraints" (rule 1).
     this.stayBaby = data.stayBaby ?? true;
     this.parents = data.parents ?? null;
 

@@ -71,6 +71,9 @@ export const WithBreeding = (Base) => class extends Base {
 
     // #114: permanent pair bonds. A bond whose partner no longer exists (herd
     // changed) is dropped defensively, same as gestations/readyBirths above.
+    // This pair-bond + separate on-demand "Breed" action shape is BINDING for
+    // every future species' breeding, not just horses — see CLAUDE.md "Breeding
+    // & baby-animal design constraints" (rules 2 and 3).
     this._pairBonds = loadPairBonds();        // [{ aKey, bKey }]
     this._pairBonds = this._pairBonds.filter((p) => all[p.aKey] && all[p.bKey]);
     savePairBonds(this._pairBonds);

@@ -134,6 +134,39 @@ the `horseAI`/`creatures` mixins — behaviors only wire condition → primitive
   colliding: each lives in its own `species/<name>/` folder + one-line registry
   entries, not shared orchestrator files.
 
+### Breeding & baby-animal design constraints (binding on every species)
+
+Established by horse breeding (#15/#114) and baby chicks (#274) — any **future**
+species that gets breeding or babies (offspring, hatching, incubation, whatever the
+species-appropriate verb is) must follow the same three rules. These aren't
+per-feature choices to re-litigate; they're standing product decisions:
+
+1. **A baby always defaults to staying a baby.** Newborn/hatchling starts with the
+   equivalent of `stayBaby: true` and only grows up via an **explicit per-individual
+   player toggle** (mirror the horse foal's info-panel toggle, `growUpFoal`/
+   `setStayBaby` in `paddock/breeding.js`, or the chick's `growUpChick`/
+   `setChickStayBaby` in `paddock/incubation.js`). Never grow up automatically or on
+   a timer by default — kids get attached to babies, and growing up must always be
+   the player's deliberate choice.
+2. **Breeding is monogamous.** Once two individuals are paired/bonded, that bond is
+   **permanent** — one mate, no re-pairing, no death (so no "mate is gone" case to
+   design). Mirror the horse's separate, permanent pair-bond record (`_pairBonds` in
+   `paddock/breeding.js`) — a bond is distinct from any in-flight
+   gestation/incubation.
+3. **Breeding is always player-initiated**, never ambient/automatic. The player must
+   take a deliberate action to pair two individuals AND a separate deliberate action
+   to actually breed them (these are two different steps — pairing does not itself
+   start a pregnancy/incubation). Mirror the horse's split "Pair" vs. "Breed" info-
+   panel buttons.
+
+If a species can only ever have one possible mate present (e.g. one rooster), rule 2
+is trivially satisfied — but still model the bond explicitly rather than skipping it,
+so the pattern holds once more individuals of that role can exist.
+
+(Originally tracked as issues #298/#270/#273 — closed once this section captured the
+rules so they live in the code every future species-addition already reads, not in a
+GitHub issue that has to be remembered and re-found.)
+
 ## PaddockScene structure — functional mixins (`src/scenes/paddock/`)
 
 PaddockScene was a ~3,100-line monolith; it's split into concern files composed via

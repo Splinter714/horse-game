@@ -37,6 +37,10 @@ import { Chicken } from '../../data/species/chicken/model.js';
 import { buildChickTextures } from '../../art/chickArt.js';
 import { buildChickenTextures, CHICKEN_COATS } from '../../art/chickenArt.js';
 
+// This is the SECOND species to implement breeding (after horses, paddock/breeding.js)
+// — it independently follows the same three binding rules (stay-baby-by-default,
+// permanent monogamous pairing, player-initiated only). See CLAUDE.md "Breeding &
+// baby-animal design constraints" — every future species' breeding must too.
 export const WithIncubation = (Base) => class extends Base {
   // Called from create() after the flock is built: restore any incubations that
   // were in flight when the game closed. (Chicks already hatched live in the
