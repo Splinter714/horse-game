@@ -2,6 +2,9 @@ import Phaser from 'phaser';
 import { EVENTS } from '../data/events.js';
 import { applyDpr, dprOf, logicalW, logicalH } from './uiUtils.js';
 import { HOUSE_INTERIOR } from './paddock/constants.js';
+import { loadPantry, savePantry } from '../data/save.js';
+import { addToPantry, takeFromPantry, isPantryStorable } from '../data/pantry.js';
+import { CONTENT_DEFS } from '../data/items.js';
 
 // The enterable house interior (#56) — a small standalone room scene the player
 // walks INTO from the paddock's house door, does home-base things in, and walks
@@ -14,8 +17,15 @@ import { HOUSE_INTERIOR } from './paddock/constants.js';
 //                       used; the bed now REPLACES the outdoor "sleep at the house").
 //   • DRESSER/MIRROR (#211) — opens the EXISTING PlayerCustomizerScene (reused, not
 //                       rebuilt); we pause here while it's up, resume on its close.
-//   • KITCHEN (#41)  — the cooking surface is PLACED but inert (a passive hint prompt);
-//                       the cooking system is a future issue.
+//   • PANTRY (#212)  — a NEW, separate indoor storage pool (keyed quantity map,
+//                       own localStorage key) for food/crops/animal products,
+//                       distinct from the farm-stand stock and carried inventory.
+//                       v1 interaction: deposit the active carrier's whole load.
+//   • STOVE & OVEN (#213) — the physical cooking station: object/placement/prompt
+//                       are real now; there's no recipe system yet (#41 owns
+//                       that). Exposes findIngredient(content, amount), a stub
+//                       that checks the pantry then the player's inventory —
+//                       the shape #41 will build actual cooking on top of.
 //
 // FIRST-PASS DRAFT for owner playtest: the interior art (worldArt `houseInterior`) and
 // this simple single-room layout are a clean first cut, expect art-direction. The
@@ -36,6 +46,12 @@ export default class HouseInteriorScene extends Phaser.Scene {
     this._customizing = false;
     this._exiting = false;
     this._enteredAt = this.time.now;
+
+    // Pantry storage (#212): a separate stockpile from the farm-stand stock and
+    // carried carrier inventory. Loaded fresh each time the house is entered
+    // (small enough to just re-read from localStorage; no need to keep it live
+    // in the registry while outside).
+    this.pantry = loadPantry();
 
     const HI = HOUSE_INTERIOR;
     const sc = HI.scale;
@@ -92,8 +108,9 @@ export default class HouseInteriorScene extends Phaser.Scene {
       x: this._d(s.x), y: this._d(s.y),
       standX: this._d(s.standX), standY: this._d(s.standY),
       label: s.label, action: s.action,
-      // Only the bed + dresser are actionable; the kitchen is a passive placeholder.
-      canAct: s.action !== 'kitchen',
+      // Bed, dresser, pantry (#212), and the stove/oven (#213) are all actionable
+      // now — the stove still has no cooking system behind it (#41).
+      canAct: true,
     }));
   }
 
@@ -263,7 +280,83 @@ export default class HouseInteriorScene extends Phaser.Scene {
   _activate(st) {
     if (st.action === 'sleep') this._doSleep();
     else if (st.action === 'customize') this._openCustomizer();
-    // kitchen: inert placeholder (#41 future) — no-op.
+    else if (st.action === 'pantry') this._usePantry();
+    else if (st.action === 'kitchen') this._useKitchen();
+  }
+
+  // ── Pantry (#212) ────────────────────────────────────────────────────────
+  // v1 interaction: deposit the ACTIVE carrier's whole load into the pantry's
+  // storage pool (a keyed quantity map, separate from the farm-stand stock and
+  // the carrier itself). Simple "stock the pantry" — matches the scoped issue's
+  // v1 ask (cooking, #41, isn't built yet so there's no reason for a fussier UI).
+  // Non-storable / empty carriers show a brief "nothing to stock" hint instead.
+  _usePantry() {
+    const hot = this.scene.get('HotbarScene');
+    const item = hot?.getActiveItem?.();
+    const content = item?.content;
+    const count = item?.count ?? 0;
+    if (!content || count <= 0 || !isPantryStorable(content)) {
+      this._flashPromptMessage('Nothing to stock');
+      return;
+    }
+    const label = CONTENT_DEFS[content]?.label ?? content;
+    this.pantry = addToPantry(this.pantry, content, count);
+    savePantry(this.pantry);
+    hot.useActiveCarrier?.(count); // empty the carrier — its load moved into the pantry
+    this._flashPromptMessage(`Stocked ${count} ${label} in the pantry`);
+  }
+
+  // Read-only lookup other systems (the stove, #213) can call: how much of a
+  // content the pantry currently holds.
+  pantryCount(content) {
+    return this.pantry?.[content] ?? 0;
+  }
+
+  // Take up to `amount` of `content` out of the pantry, persisting the change.
+  // Returns how many were actually taken (0 if none in stock). Exposed for the
+  // stove's ingredient-lookup stub (#213) and any future cooking system (#41).
+  takePantryIngredient(content, amount = 1) {
+    const { pantry, taken } = takeFromPantry(this.pantry, content, amount);
+    if (taken > 0) { this.pantry = pantry; savePantry(this.pantry); }
+    return taken;
+  }
+
+  // ── Kitchen / stove & oven (#213) ───────────────────────────────────────
+  // The physical cooking station is now a real interactable (placement + prompt);
+  // there's no recipe/cooking system yet (#41 owns that), so activating it just
+  // surfaces a friendly status message — proof the object/placement/interaction
+  // is wired, without inventing recipes.
+  _useKitchen() {
+    this._flashPromptMessage('Stove & Oven  •  cooking coming soon');
+  }
+
+  // The ingredient-lookup stub #41 will build cooking on top of: resolve how many
+  // of `content` are available RIGHT NOW, checking the pantry first, then falling
+  // back to the player's active carrier (per #213's "either source" scoping).
+  // Returns { source: 'pantry'|'inventory'|null, available }. Pure lookup — takes
+  // nothing; a future recipe step would call takePantryIngredient / useActiveCarrier
+  // once it actually decides to consume the ingredient.
+  findIngredient(content, amount = 1) {
+    const inPantry = this.pantryCount(content);
+    if (inPantry >= amount) return { source: 'pantry', available: inPantry };
+    const hot = this.scene.get('HotbarScene');
+    const item = hot?.getActiveItem?.();
+    const inInventory = item?.content === content ? (item.count ?? 0) : 0;
+    if (inInventory >= amount) return { source: 'inventory', available: inInventory };
+    // Neither source alone has enough — report whichever has more (still useful
+    // info for a future recipe UI), sourced from pantry if it has anything at all.
+    if (inPantry > 0) return { source: 'pantry', available: inPantry };
+    if (inInventory > 0) return { source: 'inventory', available: inInventory };
+    return { source: null, available: 0 };
+  }
+
+  // Brief on-screen confirmation, reusing the existing contextual prompt label so
+  // there's no new UI surface for this simple v1 interaction.
+  _flashPromptMessage(text) {
+    this.prompt.setText(text).setVisible(true);
+    this.time.delayedCall(1200, () => {
+      if (this.prompt.text === text) this.prompt.setVisible(false);
+    });
   }
 
   // Bed → sleep. The interior fade is owned by DayNightScene (same EVENTS.SLEEP the

@@ -108,6 +108,16 @@ export function buildWorldTextures(scene) {
     g.fillStyle(0x6a4a2a, 1); g.fillRect(16, 17, 18, 12);          // mirror frame
     g.fillStyle(0xbfe4f0, 1); g.fillRect(18, 18, 14, 10);        // mirror glass
     g.fillStyle(0xe8f6fb, 1); g.fillRect(19, 19, 4, 8);         // glass sheen
+    g.layer('pantry');
+    // Pantry/fridge cupboard (#212): a slim standalone cabinet between the dresser
+    // and the kitchen counter — a distinct storage pool, drawn distinctly (a tall
+    // two-door cupboard) so it doesn't read as part of the counter.
+    g.fillStyle(0x5a7a5a, 1); g.fillRect(40, 16, 16, 32);          // cupboard body (cool green)
+    g.fillStyle(0x6a8a6a, 1); g.fillRect(41, 17, 14, 3);          // top highlight
+    g.fillStyle(0x3a5a3a, 1); g.fillRect(40, 32, 16, 1);         // door split line (horizontal)
+    g.fillStyle(0x3a5a3a, 1); g.fillRect(47, 17, 1, 30);        // door split line (vertical)
+    g.fillStyle(0xd8c878, 1); g.fillCircle(45, 24, 1); g.fillCircle(45, 40, 1); // knobs (left door)
+    g.fillStyle(0xd8c878, 1); g.fillCircle(51, 24, 1); g.fillCircle(51, 40, 1); // knobs (right door)
     g.layer('kitchen');
     // Kitchen counter + stove along the back wall, centre (cooking #41 lives here).
     g.fillStyle(0x8a5a34, 1); g.fillRect(56, 18, 48, 20);         // counter body

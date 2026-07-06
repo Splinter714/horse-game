@@ -9,6 +9,7 @@
 
 import { ROSTERS } from './rosters.js';
 import { sanitizeGarden } from './garden.js';
+import { sanitizePantry } from './pantry.js';
 import { DEFAULT_SADDLE_TYPE, SADDLE_TYPES, ALL_TOOL_UPGRADES } from './items.js';
 
 // Build a { load, save } pair for one species' roster from its config. Collapses the
@@ -254,6 +255,26 @@ export function loadGarden() {
 export function saveGarden(garden) {
   try {
     localStorage.setItem(GARDEN_KEY, JSON.stringify(sanitizeGarden(garden)));
+  } catch {}
+}
+
+// ── Pantry storage (#212) ────────────────────────────────────────────────────
+// The house interior's pantry/fridge station's stockpile: a keyed quantity map
+// { [content]: count }, distinct from the farm-stand stock and carried carrier
+// inventory. Its own storage key, like the garden plot, so it persists cleanly.
+const PANTRY_KEY = 'horse-game-pantry-v1';
+
+export function loadPantry() {
+  try {
+    return sanitizePantry(JSON.parse(localStorage.getItem(PANTRY_KEY)));
+  } catch {
+    return sanitizePantry(null);
+  }
+}
+
+export function savePantry(pantry) {
+  try {
+    localStorage.setItem(PANTRY_KEY, JSON.stringify(sanitizePantry(pantry)));
   } catch {}
 }
 
