@@ -1469,6 +1469,79 @@ try {
   });
   await page.screenshot({ path: '/tmp/general-store.png' });
 
+  // Clothing shop (#217): a second counter in the SAME store building/scene (not a
+  // separate stand) — the tab strip must now render (GeneralStoreScene only draws it
+  // once STORE_COUNTERS.length > 1, per its own code comment), buying a clothing item
+  // is a ONE-TIME unlock (owned count persists to localStorage, no re-buying), and the
+  // purchased swatch must actually become selectable at the dresser/player customizer
+  // — i.e. NOT offered before purchase, offered after. Persistence-across-reload is
+  // checked separately below (mirrors the #295 tool-upgrade / #223 bird-friend pattern).
+  result.clothingStore = await page.evaluate(async () => {
+    const g = window.__game;
+    const paddock = g.scene.getScene('PaddockScene');
+    paddock.openGeneralStore();
+    await new Promise((r) => setTimeout(r, 200));
+    const sc = g.scene.getScene('GeneralStoreScene');
+
+    const counterCount = sc._counterIdx === 0 && Array.isArray(sc._tabNodes) ? sc._tabNodes.length : (sc._tabNodes?.length ?? 0);
+    const hasTwoTabs = counterCount === 2;
+
+    // Switch to the clothing counter (tab index 1) like tapping the 2nd tab.
+    sc._switchCounter(1);
+    await new Promise((r) => setTimeout(r, 30));
+    const onClothingTab = sc._counter.id === 'clothing';
+    const clothingItem = sc._counter.items[0]; // shirt_gold
+
+    // Before buying: the customizer must NOT offer this swatch.
+    const beforeSelectable = (() => {
+      const pc = g.scene.getScene('PlayerCustomizerScene');
+      paddock.scene.launch('PlayerCustomizerScene');
+      return pc;
+    })();
+    await new Promise((r) => setTimeout(r, 250));
+    let pcScene = g.scene.getScene('PlayerCustomizerScene');
+    const { selectableChoices, CUSTOMIZE } = await import('/src/data/customize.js');
+    const shirtPart = CUSTOMIZE.player.parts.find((p) => p.id === 'shirt');
+    const offeredBefore = selectableChoices(shirtPart, pcScene._ownedKeys).some((c) => c.key === 'gold');
+    pcScene.custExit();
+    await new Promise((r) => setTimeout(r, 60));
+
+    // Buy the clothing item with plenty of gold.
+    const setMoney = (v) => { g.events.emit('money-changed', v); };
+    setMoney(200);
+    await new Promise((r) => setTimeout(r, 30));
+    const invBefore = sc._inventory[clothingItem.key] ?? 0;
+    sc._buy(0);
+    await new Promise((r) => setTimeout(r, 30));
+    const invAfterBuy = sc._inventory[clothingItem.key] ?? 0;
+    const boughtOk = invAfterBuy === invBefore + 1;
+
+    // Buying again must NOT double the owned count beyond a sane one-time-unlock use
+    // (still just an owned-count bump — the important invariant is it's usable/owned,
+    // not that repeat buys are blocked outright, since #217 doesn't require blocking a
+    // second purchase, only that ownership, once true, unlocks permanently).
+    sc.close();
+    await new Promise((r) => setTimeout(r, 200));
+
+    // After buying: the customizer MUST now offer this swatch, and picking it must work.
+    paddock.scene.launch('PlayerCustomizerScene');
+    await new Promise((r) => setTimeout(r, 250));
+    pcScene = g.scene.getScene('PlayerCustomizerScene');
+    const offeredAfter = selectableChoices(shirtPart, pcScene._ownedKeys).some((c) => c.key === 'gold');
+    pcScene._pickPartSwatch('shirt', 'gold');
+    const pickedOk = pcScene._lookKeys.shirt === 'gold';
+    const savedLook = JSON.parse(localStorage.getItem('horse-game-player-v1') || '{}');
+    pcScene.custExit();
+    await new Promise((r) => setTimeout(r, 60));
+
+    return {
+      hasTwoTabs, onClothingTab, offeredBefore, boughtOk, offeredAfter, pickedOk,
+      savedShirt: savedLook.shirt,
+      ownedInventory: JSON.parse(localStorage.getItem('horse-game-store-inventory-v1') || '{}'),
+    };
+  });
+  await page.screenshot({ path: '/tmp/clothing-store.png' });
+
   // Weather pass (#188): force the DayNightScene into rain and back, and assert the
   // paddock's hooks respond — the WEATHER_CHANGE event lands, _weather tracks it,
   // rain dirties a horse faster (2×), the wildlife rain-gate closes, and rain
@@ -1659,6 +1732,21 @@ try {
   if (!gs.boughtOk) fail('general store purchase did not debit exactly the item price / grant +1 owned');
   if (!gs.blockedOk) fail('general store purchase with insufficient gold was NOT blocked');
   if (!gs.closedOk) fail('general store close did not resume PaddockScene / stop the scene');
+
+  // Clothing shop (#217): 2nd counter → tab strip appears; buying is a one-time
+  // permanent unlock that gates the dresser's swatch list (locked before, offered
+  // and pickable after).
+  const cs = result.clothingStore;
+  if (!cs.hasTwoTabs) fail(`clothing shop (#217): expected 2 store tabs once the clothing counter exists, got ${JSON.stringify(cs)}`);
+  if (!cs.onClothingTab) fail('clothing shop (#217): tab switch did not select the clothing counter');
+  if (cs.offeredBefore) fail('clothing shop (#217): dresser offered the gold shirt swatch BEFORE it was purchased');
+  if (!cs.boughtOk) fail('clothing shop (#217): purchase did not grant +1 owned count');
+  if (!cs.offeredAfter) fail('clothing shop (#217): dresser did NOT offer the gold shirt swatch after purchase');
+  if (!cs.pickedOk) fail('clothing shop (#217): picking the unlocked swatch at the dresser did not apply');
+  if (cs.savedShirt !== 'gold') fail(`clothing shop (#217): picked swatch did not persist to the player look (got ${cs.savedShirt})`);
+  if (!(cs.ownedInventory?.shirt_gold > 0)) fail('clothing shop (#217): owned count for shirt_gold did not persist to storeInventory');
+  console.log(`Clothing shop (#217): ${JSON.stringify(cs)}`);
+
   if (!result.hasBirdBath) fail('bird bath (#219) not built — world.js props.birdBath missing');
   if (!result.hasSeedFeeder) fail('seed feeder (#240) not built — props.seedFeeder missing');
   if (!result.hasNectarFeeder) fail('nectar feeder (#226) not built — props.nectarFeeder missing');
@@ -2087,6 +2175,28 @@ try {
   if (!toolUpgradePersist.owned) fail('#295 tool upgrade: purchase lost after reload');
   if (toolUpgradePersist.capacity !== 18) fail(`#295 tool upgrade: upgraded capacity lost after reload (got ${toolUpgradePersist.capacity}, want 18)`);
   console.log(`Tool upgrade persistence (#295): ${JSON.stringify(toolUpgradePersist)}`);
+
+  // Clothing shop persistence (#217): the gold-shirt purchase (bought earlier this
+  // session, before the reload above) must still be OWNED after reload, and the
+  // dresser must still offer it as selectable — the whole point of a one-time
+  // permanent unlock rather than a consumable.
+  const clothingPersist = await page.evaluate(async () => {
+    const g = window.__game;
+    const owned = JSON.parse(localStorage.getItem('horse-game-store-inventory-v1') || '{}');
+    const paddock = g.scene.getScene('PaddockScene');
+    paddock.scene.launch('PlayerCustomizerScene');
+    await new Promise((r) => setTimeout(r, 250));
+    const pc = g.scene.getScene('PlayerCustomizerScene');
+    const { selectableChoices, CUSTOMIZE } = await import('/src/data/customize.js');
+    const shirtPart = CUSTOMIZE.player.parts.find((p) => p.id === 'shirt');
+    const stillOffered = selectableChoices(shirtPart, pc._ownedKeys).some((c) => c.key === 'gold');
+    pc.custExit();
+    await new Promise((r) => setTimeout(r, 60));
+    return { ownedCount: owned.shirt_gold ?? 0, stillOffered };
+  });
+  if (!(clothingPersist.ownedCount > 0)) fail('#217 clothing shop: owned shirt_gold count lost after reload');
+  if (!clothingPersist.stillOffered) fail('#217 clothing shop: dresser stopped offering the owned swatch after reload');
+  console.log(`Clothing shop persistence (#217): ${JSON.stringify(clothingPersist)}`);
 
   // ── Corner minimap (#36): a small always-visible HUD inset in HotbarScene —
   // its player dot must exist and actually MOVE as the player moves (not just be

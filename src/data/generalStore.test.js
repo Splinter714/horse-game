@@ -1,9 +1,10 @@
-// General store data (#215) — the STORE_COUNTERS registry: one counter (seeds) sells
-// a seed for every crop in CROP_ORDER plus a fertilizer item. Covers the registry's
-// integrity and the counter/lookup helpers.
+// General store data (#215/#217) — the STORE_COUNTERS registry: `seeds` sells a seed
+// for every crop in CROP_ORDER plus a fertilizer item; `clothing` sells one-time
+// dresser unlocks (#217). Covers the registry's integrity and the counter/lookup
+// helpers.
 
 import { describe, it, expect } from 'vitest';
-import { STORE_COUNTERS, getCounter, getStoreItem } from './generalStore.js';
+import { STORE_COUNTERS, getCounter, getStoreItem, clothingItemUnlocksSomething } from './generalStore.js';
 import { CROP_ORDER } from './crops.js';
 
 describe('STORE_COUNTERS registry', () => {
@@ -39,13 +40,32 @@ describe('STORE_COUNTERS registry', () => {
   });
 });
 
+describe('clothing counter (#217)', () => {
+  it('exists with at least one item', () => {
+    const clothing = getCounter('clothing');
+    expect(clothing).toBeTruthy();
+    expect(clothing.items.length).toBeGreaterThan(0);
+  });
+
+  it('every clothing item key actually unlocks a swatch in CUSTOMIZE', () => {
+    const clothing = getCounter('clothing');
+    for (const item of clothing.items) {
+      expect(clothingItemUnlocksSomething(item.key), `${item.key} unlocks nothing in CUSTOMIZE`).toBe(true);
+    }
+  });
+
+  it('clothingItemUnlocksSomething is false for a made-up key', () => {
+    expect(clothingItemUnlocksSomething('not_a_real_key')).toBe(false);
+  });
+});
+
 describe('getCounter / getStoreItem lookups', () => {
   it('getCounter finds a real counter by id', () => {
     expect(getCounter('seeds')?.id).toBe('seeds');
   });
 
   it('getCounter returns null for an unknown id', () => {
-    expect(getCounter('clothing')).toBeNull();
+    expect(getCounter('nope')).toBeNull();
   });
 
   it('getStoreItem finds an item across counters', () => {
