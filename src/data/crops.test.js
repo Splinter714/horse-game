@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   CROPS, CROP_ORDER, GROWTH_STAGES, getCrop, nextCrop,
-  growStage, isRipe, stageTexture,
+  growStage, growIfWatered, isRipe, stageTexture,
 } from './crops.js';
 
 describe('crop table', () => {
@@ -48,6 +48,23 @@ describe('growth stages', () => {
     expect(stageTexture('wheat', GROWTH_STAGES - 1)).toBe(`crop_wheat_${GROWTH_STAGES - 1}`);
     expect(stageTexture('wheat', 99)).toBe(`crop_wheat_${GROWTH_STAGES - 1}`);
     expect(stageTexture('wheat', -3)).toBe('crop_wheat_0');
+  });
+});
+
+describe('watering chore (#245)', () => {
+  it('growIfWatered advances the stage when watered', () => {
+    expect(growIfWatered(0, true)).toBe(growStage(0));
+    expect(growIfWatered(1, true)).toBe(growStage(1));
+  });
+
+  it('growIfWatered holds the stage (no change) when not watered', () => {
+    expect(growIfWatered(0, false)).toBe(0);
+    expect(growIfWatered(2, false)).toBe(2);
+  });
+
+  it('growIfWatered never overshoots ripe even when watered', () => {
+    const ripe = GROWTH_STAGES - 1;
+    expect(growIfWatered(ripe, true)).toBe(ripe);
   });
 });
 

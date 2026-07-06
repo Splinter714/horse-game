@@ -29,6 +29,14 @@ export function growStage(stage) {
   return Math.min(GROWTH_STAGES - 1, (stage ?? 0) + 1);
 }
 
+// Watering chore (#245): a planted crop only advances if it was watered that
+// day/night cycle — otherwise growth stalls (never goes backward, just holds).
+// `growIfWatered` is the gated version of growStage the daily tick should call
+// instead of growStage directly once watering is in play. Pure.
+export function growIfWatered(stage, watered) {
+  return watered ? growStage(stage) : (stage ?? 0);
+}
+
 // The crop table. `harvest` is the content type the ripe crop yields into a basket
 // (must exist in items.js CONTENT_DEFS + STAND_DEFS so it sells). `yield` is how many
 // units one ripe plant gives. `stageTex(stage)` names the ground texture for a stage.

@@ -1,9 +1,10 @@
 // Garden plot (#242) — the crop-farming concern: a fixed tilled garden bed with a grid
 // of plantable slots. Plant a crop (bare-hand interact, cycling through the starter set),
-// watch it grow one stage per day/night cycle (advanceGarden is called from the dawn
-// roll), then harvest a ripe slot into a basket (Use) and sell the crop at the farm
-// stand via the existing basket → stand pipeline. Plant-and-wait: no watering in v1
-// (that's #245).
+// water it (Use with a filled water bucket, #245 — a planted slot only advances a growth
+// stage on a day it was watered; unwatered growth stalls, never reverses), watch it grow
+// one stage per day/night cycle (advanceGarden is called from the dawn roll, gated on
+// watering), then harvest a ripe slot into a basket (Use) and sell the crop at the farm
+// stand via the existing basket → stand pipeline.
 //
 // Applied as a functional mixin (this = the PaddockScene). The pure state lives in
 // data/garden.js (unit-tested); this file owns the sprites, world placement, and the
@@ -14,12 +15,12 @@ import Phaser from 'phaser';
 import { CONTENT_DEFS } from '../../data/items.js';
 import { loadGarden, saveGarden } from '../../data/save.js';
 import {
-  GARDEN_SLOTS, emptyGarden, plant, advanceDay, harvest, firstEmptySlot,
-  slotRipe, nextCrop,
+  GARDEN_SLOTS, emptyGarden, plant, advanceDay, resetWateredFlags, harvest,
+  firstEmptySlot, slotRipe, slotWatered, waterSlot as waterGardenSlot, nextCrop,
 } from '../../data/garden.js';
 import { getCrop, stageTexture } from '../../data/crops.js';
 import { S } from './constants.js';
-import { playGather } from '../../audio/sounds.js';
+import { playGather, playSplash } from '../../audio/sounds.js';
 
 // Where the garden bed sits (bottom-centre origin), and how its 6 slots are laid out —
 // a 3-wide × 2-deep grid of planting spots over the tilled bed. Farm-yard, north of the
@@ -127,14 +128,48 @@ export const WithGarden = (Base) => class extends Base {
   }
 
   // Advance the whole garden one growth stage — called once per dawn from the day roll
-  // (dayNight.js `_dawnNewDay`), so sleeping a night passes crop-growing time. No
-  // real-time timers.
+  // (dayNight.js `_dawnNewDay`), so sleeping a night passes crop-growing time. Gated on
+  // each slot's `watered` flag (#245): an unwatered slot holds instead of growing. Reset
+  // the flags for the fresh day AFTER advancing, so last night's watering is what gated
+  // last night's growth. No real-time timers.
   advanceGarden() {
     const gd = this.garden;
     if (!gd) return;
     gd.state = advanceDay(gd.state);
+    gd.state = resetWateredFlags(gd.state);
     this._saveGardenState();
     this._renderGarden();
+  }
+
+  // Water a planted slot (#245): flips its `watered` flag so the next dawn's growth
+  // tick advances it instead of stalling. No-op if the slot is empty or already
+  // watered (waterGardenSlot is itself a no-op-if-unnecessary, kept as a guard here too
+  // so we skip the sound/save/redraw when there's nothing to do).
+  waterSlot(i) {
+    const gd = this.garden;
+    if (!gd) return;
+    const cell = gd.state[i];
+    if (!cell || cell.watered) return;
+    gd.state = waterGardenSlot(gd.state, i);
+    this._saveGardenState();
+    this._renderGarden();
+    playSplash();
+  }
+
+  // Nearest planted-but-unwatered slot to the player within `reach`, or null. Shared by
+  // the water Use descriptor and its prompt so they always agree on the target.
+  _nearestUnwateredSlot(reach = 110) {
+    const gd = this.garden;
+    if (!gd) return null;
+    let best = null, bestD = Infinity;
+    gd.slots.forEach((slot, i) => {
+      const cell = gd.state[i];
+      if (!cell || slotWatered(gd.state, i)) return;
+      const d = Phaser.Math.Distance.Between(
+        this.player.sprite.x, this.player.sprite.y, slot.x, slot.y);
+      if (d <= reach && d < bestD) { bestD = d; best = { i, slot }; }
+    });
+    return best;
   }
 
   // Nearest ripe slot to the player within `reach`, or null. Shared by the harvest Use
@@ -153,12 +188,13 @@ export const WithGarden = (Base) => class extends Base {
   }
 
   // The garden's interactable descriptors, merged into the world lists by
-  // buildInteractables. Two behaviours:
-  //   • bare-hand interact near the bed  → plant the next crop (interactWorld)
-  //   • basket + Use near a ripe slot    → harvest into the basket (toolWorld)
+  // buildInteractables. Three behaviours:
+  //   • bare-hand interact near the bed        → plant the next crop (interactWorld)
+  //   • filled water bucket + Use near a slot   → water it (toolWorld, #245)
+  //   • basket + Use near a ripe slot           → harvest into the basket (toolWorld)
   _gardenInteractables() {
     const gd = this.garden;
-    if (!gd) return { plant: () => [], harvest: () => [] };
+    if (!gd) return { plant: () => [], water: () => [], harvest: () => [] };
 
     const plantDesc = () => {
       if (firstEmptySlot(gd.state) < 0) {
@@ -179,6 +215,23 @@ export const WithGarden = (Base) => class extends Base {
       }];
     };
 
+    // Water a growing slot: offered when the active carrier is a filled water bucket
+    // and at least one planted slot still needs today's watering. Mirrors the
+    // trough/pet-bowl fill descriptor (a Use action on a filled bucket).
+    const waterDesc = (item) => {
+      if (item?.content !== 'water' || item.count <= 0) return [];
+      const target = this._nearestUnwateredSlot(9999);
+      if (!target) return [];
+      const cell = gd.state[target.i];
+      const crop = getCrop(cell.crop);
+      return [{
+        x: target.slot.x, y: target.slot.y, tapRadius: 100, reachDist: 110, promptOffsetY: 30,
+        canAct: true, label: `Water ${crop.label}`,
+        approach: () => ({ x: target.slot.x, y: target.slot.y + 30 }),
+        activate: () => this.waterSlot(target.i),
+      }];
+    };
+
     const harvestDesc = (item) => {
       const ripe = this._nearestRipeSlot(9999); // list if any ripe slot exists at all
       if (!ripe) return [];
@@ -196,6 +249,6 @@ export const WithGarden = (Base) => class extends Base {
       }];
     };
 
-    return { plant: plantDesc, harvest: harvestDesc };
+    return { plant: plantDesc, water: waterDesc, harvest: harvestDesc };
   }
 };

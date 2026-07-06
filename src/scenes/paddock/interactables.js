@@ -326,19 +326,22 @@ export const WithInteractables = (Base) => class extends Base {
     // held item (assignment is a bare-hand interaction).
     const barn = () => this._barnInteractables?.() ?? [];
 
-    // Garden plot (#242) — bare-hand interact by the bed PLANTS the next crop; a basket
-    // + Use on a ripe slot HARVESTS it. The garden mixin (paddock/garden.js) supplies the
-    // two descriptors; split across the interact/tool input paths accordingly.
-    const gardenDescs = this._gardenInteractables?.() ?? { plant: () => [], harvest: () => [] };
+    // Garden plot (#242) — bare-hand interact by the bed PLANTS the next crop; a filled
+    // water bucket + Use on a growing slot WATERS it (#245 — required daily or growth
+    // stalls); a basket + Use on a ripe slot HARVESTS it. The garden mixin
+    // (paddock/garden.js) supplies the three descriptors; split across the interact/tool
+    // input paths accordingly.
+    const gardenDescs = this._gardenInteractables?.() ?? { plant: () => [], water: () => [], harvest: () => [] };
     const gardenPlant   = gardenDescs.plant;
+    const gardenWater   = gardenDescs.water;
     const gardenHarvest = gardenDescs.harvest;
 
-    this.interactables = [gate, house, shop, barn, gardenPlant, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenHarvest];
+    this.interactables = [gate, house, shop, barn, gardenPlant, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenWater, gardenHarvest];
     // Split by input: gate/house/shop/barn/garden-plant are bare-hand "interact" targets
     // (tap/click/E); the rest require a carried tool/carrier and are triggered by Use (the
     // on-screen button / F / controller). See useActiveTool + handleTap.
     this.interactWorld = [gate, house, shop, barn, gardenPlant];
-    this.toolWorld     = [trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenHarvest];
+    this.toolWorld     = [trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenWater, gardenHarvest];
   }
 
   // Nearest activatable instance to (x, y) within each instance's own radius

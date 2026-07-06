@@ -530,6 +530,40 @@ try {
         : `gotJam=${gotJam},gotFlour=${gotFlour},gotPigFeed=${gotPigFeed},pigSeeks=${pigSeeks},pricesUp=${pricesUp}`;
     } catch (e) { cropProcessing = 'threw: ' + String(e); }
 
+    // Crop watering chore (#245): a planted-but-unwatered slot must NOT advance on a
+    // day-tick (advanceGarden), while a watered slot DOES advance — and the watered
+    // flag resets each dawn so the next day requires fresh tending.
+    let gardenWatering = 'no garden';
+    try {
+      const gd = paddock.garden;
+      if (gd) {
+        // Plant into two empty slots (garden may already have crops from earlier boot
+        // state — find two guaranteed-empty ones or clear a couple first).
+        const { plant, firstEmptySlot } = await import('/src/data/garden.js');
+        let iA = firstEmptySlot(gd.state);
+        if (iA < 0) { gd.state[0] = null; iA = 0; }
+        gd.state = plant(gd.state, iA, 'carrot');
+        let iB = firstEmptySlot(gd.state);
+        if (iB < 0) { gd.state[(iA + 1) % gd.state.length] = null; iB = (iA + 1) % gd.state.length; }
+        gd.state = plant(gd.state, iB, 'wheat');
+
+        const stageBefore = { a: gd.state[iA].stage, b: gd.state[iB].stage };
+        // Water only slot B (mirrors the in-world Use-with-filled-bucket interaction).
+        paddock.waterSlot(iB);
+        const wateredFlags = { a: gd.state[iA].watered, b: gd.state[iB].watered };
+
+        paddock.advanceGarden(); // the dawn roll: advance THEN reset watered flags
+        const unwateredStalled = gd.state[iA].stage === stageBefore.a;
+        const wateredAdvanced = gd.state[iB].stage === stageBefore.b + 1;
+        const flagsResetAfterRoll = gd.state[iA].watered === false && gd.state[iB].watered === false;
+
+        gardenWatering = (wateredFlags.a === false && wateredFlags.b === true &&
+                          unwateredStalled && wateredAdvanced && flagsResetAfterRoll)
+          ? 'gates-growth-on-watering'
+          : `wateredFlags=${JSON.stringify(wateredFlags)},unwateredStalled=${unwateredStalled},wateredAdvanced=${wateredAdvanced},flagsResetAfterRoll=${flagsResetAfterRoll}`;
+      }
+    } catch (e) { gardenWatering = 'threw: ' + String(e); }
+
     // #187 charm behaviors: the night settle/wake cycle must round-trip without
     // throwing (it rewires restAllAnimals/wakeAllAnimals), and the new run primitives
     // must resolve. Probed last (it mutates animal state) and lenient — this proves
@@ -857,6 +891,7 @@ try {
 
     return {
       owl,
+      gardenWatering,
       charm,
       chickenCoop,
       breeding,
@@ -1258,6 +1293,9 @@ try {
   if (result.swim !== 'swims-and-returns') fail(`stream swim (#231) failed: ${result.swim}`);
   // #271 ambient owl: night-only glide-in, one at a time, absent by day/asleep.
   if (result.owl !== 'night-only') fail(`ambient owl (#271) failed: ${result.owl}`);
+  // Crop watering chore (#245): unwatered growth stalls, watered growth advances, and
+  // the watered flag resets each dawn.
+  if (result.gardenWatering !== 'gates-growth-on-watering') fail(`crop watering (#245) failed: ${result.gardenWatering}`);
 
   if (result.breeding !== 'bonds-breeds-repeatedly-and-gates-growth') fail(`breeding & foals (#15/#114) failed: ${result.breeding}`);
   // Rooster (#269): spawned as a flock bird, doesn't lay, is a breeding partner, crows at dawn.
