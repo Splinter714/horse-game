@@ -119,7 +119,7 @@ export const WithPrompts = (Base) => class extends Base {
     let useLabel = null;
     const finish = () => { this._useActionLabel = useLabel; };
 
-    if (this.riding ||
+    if (this.riding || this.driving ||
         this.scene.get('HotbarScene')?.invOpen ||
         this.scene.isActive('InfoPanelScene')) return finish();
 

@@ -333,11 +333,16 @@ export const WithInteractables = (Base) => class extends Base {
     const gardenPlant   = gardenDescs.plant;
     const gardenHarvest = gardenDescs.harvest;
 
-    this.interactables = [gate, house, shop, barn, gardenPlant, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenHarvest];
-    // Split by input: gate/house/shop/barn/garden-plant are bare-hand "interact" targets
-    // (tap/click/E); the rest require a carried tool/carrier and are triggered by Use (the
-    // on-screen button / F / controller). See useActiveTool + handleTap.
-    this.interactWorld = [gate, house, shop, barn, gardenPlant];
+    // Tractor (#264) — bare-hand interact: "Enter Tractor" on the vehicle itself, and
+    // a separate nearby paint-stand cycle for its color. Both no-op (return []) while
+    // already driving (see tractor.js `_tractorInteractables`).
+    const tractor = () => this._tractorInteractables?.() ?? [];
+
+    this.interactables = [gate, house, shop, barn, gardenPlant, tractor, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenHarvest];
+    // Split by input: gate/house/shop/barn/garden-plant/tractor are bare-hand "interact"
+    // targets (tap/click/E); the rest require a carried tool/carrier and are triggered by
+    // Use (the on-screen button / F / controller). See useActiveTool + handleTap.
+    this.interactWorld = [gate, house, shop, barn, gardenPlant, tractor];
     this.toolWorld     = [trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenHarvest];
   }
 

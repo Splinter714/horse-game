@@ -368,6 +368,27 @@ export function saveDuckTaming(count) {
   } catch {}
 }
 
+// ── Drivable tractor (#264) ───────────────────────────────────────────────────
+// Just the chosen paint color survives a reload — the tractor itself is a fixed
+// world object (always parked at the same spot), not a roster. Its own tiny
+// storage key, mirroring the taming counters above.
+const TRACTOR_KEY = 'horse-game-tractor-v1';
+
+export function loadTractorState() {
+  try {
+    const data = JSON.parse(localStorage.getItem(TRACTOR_KEY));
+    return { color: typeof data?.color === 'string' ? data.color : undefined };
+  } catch {
+    return {};
+  }
+}
+
+export function saveTractorState({ color }) {
+  try {
+    localStorage.setItem(TRACTOR_KEY, JSON.stringify({ color }));
+  } catch {}
+}
+
 // ── Bird befriending progress (#223) ──────────────────────────────────────────
 // Mirrors the fox-taming persistence shape above, but per BIRD TYPE (data/wildlife.js
 // BIRD_TYPES id) rather than a single counter — several types can be warming up (or

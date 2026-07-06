@@ -36,6 +36,7 @@ import { WithWeather } from './paddock/weather.js';
 import { WithHorseAI } from './paddock/horseAI.js';
 import { WithBehaviors } from './paddock/behaviors.js';
 import { WithRiding } from './paddock/riding.js';
+import { WithTractor } from './paddock/tractor.js';
 import { WithPlayer } from './paddock/player.js';
 import { WithPlayerMovement } from './paddock/playerMovement.js';
 import { WithPrompts } from './paddock/prompts.js';
@@ -67,7 +68,7 @@ const PADDOCK_MIXINS = [
   WithWorld, WithBirdEcosystem, WithBirdEcosystemVisits, WithBirdFriendship, WithBarn, WithChickenCoop, WithBunny, WithFox, WithDuck, WithBreeding, WithIncubation,
   WithHouseEntry, WithWildlife, WithRaccoon, WithOwls, WithAmbientEvents, WithCatAI,
   WithCompanion, WithCharm, WithCreatures, WithFlock, WithHerd, WithFarmStand, WithShop,
-  WithGarden, WithDayNight, WithWeather, WithHorseAI, WithBehaviors, WithRiding, WithPlayer,
+  WithGarden, WithDayNight, WithWeather, WithHorseAI, WithBehaviors, WithRiding, WithTractor, WithPlayer,
   WithEffects, WithPersistence, WithRendering, WithWorldObjects, WithCareActions,
   WithInteraction, WithInput, WithPlayerMovement, WithPrompts, WithInteractables, WithUseDispatch,
 ];
@@ -117,6 +118,7 @@ export default class PaddockScene extends PaddockBase {
     this.buildPlayer();
     this.buildFarmStand();
     this.buildGarden(); // crop garden plot (#242) — before interactables (they read it)
+    this.buildTractor(); // drivable tractor (#264) — before interactables (they read it)
     this.buildInteractables();
     this.buildWildlife(); // ambient fish/birds/raccoon (needs the stream path + player)
     this.buildOwls(); // ambient nocturnal owl (#271) — night-only glide-in/hoot/glide-off
@@ -236,6 +238,7 @@ export default class PaddockScene extends PaddockBase {
     this._updateHold();
     this.updateRiding(delta);
     this.updateSaddles();
+    this.updateTractor(delta);
     this.movePlayer(delta);
     this.updateLeading(delta);
     this.updateFoals(delta);
@@ -294,6 +297,13 @@ export default class PaddockScene extends PaddockBase {
     if (this.riding) {
       this._pushPrompt('interact', 'Dismount');
       this._interactAction = { label: 'Dismount', run: () => this.dismount() };
+      return;
+    }
+
+    // When driving the tractor, show the exit hint (mirrors the ride dismount above).
+    if (this.driving) {
+      this._pushPrompt('interact', 'Exit Tractor');
+      this._interactAction = { label: 'Exit Tractor', run: () => this.exitTractor() };
       return;
     }
 

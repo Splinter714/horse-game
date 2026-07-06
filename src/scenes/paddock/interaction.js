@@ -98,7 +98,7 @@ export const WithInteraction = (Base) => class extends Base {
   // input: C key / gamepad Y / double-tap). Foals have no panel. No-op while a
   // menu/panel is open or there's no animal in range.
   openProxInfo() {
-    if (this._paused || this._sleeping || this.riding) return;
+    if (this._paused || this._sleeping || this.riding || this.driving) return;
     if (this.scene.get('HotbarScene')?.invOpen) return;
     // If the info panel is already open on a customizable animal, a second info
     // press (C / gamepad Y) opens the appearance editor (#147 controller access).

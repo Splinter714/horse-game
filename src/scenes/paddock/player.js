@@ -205,6 +205,17 @@ export const WithPlayer = (Base) => class extends Base {
       return;
     }
 
+    // While driving: tapping on the tractor exits; tapping elsewhere is a no-op —
+    // driving uses keyboard/stick steering only (v1), mirroring the simplest version
+    // of the ride-steer pattern without adding tap-to-drive pathfinding.
+    if (this.driving) {
+      const ts = this.tractor.sprite;
+      if (Phaser.Math.Distance.Between(world.x, world.y, ts.x, ts.y) < 90) {
+        this.exitTractor();
+      }
+      return;
+    }
+
     const item  = this.getActiveItem();
 
     // Tapping an animal is always an interact (never a tool use — tools go

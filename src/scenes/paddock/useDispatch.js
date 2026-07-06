@@ -215,7 +215,7 @@ export const WithUseDispatch = (Base) => class extends Base {
   // tools: brush/saddle/lead act on the nearest valid horse, feed drops at your
   // feet, and carriers/water/eggs/selling walk to the nearest matching spot.
   useActiveTool() {
-    if (this._paused || this._sleeping || this.riding) return;
+    if (this._paused || this._sleeping || this.riding || this.driving) return;
     if (this.scene.get('HotbarScene')?.invOpen) return;
     const item = this.getActiveItem();
     if (!item || item.action === 'interact') return; // empty hand: nothing to use
