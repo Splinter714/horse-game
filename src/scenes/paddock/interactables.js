@@ -381,15 +381,18 @@ export const WithInteractables = (Base) => class extends Base {
     const gardenPlant   = gardenDescs.plant;
     const gardenHarvest = gardenDescs.harvest;
 
-    this.interactables = [gate, house, shop, barn, gardenPlant, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenHarvest, neighborGift, neighborTrade];
-    // Split by input: gate/house/shop/barn/garden-plant are bare-hand "interact" targets
-    // (tap/click/E); the rest require a carried tool/carrier and are triggered by Use (the
-    // on-screen button / F / controller). See useActiveTool + handleTap.
+    // Riding trail (#36) — the one bare-hand collectible out on the trail.
+    const trailCollectible = this._trailInteractables?.().collectible ?? (() => []);
+
+    this.interactables = [gate, house, shop, barn, gardenPlant, trailCollectible, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenHarvest, neighborGift, neighborTrade];
+    // Split by input: gate/house/shop/barn/garden-plant/trail-collectible are bare-hand
+    // "interact" targets (tap/click/E); the rest require a carried tool/carrier and are
+    // triggered by Use (the on-screen button / F / controller). See useActiveTool + handleTap.
     // Neighbor trade/gift (#294) ride the Use path too — trade only needs money (no
     // carrier required to receive), but it's grouped with toolWorld since gifting (the
     // sibling interaction at the same spot) does require a held carrier, and only one
     // of the two ever applies at a time (see neighborGift/neighborTrade above).
-    this.interactWorld = [gate, house, shop, barn, gardenPlant];
+    this.interactWorld = [gate, house, shop, barn, gardenPlant, trailCollectible];
     this.toolWorld     = [trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenHarvest, neighborGift, neighborTrade];
   }
 

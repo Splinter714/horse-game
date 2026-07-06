@@ -6,7 +6,7 @@
 // mixin. Split out of the old ~1,030-line player.js (issue #167).
 
 import Phaser from 'phaser';
-import { WORLD_W, WORLD_H, S } from './constants.js';
+import { WORLD_W, WORLD_H, TRAIL_X0, S } from './constants.js';
 import { loadDevSettings } from '../../data/save.js';
 import { dprOf, logicalH } from '../uiUtils.js';
 
@@ -64,7 +64,10 @@ export const WithPlayer = (Base) => class extends Base {
     this.navOnArrive = null;
     this._navStuck   = 0;
 
-    this.cameras.main.setBounds(0, 0, WORLD_W, WORLD_H);
+    // Camera bounds extend west into the riding trail (#36) — a continuous part
+    // of the same world, no scene swap, so the camera just keeps following the
+    // player straight off the paddock's west edge into the trail terrain.
+    this.cameras.main.setBounds(TRAIL_X0, 0, WORLD_W - TRAIL_X0, WORLD_H);
     this.cameras.main.startFollow(sprite, true, 0.12, 0.12);
 
     this.cursors = this.input.keyboard.createCursorKeys();

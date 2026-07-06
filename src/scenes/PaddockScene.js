@@ -7,6 +7,7 @@ import {
 import { INTERACT_DIST } from './paddock/constants.js';
 import { WEATHER } from '../data/weather.js';
 import { WithWorld } from './paddock/world.js';
+import { WithTrail } from './paddock/trail.js';
 import { WithBarn } from './paddock/barn.js';
 import { WithChickenCoop } from './paddock/chickenCoop.js';
 import { WithHouseEntry } from './paddock/houseEntry.js';
@@ -65,7 +66,7 @@ import { applyDpr } from './uiUtils.js';
 // pure build-graph refactor — runtime behavior (method resolution order, `this`, super
 // calls) is unchanged.
 const PADDOCK_MIXINS = [
-  WithWorld, WithBirdEcosystem, WithBirdEcosystemVisits, WithBirdFriendship, WithBarn, WithChickenCoop, WithBunny, WithFox, WithDuck, WithBreeding, WithIncubation,
+  WithWorld, WithTrail, WithBirdEcosystem, WithBirdEcosystemVisits, WithBirdFriendship, WithBarn, WithChickenCoop, WithBunny, WithFox, WithDuck, WithBreeding, WithIncubation,
   WithHouseEntry, WithWildlife, WithRaccoon, WithOwls, WithAmbientEvents, WithCatAI,
   WithCompanion, WithCharm, WithCreatures, WithFlock, WithHerd, WithFarmStand, WithNeighbor, WithShop,
   WithGarden, WithDayNight, WithWeather, WithHorseAI, WithBehaviors, WithRiding, WithPlayer,
@@ -110,6 +111,7 @@ export default class PaddockScene extends PaddockBase {
     this.leadRope = null; // Graphics line
 
     this.buildWorld();
+    this.buildTrail(); // riding trail (#36) — continuous westward world extension
     this.buildObstacles();
     this.buildHorses();
     this._barnReseat(); // seat any horses saved into barn stalls (#35)

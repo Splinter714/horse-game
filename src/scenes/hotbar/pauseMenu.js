@@ -412,6 +412,7 @@ export const WithPauseMenu = (Base) => class extends Base {
   // the gamepad here: d-pad/stick to focus a row, A to activate a toggle/button,
   // left/right to adjust the focused slider, B/Start to close (#159).
   update() {
+    this._updateMinimap(); // corner minimap (#36) — live player-position dot, every frame
     if (!this.pauseOpen || !this._pauseFocus?.length) return;
     const pad = this.input.gamepad && this.input.gamepad.getPad(0);
     if (!pad) return;

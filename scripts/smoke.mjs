@@ -139,6 +139,9 @@ try {
       // chicken coop cutaway (#53): mirrors the barn's walk-in pattern but purely
       // visual — roost spots + façade fade, reusing the existing roost/leave-coop flow.
       'buildChickenCoop', 'updateCoopCutaway', '_coopRoostSpotFor',
+      // riding trail (#36): continuous westward world extension + its one
+      // bare-hand collectible interactable.
+      'buildTrail', '_trailInteractables', '_collectTrailTrinket',
     ];
     const missingMethods = expectMethods.filter((m) => typeof paddock[m] !== 'function');
 
@@ -959,7 +962,40 @@ try {
         : `rackExists=${rackExists},cyclesAll=${cyclesAll}(${afterFirst},${afterSecond},${afterThird}),englishOk=${englishOk},barebackOk=${barebackOk},westernOk=${westernOk}`;
     } catch (e) { tackRack = 'threw: ' + String(e); }
 
+    // #36 riding trail: a CONTINUOUS extension of the same world/scene — walking
+    // off the paddock's west edge must keep the player in PaddockScene (no scene
+    // transition/pause, unlike the house interior) and let them reach negative
+    // world-x trail terrain. Drive the player there directly (bypassing the long
+    // walk) and assert: same scene stays active throughout, the camera follows
+    // past x=0, and the trail's collectible interactable is reachable.
+    let ridingTrail = 'ok';
+    try {
+      const savedX = paddock.player.sprite.x, savedY = paddock.player.sprite.y;
+      const scenesBefore = g.scene.scenes.filter((s) => s.scene.isActive()).map((s) => s.scene.key);
+      // Walk (teleport, for a deterministic probe) well into the trail.
+      paddock.player.sprite.setPosition(-500, 500);
+      paddock.cameras.main.setScroll(-9999, -9999); // force a fresh follow-recompute
+      paddock.checkProximity(); // rebuild proximity/prompt state at the new spot
+      const stillSameScene = g.scene.isActive('PaddockScene')
+        && scenesBefore.every((k) => g.scene.isActive(k));
+      const playerInTrail = paddock.player.sprite.x < 0;
+      const hasTrailProps = !!paddock.props.trailCollectible && !!paddock.props.trailEntrance;
+      // The collectible interactable resolves at close range and is pickable.
+      const c = paddock.props.trailCollectible;
+      paddock.player.sprite.setPosition(c.x, c.y + 20);
+      const inst = paddock._nearestInteractable(paddock.player.sprite.x, paddock.player.sprite.y, null, 'reachDist', paddock.interactWorld);
+      const collectibleReachable = !!inst && inst.label === 'Pick Up Trinket';
+      const moneyBefore = paddock.money;
+      paddock._collectTrailTrinket();
+      const collected = c.found === true && paddock.money === moneyBefore + 10;
+      paddock.player.sprite.setPosition(savedX, savedY);
+      ridingTrail = (stillSameScene && playerInTrail && hasTrailProps && collectibleReachable && collected)
+        ? 'continuous-and-collectible'
+        : `stillSameScene=${stillSameScene},playerInTrail=${playerInTrail},hasTrailProps=${hasTrailProps},collectibleReachable=${collectibleReachable},collected=${collected}`;
+    } catch (e) { ridingTrail = 'threw: ' + String(e); }
+
     return {
+      ridingTrail,
       owl,
       charm,
       chickenCoop,
@@ -1398,6 +1434,10 @@ try {
   // equipping picks up the rack's active type (distinct overlay per type, bareback
   // has none) while riding/saddle gating stays exactly as before.
   if (result.tackRack !== 'rack-cycles-and-equips') fail(`tack rack / saddle types (#134) failed: ${result.tackRack}`);
+  // Riding trail (#36): walking off the paddock's west edge stays in the SAME
+  // scene (no loading screen/transition), the camera can follow past x=0 into
+  // the trail terrain, and the trail's collectible is reachable/pickable.
+  if (result.ridingTrail !== 'continuous-and-collectible') fail(`riding trail (#36) failed: ${result.ridingTrail}`);
   // Crop processing (#40): kitchen counter converts strawberry→jam, wheat→flour,
   // carrot→pig feed (a hungry pig seeks the dropped pile), and jam/flour sell for
   // more than their raw crop at the stand.
@@ -1748,6 +1788,36 @@ try {
   if (!toolUpgradePersist.owned) fail('#295 tool upgrade: purchase lost after reload');
   if (toolUpgradePersist.capacity !== 18) fail(`#295 tool upgrade: upgraded capacity lost after reload (got ${toolUpgradePersist.capacity}, want 18)`);
   console.log(`Tool upgrade persistence (#295): ${JSON.stringify(toolUpgradePersist)}`);
+
+  // ── Corner minimap (#36): a small always-visible HUD inset in HotbarScene —
+  // its player dot must exist and actually MOVE as the player moves (not just be
+  // present once). Move the player twice and confirm the dot's screen position
+  // shifts by a comparable proportion, then restore the player's real position.
+  const minimap = await page.evaluate(() => {
+    const g = window.__game;
+    const paddock = g.scene.getScene('PaddockScene');
+    const hotbar = g.scene.getScene('HotbarScene');
+    const dotNode = hotbar._minimapPlayerDot;
+    const hasDot = !!dotNode;
+    const savedX = paddock.player.sprite.x, savedY = paddock.player.sprite.y;
+
+    paddock.player.sprite.setPosition(-800, 200); // deep in the trail, near the top
+    hotbar._updateMinimap();
+    const p1 = { x: dotNode.x, y: dotNode.y };
+
+    paddock.player.sprite.setPosition(1700, 1400); // far SE corner of the farm
+    hotbar._updateMinimap();
+    const p2 = { x: dotNode.x, y: dotNode.y };
+
+    paddock.player.sprite.setPosition(savedX, savedY);
+    hotbar._updateMinimap();
+
+    const moved = Math.hypot(p2.x - p1.x, p2.y - p1.y) > 20; // dot visibly shifted
+    return { hasDot, p1, p2, moved };
+  });
+  if (!minimap.hasDot) fail('minimap (#36): no player-position dot found on HotbarScene');
+  if (!minimap.moved) fail(`minimap (#36): player dot did not move between two far-apart positions (${JSON.stringify(minimap)})`);
+  console.log(`Minimap (#36): ${JSON.stringify(minimap)}`);
 
   // ── HiDPI rendering: the game must render at the device's PHYSICAL pixels so
   // pixel-art/text are crisp on Retina screens (e.g. iPad, devicePixelRatio 2).
