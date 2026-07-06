@@ -1046,11 +1046,12 @@ try {
   });
   await page.screenshot({ path: '/tmp/player-customizer.png' });
 
-  // House interior — pantry (#212): enter the house, confirm the pantry station
-  // exists and is interactable (canAct), stock it from the active carrier, and
-  // confirm the deposit landed AND the carrier emptied, AND it persists to its
-  // own localStorage key. Enter via the same enterHouse() the world's door
-  // interactable calls.
+  // House interior — pantry (#212) + stove/oven (#213): enter the house, confirm
+  // both stations exist and are interactable (canAct), stock the pantry from the
+  // active carrier, confirm the deposit landed AND the carrier emptied, and drive
+  // the stove's ingredient-lookup stub against both sources (pantry-first, then
+  // falling back to the carried inventory). Enter via the same enterHouse() the
+  // world's door interactable calls.
   result.houseInterior = await page.evaluate(async () => {
     const g = window.__game;
     const p = g.scene.getScene('PaddockScene');
@@ -1062,7 +1063,8 @@ try {
       const active = g.scene.isActive('HouseInteriorScene');
 
       const pantryStation = hi.stations.find((s) => s.action === 'pantry');
-      const stationsOk = !!pantryStation?.canAct;
+      const stoveStation = hi.stations.find((s) => s.action === 'kitchen');
+      const stationsOk = !!pantryStation?.canAct && !!stoveStation?.canAct;
 
       // Stock the pantry: put 5 carrots in the basket, then activate the pantry
       // station directly (bypassing the walk-to-arrive nav for a deterministic probe).
@@ -1079,25 +1081,46 @@ try {
       const persistedRaw = JSON.parse(localStorage.getItem('horse-game-pantry-v1') || '{}');
       const persistsToStorage = persistedRaw.carrot === stockedCount;
 
+      // Ingredient-lookup stub (#213): pantry has carrots now → resolves 'pantry'.
+      const fromPantry = hi.findIngredient('carrot', 3);
+      const pantryOk = fromPantry.source === 'pantry' && fromPantry.available >= 3;
+
+      // Empty the pantry's carrot stock, put carrots in the carrier instead →
+      // resolves 'inventory' (the "either source" fallback #213 scopes).
+      hi.takePantryIngredient('carrot', stockedCount);
+      hot.carriers[basketKey] = { content: 'carrot', count: 2 };
+      const fromInventory = hi.findIngredient('carrot', 2);
+      const inventoryOk = fromInventory.source === 'inventory' && fromInventory.available === 2;
+
+      // Neither source has it → resolves null/0.
+      hot.carriers[basketKey] = { content: null, count: 0 };
+      const fromNeither = hi.findIngredient('carrot', 1);
+      const neitherOk = fromNeither.source === null && fromNeither.available === 0;
+
       // Leave the house so later probes see the normal world state.
       hi._exit();
       await new Promise((r) => setTimeout(r, 400));
       const backInWorld = g.scene.isActive('PaddockScene') && !g.scene.isActive('HouseInteriorScene');
 
-      return { active, stationsOk, stocked, persistsToStorage, backInWorld };
+      return {
+        active, stationsOk, stocked, persistsToStorage, pantryOk, inventoryOk, neitherOk, backInWorld,
+      };
     } catch (e) {
       return { threw: String(e) };
     }
   });
-  console.log(`House interior pantry (#212): ${JSON.stringify(result.houseInterior)}`);
+  console.log(`House interior pantry/stove (#212/#213): ${JSON.stringify(result.houseInterior)}`);
   const hi = result.houseInterior;
-  if (hi.threw) fail(`house interior pantry (#212) probe threw: ${hi.threw}`);
+  if (hi.threw) fail(`house interior (#212/#213) probe threw: ${hi.threw}`);
   else {
-    if (!hi.active) fail('house interior (#212): HouseInteriorScene did not activate on enterHouse()');
-    if (!hi.stationsOk) fail('pantry (#212): station missing or not canAct');
+    if (!hi.active) fail('house interior (#212/#213): HouseInteriorScene did not activate on enterHouse()');
+    if (!hi.stationsOk) fail('house interior (#212/#213): pantry and/or stove station missing or not canAct');
     if (!hi.stocked) fail('pantry (#212): stocking from the active carrier did not add to storage / empty the carrier');
     if (!hi.persistsToStorage) fail('pantry (#212): stock did not persist to localStorage (horse-game-pantry-v1)');
-    if (!hi.backInWorld) fail('house interior (#212): exiting the house did not return to PaddockScene');
+    if (!hi.pantryOk) fail(`stove (#213): ingredient lookup did not resolve from the pantry (got ${JSON.stringify(hi)})`);
+    if (!hi.inventoryOk) fail('stove (#213): ingredient lookup did not fall back to the carried inventory');
+    if (!hi.neitherOk) fail('stove (#213): ingredient lookup did not correctly report "neither source has it"');
+    if (!hi.backInWorld) fail('house interior (#212/#213): exiting the house did not return to PaddockScene');
   }
 
   // Weather pass (#188): force the DayNightScene into rain and back, and assert the

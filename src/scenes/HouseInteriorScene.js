@@ -21,8 +21,11 @@ import { CONTENT_DEFS } from '../data/items.js';
 //                       own localStorage key) for food/crops/animal products,
 //                       distinct from the farm-stand stock and carried inventory.
 //                       v1 interaction: deposit the active carrier's whole load.
-//   • KITCHEN (#41)  — the cooking surface is PLACED but inert (a passive hint prompt);
-//                       the cooking system is a future issue.
+//   • STOVE & OVEN (#213) — the physical cooking station: object/placement/prompt
+//                       are real now; there's no recipe system yet (#41 owns
+//                       that). Exposes findIngredient(content, amount), a stub
+//                       that checks the pantry then the player's inventory —
+//                       the shape #41 will build actual cooking on top of.
 //
 // FIRST-PASS DRAFT for owner playtest: the interior art (worldArt `houseInterior`) and
 // this simple single-room layout are a clean first cut, expect art-direction. The
@@ -105,9 +108,9 @@ export default class HouseInteriorScene extends Phaser.Scene {
       x: this._d(s.x), y: this._d(s.y),
       standX: this._d(s.standX), standY: this._d(s.standY),
       label: s.label, action: s.action,
-      // Bed, dresser, and pantry (#212) are actionable; the kitchen is a passive
-      // placeholder until #213.
-      canAct: s.action !== 'kitchen',
+      // Bed, dresser, pantry (#212), and the stove/oven (#213) are all actionable
+      // now — the stove still has no cooking system behind it (#41).
+      canAct: true,
     }));
   }
 
@@ -278,7 +281,7 @@ export default class HouseInteriorScene extends Phaser.Scene {
     if (st.action === 'sleep') this._doSleep();
     else if (st.action === 'customize') this._openCustomizer();
     else if (st.action === 'pantry') this._usePantry();
-    // kitchen: inert placeholder (#41 future via #213) — no-op.
+    else if (st.action === 'kitchen') this._useKitchen();
   }
 
   // ── Pantry (#212) ────────────────────────────────────────────────────────
@@ -316,6 +319,35 @@ export default class HouseInteriorScene extends Phaser.Scene {
     const { pantry, taken } = takeFromPantry(this.pantry, content, amount);
     if (taken > 0) { this.pantry = pantry; savePantry(this.pantry); }
     return taken;
+  }
+
+  // ── Kitchen / stove & oven (#213) ───────────────────────────────────────
+  // The physical cooking station is now a real interactable (placement + prompt);
+  // there's no recipe/cooking system yet (#41 owns that), so activating it just
+  // surfaces a friendly status message — proof the object/placement/interaction
+  // is wired, without inventing recipes.
+  _useKitchen() {
+    this._flashPromptMessage('Stove & Oven  •  cooking coming soon');
+  }
+
+  // The ingredient-lookup stub #41 will build cooking on top of: resolve how many
+  // of `content` are available RIGHT NOW, checking the pantry first, then falling
+  // back to the player's active carrier (per #213's "either source" scoping).
+  // Returns { source: 'pantry'|'inventory'|null, available }. Pure lookup — takes
+  // nothing; a future recipe step would call takePantryIngredient / useActiveCarrier
+  // once it actually decides to consume the ingredient.
+  findIngredient(content, amount = 1) {
+    const inPantry = this.pantryCount(content);
+    if (inPantry >= amount) return { source: 'pantry', available: inPantry };
+    const hot = this.scene.get('HotbarScene');
+    const item = hot?.getActiveItem?.();
+    const inInventory = item?.content === content ? (item.count ?? 0) : 0;
+    if (inInventory >= amount) return { source: 'inventory', available: inInventory };
+    // Neither source alone has enough — report whichever has more (still useful
+    // info for a future recipe UI), sourced from pantry if it has anything at all.
+    if (inPantry > 0) return { source: 'pantry', available: inPantry };
+    if (inInventory > 0) return { source: 'inventory', available: inInventory };
+    return { source: null, available: 0 };
   }
 
   // Brief on-screen confirmation, reusing the existing contextual prompt label so
