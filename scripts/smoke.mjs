@@ -11,6 +11,7 @@
 import { chromium } from 'playwright';
 import { resolveDevServerUrl } from './dev-server-url.mjs';
 import { STAND_DEFS } from '../src/scenes/paddock/constants.js';
+import { RECIPES, isProfitableToCook } from '../src/data/cooking.js';
 
 // `?canvas` forces Phaser's Canvas renderer (headless Chromium lacks WebGL
 // framebuffers). The logic we assert on here is renderer-agnostic.
@@ -1475,6 +1476,81 @@ try {
     if (!hi.neitherOk) fail('stove (#213): ingredient lookup did not correctly report "neither source has it"');
     if (!hi.backInWorld) fail('house interior (#212/#213): exiting the house did not return to PaddockScene');
   }
+
+  // Cooking (#41): cook a recipe from pantry ingredients, confirm the dish (a) sells
+  // for more than its raw ingredients combined at the farm stand, and (b) restores a
+  // stat when fed to its target species. Uses the vegetable stew recipe (2 carrot +
+  // 1 potato → vegetableStew, fed to horses, +hunger). Re-enters the house fresh.
+  result.cooking = await page.evaluate(async () => {
+    const g = window.__game;
+    const p = g.scene.getScene('PaddockScene');
+    const hot = g.scene.getScene('HotbarScene');
+    try {
+      p.enterHouse();
+      await new Promise((r) => setTimeout(r, 250));
+      const hi = g.scene.getScene('HouseInteriorScene');
+
+      // Stock the pantry with exactly enough for the vegetable stew (2 carrot, 1 potato).
+      hi.pantry = { carrot: 2, potato: 1 };
+
+      // Dial the stove to vegetableStew (cycle until its label shows Cook, not a
+      // needs-hint) — deterministic regardless of RECIPE_LIST order.
+      const stoveStation = hi.stations.find((s) => s.action === 'kitchen');
+      for (let i = 0; i < 5 && hi._kitchenRecipeIdx !== undefined; i++) {
+        const label = hi._kitchenLabel();
+        if (label.includes('Cook Vegetable Stew')) break;
+        hi._activate(stoveStation); // cooks or cycles depending on current dial
+        hi.pantry = { carrot: 2, potato: 1 }; // _activate may have consumed on a lucky cook — reset for determinism
+      }
+      const dialedOk = hi._kitchenLabel().includes('Cook Vegetable Stew');
+
+      // Drop a horse's hunger low so the feed effect is clearly visible.
+      const allHorses = g.registry.get('allHorses');
+      const horseKeys = Object.keys(allHorses);
+      for (const k of horseKeys) allHorses[k].stats.hunger = 10;
+
+      // Cook: consumes the pantry ingredients, stocks the dish.
+      const beforePantryCarrot = hi.pantry.carrot ?? 0;
+      hi._activate(stoveStation); // cooks (dial confirmed Cook above)
+      const cookedOk = hi._lastCookedDish === 'vegetableStew';
+      const ingredientsConsumedOk = (hi.pantry.carrot ?? 0) === 0 && (hi.pantry.potato ?? 0) === 0;
+
+      // Feed: a second activation offers to feed the just-cooked dish.
+      const preFeedHunger = allHorses[horseKeys[0]].stats.hunger;
+      hi._activate(stoveStation); // feeds
+      const postFeedHunger = allHorses[horseKeys[0]].stats.hunger;
+      const fedOk = postFeedHunger > preFeedHunger && hi._lastCookedDish == null;
+      // Every horse got the bump, not just one.
+      const allFedOk = horseKeys.every((k) => allHorses[k].stats.hunger > 10);
+
+      hi._exit();
+      await new Promise((r) => setTimeout(r, 400));
+      const backInWorld = g.scene.isActive('PaddockScene') && !g.scene.isActive('HouseInteriorScene');
+
+      return {
+        dialedOk, cookedOk, ingredientsConsumedOk, beforePantryCarrot,
+        preFeedHunger, postFeedHunger, fedOk, allFedOk, backInWorld,
+      };
+    } catch (e) {
+      return { threw: String(e) };
+    }
+  });
+  console.log(`Cooking (#41): ${JSON.stringify(result.cooking)}`);
+  const cook = result.cooking;
+  if (cook.threw) fail(`cooking (#41) probe threw: ${cook.threw}`);
+  else {
+    if (!cook.dialedOk) fail('cooking (#41): could not dial the stove to Vegetable Stew');
+    if (!cook.cookedOk) fail('cooking (#41): cooking vegetable stew did not stock the dish (_lastCookedDish)');
+    if (!cook.ingredientsConsumedOk) fail('cooking (#41): cooking did not consume the pantry ingredients');
+    if (!cook.fedOk) fail(`cooking (#41): feeding the dish did not restore hunger (${cook.preFeedHunger} -> ${cook.postFeedHunger})`);
+    if (!cook.allFedOk) fail('cooking (#41): feeding only bumped one horse, expected every horse to be fed');
+    if (!cook.backInWorld) fail('cooking (#41): exiting the house did not return to PaddockScene');
+  }
+  // Sell-price check (Node-side, same STAND_DEFS table the live farm stand reads):
+  // every cooked dish sells for more than its raw ingredients combined.
+  const stewPricesUp = isProfitableToCook(RECIPES.vegetableStew);
+  console.log(`Cooking sell price (#41): vegetableStew $${STAND_DEFS.vegetableStew.price} > raw ingredients, profitable=${stewPricesUp}`);
+  if (!stewPricesUp) fail('cooking (#41): vegetableStew does not sell for more than its raw ingredients combined');
 
   // General store (#215): the seed-shop building exists and is interactable (opens
   // GeneralStoreScene), buying a seed with enough gold deducts EXACTLY its price and

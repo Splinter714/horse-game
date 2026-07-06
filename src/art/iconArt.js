@@ -124,6 +124,31 @@ export function buildIconTextures(scene) {
     g.fillStyle(0xa9862b, 1); g.fillRect(7, 4, 6, 1);        // knot
     g.fillStyle(0xffffff, 0.6); g.fillCircle(6, 12, 1); g.fillCircle(14, 15, 1); // flour dusting
   });
+  gen(scene, 'iconStew', 20, 20, (g) => { // vegetable stew (#41) — bowl of stew
+    g.fillStyle(0x8a5a2e, 1); g.fillEllipse(10, 16, 9, 3);          // bowl base shadow
+    g.fillStyle(0xe4dcc0, 1); g.fillEllipse(10, 13, 9, 5);          // bowl body
+    g.fillStyle(0xf2ecd8, 1); g.fillEllipse(10, 12, 8, 4);          // bowl rim highlight
+    g.fillStyle(0xb85a2a, 1); g.fillEllipse(10, 11, 6.5, 3);        // stew broth
+    g.fillStyle(0xf07830, 1); g.fillCircle(8, 10, 1.2);             // carrot chunk
+    g.fillStyle(0xa9793f, 1); g.fillCircle(12, 10.5, 1.2);          // potato chunk
+    g.fillStyle(0xd68a4a, 1); g.fillCircle(10, 9.5, 1);             // veg chunk
+  });
+  gen(scene, 'iconBerryPie', 20, 20, (g) => { // berry pie (#41) — slice of pie
+    g.fillStyle(0xd8a860, 1); g.fillTriangle(10, 5, 3, 16, 17, 16); // crust wedge
+    g.fillStyle(0xecc686, 1); g.fillTriangle(10, 7, 6, 15, 14, 15); // lattice top facet
+    g.fillStyle(0x8a3ca0, 1); // berry filling peeking out
+    g.fillCircle(8, 13, 1.3); g.fillCircle(11, 12, 1.3); g.fillCircle(10, 14.5, 1.3);
+    g.fillStyle(0xb85ac4, 1); g.fillCircle(9, 12.4, 0.6); // berry highlight
+    g.fillStyle(0x9a6a3a, 1); g.fillRect(3, 16, 14, 1);              // crust base line
+  });
+  gen(scene, 'iconHoneyBread', 20, 20, (g) => { // honey bread (#41) — golden loaf
+    g.fillStyle(0xc9862e, 1); g.fillRoundedRect(3, 9, 14, 8, 3);     // loaf body
+    g.fillStyle(0xe8a848, 1); g.fillEllipse(10, 9, 13, 4);           // domed golden top
+    g.fillStyle(0xf6c96e, 1); g.fillEllipse(8, 8, 4, 2);             // top highlight
+    g.fillStyle(0x9a6a1e, 1); // crust score lines
+    g.fillRect(6, 8, 1, 3); g.fillRect(10, 7, 1, 4); g.fillRect(14, 8, 1, 3);
+    g.fillStyle(0xffe08a, 0.8); g.fillCircle(8, 8, 0.8); g.fillCircle(13, 9, 0.8); // honey glaze glints
+  });
   gen(scene, 'iconTreat', 20, 20, (g) => { // sugar cube with sparkle
     g.fillStyle(0xf5ecd0, 1); g.fillRoundedRect(4, 7, 12, 10, 2);
     g.fillStyle(0xe8d8a8, 1);
@@ -424,6 +449,31 @@ export function buildIconTextures(scene) {
     g.fillStyle(0x3e2c19, 1);
     g.fillCircle(6, 7, 1); g.fillCircle(12, 6, 1); g.fillCircle(10, 9, 1); // clods
     g.fillStyle(0xc4a43a, 1); g.fillRect(6, 3, 3, 1); g.fillRect(11, 4, 3, 1); // straw flecks
+  });
+
+  // Basket of vegetable stew (#41) — a little bowl of stew nestled in the basket,
+  // the cooked (two-ingredient) form of carrot + potato. Distinct from the loose
+  // basket-of-carrots/potatoes at a glance.
+  gen(scene, 'iconBasketStew', 20, 20, (g) => {
+    drawBasketBody(g);
+    g.fillStyle(0xe4dcc0, 1); g.fillEllipse(10, 7, 8, 4);            // bowl body
+    g.fillStyle(0xb85a2a, 1); g.fillEllipse(10, 6, 6, 3);            // broth
+    g.fillStyle(0xf07830, 1); g.fillCircle(8, 5.5, 1); g.fillCircle(12, 6, 1); // veg chunks
+  });
+  // Basket of berry pie (#41) — a wedge of pie, the cooked (two-ingredient) form of
+  // strawberry + blueberry.
+  gen(scene, 'iconBasketBerryPie', 20, 20, (g) => {
+    drawBasketBody(g);
+    g.fillStyle(0xd8a860, 1); g.fillTriangle(10, 2, 5, 9, 15, 9);    // crust wedge
+    g.fillStyle(0x8a3ca0, 1); g.fillCircle(8, 6.5, 1); g.fillCircle(11, 5.5, 1); // berry filling
+  });
+  // Basket of honey bread (#41) — a small golden loaf, the cooked (two-ingredient)
+  // form of wheat + honey.
+  gen(scene, 'iconBasketHoneyBread', 20, 20, (g) => {
+    drawBasketBody(g);
+    g.fillStyle(0xc9862e, 1); g.fillRoundedRect(4, 4, 12, 6, 2);     // loaf body
+    g.fillStyle(0xe8a848, 1); g.fillEllipse(10, 4, 11, 3);           // domed golden top
+    g.fillStyle(0xffe08a, 0.8); g.fillCircle(8, 4, 0.8); g.fillCircle(12, 5, 0.8); // glaze glints
   });
 
   // Scooper tool (#232) — a stable rake/scoop on a handle. Reads as the "clean up

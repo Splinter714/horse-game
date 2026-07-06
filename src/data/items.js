@@ -12,7 +12,7 @@ export const CARRIER_DEFS = {
   // animal that eats it, #136), so the basket's cap is just a safety ceiling, not a
   // limit you should hit. Kept finite (not Infinity) so it never trips serialization
   // or UI maths — but high enough that the demand always fits (and you can hoard eggs).
-  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey', 'jam', 'flour', 'pigFeed', 'blueberry', 'potato'] },
+  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey', 'jam', 'flour', 'pigFeed', 'blueberry', 'potato', 'vegetableStew', 'berryPie', 'honeyBread'] },
   bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'milk', 'nectar'] },
 };
 
@@ -140,6 +140,15 @@ export const CONTENT_DEFS = {
   // future cooking ingredient (#41). No `feeds`/`ground` — nobody eats it, it doesn't
   // drop as a pile; it's an in-world produce source alongside eggs/milk/wool.
   honey:      { label: 'Honey',        icon: 'iconBasketHoney',      action: 'sell' },
+  // Cooking (#41): dishes combine two raw ingredients at the house's stove (#213),
+  // not a single-crop grind like jam/flour/pig feed above. Each sells for more than
+  // its combined raw ingredients (see data/cooking.js rawIngredientValue/isProfitable
+  // ToCook — unit-tested) AND restores an animal's stats when fed at the stove
+  // (recipe's `feedEffect`, since there's no in-house animal roster to walk a dish
+  // out to). No `feeds`/`ground` — a dish isn't dropped as a pile; it's fed directly.
+  vegetableStew: { label: 'Vegetable Stew', icon: 'iconBasketStew',      action: 'sell' },
+  berryPie:      { label: 'Berry Pie',      icon: 'iconBasketBerryPie', action: 'sell' },
+  honeyBread:    { label: 'Honey Bread',    icon: 'iconBasketHoneyBread', action: 'sell' },
 };
 
 // How many of a food to gather in one fill-up (#136): one unit per live animal that

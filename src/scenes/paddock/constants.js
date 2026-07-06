@@ -231,6 +231,14 @@ export const STAND_DEFS = {
   // veg). First-pass balance levers to tune at playtest.
   blueberry:  { price: 7,  tex: 'iconBlueberry',   scale: 0.9, emoji: '🫐', floatIcon: 'iconBlueberry' },
   potato:     { price: 3,  tex: 'iconPotato',      scale: 0.9, emoji: '🥔', floatIcon: 'iconPotato' },
+  // Cooking (#41): dishes cooked at the house stove (#213) from TWO combined raw
+  // ingredients (unlike jam/flour's single-crop grind). Priced above the combined
+  // raw value of their ingredients (see data/cooking.js rawIngredientValue —
+  // unit-tested) so cooking is the better payoff, mirroring jam/flour/yarn. First-
+  // pass balance levers to tune at playtest.
+  vegetableStew: { price: 16, tex: 'iconStew',       scale: 0.9, emoji: '🍲', floatIcon: 'iconStew' },
+  berryPie:      { price: 26, tex: 'iconBerryPie',   scale: 0.9, emoji: '🥧', floatIcon: 'iconBerryPie' },
+  honeyBread:    { price: 27, tex: 'iconHoneyBread', scale: 0.9, emoji: '🍞', floatIcon: 'iconHoneyBread' },
 };
 export const STAND_TYPES = Object.keys(STAND_DEFS);
 
