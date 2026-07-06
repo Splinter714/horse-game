@@ -812,4 +812,43 @@ function buildGardenTextures(scene) {
       const g = withLayer(g0); g.layer('soil'); mound(g); g.layer('plant'); art.grow(g); g.layer('fruit'); art.fruit(g);
     });
   }
+
+  // ── Riding trail scenery (#36) ──────────────────────────────────────────
+  // Simple procedural woodland props scattered along the trail extension:
+  // a pine-ish tree, a mossy boulder, and a shiny trailside collectible
+  // (a "lost" trinket — first-pass, flagged for playtest).
+  gen(scene, 'trailTree', 44, 72, (g0) => {
+    const g = withLayer(g0);
+    g.layer('shadow'); g.fillStyle(0x000000, 0.15); g.fillEllipse(22, 69, 30, 8);
+    g.layer('trunk');
+    g.fillStyle(0x5a4028, 1); g.fillRect(19, 46, 6, 24);
+    g.fillStyle(0x6d4e33, 1); g.fillRect(19, 46, 2, 24);
+    g.layer('canopy');
+    // three stacked conifer tiers, wide at the bottom, narrow at the top
+    g.fillStyle(0x2c5c28, 1); g.fillTriangle(22, 4, 4, 40, 40, 40);
+    g.fillStyle(0x35702f, 1); g.fillTriangle(22, 16, 7, 48, 37, 48);
+    g.fillStyle(0x3f8137, 1); g.fillTriangle(22, 28, 2, 58, 42, 58);
+    g.fillStyle(0x4f9a43, 1); g.fillTriangle(22, 8, 14, 22, 30, 22); // sunlit highlight wedge
+  });
+  gen(scene, 'trailRock', 34, 22, (g0) => {
+    const g = withLayer(g0);
+    g.layer('shadow'); g.fillStyle(0x000000, 0.15); g.fillEllipse(17, 20, 26, 6);
+    g.layer('rock');
+    g.fillStyle(0x7c7d7f, 1); g.fillEllipse(17, 12, 30, 16);
+    g.fillStyle(0x919395, 1); g.fillEllipse(12, 8, 14, 9);
+    g.fillStyle(0x5f6062, 1); g.fillEllipse(22, 16, 12, 7);
+    g.layer('moss');
+    g.fillStyle(0x5a8a3e, 0.85); g.fillEllipse(9, 13, 8, 4); g.fillEllipse(24, 9, 6, 3);
+  });
+  // A small glinting trinket lost along the trail — a first-pass collectible
+  // (flagged for playtest, see #36).
+  gen(scene, 'trailTrinket', 16, 14, (g0) => {
+    const g = withLayer(g0);
+    g.layer('shadow'); g.fillStyle(0x000000, 0.18); g.fillEllipse(8, 12, 10, 3);
+    g.layer('trinket');
+    g.fillStyle(0xd9a72b, 1); g.fillCircle(8, 7, 5);
+    g.fillStyle(0xf0cf5a, 1); g.fillCircle(6, 5, 2);
+    g.fillStyle(0xfff3c0, 1); g.fillRect(6, 4, 1, 1);
+    g.lineStyle(1, 0xa87c1c, 1); g.strokeCircle(8, 7, 5);
+  });
 }

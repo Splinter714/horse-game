@@ -14,9 +14,10 @@ import { WithCarriers } from './hotbar/carriers.js';
 import { WithInventory } from './hotbar/inventory.js';
 import { WithActionButtons } from './hotbar/actionButtons.js';
 import { WithPauseMenu } from './hotbar/pauseMenu.js';
+import { WithMinimap } from './hotbar/minimap.js';
 
 export default class HotbarScene
-  extends WithPauseMenu(WithInventory(WithActionButtons(WithCarriers(WithHotbarSlots(Phaser.Scene))))) {
+  extends WithMinimap(WithPauseMenu(WithInventory(WithActionButtons(WithCarriers(WithHotbarSlots(Phaser.Scene)))))) {
   constructor() { super('HotbarScene'); }
 
   create() {
@@ -71,6 +72,7 @@ export default class HotbarScene
     this._actions = { interact: null, info: null, use: null };
 
     this._buildHotbar();
+    this._buildMinimap(); // corner minimap (#36) — orientation only, no fast-travel
 
     const KEY_NAMES = ['ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN','EIGHT','NINE','ZERO'];
     KEY_NAMES.slice(0, NUM_SLOTS).forEach((name, i) => {

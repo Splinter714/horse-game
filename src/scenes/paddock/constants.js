@@ -2,9 +2,26 @@
 // Centralised here so the scene file and every extracted mixin read one source of
 // truth (and so balance/layout values are easy to find and tweak).
 
-// World dimensions.
+// World dimensions. The playable farm/pasture occupies x ∈ [0, WORLD_W]; the
+// riding trail (#36) extends the SAME continuous world further west, so the
+// world's true left edge is TRAIL_X0 (negative) rather than 0. No new Phaser
+// scene — walking past x=0 just keeps going in PaddockScene, camera and all.
 export const WORLD_W = 1920;
 export const WORLD_H = 1600;
+
+// ── Riding trail (#36) ──────────────────────────────────────────────────────
+// A continuous westward extension of the farm/pasture world — no loading
+// screen, no scene swap (unlike the house interior). Farm-stand customers
+// already enter from the EAST edge (WORLD_W), so the trail goes west to avoid
+// colliding with that entry point. TRAIL_X0 is negative (world-space x can go
+// below 0 once the trail is added) and TRAIL_W is how far it extends.
+export const TRAIL_W = 900;
+export const TRAIL_X0 = -TRAIL_W;
+// The trail occupies the same vertical band as the farm (not the full world
+// height) so it reads as a path leading off into the woods rather than a
+// second full map.
+export const TRAIL_Y0 = 120;
+export const TRAIL_Y1 = 1000;
 
 // Movement.
 export const INTERACT_DIST = 100;
@@ -34,9 +51,12 @@ export const HOLD_MS = 250;
 // drag — keeps tiny tap jitter from being read as intentional hold-to-move.
 export const HOLD_DRAG_PX = 28;
 
-// Wander/spawn bounds and the pasture rectangle.
+// Wander/spawn bounds and the pasture rectangle. Farm-roster animals (herd/flock)
+// stay within the farm proper (BOUNDS) — only the PLAYER's walkable/ridable area
+// (PLAYER_BOUNDS) extends west into the trail (#36), so horses/chickens don't
+// wander off into the woods on their own.
 export const BOUNDS         = { minX: 180, maxX: 1740, minY: 200, maxY: 900 };
-export const PLAYER_BOUNDS  = { minX: 40, maxX: 1880, minY: 80, maxY: 1550 };
+export const PLAYER_BOUNDS  = { minX: TRAIL_X0 + 40, maxX: 1880, minY: 80, maxY: 1550 };
 export const PASTURE_BOUNDS = { minX: 180, maxX: 1740, minY: 910, maxY: 1450 };
 
 // Water trough capacity, in "drinks" (#103). The trough holds a numeric water
