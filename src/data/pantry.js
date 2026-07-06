@@ -13,6 +13,9 @@ export const PANTRY_STORABLE = [
   'hay', 'apple', 'carrot', 'seed', 'egg', 'eggBrown', 'milk', 'wool', 'yarn',
   'strawberry', 'wheat', 'jam', 'flour', 'pigFeed', 'honey', 'catFood', 'bunnyFood',
   'foxFood', 'duckFood', 'orange', 'berry',
+  // Cooking (#41): cooked dishes can be stocked in the pantry like any other
+  // produce, in case there's no active carrier free to hold the stove's output.
+  'vegetableStew', 'berryPie', 'honeyBread',
 ];
 
 export function isPantryStorable(content) {

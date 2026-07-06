@@ -238,6 +238,14 @@ export const STAND_DEFS = {
   // at playtest, same as every other crop price here.
   orange: { price: 5, tex: 'iconOrange', scale: 0.9, emoji: '🍊', floatIcon: 'iconOrange' },
   berry:  { price: 6, tex: 'iconBerry',  scale: 0.9, emoji: '🫐', floatIcon: 'iconBerry' },
+  // Cooking (#41): dishes cooked at the house stove (#213) from TWO combined raw
+  // ingredients (unlike jam/flour's single-crop grind). Priced above the combined
+  // raw value of their ingredients (see data/cooking.js rawIngredientValue —
+  // unit-tested) so cooking is the better payoff, mirroring jam/flour/yarn. First-
+  // pass balance levers to tune at playtest.
+  vegetableStew: { price: 16, tex: 'iconStew',       scale: 0.9, emoji: '🍲', floatIcon: 'iconStew' },
+  berryPie:      { price: 26, tex: 'iconBerryPie',   scale: 0.9, emoji: '🥧', floatIcon: 'iconBerryPie' },
+  honeyBread:    { price: 27, tex: 'iconHoneyBread', scale: 0.9, emoji: '🍞', floatIcon: 'iconHoneyBread' },
 };
 export const STAND_TYPES = Object.keys(STAND_DEFS);
 
