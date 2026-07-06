@@ -69,6 +69,10 @@ try {
       'tradeWithNeighbor', 'giftNeighborWithActiveItem', '_neighborLeave',
       'buildPlayer', 'movePlayer', 'handleTap', '_findPath', 'gatherFrom',
       'mountHorse', 'dismount', 'toggleSaddle', 'toggleLead',
+      // drivable tractor (#264): enter/exit, drive movement, paint-stand color cycle,
+      // cosmetic garden-tilling flourish.
+      'buildTractor', 'enterTractor', 'exitTractor', 'updateTractor', 'cycleTractorColor',
+      '_tractorInteractables', '_maybeTillGarden',
       'horseTick', 'horseGoEat', 'horseGoDrink', 'spawnHorse', 'spawnAnimal',
       'buildAnimals', '_worldSpecies', '_applySpawnCapabilities', // generic spawn (#167 B4)
       'separateHorses', '_horseBeg', '_begWait',
@@ -994,6 +998,55 @@ try {
         : `stillSameScene=${stillSameScene},playerInTrail=${playerInTrail},hasTrailProps=${hasTrailProps},collectibleReachable=${collectibleReachable},collected=${collected}`;
     } catch (e) { ridingTrail = 'threw: ' + String(e); }
 
+    // Drivable tractor (#264): exists in the world, enter/exit redirects movement,
+    // color cycling round-trips, and driving over the existing garden bed (#242)
+    // plays the cosmetic tilling flourish. No mechanical effect on the garden itself
+    // — we don't assert anything about garden.state here, only the visual FX list.
+    let tractor = 'ok';
+    try {
+      const t = paddock.tractor;
+      const existsInWorld = !!t?.sprite?.active;
+
+      // Enter: player sprite hides, movement redirects (movePlayer bails via `driving`).
+      paddock.player.sprite.setVisible(true);
+      paddock.enterTractor();
+      const entered = paddock.driving === true && paddock.player.sprite.visible === false;
+
+      // Movement redirect: driving the tractor right actually moves the TRACTOR, and
+      // movePlayer is a no-op (player position untouched) while driving.
+      const playerXBefore = paddock.player.sprite.x;
+      const tractorXBefore = t.sprite.x;
+      paddock.cursors.right.isDown = true;
+      paddock.updateTractor(200);
+      paddock.movePlayer(200); // must bail immediately (this.driving gate)
+      paddock.cursors.right.isDown = false;
+      const tractorMoved = t.sprite.x > tractorXBefore;
+      const playerUnmoved = paddock.player.sprite.x === playerXBefore;
+
+      // Color cycling: steps to a different swatch and re-generates the textures.
+      const colorBefore = t.colorId;
+      paddock.cycleTractorColor();
+      const colorChanged = t.colorId !== colorBefore && g.textures.exists('tractor_idle');
+
+      // Cosmetic tilling: parked just outside the garden bed's solid footprint but
+      // inside the till-flourish zone, a driven step there queues a fading FX mark.
+      t.sprite.x = 1400; t.sprite.y = 560; t.x = 1400; t.y = 560;
+      const tillBefore = paddock._tillMarks.length;
+      paddock.cursors.right.isDown = true;
+      paddock._lastTillAt = 0;
+      paddock.updateTractor(50);
+      paddock.cursors.right.isDown = false;
+      const tilled = paddock._tillMarks.length > tillBefore;
+
+      // Exit: player reappears next to the tractor, movement control returns to them.
+      paddock.exitTractor();
+      const exited = paddock.driving === false && paddock.player.sprite.visible === true;
+
+      tractor = (existsInWorld && entered && tractorMoved && playerUnmoved && colorChanged && tilled && exited)
+        ? 'drives-paints-and-tills'
+        : `existsInWorld=${existsInWorld},entered=${entered},tractorMoved=${tractorMoved},playerUnmoved=${playerUnmoved},colorChanged=${colorChanged},tilled=${tilled},exited=${exited}`;
+    } catch (e) { tractor = 'threw: ' + String(e); }
+
     return {
       ridingTrail,
       owl,
@@ -1003,6 +1056,7 @@ try {
       incubation,
       rooster,
       tackRack,
+      tractor,
       roosterCount: Object.keys(g.registry.get('allRoosters') ?? {}).length,
       roostersInScene: paddock.animals.filter((a) => a.model?.species === 'rooster').length,
       fox,
@@ -1438,6 +1492,7 @@ try {
   // scene (no loading screen/transition), the camera can follow past x=0 into
   // the trail terrain, and the trail's collectible is reachable/pickable.
   if (result.ridingTrail !== 'continuous-and-collectible') fail(`riding trail (#36) failed: ${result.ridingTrail}`);
+  if (result.tractor !== 'drives-paints-and-tills') fail(`drivable tractor (#264) failed: ${result.tractor}`);
   // Crop processing (#40): kitchen counter converts strawberry→jam, wheat→flour,
   // carrot→pig feed (a hungry pig seeks the dropped pile), and jam/flour sell for
   // more than their raw crop at the stand.

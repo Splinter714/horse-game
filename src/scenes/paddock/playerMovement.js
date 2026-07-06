@@ -10,7 +10,7 @@ import { dprOf } from '../uiUtils.js';
 
 export const WithPlayerMovement = (Base) => class extends Base {
   movePlayer(delta) {
-    if (this.riding) return;
+    if (this.riding || this.driving) return;
 
     // Stop all movement while radial menu is open
     if (this.scene.get('HotbarScene')?.invOpen) {

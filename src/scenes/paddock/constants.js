@@ -42,6 +42,9 @@ export const PET_SOUND_MS = 500;
 export const USE_REACH = 110;
 export const PLAYER_SPEED  = 210;
 export const RIDE_SPEED    = 340;
+// Drivable tractor (#264): faster than walking, slower than a ridden horse — a
+// first-pass balance number, flag for playtest.
+export const TRACTOR_SPEED = 260;
 
 // Press shorter than this (without dragging) is a plain tap → walk all the way to
 // the tapped point. Once the press passes this, live "hold-to-move" steering kicks
