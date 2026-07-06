@@ -260,4 +260,17 @@ export const HOUSE_INTERIOR = {
   exit: { x: 80, y: 116, w: 34 },
   // Where the player sprite spawns on entering (just inside the doorway).
   spawn: { x: 80, y: 104 },
+  // Purely decorative props (#221 fish tank, #230 fireplace) — no `standX/standY`
+  // walk-up interaction, no `action`; the scene just renders them (and any ambient
+  // animation) and skips them in the interactable/prompt scan. DESIGN-GRID coords,
+  // matching the `fishtank`/`fireplace` layers drawn in worldArt.js's houseInterior.
+  decor: {
+    // Fish tank (#221): glass bounds (design-grid) the scene keeps its 2 ambient
+    // swimming fish within — a little inset from the tank frame drawn in the art.
+    fishTank: { bounds: { x0: 13, x1: 43, y0: 71, y1: 86 } },
+    // Fireplace (#230): where the flame-flicker sprite sits over the hearth's
+    // firebox opening (worldArt houseInterior's `fireplace` layer, x=122-144,
+    // y=76-100) — origin (0.5,1) so this is the flame's base/floor point.
+    fireplace: { x: 133, y: 99 },
+  },
 };

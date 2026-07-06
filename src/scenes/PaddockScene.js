@@ -7,6 +7,7 @@ import {
 import { INTERACT_DIST } from './paddock/constants.js';
 import { WEATHER } from '../data/weather.js';
 import { WithWorld } from './paddock/world.js';
+import { WithHouseChimney } from './paddock/houseChimney.js';
 import { WithTrail } from './paddock/trail.js';
 import { WithBarn } from './paddock/barn.js';
 import { WithChickenCoop } from './paddock/chickenCoop.js';
@@ -68,7 +69,7 @@ import { applyDpr } from './uiUtils.js';
 // pure build-graph refactor — runtime behavior (method resolution order, `this`, super
 // calls) is unchanged.
 const PADDOCK_MIXINS = [
-  WithWorld, WithTrail, WithBirdEcosystem, WithBirdEcosystemVisits, WithBirdFriendship, WithBarn, WithChickenCoop, WithBunny, WithFox, WithDuck, WithBreeding, WithIncubation,
+  WithWorld, WithHouseChimney, WithTrail, WithBirdEcosystem, WithBirdEcosystemVisits, WithBirdFriendship, WithBarn, WithChickenCoop, WithBunny, WithFox, WithDuck, WithBreeding, WithIncubation,
   WithHouseEntry, WithWildlife, WithRaccoon, WithOwls, WithAmbientEvents, WithCatAI,
   WithCompanion, WithCharm, WithCreatures, WithFlock, WithHerd, WithFarmStand, WithNeighbor, WithShop,
   WithGeneralStore,

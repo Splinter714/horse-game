@@ -5,6 +5,7 @@ import { HOUSE_INTERIOR } from './paddock/constants.js';
 import { loadPantry, savePantry } from '../data/save.js';
 import { addToPantry, takeFromPantry, isPantryStorable } from '../data/pantry.js';
 import { CONTENT_DEFS } from '../data/items.js';
+import { WithHouseInteriorDecor } from './houseInteriorDecor.js';
 
 // The enterable house interior (#56) — a small standalone room scene the player
 // walks INTO from the paddock's house door, does home-base things in, and walks
@@ -35,7 +36,7 @@ const PLAYER_SPEED = 150;            // a touch slower than the field — it's a
 const EXIT_COOLDOWN_MS = 400;        // ignore the doorway right after entering
 const PROMPT_REACH = 70;             // world px: how close to a station to prompt
 
-export default class HouseInteriorScene extends Phaser.Scene {
+export default class HouseInteriorScene extends WithHouseInteriorDecor(Phaser.Scene) {
   constructor() {
     super('HouseInteriorScene');
   }
@@ -75,6 +76,8 @@ export default class HouseInteriorScene extends Phaser.Scene {
     glow.fillRect(0, this.roomH - 6 * sc, this.roomW, 6 * sc);    // bottom edge shade
 
     this._buildStations();
+    this._buildFishTank();
+    this._buildFireplace();
     this._buildPlayer();
     this._buildInput();
 
