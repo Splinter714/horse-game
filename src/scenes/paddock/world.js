@@ -403,9 +403,9 @@ export const WithWorld = (Base) => class extends Base {
       ...(this.props.kitchenCounter ? [{ x: this.props.kitchenCounter.x - 28, y: this.props.kitchenCounter.y - 16, w: 56, h: 16 }] : []),
       // Shop stall (#29) — solid ~128×48 counter footprint at S=2. Mirrors the farm stand.
       ...(this.props.shop ? [{ x: this.props.shop.x - 64, y: this.props.shop.y - 48, w: 128, h: 48, isShop: true }] : []),
-      // General store (#215) building footprint — registered by its own concern
-      // mixin (paddock/generalStore.js), spread in here like the barn/doghouse.
-      ...(this.generalStoreObstacles || []),
+      // General store (#215) + pet store (#222) building footprints — registered
+      // by their own concern mixins, spread in here like the barn/doghouse.
+      ...(this.generalStoreObstacles || []), ...(this.petStoreObstacles || []),
       // Compost bin (#232) — solid ~80×40 footprint at S=2.
       ...(this.props.compostBin ? [{ x: this.props.compostBin.x - 40, y: this.props.compostBin.y - 40, w: 80, h: 40 }] : []),
       ...(this.birdEcosystemObstacles || []), // #219/#240/#226/#239/#218 bird-ecosystem props

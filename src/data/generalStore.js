@@ -2,6 +2,12 @@
 // structured as a registry of "counters" (tabs), so a second counter was a one-line
 // data addition, not a rewrite. Two counters exist today: `seeds` and `clothing`.
 //
+// A THIRD counter, `pets` (#222), also lives in this registry (so it reuses the
+// exact same money math / owned-inventory plumbing) but is NOT shown at the
+// general store building — GeneralStoreScene is launched with a `counterIds`
+// filter for each building (see paddock/generalStore.js vs paddock/town.js), so
+// `pets` only ever appears inside the new town pet-store building.
+//
 // Mirrors the market stall's shop.js/ShopScene pattern (buy panel spends gold), but
 // what's bought here isn't carrier content:
 //   seeds    → a per-crop SEED count + fertilizer, a simple owned-item stock
@@ -67,6 +73,18 @@ const CLOTHING_ITEMS = [
   { key: 'bottoms_plum',   label: 'Plum Bottoms',    icon: 'iconBottoms', desc: 'Unlocks a plum bottoms colour at the dresser', price: 25 },
 ];
 
+// Pet store counter (#222) — a NEW town building, not a second counter at the
+// general store. Cosmetic/care items only for v1 (first-pass scope per the issue —
+// "sells new animals" is a much bigger separate feature, explicitly out of scope
+// here): a decorative pet bed, a toy, and a grooming brush. Same owned-count
+// mechanism as every other store item (storeInventory.js) — no gameplay effect
+// wired up yet, mirroring how fertilizer shipped (flagged for playtest).
+const PET_ITEMS = [
+  { key: 'pet_bed',   label: 'Pet Bed',       icon: 'iconPetBed',   desc: 'A cozy decorative bed (first-pass — no effect wired up yet)', price: 20 },
+  { key: 'pet_toy',   label: 'Pet Toy',       icon: 'iconPetToy',   desc: 'A bouncy toy for playtime (cosmetic)', price: 8 },
+  { key: 'pet_brush', label: 'Grooming Brush', icon: 'iconPetBrush', desc: 'A small brush for a pet’s coat (cosmetic)', price: 10 },
+];
+
 export const STORE_COUNTERS = [
   {
     id: 'seeds',
@@ -79,6 +97,12 @@ export const STORE_COUNTERS = [
     label: 'Clothing',
     icon: 'iconShirt',
     items: CLOTHING_ITEMS,
+  },
+  {
+    id: 'pets',
+    label: 'Pet Supplies',
+    icon: 'iconPetBed',
+    items: PET_ITEMS,
   },
 ];
 

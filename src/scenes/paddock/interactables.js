@@ -400,21 +400,24 @@ export const WithInteractables = (Base) => class extends Base {
 
     // Riding trail (#36) — the one bare-hand collectible out on the trail.
     const trailCollectible = this._trailInteractables?.().collectible ?? (() => []);
+    // Town expansion (#222) — the pet store building, a bare-hand interact target
+    // like the general store.
+    const petStore = this._townInteractables?.().petStore ?? (() => []);
     // Tractor (#264) — bare-hand interact: "Enter Tractor" on the vehicle itself, and
     // a separate nearby paint-stand cycle for its color. Both no-op (return []) while
     // already driving (see tractor.js `_tractorInteractables`).
     const tractor = () => this._tractorInteractables?.() ?? [];
 
-    this.interactables = [gate, house, shop, generalStore, barn, gardenPlant, trailCollectible, tractor, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenWater, gardenHarvest, neighborGift, neighborTrade];
-    // Split by input: gate/house/shop/generalStore/barn/garden-plant/trail-collectible/
-    // tractor are bare-hand "interact" targets (tap/click/E); the rest require a carried
-    // tool/carrier and are triggered by Use (the on-screen button / F / controller). See
-    // useActiveTool + handleTap. Neighbor trade/gift (#294) ride the Use path too — trade
-    // only needs money (no carrier required to receive), but it's grouped with toolWorld
-    // since gifting (the sibling interaction at the same spot) does require a held
-    // carrier, and only one of the two ever applies at a time (see
-    // neighborGift/neighborTrade above).
-    this.interactWorld = [gate, house, shop, generalStore, barn, gardenPlant, trailCollectible, tractor];
+    this.interactables = [gate, house, shop, generalStore, petStore, barn, gardenPlant, trailCollectible, tractor, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenWater, gardenHarvest, neighborGift, neighborTrade];
+    // Split by input: gate/house/shop/generalStore/petStore/barn/garden-plant/
+    // trail-collectible/tractor are bare-hand "interact" targets (tap/click/E); the
+    // rest require a carried tool/carrier and are triggered by Use (the on-screen
+    // button / F / controller). See useActiveTool + handleTap. Neighbor trade/gift
+    // (#294) ride the Use path too — trade only needs money (no carrier required to
+    // receive), but it's grouped with toolWorld since gifting (the sibling
+    // interaction at the same spot) does require a held carrier, and only one of
+    // the two ever applies at a time (see neighborGift/neighborTrade above).
+    this.interactWorld = [gate, house, shop, generalStore, petStore, barn, gardenPlant, trailCollectible, tractor];
     this.toolWorld     = [trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenWater, gardenHarvest, neighborGift, neighborTrade];
   }
 

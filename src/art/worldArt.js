@@ -961,6 +961,43 @@ export function buildWorldTextures(scene) {
     g.fillStyle(0x8a6a3e, 1); g.fillRect(2, 46, 68, 4);
   });
 
+  // --- Pet store (72 × 50) — the new town shop building (#222). Same timbered-
+  // shopfront silhouette as the general store (so it reads as "another town
+  // building"), but a rose/plum paint job + a paw-print sign distinguish it as
+  // the pet store at a glance. Origin (0.5, 1). ---
+  gen(scene, 'petStore', 72, 50, (g) => {
+    g.layer('walls');
+    // Timbered walls (a warm rose tone, distinct from the general store's tan)
+    g.fillStyle(0xc98a96, 1); g.fillRect(4, 18, 64, 28);
+    g.fillStyle(0xdca8b2, 1); g.fillRect(4, 18, 64, 4); // lit top band
+    g.fillStyle(0x8a4a56, 1); // corner posts
+    g.fillRect(4, 18, 4, 28); g.fillRect(64, 18, 4, 28);
+    g.layer('roof');
+    // Peaked shingle roof
+    g.fillStyle(0x4a2c38, 1); g.fillTriangle(0, 18, 36, 2, 72, 18);
+    g.fillStyle(0x6a4050, 1);
+    for (let x = 4; x < 68; x += 8) g.fillTriangle(x, 17, x + 4, 17 - (18 - Math.abs(x + 4 - 36) * 0.44), x + 8, 17);
+    g.layer('sign');
+    // Hanging sign — a little paw print, echoing a pet-store icon
+    g.fillStyle(0x6a4a28, 1); g.fillRect(34, 20, 4, 6); // post
+    g.fillStyle(0x8a6a42, 1); g.fillRoundedRect(24, 24, 24, 10, 2); // sign board
+    g.fillStyle(0xf0d8dc, 1); // paw print motif
+    g.fillCircle(36, 29, 3);
+    g.fillCircle(31, 26, 1.6); g.fillCircle(35, 24, 1.6); g.fillCircle(40, 26, 1.6);
+    g.layer('door');
+    // Door + window with plum shutters
+    g.fillStyle(0x4a3420, 1); g.fillRect(30, 34, 12, 12); // doorway
+    g.fillStyle(0x6a4a2e, 1); g.fillRect(30, 34, 12, 2);
+    g.fillStyle(0x7a3a5a, 1); // shutters either side of the door
+    g.fillRect(10, 34, 8, 12); g.fillRect(54, 34, 8, 12);
+    g.fillStyle(0xf0d0da, 1); g.fillRect(11, 35, 6, 6); g.fillRect(55, 35, 6, 6); // window glass
+    g.fillStyle(0x5c2c48, 1); g.fillRect(9, 34, 2, 12); g.fillRect(19, 34, 2, 12);
+    g.fillRect(53, 34, 2, 12); g.fillRect(63, 34, 2, 12); // shutter frames
+    g.layer('base');
+    // Base/step
+    g.fillStyle(0x8a6a3e, 1); g.fillRect(2, 46, 68, 4);
+  });
+
   // --- Spinning wheel (32 × 40) — the crafting station that spins wool into yarn
   // (#233). Origin (0.5, 1). A classic wheel-on-a-stand: a big spoked wheel on the
   // left, a slanted treadle base, and a small spindle/bobbin of yarn on the right. ---
