@@ -292,6 +292,58 @@ export function dumpScooper(load, compost) {
   return { load: 0, compost: compost + load };
 }
 
+// ── Tool upgrades (#295) ─────────────────────────────────────────────────────
+// A generic, data-driven upgrade model: any tool key can list one or more
+// purchasable tiers. Bought with GOLD (consistent with the shop economy, #29) —
+// not materials, not level-gated — and, once bought, permanent (mirrors the tack
+// rack's persisted saddle type: a purchase, not a consumable). Kept generic so a
+// second tool's upgrade (e.g. crop watering's #245 bucket) can plug in later with
+// just a new entry here, no framework change.
+//
+// A tool entry is: { key: [{ id, label, desc, price, effect: { stat, value } }] }
+//   id     — stable string stored in the purchased-upgrades set (toolUpgrades).
+//   effect — the mechanical change, read generically by the tool's own load/cap
+//            logic (e.g. `{ stat: 'capacity', value: 18 }` overrides SCOOPER.capacity
+//            once purchased). Tools interpret their own `stat` keys; the model here
+//            only stores and looks up data.
+export const TOOL_UPGRADES = {
+  scooper: [
+    {
+      id: 'scooperCapacity1',
+      label: 'Bigger Scoop Bucket',
+      desc: 'Carries more droppings before you need to dump',
+      price: 40,
+      icon: 'iconScooper',
+      effect: { stat: 'capacity', value: 18 }, // base SCOOPER.capacity is 6 (3×)
+    },
+  ],
+};
+
+// Every upgrade across every tool, flattened, each tagged with its owning tool key —
+// the natural shape for a shop-style purchase list (mirrors SHOP_STOCK rows) without
+// hardcoding which tool ships first. Add a tool to TOOL_UPGRADES and its tiers appear
+// here automatically.
+export const ALL_TOOL_UPGRADES = Object.entries(TOOL_UPGRADES).flatMap(
+  ([tool, tiers]) => tiers.map((tier) => ({ tool, ...tier })),
+);
+
+// Look up one upgrade tier by its id, across every tool.
+export function getToolUpgrade(id) {
+  return ALL_TOOL_UPGRADES.find((u) => u.id === id) || null;
+}
+
+// The effective value of `stat` for `toolKey`, given the set of purchased upgrade
+// ids (a Set or array of strings) — the highest tier owned, or `fallback` if none
+// of the tool's upgrades for that stat have been purchased. Pure, so any tool's
+// load/capacity logic can call this generically instead of hand-rolling a check.
+export function upgradedStat(toolKey, stat, ownedIds, fallback) {
+  const owned = ownedIds instanceof Set ? ownedIds : new Set(ownedIds ?? []);
+  const tiers = (TOOL_UPGRADES[toolKey] ?? []).filter(
+    (u) => u.effect?.stat === stat && owned.has(u.id));
+  if (!tiers.length) return fallback;
+  return Math.max(...tiers.map((u) => u.effect.value));
+}
+
 // Emptying a carrier into the trash (#284): discard its whole load in one go,
 // reverting the carrier state to empty regardless of what (or how much) it held —
 // generic over any content, nothing recoverable. Returns { state, discarded }: the

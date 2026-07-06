@@ -44,6 +44,10 @@ export default class HotbarScene
     // Tack rack (#134 follow-up to #21): which saddle type the rack has selected as
     // active — the type equipSaddle (riding.js) reaches for next.
     this._activeSaddleType = saved.activeSaddleType ?? 'western';
+    // Purchased tool upgrades (#295): gold-bought, permanent tiers per tool (e.g. a
+    // bigger scoop bucket). A plain array of ids, mirroring how the other tool-load
+    // fields above are simple persisted primitives.
+    this._toolUpgrades = saved.toolUpgrades ?? [];
     this._slots      = [];
     this._invNodes   = [];
     this._flyoutNodes = []; // carrier-group fly-out picker (#75)

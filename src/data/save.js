@@ -9,7 +9,7 @@
 
 import { ROSTERS } from './rosters.js';
 import { sanitizeGarden } from './garden.js';
-import { DEFAULT_SADDLE_TYPE, SADDLE_TYPES } from './items.js';
+import { DEFAULT_SADDLE_TYPE, SADDLE_TYPES, ALL_TOOL_UPGRADES } from './items.js';
 
 // Build a { load, save } pair for one species' roster from its config. Collapses the
 // three formerly-duplicated loaders into one generic implementation:
@@ -161,6 +161,15 @@ function sanitizeCount(v) {
   return Number.isFinite(n) && n >= 0 ? n : 0;
 }
 
+// Coerce a persisted tool-upgrades list (#295) into a de-duplicated array of known
+// upgrade ids, dropping anything unrecognized (a stale id from a removed upgrade,
+// corrupt data, etc.) — mirrors the other sanitize* forgiving-load helpers.
+function sanitizeToolUpgrades(v) {
+  if (!Array.isArray(v)) return [];
+  const known = new Set(ALL_TOOL_UPGRADES.map((u) => u.id));
+  return [...new Set(v.filter((id) => typeof id === 'string' && known.has(id)))];
+}
+
 export function loadGameState() {
   const fresh = () => ({
     hotbar: [...DEFAULT_HOTBAR], inventory: defaultInventory(),
@@ -168,6 +177,7 @@ export function loadGameState() {
     money: DEFAULT_MONEY,
     scooperLoad: 0, compost: 0, shearsLoad: 0,
     activeSaddleType: DEFAULT_SADDLE_TYPE,
+    toolUpgrades: [],
   });
   try {
     const raw = localStorage.getItem(GAME_STATE_KEY);
@@ -206,19 +216,23 @@ export function loadGameState() {
       // at the rack — the type the saddle tool equips next. Defaults to western
       // for a save written before the feature existed.
       activeSaddleType: sanitizeSaddleType(data.activeSaddleType),
+      // Purchased tool upgrades (#295): a gold-bought, permanent tier per tool —
+      // defaults to none for a save written before the feature existed.
+      toolUpgrades: sanitizeToolUpgrades(data.toolUpgrades),
     };
   } catch {
     return fresh();
   }
 }
 
-export function saveGameState({ hotbar, inventory, carriers, activeCarrier, money, scooperLoad, compost, shearsLoad, activeSaddleType }) {
+export function saveGameState({ hotbar, inventory, carriers, activeCarrier, money, scooperLoad, compost, shearsLoad, activeSaddleType, toolUpgrades }) {
   try {
     localStorage.setItem(GAME_STATE_KEY, JSON.stringify({
       hotbar, inventory, carriers, activeCarrier, money: sanitizeMoney(money),
       scooperLoad: sanitizeCount(scooperLoad), compost: sanitizeCount(compost),
       activeSaddleType: sanitizeSaddleType(activeSaddleType),
       shearsLoad: sanitizeCount(shearsLoad),
+      toolUpgrades: sanitizeToolUpgrades(toolUpgrades),
     }));
   } catch {}
 }

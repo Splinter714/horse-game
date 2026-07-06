@@ -4,7 +4,7 @@
 // farm stand (no buy-low/sell-high free money).
 
 import { describe, it, expect } from 'vitest';
-import { SHOP_STOCK, getShopItem, purchase } from './shop.js';
+import { SHOP_STOCK, getShopItem, purchase, ALL_TOOL_UPGRADES, purchaseUpgrade } from './shop.js';
 import { CONTENT_DEFS, CARRIER_DEFS } from './items.js';
 import { STAND_DEFS } from '../scenes/paddock/constants.js';
 
@@ -102,5 +102,40 @@ describe('economy loop is not exploitable (buy price > sell price)', () => {
       expect(item.price, `${item.key} buys at ${item.price} but resells at ${sell.price}`)
         .toBeGreaterThan(sell.price);
     }
+  });
+});
+
+describe('purchaseUpgrade() money math (#295 tool upgrades)', () => {
+  const scoop = ALL_TOOL_UPGRADES.find((u) => u.tool === 'scooper');
+
+  it('debits exactly the tier price when affordable and not yet owned', () => {
+    const res = purchaseUpgrade(100, scoop, false);
+    expect(res.ok).toBe(true);
+    expect(res.cost).toBe(scoop.price);
+    expect(res.balance).toBe(100 - scoop.price);
+  });
+
+  it('refuses when already owned, regardless of gold', () => {
+    const res = purchaseUpgrade(9999, scoop, true);
+    expect(res.ok).toBe(false);
+    expect(res.balance).toBe(9999); // untouched
+  });
+
+  it('refuses when one coin short and leaves the balance untouched', () => {
+    const res = purchaseUpgrade(scoop.price - 1, scoop, false);
+    expect(res.ok).toBe(false);
+    expect(res.balance).toBe(scoop.price - 1);
+  });
+
+  it('allows spending down to exactly zero', () => {
+    const res = purchaseUpgrade(scoop.price, scoop, false);
+    expect(res.ok).toBe(true);
+    expect(res.balance).toBe(0);
+  });
+
+  it('handles a missing upgrade safely (no-op)', () => {
+    const res = purchaseUpgrade(50, null, false);
+    expect(res.ok).toBe(false);
+    expect(res.balance).toBe(50);
   });
 });

@@ -490,6 +490,49 @@ try {
           : `readyBefore=${readyBefore},loadedOne=${loadedOne},nowShorn=${nowShorn},notReady=${notReady},dumped=${dumped},trimmedOk=${trimmedOk}`;
       }
     } catch (e) { shears = 'threw: ' + String(e); }
+    // #295 tool upgrades: a generic, gold-bought, permanent tier per tool. Verify the
+    // scooper's capacity upgrade end-to-end: base capacity holds, buying it debits
+    // gold and raises capacity, it can't be bought twice, and an unaffordable buy is
+    // refused cleanly (no partial debit).
+    let toolUpgrade = 'no scooper';
+    try {
+      const hot = g.scene.getScene('HotbarScene');
+      hot.activeSlot = hot.hotbar.indexOf('scooper');
+      hot._scooperLoad = 0;
+      hot._toolUpgrades = []; // start unowned regardless of any prior save state
+      hot._persistGameState();
+
+      const baseCap = hot.getActiveItem()?.capacity;
+      const baseCapOk = baseCap === 6; // SCOOPER.capacity
+
+      // Can't afford: money too low → refused, no debit, no upgrade granted.
+      hot._money = 5;
+      const tooPoor = hot.buyToolUpgrade('scooperCapacity1');
+      const refusedPoor = tooPoor.ok === false && hot._money === 5 && !hot.ownsToolUpgrade('scooperCapacity1');
+
+      // Afford it: debits exactly the price and grants the upgrade.
+      hot._money = 100;
+      const bought = hot.buyToolUpgrade('scooperCapacity1');
+      const debited = bought.ok === true && bought.balance === 60 && hot._money === 60;
+      const owned = hot.ownsToolUpgrade('scooperCapacity1') === true;
+      const newCap = hot.getActiveItem()?.capacity;
+      const capIncreased = newCap === 18 && newCap > baseCap;
+
+      // Buying again is refused (already owned) and doesn't debit further.
+      const rebuy = hot.buyToolUpgrade('scooperCapacity1');
+      const noRebuy = rebuy.ok === false && hot._money === 60;
+
+      // The measurable mechanical effect: the upgraded scooper actually holds more
+      // before it's full (addScooperLoad refuses past capacity).
+      const filled = [];
+      for (let i = 0; i < 20; i++) filled.push(hot.addScooperLoad(1));
+      const totalAdded = filled.reduce((a, b) => a + b, 0);
+      const effectOk = totalAdded === 18; // capped at the upgraded capacity, not 6
+
+      toolUpgrade = (baseCapOk && refusedPoor && debited && owned && capIncreased && noRebuy && effectOk)
+        ? 'buys-and-upgrades'
+        : `baseCapOk=${baseCapOk},refusedPoor=${refusedPoor},debited=${debited},owned=${owned},capIncreased=${capIncreased}(${newCap}),noRebuy=${noRebuy},effectOk=${effectOk}(${totalAdded})`;
+    } catch (e) { toolUpgrade = 'threw: ' + String(e); }
 
     // Brushing timing mini-game (#296): using the brush on a dirty horse must START
     // the bar (not instantly apply the effect) — grooming stat stays untouched until
@@ -930,6 +973,7 @@ try {
       duck,
       shears,
       brushGame,
+      toolUpgrade,
       cropProcessing,
       catBowls,
       seedFeeder,
@@ -1345,6 +1389,10 @@ try {
   // hit applies MORE than the plain base amount (bonus layer), and a missed/timed-out
   // attempt still applies exactly the base amount (never a punishment).
   if (result.brushGame !== 'bonus-layer-not-punishment') fail(`brushing timing mini-game (#296) failed: ${result.brushGame}`);
+  // #295 tool upgrades: a generic gold-bought upgrade tier, exercised on the scooper —
+  // unaffordable buys are refused, an affordable buy debits gold + can't be re-bought,
+  // and the upgraded capacity is a measurably different mechanical effect (18 vs base 6).
+  if (result.toolUpgrade !== 'buys-and-upgrades') fail(`tool upgrade (#295) failed: ${result.toolUpgrade}`);
   // #134 follow-up to #21: tack rack (barn) + multiple saddle types — the rack
   // interactable exists and is actionable, cycling steps through all 3 types, and
   // equipping picks up the rack's active type (distinct overlay per type, bareback
@@ -1540,6 +1588,19 @@ try {
   if (!birdFriend.spriteActive) fail('#223 bird befriending: committed bird has no active in-world sprite');
   console.log(`Bird befriending (#223): ${JSON.stringify(birdFriend)}`);
 
+  // ── #295 tool upgrade persistence: buy the scooper capacity upgrade for real (via
+  // the same hotbar API the shop UI calls), then reload and confirm both the owned
+  // upgrade AND its mechanical effect (raised capacity) survive.
+  const upgradeBought = await page.evaluate(() => {
+    const g = window.__game;
+    const hot = g.scene.getScene('HotbarScene');
+    hot._toolUpgrades = []; // start clean regardless of earlier in-page probing
+    hot._money = 100;
+    const res = hot.buyToolUpgrade('scooperCapacity1');
+    return { ok: res.ok, owned: hot.ownsToolUpgrade('scooperCapacity1'), balance: hot._money };
+  });
+  if (!upgradeBought.ok || !upgradeBought.owned) fail(`#295 tool upgrade: purchase before reload failed (${JSON.stringify(upgradeBought)})`);
+
   // Reload and confirm the named regular + its visit tally survive (mirrors the foal
   // persistence check above, and the fox-taming persistence unit test).
   await page.reload({ waitUntil: 'load', timeout: 45000 });
@@ -1676,6 +1737,17 @@ try {
     fail(`#294 neighbor persistence: score ${gift.scoreAfter} did not survive reload (got ${neighborPersist.score})`);
   }
   console.log(`Neighbor persistence (#294): ${JSON.stringify(neighborPersist)}`);
+
+  // #295 tool upgrade persistence: the purchased upgrade AND its mechanical effect
+  // (raised scooper capacity) must both survive the reload, not just the flag.
+  const toolUpgradePersist = await page.evaluate(() => {
+    const g = window.__game, hot = g.scene.getScene('HotbarScene');
+    hot.activeSlot = hot.hotbar.indexOf('scooper');
+    return { owned: hot.ownsToolUpgrade('scooperCapacity1'), capacity: hot.getActiveItem()?.capacity };
+  });
+  if (!toolUpgradePersist.owned) fail('#295 tool upgrade: purchase lost after reload');
+  if (toolUpgradePersist.capacity !== 18) fail(`#295 tool upgrade: upgraded capacity lost after reload (got ${toolUpgradePersist.capacity}, want 18)`);
+  console.log(`Tool upgrade persistence (#295): ${JSON.stringify(toolUpgradePersist)}`);
 
   // ── HiDPI rendering: the game must render at the device's PHYSICAL pixels so
   // pixel-art/text are crisp on Retina screens (e.g. iPad, devicePixelRatio 2).

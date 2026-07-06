@@ -4,7 +4,8 @@
 import { describe, it, expect } from 'vitest';
 import { CARRIER_DEFS, CONTENT_DEFS, CARRIER_GROUPS, CARRIER_MEMBERS, ALL_ITEMS, ITEM_MAP, ITEMS, foodDemand,
   SCOOPER, scoopAmount, scooperHasLoad, dumpScooper, emptyCarrier,
-  SHEARS, shearAmount, dumpShears } from './items.js';
+  SHEARS, shearAmount, dumpShears,
+  TOOL_UPGRADES, ALL_TOOL_UPGRADES, getToolUpgrade, upgradedStat } from './items.js';
 
 describe('carrier definitions', () => {
   it('baskets hold solids, buckets hold liquids', () => {
@@ -298,5 +299,70 @@ describe('emptyCarrier (trash-can discard, #284)', () => {
     const { state } = emptyCarrier({ content: 'hay', count: 3 });
     expect(state.content).toBeNull();
     expect(state.count).toBe(0);
+  });
+});
+
+describe('tool upgrades (#295) — generic gold-bought tiers', () => {
+  it('has a non-empty starter upgrade for at least one tool', () => {
+    expect(ALL_TOOL_UPGRADES.length).toBeGreaterThan(0);
+  });
+
+  it('every upgrade has unique ids, a positive integer price, and a real effect stat', () => {
+    const ids = new Set();
+    for (const u of ALL_TOOL_UPGRADES) {
+      expect(ids.has(u.id)).toBe(false);
+      ids.add(u.id);
+      expect(typeof u.label).toBe('string');
+      expect(typeof u.desc).toBe('string');
+      expect(u.price).toBeGreaterThan(0);
+      expect(Number.isInteger(u.price)).toBe(true);
+      expect(typeof u.effect?.stat).toBe('string');
+      expect(typeof u.effect?.value).toBe('number');
+      expect(typeof u.tool).toBe('string');
+    }
+  });
+
+  it('flattens TOOL_UPGRADES into ALL_TOOL_UPGRADES with the owning tool tagged', () => {
+    for (const [tool, tiers] of Object.entries(TOOL_UPGRADES)) {
+      for (const tier of tiers) {
+        const flat = ALL_TOOL_UPGRADES.find((u) => u.id === tier.id);
+        expect(flat).toBeDefined();
+        expect(flat.tool).toBe(tool);
+      }
+    }
+  });
+
+  it('getToolUpgrade resolves a known id and returns null for an unknown one', () => {
+    const first = ALL_TOOL_UPGRADES[0];
+    expect(getToolUpgrade(first.id)).toEqual(first);
+    expect(getToolUpgrade('nope')).toBeNull();
+  });
+
+  it('the scooper capacity upgrade increases capacity over the base SCOOPER.capacity', () => {
+    const upgrade = getToolUpgrade('scooperCapacity1');
+    expect(upgrade.tool).toBe('scooper');
+    expect(upgrade.effect.stat).toBe('capacity');
+    expect(upgrade.effect.value).toBeGreaterThan(SCOOPER.capacity);
+  });
+
+  describe('upgradedStat', () => {
+    it('returns the fallback when nothing is owned', () => {
+      expect(upgradedStat('scooper', 'capacity', [], SCOOPER.capacity)).toBe(SCOOPER.capacity);
+      expect(upgradedStat('scooper', 'capacity', new Set(), SCOOPER.capacity)).toBe(SCOOPER.capacity);
+    });
+
+    it('returns the purchased tier value when owned (array or Set of ids)', () => {
+      expect(upgradedStat('scooper', 'capacity', ['scooperCapacity1'], SCOOPER.capacity)).toBe(18);
+      expect(upgradedStat('scooper', 'capacity', new Set(['scooperCapacity1']), SCOOPER.capacity)).toBe(18);
+    });
+
+    it('ignores upgrades for a different tool or a different stat', () => {
+      expect(upgradedStat('brush', 'capacity', ['scooperCapacity1'], 99)).toBe(99);
+      expect(upgradedStat('scooper', 'speed', ['scooperCapacity1'], 5)).toBe(5);
+    });
+
+    it('is unaffected by unknown/stale ids in the owned set', () => {
+      expect(upgradedStat('scooper', 'capacity', ['staleUpgradeId'], SCOOPER.capacity)).toBe(SCOOPER.capacity);
+    });
   });
 });

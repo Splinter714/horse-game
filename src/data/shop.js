@@ -32,6 +32,25 @@ export function getShopItem(key) {
   return SHOP_STOCK.find((i) => i.key === key) || null;
 }
 
+// ── Tool upgrades (#295) ─────────────────────────────────────────────────────
+// A one-time, permanent purchase per tier (not a per-unit consumable like the
+// feed rows above), so it gets its own pure afford-check rather than reusing
+// purchase()'s "spend gold, deposit a unit into a carrier" shape. Re-exported
+// from data/items.js (ALL_TOOL_UPGRADES) so the shop UI has one place to read
+// every tool's upgrade tiers, whichever tool ships first.
+export { ALL_TOOL_UPGRADES, getToolUpgrade } from './items.js';
+
+// Pure buy-math for an upgrade tier (unit-tested, mirrors purchase()): given the
+// player's gold, an upgrade row, and whether it's already owned, can they buy it?
+// Distinct from purchase() because an upgrade is never re-buyable once owned —
+// "already owned" is its own refusal reason, not just insufficient funds.
+export function purchaseUpgrade(money, upgrade, alreadyOwned) {
+  if (!upgrade) return { ok: false, cost: 0, balance: money };
+  if (alreadyOwned) return { ok: false, cost: upgrade.price, balance: money };
+  if (money < upgrade.price) return { ok: false, cost: upgrade.price, balance: money };
+  return { ok: true, cost: upgrade.price, balance: money - upgrade.price };
+}
+
 // Pure buy-math helper (unit-tested): given the player's gold and a stock row,
 // can they afford one unit, and what's the resulting balance? Keeps the money math
 // in one testable place instead of inline in the scene.
