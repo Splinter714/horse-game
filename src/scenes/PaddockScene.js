@@ -29,6 +29,7 @@ import { WithHerd } from './paddock/herd.js';
 import { WithCharm } from './paddock/charm.js';
 import { WithCompanion } from './paddock/companion.js';
 import { WithFarmStand } from './paddock/farmStand.js';
+import { WithNeighbor } from './paddock/neighbor.js';
 import { WithShop } from './paddock/shop.js';
 import { WithGarden } from './paddock/garden.js';
 import { WithDayNight } from './paddock/dayNight.js';
@@ -66,7 +67,7 @@ import { applyDpr } from './uiUtils.js';
 const PADDOCK_MIXINS = [
   WithWorld, WithBirdEcosystem, WithBirdEcosystemVisits, WithBirdFriendship, WithBarn, WithChickenCoop, WithBunny, WithFox, WithDuck, WithBreeding, WithIncubation,
   WithHouseEntry, WithWildlife, WithRaccoon, WithOwls, WithAmbientEvents, WithCatAI,
-  WithCompanion, WithCharm, WithCreatures, WithFlock, WithHerd, WithFarmStand, WithShop,
+  WithCompanion, WithCharm, WithCreatures, WithFlock, WithHerd, WithFarmStand, WithNeighbor, WithShop,
   WithGarden, WithDayNight, WithWeather, WithHorseAI, WithBehaviors, WithRiding, WithPlayer,
   WithEffects, WithPersistence, WithRendering, WithWorldObjects, WithCareActions,
   WithInteraction, WithInput, WithPlayerMovement, WithPrompts, WithInteractables, WithUseDispatch,
@@ -116,6 +117,7 @@ export default class PaddockScene extends PaddockBase {
     this.buildIncubation(); // baby chicks (#274): restore any in-flight incubations
     this.buildPlayer();
     this.buildFarmStand();
+    this.buildNeighbor(); // neighbor NPC (#294): restore relationship score + schedule first visit
     this.buildGarden(); // crop garden plot (#242) — before interactables (they read it)
     this.buildInteractables();
     this.buildWildlife(); // ambient fish/birds/raccoon (needs the stream path + player)
