@@ -146,6 +146,9 @@ try {
       // riding trail (#36): continuous westward world extension + its one
       // bare-hand collectible interactable.
       'buildTrail', '_trailInteractables', '_collectTrailTrinket',
+      // town expansion (#222): continuous eastward world extension + the new
+      // pet store building's interactable/launch.
+      'buildTown', '_townInteractables', 'openPetStore',
     ];
     const missingMethods = expectMethods.filter((m) => typeof paddock[m] !== 'function');
 
@@ -1092,6 +1095,61 @@ try {
         : `stillSameScene=${stillSameScene},playerInTrail=${playerInTrail},hasTrailProps=${hasTrailProps},collectibleReachable=${collectibleReachable},collected=${collected}`;
     } catch (e) { ridingTrail = 'threw: ' + String(e); }
 
+    // #222 town expansion: mirrors the riding trail probe above but on the opposite
+    // edge — walking off the paddock's EAST edge (past the old WORLD_W boundary)
+    // must keep the player in PaddockScene (no scene transition/pause) and let them
+    // reach world-x beyond WORLD_W, in town terrain. Also confirms the new pet
+    // store building exists/is interactable, and buying a pet-store item works.
+    let townExpansion = 'ok';
+    try {
+      const { WORLD_W } = await import('/src/scenes/paddock/constants.js');
+      const savedX = paddock.player.sprite.x, savedY = paddock.player.sprite.y;
+      const scenesBefore = g.scene.scenes.filter((s) => s.scene.isActive()).map((s) => s.scene.key);
+      // Walk (teleport, for a deterministic probe) well past the old east edge.
+      paddock.player.sprite.setPosition(WORLD_W + 400, 500);
+      paddock.cameras.main.setScroll(-9999, -9999); // force a fresh follow-recompute
+      paddock.checkProximity(); // rebuild proximity/prompt state at the new spot
+      const stillSameScene = g.scene.isActive('PaddockScene')
+        && scenesBefore.every((k) => g.scene.isActive(k));
+      const playerInTown = paddock.player.sprite.x > WORLD_W;
+      const hasTownProps = !!paddock.props.petStore && !!paddock.props.townEntrance;
+      const hasTexture = g.textures.exists('petStore');
+
+      // The pet store's interactable resolves at close range.
+      const ps = paddock.props.petStore;
+      paddock.player.sprite.setPosition(ps.x, ps.y + 20);
+      const inst = paddock._nearestInteractable(paddock.player.sprite.x, paddock.player.sprite.y, null, 'reachDist', paddock.interactWorld);
+      const petStoreReachable = !!inst && inst.label === 'Pet Store';
+
+      // Buying a pet-store item works: opens GeneralStoreScene scoped to just the
+      // `pets` counter, buying deducts EXACTLY its price and bumps the owned count.
+      paddock.openPetStore();
+      await new Promise((r) => setTimeout(r, 200));
+      const sc = g.scene.getScene('GeneralStoreScene');
+      const opened = g.scene.isActive('GeneralStoreScene') && !!sc?.panel;
+      const onlyPetsCounter = sc?._counters?.length === 1 && sc._counters[0].id === 'pets';
+      const item = sc._counter.items[0];
+      const setMoney = (v) => { g.events.emit('money-changed', v); };
+      setMoney(50);
+      await new Promise((r) => setTimeout(r, 30));
+      const moneyBefore = sc._readMoney();
+      const invBefore = sc._inventory[item.key] ?? 0;
+      sc._buy(0);
+      await new Promise((r) => setTimeout(r, 30));
+      const moneyAfterBuy = sc._readMoney();
+      const invAfterBuy = sc._inventory[item.key] ?? 0;
+      const boughtOk = moneyAfterBuy === moneyBefore - item.price && invAfterBuy === invBefore + 1;
+      sc.close();
+      await new Promise((r) => setTimeout(r, 200));
+      const closedOk = !g.scene.isActive('GeneralStoreScene') && !g.scene.isPaused('PaddockScene');
+
+      paddock.player.sprite.setPosition(savedX, savedY);
+      townExpansion = (stillSameScene && playerInTown && hasTownProps && hasTexture && petStoreReachable
+        && opened && onlyPetsCounter && boughtOk && closedOk)
+        ? 'continuous-and-pet-store-ok'
+        : `stillSameScene=${stillSameScene},playerInTown=${playerInTown},hasTownProps=${hasTownProps},hasTexture=${hasTexture},petStoreReachable=${petStoreReachable},opened=${opened},onlyPetsCounter=${onlyPetsCounter},boughtOk=${boughtOk},closedOk=${closedOk}`;
+    } catch (e) { townExpansion = 'threw: ' + String(e); }
+
     // Drivable tractor (#264): exists in the world, enter/exit redirects movement,
     // color cycling round-trips, and driving over the existing garden bed (#242)
     // plays the cosmetic tilling flourish. No mechanical effect on the garden itself
@@ -1143,6 +1201,7 @@ try {
 
     return {
       ridingTrail,
+      townExpansion,
       owl,
       gardenWatering,
       cropRegrow,
@@ -1885,6 +1944,11 @@ try {
   // scene (no loading screen/transition), the camera can follow past x=0 into
   // the trail terrain, and the trail's collectible is reachable/pickable.
   if (result.ridingTrail !== 'continuous-and-collectible') fail(`riding trail (#36) failed: ${result.ridingTrail}`);
+  // Town expansion (#222): walking off the paddock's east edge (past the old
+  // WORLD_W boundary) stays in the SAME scene (no loading screen/transition), the
+  // camera can follow past WORLD_W into town terrain, the pet store building
+  // exists and is interactable, and buying a pet-store item works.
+  if (result.townExpansion !== 'continuous-and-pet-store-ok') fail(`town expansion (#222) failed: ${result.townExpansion}`);
   if (result.tractor !== 'drives-paints-and-tills') fail(`drivable tractor (#264) failed: ${result.tractor}`);
   // Crop processing (#40): kitchen counter converts strawberry→jam, wheat→flour,
   // carrot→pig feed (a hungry pig seeks the dropped pile), and jam/flour sell for

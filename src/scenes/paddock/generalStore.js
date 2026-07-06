@@ -30,7 +30,10 @@ export const WithGeneralStore = (Base) => class extends Base {
 
   openGeneralStore() {
     if (this.scene.isActive('GeneralStoreScene')) return; // already open
-    this.scene.launch('GeneralStoreScene');
+    // Explicit counterIds (#222): the general store shows its own two counters —
+    // the new `pets` counter lives in the same STORE_COUNTERS registry but only
+    // ever shows up at the pet store building (paddock/town.js's openPetStore).
+    this.scene.launch('GeneralStoreScene', { counterIds: ['seeds', 'clothing'], title: 'General Store', icon: 'generalStore' });
     this.scene.bringToTop('GeneralStoreScene');
   }
 };

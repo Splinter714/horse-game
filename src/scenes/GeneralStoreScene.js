@@ -36,11 +36,22 @@ export default class GeneralStoreScene extends Phaser.Scene {
     this._counterIdx = 0;
   }
 
-  create() {
+  // `data.counterIds` (#222 pet store): an optional allow-list of STORE_COUNTERS
+  // ids this launch should show — lets a second building (the pet store) reuse
+  // this exact scene/UI for its own counter without also showing the general
+  // store's seeds/clothing tabs. Omitted (general store's own launch) → every
+  // counter, unchanged behavior.
+  create(data) {
     applyDpr(this, { topLeft: true }); // HiDPI: top-left-anchored UI scene
     this.closing = false;
     this._money = this._readMoney();
     this._inventory = loadStoreInventory();
+    this._counters = data?.counterIds
+      ? STORE_COUNTERS.filter((c) => data.counterIds.includes(c.id))
+      : STORE_COUNTERS;
+    this._title = data?.title ?? 'General Store';
+    this._buildingIcon = data?.icon ?? 'generalStore';
+    this._counterIdx = 0;
 
     // Freeze the world so nothing moves/decays behind the modal.
     this._paused = [];
@@ -61,7 +72,7 @@ export default class GeneralStoreScene extends Phaser.Scene {
   }
 
   get _counter() {
-    return STORE_COUNTERS[this._counterIdx] ?? STORE_COUNTERS[0];
+    return this._counters[this._counterIdx] ?? this._counters[0];
   }
 
   build() {
@@ -73,7 +84,7 @@ export default class GeneralStoreScene extends Phaser.Scene {
       .setOrigin(0, 0).setInteractive();
     catcher.on('pointerdown', () => this.close());
 
-    const showTabs = STORE_COUNTERS.length > 1;
+    const showTabs = this._counters.length > 1;
     const headerH = HEADER + (showTabs ? TABS_H : 0);
     const rows = this._counter.items.length;
     const listH = rows * ROW_H;
@@ -93,11 +104,11 @@ export default class GeneralStoreScene extends Phaser.Scene {
     this.panel.add(bg);
 
     // Title + store icon.
-    this.panel.add(this.add.image(30, 34, 'generalStore').setDisplaySize(40, 40).setOrigin(0.5, 0.5));
-    this.panel.add(this.add.text(58, 22, 'General Store', {
+    this.panel.add(this.add.image(30, 34, this._buildingIcon).setDisplaySize(40, 40).setOrigin(0.5, 0.5));
+    this.panel.add(this.add.text(58, 22, this._title, {
       fontFamily: 'system-ui, sans-serif', fontSize: '22px', color: '#eef0fa', fontStyle: 'bold',
     }).setOrigin(0, 0));
-    this._descLbl = this.add.text(58, 50, 'Buy seeds & gardening supplies', {
+    this._descLbl = this.add.text(58, 50, this._counter.label, {
       fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: '#9aa0c0',
     }).setOrigin(0, 0);
     this.panel.add(this._descLbl);
@@ -140,9 +151,9 @@ export default class GeneralStoreScene extends Phaser.Scene {
   }
 
   _buildTabs() {
-    const tabW = CARD_W / STORE_COUNTERS.length;
+    const tabW = CARD_W / this._counters.length;
     const y = HEADER;
-    this._tabNodes = STORE_COUNTERS.map((counter, i) => {
+    this._tabNodes = this._counters.map((counter, i) => {
       const x = i * tabW;
       const active = i === this._counterIdx;
       const g = this.add.graphics();

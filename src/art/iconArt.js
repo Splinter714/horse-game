@@ -636,4 +636,26 @@ export function buildIconTextures(scene) {
     g.fillStyle(0xe6c24a, 1); g.fillRoundedRect(6, 5, 8, 8, 3);        // crown
     g.fillStyle(0xf3da84, 1); g.fillRect(7, 5, 6, 2);                  // crown highlight
   });
+
+  // Pet store icons (#222) — cosmetic/care items only for v1 (a decorative pet bed,
+  // a toy ball, and a grooming brush), first-pass scope flagged for playtest.
+  gen(scene, 'iconPetBed', 20, 20, (g) => {
+    g.fillStyle(0x8a5a3a, 1); g.fillRoundedRect(2, 10, 16, 6, 3);      // outer cushion rim
+    g.fillStyle(0xd88a5a, 1); g.fillRoundedRect(3, 8, 14, 6, 3);       // plush interior
+    g.fillStyle(0xf0b088, 1); g.fillEllipse(10, 10, 9, 3);             // lit center
+    g.fillStyle(0x6a3f24, 1); g.fillRect(2, 15, 16, 2);                // base shadow
+  });
+  gen(scene, 'iconPetToy', 20, 20, (g) => { // bouncy ball
+    g.fillStyle(0xd6455a, 1); g.fillCircle(10, 11, 7);
+    g.fillStyle(0xef8090, 1); g.fillCircle(8, 9, 2.4);
+    g.fillStyle(0xffffff, 0.9); g.fillEllipse(10, 11, 12, 2);          // stripe
+    g.fillStyle(0xb02c40, 1); g.fillRect(3, 10, 14, 1.5);
+  });
+  gen(scene, 'iconPetBrush', 20, 20, (g) => { // grooming brush (pet-sized)
+    g.fillStyle(0xc47a3a, 1); g.fillRoundedRect(3, 4, 8, 12, 2);       // handle
+    g.fillStyle(0xe0a35c, 1); g.fillRect(4, 5, 2, 10);                 // handle highlight
+    g.fillStyle(0x3a3a44, 1); g.fillRoundedRect(11, 6, 7, 8, 2);       // bristle pad
+    g.fillStyle(0x6a6a78, 1);
+    for (let y = 7; y < 13; y += 2) g.fillRect(12, y, 5, 1);           // bristle lines
+  });
 }

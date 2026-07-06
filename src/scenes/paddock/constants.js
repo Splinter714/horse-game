@@ -23,6 +23,23 @@ export const TRAIL_X0 = -TRAIL_W;
 export const TRAIL_Y0 = 120;
 export const TRAIL_Y1 = 1000;
 
+// ── Town (#222) ─────────────────────────────────────────────────────────────
+// A continuous EASTward extension of the farm/pasture world — same technique as
+// the riding trail (#36), just the opposite edge: no loading screen, no scene
+// swap. The farm-stand customer and neighbor NPC already walk in from the east
+// edge (WORLD_W - 20, see paddock/farmStand.js / paddock/neighbor.js), so they
+// now narratively read as coming FROM town — no change needed to their spawn
+// logic, this just builds the space they're walking in from. TOWN_X0 is the
+// world-space x where town terrain starts (== WORLD_W, the old east edge) and
+// TOWN_W is how far it extends; TOWN_X1 is the new outer edge.
+export const TOWN_W  = 900;
+export const TOWN_X0 = WORLD_W;
+export const TOWN_X1 = WORLD_W + TOWN_W;
+// Same vertical band as the farm (not the full world height), so it reads as a
+// street leading off into town rather than a second full map.
+export const TOWN_Y0 = 120;
+export const TOWN_Y1 = 1000;
+
 // Movement.
 export const INTERACT_DIST = 100;
 // Reach for the "care" interactions (petting and brushing). Much larger than
@@ -56,10 +73,10 @@ export const HOLD_DRAG_PX = 28;
 
 // Wander/spawn bounds and the pasture rectangle. Farm-roster animals (herd/flock)
 // stay within the farm proper (BOUNDS) — only the PLAYER's walkable/ridable area
-// (PLAYER_BOUNDS) extends west into the trail (#36), so horses/chickens don't
-// wander off into the woods on their own.
+// (PLAYER_BOUNDS) extends west into the trail (#36) and east into town (#222), so
+// horses/chickens don't wander off into the woods or into town on their own.
 export const BOUNDS         = { minX: 180, maxX: 1740, minY: 200, maxY: 900 };
-export const PLAYER_BOUNDS  = { minX: TRAIL_X0 + 40, maxX: 1880, minY: 80, maxY: 1550 };
+export const PLAYER_BOUNDS  = { minX: TRAIL_X0 + 40, maxX: TOWN_X1 - 40, minY: 80, maxY: 1550 };
 export const PASTURE_BOUNDS = { minX: 180, maxX: 1740, minY: 910, maxY: 1450 };
 
 // Water trough capacity, in "drinks" (#103). The trough holds a numeric water
