@@ -374,11 +374,14 @@ export const WithInteractables = (Base) => class extends Base {
     // held item (assignment is a bare-hand interaction).
     const barn = () => this._barnInteractables?.() ?? [];
 
-    // Garden plot (#242) — bare-hand interact by the bed PLANTS the next crop; a basket
-    // + Use on a ripe slot HARVESTS it. The garden mixin (paddock/garden.js) supplies the
-    // two descriptors; split across the interact/tool input paths accordingly.
-    const gardenDescs = this._gardenInteractables?.() ?? { plant: () => [], harvest: () => [] };
+    // Garden plot (#242) — bare-hand interact by the bed PLANTS the next crop; a filled
+    // water bucket + Use on a growing slot WATERS it (#245 — required daily or growth
+    // stalls); a basket + Use on a ripe slot HARVESTS it. The garden mixin
+    // (paddock/garden.js) supplies the three descriptors; split across the interact/tool
+    // input paths accordingly.
+    const gardenDescs = this._gardenInteractables?.() ?? { plant: () => [], water: () => [], harvest: () => [] };
     const gardenPlant   = gardenDescs.plant;
+    const gardenWater   = gardenDescs.water;
     const gardenHarvest = gardenDescs.harvest;
 
     // Riding trail (#36) — the one bare-hand collectible out on the trail.
@@ -388,7 +391,7 @@ export const WithInteractables = (Base) => class extends Base {
     // already driving (see tractor.js `_tractorInteractables`).
     const tractor = () => this._tractorInteractables?.() ?? [];
 
-    this.interactables = [gate, house, shop, barn, gardenPlant, trailCollectible, tractor, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenHarvest, neighborGift, neighborTrade];
+    this.interactables = [gate, house, shop, barn, gardenPlant, trailCollectible, tractor, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenWater, gardenHarvest, neighborGift, neighborTrade];
     // Split by input: gate/house/shop/barn/garden-plant/trail-collectible/tractor are
     // bare-hand "interact" targets (tap/click/E); the rest require a carried tool/carrier
     // and are triggered by Use (the on-screen button / F / controller). See useActiveTool
@@ -397,7 +400,7 @@ export const WithInteractables = (Base) => class extends Base {
     // gifting (the sibling interaction at the same spot) does require a held carrier, and
     // only one of the two ever applies at a time (see neighborGift/neighborTrade above).
     this.interactWorld = [gate, house, shop, barn, gardenPlant, trailCollectible, tractor];
-    this.toolWorld     = [trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenHarvest, neighborGift, neighborTrade];
+    this.toolWorld     = [trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenWater, gardenHarvest, neighborGift, neighborTrade];
   }
 
   // Nearest activatable instance to (x, y) within each instance's own radius

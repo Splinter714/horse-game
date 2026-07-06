@@ -78,6 +78,22 @@ export function buildIconTextures(scene) {
     g.fillStyle(0xf5e07a, 1); g.fillEllipse(10, 3, 2, 2); // sunlit tip
     g.fillStyle(0xa9862b, 1); g.fillRect(6, 14, 8, 1); // bind
   });
+  gen(scene, 'iconBlueberry', 20, 20, (g) => { // blueberry cluster (#216)
+    g.fillStyle(0x3c4f9e, 1); // deep blue-purple berries
+    g.fillCircle(7, 12, 3.6); g.fillCircle(13, 11, 3.6); g.fillCircle(10, 15, 3.6);
+    g.fillStyle(0x5f74c9, 1); // lighter facet on each berry
+    g.fillCircle(6, 11, 1.2); g.fillCircle(12, 10, 1.2); g.fillCircle(9, 14, 1.2);
+    g.fillStyle(0x1f2a5e, 1); // little star-shaped blossom scar on top of each
+    g.fillRect(7, 9, 1, 1); g.fillRect(13, 8, 1, 1); g.fillRect(10, 12, 1, 1);
+    g.fillStyle(0x3b8a1c, 1); // leaf + stem
+    g.fillTriangle(10, 8, 6, 4, 10, 5); g.fillRect(9, 3, 1, 3);
+  });
+  gen(scene, 'iconPotato', 20, 20, (g) => { // potato (#216)
+    g.fillStyle(0xa9793f, 1); g.fillEllipse(10, 12, 7, 5); // rounded tuber body
+    g.fillStyle(0xc4935a, 1); g.fillEllipse(8, 10, 3, 2);   // lit facet
+    g.fillStyle(0x8a5f2c, 1); // eye flecks
+    g.fillRect(7, 12, 1, 1); g.fillRect(11, 14, 1, 1); g.fillRect(13, 10, 1, 1); g.fillRect(9, 15, 1, 1);
+  });
   gen(scene, 'iconHoney', 20, 20, (g) => { // honey jar (#239) — sold at the stand
     // Glass jar of golden honey with a cloth lid and a little dipper.
     g.fillStyle(0xe8a828, 1); g.fillRoundedRect(5, 7, 10, 11, 2); // honey body
@@ -257,6 +273,23 @@ export function buildIconTextures(scene) {
     g.fillEllipse(6, 6, 3, 5); g.fillEllipse(10, 5, 3, 6); g.fillEllipse(14, 6, 3, 5);
     g.fillStyle(0xf5e07a, 1); g.fillRect(6, 3, 1, 1); g.fillRect(10, 2, 1, 1); g.fillRect(14, 3, 1, 1);
     g.fillStyle(0xa9862b, 1); g.fillRect(5, 9, 10, 1); // bind at the rim
+  });
+  gen(scene, 'iconBasketBlueberry', 20, 20, (g) => {
+    drawBasketBody(g);
+    g.fillStyle(0x3c4f9e, 1);
+    g.fillCircle(6, 6, 2.6); g.fillCircle(10, 5, 2.6); g.fillCircle(14, 6, 2.6);
+    g.fillCircle(8, 8, 2.4); g.fillCircle(12, 8, 2.4);
+    g.fillStyle(0x5f74c9, 1);
+    g.fillCircle(5, 5, 0.9); g.fillCircle(9, 4, 0.9); g.fillCircle(13, 5, 0.9);
+    g.fillStyle(0x3b8a1c, 1); g.fillRect(9, 2, 2, 2); // little leaf sprig
+  });
+  gen(scene, 'iconBasketPotato', 20, 20, (g) => {
+    drawBasketBody(g);
+    g.fillStyle(0xa9793f, 1);
+    g.fillEllipse(6, 6, 4, 3); g.fillEllipse(11, 5, 4, 3); g.fillEllipse(15, 7, 3.5, 3);
+    g.fillStyle(0xc4935a, 1);
+    g.fillEllipse(5, 5, 1.4, 1); g.fillEllipse(10, 4, 1.4, 1);
+    g.fillStyle(0x8a5f2c, 1); g.fillRect(6, 6, 1, 1); g.fillRect(11, 5, 1, 1);
   });
   gen(scene, 'iconBasketHoney', 20, 20, (g) => { // basket of honey jars (#239)
     drawBasketBody(g);

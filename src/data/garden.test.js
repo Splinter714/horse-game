@@ -1,16 +1,23 @@
-// Garden plot state — plant → grow → harvest, the #242 core loop (pure logic).
+// Garden plot state — plant → grow → harvest, the #242 core loop (pure logic),
+// plus the #245 daily-watering gate.
 
 import { describe, it, expect } from 'vitest';
 import {
-  GARDEN_SLOTS, emptyGarden, sanitizeGarden, plant, advanceDay,
-  harvest, slotRipe, firstEmptySlot,
+  GARDEN_SLOTS, emptyGarden, sanitizeGarden, plant, advanceDay, resetWateredFlags,
+  harvest, slotRipe, slotWatered, waterSlot, firstEmptySlot,
 } from './garden.js';
-import { GROWTH_STAGES, getCrop } from './crops.js';
+import { GROWTH_STAGES, REGROW_STAGE, getCrop } from './crops.js';
 
-// Ripen a single planted garden by advancing enough day cycles.
-function ripen(garden) {
+// Ripen a single planted garden slot by watering + advancing enough day cycles (mirrors
+// the in-world dawn roll: water during the day, advanceGarden gates growth on it,
+// then the flags reset for the next day).
+function ripen(garden, slot = 0) {
   let g = garden;
-  for (let i = 0; i < GROWTH_STAGES; i++) g = advanceDay(g);
+  for (let i = 0; i < GROWTH_STAGES; i++) {
+    g = waterSlot(g, slot);
+    g = advanceDay(g);
+    g = resetWateredFlags(g);
+  }
   return g;
 }
 
@@ -24,9 +31,9 @@ describe('empty garden', () => {
 });
 
 describe('planting', () => {
-  it('plants a crop into an empty slot at stage 0', () => {
+  it('plants a crop into an empty slot at stage 0, unwatered', () => {
     const g = plant(emptyGarden(), 0, 'carrot');
-    expect(g[0]).toEqual({ crop: 'carrot', stage: 0 });
+    expect(g[0]).toEqual({ crop: 'carrot', stage: 0, watered: false });
     expect(slotRipe(g, 0)).toBe(false);
   });
 
@@ -51,36 +58,107 @@ describe('planting', () => {
   });
 });
 
+describe('watering (#245)', () => {
+  it('a freshly planted slot starts unwatered', () => {
+    const g = plant(emptyGarden(), 0, 'carrot');
+    expect(slotWatered(g, 0)).toBe(false);
+  });
+
+  it('waterSlot sets the watered flag on a planted slot', () => {
+    const g0 = plant(emptyGarden(), 0, 'carrot');
+    const g1 = waterSlot(g0, 0);
+    expect(slotWatered(g1, 0)).toBe(true);
+    expect(g1).not.toBe(g0); // immutable
+  });
+
+  it('waterSlot is a no-op on an empty slot or an already-watered slot', () => {
+    const empty = emptyGarden();
+    expect(waterSlot(empty, 0)).toBe(empty);
+
+    const watered = waterSlot(plant(emptyGarden(), 0, 'carrot'), 0);
+    expect(waterSlot(watered, 0)).toBe(watered);
+  });
+
+  it('resetWateredFlags clears every planted slot back to unwatered, empties stay empty', () => {
+    let g = plant(emptyGarden(), 0, 'carrot');
+    g = waterSlot(g, 0);
+    expect(slotWatered(g, 0)).toBe(true);
+    g = resetWateredFlags(g);
+    expect(slotWatered(g, 0)).toBe(false);
+    expect(g[1]).toBeNull();
+  });
+});
+
 describe('growth over day/night cycles', () => {
-  it('advances every planted slot one stage per day, empties stay empty', () => {
+  it('an unwatered slot does NOT advance a day-tick — growth stalls, never reverses', () => {
     let g = plant(emptyGarden(), 1, 'strawberry');
     expect(g[1].stage).toBe(0);
-    g = advanceDay(g);
-    expect(g[1].stage).toBe(1);
+    g = advanceDay(g); // never watered
+    expect(g[1].stage).toBe(0); // held, not advanced
     expect(g[0]).toBeNull();
   });
 
-  it('ripens after GROWTH_STAGES-1 advances and then holds at ripe', () => {
+  it('a watered slot DOES advance a day-tick', () => {
+    let g = plant(emptyGarden(), 1, 'strawberry');
+    g = waterSlot(g, 1);
+    g = advanceDay(g);
+    expect(g[1].stage).toBe(1);
+  });
+
+  it('advanceDay preserves each slot watered flag (reset is a separate step)', () => {
+    let g = waterSlot(plant(emptyGarden(), 0, 'wheat'), 0);
+    g = advanceDay(g);
+    expect(slotWatered(g, 0)).toBe(true); // still true until resetWateredFlags runs
+  });
+
+  it('ripens after GROWTH_STAGES-1 waters+advances and then holds at ripe', () => {
     let g = plant(emptyGarden(), 0, 'wheat');
     for (let i = 0; i < GROWTH_STAGES - 1; i++) {
       expect(slotRipe(g, 0)).toBe(false);
+      g = waterSlot(g, 0);
       g = advanceDay(g);
+      g = resetWateredFlags(g);
     }
     expect(slotRipe(g, 0)).toBe(true);
-    g = advanceDay(g); // further days don't overshoot
+    g = waterSlot(g, 0);
+    g = advanceDay(g); // further days don't overshoot even when watered
     expect(g[0].stage).toBe(GROWTH_STAGES - 1);
     expect(slotRipe(g, 0)).toBe(true);
   });
 });
 
 describe('harvest', () => {
-  it('yields the crop content + amount and clears the slot when ripe', () => {
-    const g = ripen(plant(emptyGarden(), 2, 'strawberry'));
+  it('a ONE-AND-DONE crop (e.g. carrot) yields + clears the slot back to empty (#216)', () => {
+    const g = ripen(plant(emptyGarden(), 2, 'carrot'), 2);
+    const res = harvest(g, 2);
+    expect(res.crop).toBe('carrot');
+    expect(res.yield).toBe(getCrop('carrot').yield);
+    expect(res.garden[2]).toBeNull();          // slot back to empty, ready to replant
+    expect(firstEmptySlot(res.garden)).toBe(0);
+  });
+
+  it('a REGROWING crop (e.g. strawberry) yields + stays planted at REGROW_STAGE, unwatered (#216)', () => {
+    const g = ripen(plant(emptyGarden(), 2, 'strawberry'), 2);
     const res = harvest(g, 2);
     expect(res.crop).toBe('strawberry');
     expect(res.yield).toBe(getCrop('strawberry').yield);
-    expect(res.garden[2]).toBeNull();          // slot back to empty, ready to replant
-    expect(firstEmptySlot(res.garden)).toBe(0);
+    expect(res.garden[2]).toEqual({ crop: 'strawberry', stage: REGROW_STAGE, watered: false });
+    expect(slotRipe(res.garden, 2)).toBe(false); // not immediately ripe again
+  });
+
+  it('a second REGROWING crop (blueberry) also regrows, and can ripen again after more days (#216)', () => {
+    let g = ripen(plant(emptyGarden(), 3, 'blueberry'), 3);
+    const first = harvest(g, 3);
+    expect(first.crop).toBe('blueberry');
+    g = first.garden;
+    expect(g[3].crop).toBe('blueberry');
+    expect(slotRipe(g, 3)).toBe(false);
+    // Water + advance enough more days to ripen again from REGROW_STAGE.
+    g = ripen(g, 3);
+    expect(slotRipe(g, 3)).toBe(true);
+    const second = harvest(g, 3);
+    expect(second.crop).toBe('blueberry');
+    expect(second.yield).toBeGreaterThan(0);
   });
 
   it('is a no-op on an empty or still-growing slot', () => {
@@ -94,11 +172,19 @@ describe('harvest', () => {
     expect(res.garden[0]).not.toBeNull(); // crop still standing
   });
 
-  it('a harvested slot can be replanted and grown again', () => {
+  it('a one-and-done harvested slot can be replanted with a different crop', () => {
     let g = ripen(plant(emptyGarden(), 0, 'carrot'));
     g = harvest(g, 0).garden;
     g = plant(g, 0, 'wheat');
-    expect(g[0]).toEqual({ crop: 'wheat', stage: 0 });
+    expect(g[0]).toEqual({ crop: 'wheat', stage: 0, watered: false });
+  });
+
+  it('a regrowing slot canNOT be replanted (still occupied) until it is dug up — plant is a no-op there', () => {
+    let g = ripen(plant(emptyGarden(), 0, 'strawberry'));
+    g = harvest(g, 0).garden;
+    expect(g[0]).not.toBeNull(); // still planted (regrew)
+    const attempt = plant(g, 0, 'wheat');
+    expect(attempt).toBe(g); // plant() refuses an occupied slot
   });
 });
 
@@ -108,11 +194,17 @@ describe('sanitizeGarden (forgiving load)', () => {
     expect(sanitizeGarden(saved)).toEqual(saved);
   });
 
+  it('defaults a missing watered flag (pre-#245 save) to false', () => {
+    const raw = [{ crop: 'wheat', stage: 2 }, null, null, null, null, null];
+    const g = sanitizeGarden(raw);
+    expect(g[0]).toEqual({ crop: 'wheat', stage: 2, watered: false });
+  });
+
   it('drops malformed / unknown-crop / out-of-range entries to empty', () => {
     const raw = [{ crop: 'wheat', stage: 2 }, { crop: 'nope', stage: 1 }, 'junk', null, 42, {}];
     const g = sanitizeGarden(raw);
     expect(g).toHaveLength(GARDEN_SLOTS);
-    expect(g[0]).toEqual({ crop: 'wheat', stage: 2 });
+    expect(g[0]).toEqual({ crop: 'wheat', stage: 2, watered: false });
     expect(g[1]).toBeNull(); // unknown crop
     expect(g[2]).toBeNull(); // junk string
   });

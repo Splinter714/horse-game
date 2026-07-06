@@ -641,6 +641,100 @@ try {
         : `gotJam=${gotJam},gotFlour=${gotFlour},gotPigFeed=${gotPigFeed},pigSeeks=${pigSeeks},pricesUp=${pricesUp}`;
     } catch (e) { cropProcessing = 'threw: ' + String(e); }
 
+    // Crop watering chore (#245): a planted-but-unwatered slot must NOT advance on a
+    // day-tick (advanceGarden), while a watered slot DOES advance — and the watered
+    // flag resets each dawn so the next day requires fresh tending.
+    let gardenWatering = 'no garden';
+    try {
+      const gd = paddock.garden;
+      if (gd) {
+        // Plant into two empty slots (garden may already have crops from earlier boot
+        // state — find two guaranteed-empty ones or clear a couple first).
+        const { plant, firstEmptySlot } = await import('/src/data/garden.js');
+        let iA = firstEmptySlot(gd.state);
+        if (iA < 0) { gd.state[0] = null; iA = 0; }
+        gd.state = plant(gd.state, iA, 'carrot');
+        let iB = firstEmptySlot(gd.state);
+        if (iB < 0) { gd.state[(iA + 1) % gd.state.length] = null; iB = (iA + 1) % gd.state.length; }
+        gd.state = plant(gd.state, iB, 'wheat');
+
+        const stageBefore = { a: gd.state[iA].stage, b: gd.state[iB].stage };
+        // Water only slot B (mirrors the in-world Use-with-filled-bucket interaction).
+        paddock.waterSlot(iB);
+        const wateredFlags = { a: gd.state[iA].watered, b: gd.state[iB].watered };
+
+        paddock.advanceGarden(); // the dawn roll: advance THEN reset watered flags
+        const unwateredStalled = gd.state[iA].stage === stageBefore.a;
+        const wateredAdvanced = gd.state[iB].stage === stageBefore.b + 1;
+        const flagsResetAfterRoll = gd.state[iA].watered === false && gd.state[iB].watered === false;
+
+        gardenWatering = (wateredFlags.a === false && wateredFlags.b === true &&
+                          unwateredStalled && wateredAdvanced && flagsResetAfterRoll)
+          ? 'gates-growth-on-watering'
+          : `wateredFlags=${JSON.stringify(wateredFlags)},unwateredStalled=${unwateredStalled},wateredAdvanced=${wateredAdvanced},flagsResetAfterRoll=${flagsResetAfterRoll}`;
+      }
+    } catch (e) { gardenWatering = 'threw: ' + String(e); }
+
+    // Crop variety & regrow (#216): a regrow crop (e.g. strawberry/blueberry) resets to
+    // an earlier growth stage (not empty) after harvest so it produces again later; a
+    // one-and-done crop (e.g. carrot/potato/wheat) empties the plot on harvest.
+    let cropRegrow = 'no garden';
+    try {
+      const gd = paddock.garden;
+      if (gd) {
+        const { plant, advanceDay, waterSlot, resetWateredFlags, harvest, firstEmptySlot } =
+          await import('/src/data/garden.js');
+        const { CROPS, isRipe } = await import('/src/data/crops.js');
+        const ripenSlot = (state, i) => {
+          let s = state;
+          for (let n = 0; n < 10 && !isRipe(s[i].stage); n++) { // generous cap for any crop's stage count
+            s = waterSlot(s, i);
+            s = advanceDay(s);
+            s = resetWateredFlags(s);
+          }
+          return s;
+        };
+
+        // Find one crop of each regrow behavior from the live CROPS table (not
+        // hardcoded ids) so this probe stays correct if the table changes.
+        const regrowId = Object.values(CROPS).find((c) => c.regrows)?.id;
+        const oneShotId = Object.values(CROPS).find((c) => !c.regrows)?.id;
+
+        let regrowResult = 'no regrow crop', oneShotResult = 'no one-shot crop';
+        if (regrowId) {
+          let i = firstEmptySlot(gd.state);
+          if (i < 0) { gd.state[0] = null; i = 0; }
+          gd.state = plant(gd.state, i, regrowId);
+          gd.state = ripenSlot(gd.state, i);
+          const stageAtRipe = gd.state[i].stage;
+          const { garden: afterHarvest, crop, yield: amt } = harvest(gd.state, i);
+          const stillPlanted = afterHarvest[i] !== null && afterHarvest[i].crop === regrowId;
+          const resetEarlier = stillPlanted && afterHarvest[i].stage < stageAtRipe;
+          gd.state = afterHarvest;
+          regrowResult = (crop === regrowId && amt > 0 && stillPlanted && resetEarlier)
+            ? 'regrows-after-harvest'
+            : `crop=${crop},amt=${amt},stillPlanted=${stillPlanted},resetEarlier=${resetEarlier}`;
+        }
+        if (oneShotId) {
+          let i = firstEmptySlot(gd.state);
+          if (i < 0) { gd.state[1] = null; i = 1; }
+          gd.state = plant(gd.state, i, oneShotId);
+          gd.state = ripenSlot(gd.state, i);
+          const { garden: afterHarvest, crop, yield: amt } = harvest(gd.state, i);
+          const nowEmpty = afterHarvest[i] === null;
+          gd.state = afterHarvest;
+          oneShotResult = (crop === oneShotId && amt > 0 && nowEmpty)
+            ? 'empties-after-harvest'
+            : `crop=${crop},amt=${amt},nowEmpty=${nowEmpty}`;
+        }
+        paddock._saveGardenState?.();
+        paddock._renderGarden?.();
+        cropRegrow = (regrowResult === 'regrows-after-harvest' && oneShotResult === 'empties-after-harvest')
+          ? 'per-crop-regrow-behavior-correct'
+          : `regrow=${regrowResult},oneShot=${oneShotResult}`;
+      }
+    } catch (e) { cropRegrow = 'threw: ' + String(e); }
+
     // #187 charm behaviors: the night settle/wake cycle must round-trip without
     // throwing (it rewires restAllAnimals/wakeAllAnimals), and the new run primitives
     // must resolve. Probed last (it mutates animal state) and lenient — this proves
@@ -1050,6 +1144,8 @@ try {
     return {
       ridingTrail,
       owl,
+      gardenWatering,
+      cropRegrow,
       charm,
       chickenCoop,
       breeding,
@@ -1454,6 +1550,12 @@ try {
   if (result.swim !== 'swims-and-returns') fail(`stream swim (#231) failed: ${result.swim}`);
   // #271 ambient owl: night-only glide-in, one at a time, absent by day/asleep.
   if (result.owl !== 'night-only') fail(`ambient owl (#271) failed: ${result.owl}`);
+  // Crop watering chore (#245): unwatered growth stalls, watered growth advances, and
+  // the watered flag resets each dawn.
+  if (result.gardenWatering !== 'gates-growth-on-watering') fail(`crop watering (#245) failed: ${result.gardenWatering}`);
+  // Crop variety & regrow (#216): a regrow crop resets to an earlier stage (not empty)
+  // after harvest; a one-and-done crop empties the plot.
+  if (result.cropRegrow !== 'per-crop-regrow-behavior-correct') fail(`crop regrow (#216) failed: ${result.cropRegrow}`);
 
   if (result.breeding !== 'bonds-breeds-repeatedly-and-gates-growth') fail(`breeding & foals (#15/#114) failed: ${result.breeding}`);
   // Rooster (#269): spawned as a flock bird, doesn't lay, is a breeding partner, crows at dawn.

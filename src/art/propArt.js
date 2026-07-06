@@ -792,6 +792,31 @@ function buildGardenTextures(scene) {
         g.fillStyle(0xff9a5a, 1); g.fillEllipse(10, 16, 4, 2);
       },
     },
+    // Blueberry (#216) — a small bush; ripe stage shows dark-blue berry clusters
+    // dotted among the foliage (regrows after harvest, so this stage repeats).
+    blueberry: {
+      grow: (g) => leafy(g, 13),
+      fruit: (g) => {
+        for (const [x, y] of [[6, 14], [15, 13], [10, 17], [13, 17], [8, 12]]) {
+          g.fillStyle(0x3c4f9e, 1); g.fillCircle(x, y, 1.6);
+          g.fillStyle(0x5f74c9, 1); g.fillRect(x - 1, y - 1, 1, 1);
+        }
+      },
+    },
+    // Potato (#216) — leafy tops like the carrot, but the ripe stage shows tubers
+    // peeking through cracked soil instead of a crown (one-and-done, dug up whole).
+    potato: {
+      grow: (g) => { // bushy dark-green leaves
+        g.fillStyle(0x2f6a1e, 1);
+        for (const x of [6, 10, 14]) { g.fillRect(x, 8, 2, 10); g.fillRect(x - 1, 9, 1, 5); g.fillRect(x + 2, 9, 1, 5); }
+      },
+      fruit: (g) => { // tubers breaking the soil surface
+        g.fillStyle(0x2f6a1e, 1);
+        for (const x of [6, 10, 14]) { g.fillRect(x, 6, 2, 10); g.fillRect(x - 1, 7, 1, 5); g.fillRect(x + 2, 7, 1, 5); }
+        g.fillStyle(0xa9793f, 1); g.fillEllipse(8, 18, 5, 3); g.fillEllipse(14, 17, 4, 3);
+        g.fillStyle(0xc4935a, 1); g.fillEllipse(7, 17, 2, 1);
+      },
+    },
   };
 
   for (const [id, art] of Object.entries(CROP_ART)) {

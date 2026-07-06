@@ -226,6 +226,11 @@ export const STAND_DEFS = {
   // stand product, mirroring hay/apple/carrot's other feed siblings.)
   jam:        { price: 13, tex: 'iconJam',        scale: 0.9, emoji: '🍓', floatIcon: 'iconJam' },
   flour:      { price: 9,  tex: 'iconFlour',      scale: 0.9, emoji: '🌾', floatIcon: 'iconFlour' },
+  // Crop variety (#216): blueberries fetch a bit more than strawberries (slower to
+  // ripen, higher yield per harvest); potatoes are priced like carrots (a humble root
+  // veg). First-pass balance levers to tune at playtest.
+  blueberry:  { price: 7,  tex: 'iconBlueberry',   scale: 0.9, emoji: '🫐', floatIcon: 'iconBlueberry' },
+  potato:     { price: 3,  tex: 'iconPotato',      scale: 0.9, emoji: '🥔', floatIcon: 'iconPotato' },
 };
 export const STAND_TYPES = Object.keys(STAND_DEFS);
 

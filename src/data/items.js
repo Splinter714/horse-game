@@ -12,7 +12,7 @@ export const CARRIER_DEFS = {
   // animal that eats it, #136), so the basket's cap is just a safety ceiling, not a
   // limit you should hit. Kept finite (not Infinity) so it never trips serialization
   // or UI maths — but high enough that the demand always fits (and you can hoard eggs).
-  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey', 'jam', 'flour', 'pigFeed'] },
+  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey', 'jam', 'flour', 'pigFeed', 'blueberry', 'potato'] },
   bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'milk', 'nectar'] },
 };
 
@@ -119,6 +119,11 @@ export const CONTENT_DEFS = {
   // wool → yarn, #233). Strawberries → jam, wheat → flour; carrots (above) → pig feed.
   strawberry: { label: 'Strawberries', icon: 'iconBasketStrawberry', action: 'sell', craftsTo: 'jam' },
   wheat:      { label: 'Wheat',        icon: 'iconBasketWheat',      action: 'sell', craftsTo: 'flour' },
+  // Crop variety (#216): blueberry (a regrowing bush crop) and potato (a one-and-done
+  // root veg) — both raw-sell only for now, no processing recipe yet (a future #40
+  // follow-up could add one, mirroring strawberry/wheat).
+  blueberry:  { label: 'Blueberries',  icon: 'iconBasketBlueberry',  action: 'sell' },
+  potato:     { label: 'Potatoes',     icon: 'iconBasketPotato',     action: 'sell' },
   // Jam — the processed form of strawberries (#40), worth more at the stand than raw
   // fruit (the payoff for the extra crafting step, mirrors yarn).
   jam:        { label: 'Jam',          icon: 'iconBasketJam',        action: 'sell' },
