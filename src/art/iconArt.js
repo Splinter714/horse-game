@@ -567,4 +567,15 @@ export function buildIconTextures(scene) {
     g.fillRect(6, 14, 8, 1); // palm line
     g.fillRect(6, 16, 8, 1); // palm line 2
   });
+
+  // Fertilizer bag — a general-store gardening supply (#215). A simple burlap sack
+  // with a leaf motif so it reads as "for the garden" alongside the seed packets.
+  gen(scene, 'iconFertilizer', 20, 20, (g) => {
+    g.fillStyle(0x8a6a42, 1); g.fillRoundedRect(4, 6, 12, 11, 2);   // sack body
+    g.fillStyle(0x9a7a50, 1); g.fillRect(4, 6, 12, 3);              // lit top band
+    g.fillStyle(0x6e5230, 1); g.fillRect(4, 14, 12, 3);             // shaded base
+    g.fillStyle(0xc4a874, 1); g.fillRect(6, 4, 8, 3);               // tied neck
+    g.fillStyle(0x3b8a1c, 1); g.fillTriangle(10, 7, 7, 11, 13, 11); // little leaf motif
+    g.fillStyle(0x5cae34, 1); g.fillTriangle(10, 8, 8.5, 10.5, 11.5, 10.5);
+  });
 }

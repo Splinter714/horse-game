@@ -44,6 +44,20 @@ export const WithInteractables = (Base) => class extends Base {
       }];
     };
 
+    // General store (#215) — walk up and interact to open the seed-shop buy panel
+    // (spend gold on seeds + gardening supplies). A bare-hand interact target like
+    // the market stall/house/gate: no carried item needed.
+    const generalStore = () => {
+      const s = this.props.generalStore;
+      if (!s) return [];
+      return [{
+        x: s.x, y: s.y, tapRadius: 150, reachDist: 150, promptOffsetY: 70,
+        canAct: true, label: 'General Store',
+        approach: () => ({ x: s.x, y: s.y + 40 }), // walk to just below the door
+        activate: () => this.openGeneralStore(),
+      }];
+    };
+
     // House (#241/#56) — the home base you walk up to and ENTER. Inside is the
     // enterable interior scene (HouseInteriorScene) with the bed (sleep, #210),
     // dresser/mirror (customizer, #211) and kitchen (#41). Sleeping now happens at
@@ -333,11 +347,11 @@ export const WithInteractables = (Base) => class extends Base {
     const gardenPlant   = gardenDescs.plant;
     const gardenHarvest = gardenDescs.harvest;
 
-    this.interactables = [gate, house, shop, barn, gardenPlant, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenHarvest];
-    // Split by input: gate/house/shop/barn/garden-plant are bare-hand "interact" targets
-    // (tap/click/E); the rest require a carried tool/carrier and are triggered by Use (the
-    // on-screen button / F / controller). See useActiveTool + handleTap.
-    this.interactWorld = [gate, house, shop, barn, gardenPlant];
+    this.interactables = [gate, house, shop, generalStore, barn, gardenPlant, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenHarvest];
+    // Split by input: gate/house/shop/generalStore/barn/garden-plant are bare-hand
+    // "interact" targets (tap/click/E); the rest require a carried tool/carrier and are
+    // triggered by Use (the on-screen button / F / controller). See useActiveTool + handleTap.
+    this.interactWorld = [gate, house, shop, generalStore, barn, gardenPlant];
     this.toolWorld     = [trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenHarvest];
   }
 

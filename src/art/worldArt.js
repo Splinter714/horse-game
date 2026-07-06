@@ -847,6 +847,42 @@ export function buildWorldTextures(scene) {
     g.fillRect(8, 36, 4, 12); g.fillRect(60, 36, 4, 12);
   });
 
+  // --- General store (72 × 50) — the seed shop building (#215). A small timbered
+  // shopfront (walls + a shingled roof), distinct from the open-air market stalls
+  // (farm stand / shop stall) since it's a proper BUILDING that can later hold a
+  // second counter (clothing, #217) without adding a second structure. Green
+  // shutters + a seed-sack sign read "garden supplies" at a glance. Origin (0.5, 1). ---
+  gen(scene, 'generalStore', 72, 50, (g) => {
+    g.layer('walls');
+    // Timbered walls
+    g.fillStyle(0xc9a86a, 1); g.fillRect(4, 18, 64, 28);
+    g.fillStyle(0xdcc086, 1); g.fillRect(4, 18, 64, 4); // lit top band
+    g.fillStyle(0x8a6a3e, 1); // corner posts
+    g.fillRect(4, 18, 4, 28); g.fillRect(64, 18, 4, 28);
+    g.layer('roof');
+    // Peaked shingle roof
+    g.fillStyle(0x5c4028, 1); g.fillTriangle(0, 18, 36, 2, 72, 18);
+    g.fillStyle(0x7a5636, 1);
+    for (let x = 4; x < 68; x += 8) g.fillTriangle(x, 17, x + 4, 17 - (18 - Math.abs(x + 4 - 36) * 0.44), x + 8, 17);
+    g.layer('sign');
+    // Hanging sign — a little seed sack + leaf, echoing the fertilizer icon
+    g.fillStyle(0x6a4a28, 1); g.fillRect(34, 20, 4, 6); // post
+    g.fillStyle(0x8a6a42, 1); g.fillRoundedRect(24, 24, 24, 10, 2); // sign board
+    g.fillStyle(0x3b8a1c, 1); g.fillTriangle(36, 26, 31, 32, 41, 32); // leaf motif
+    g.layer('door');
+    // Door + window with green shutters
+    g.fillStyle(0x4a3420, 1); g.fillRect(30, 34, 12, 12); // doorway
+    g.fillStyle(0x6a4a2e, 1); g.fillRect(30, 34, 12, 2);
+    g.fillStyle(0x3b8a1c, 1); // shutters either side of the door
+    g.fillRect(10, 34, 8, 12); g.fillRect(54, 34, 8, 12);
+    g.fillStyle(0xaee0d8, 1); g.fillRect(11, 35, 6, 6); g.fillRect(55, 35, 6, 6); // window glass
+    g.fillStyle(0x2f7016, 1); g.fillRect(9, 34, 2, 12); g.fillRect(19, 34, 2, 12);
+    g.fillRect(53, 34, 2, 12); g.fillRect(63, 34, 2, 12); // shutter frames
+    g.layer('base');
+    // Base/step
+    g.fillStyle(0x8a6a3e, 1); g.fillRect(2, 46, 68, 4);
+  });
+
   // --- Spinning wheel (32 × 40) — the crafting station that spins wool into yarn
   // (#233). Origin (0.5, 1). A classic wheel-on-a-stand: a big spoked wheel on the
   // left, a slanted treadle base, and a small spindle/bobbin of yarn on the right. ---

@@ -1046,6 +1046,60 @@ try {
   });
   await page.screenshot({ path: '/tmp/player-customizer.png' });
 
+  // General store (#215): the seed-shop building exists and is interactable (opens
+  // GeneralStoreScene), buying a seed with enough gold deducts EXACTLY its price and
+  // bumps the owned count by 1 (via MONEY_CHANGED, mirroring the farm-stand sale
+  // path), and a purchase attempt with insufficient gold is BLOCKED — no debit, no
+  // owned-count bump.
+  result.generalStore = await page.evaluate(async () => {
+    const g = window.__game;
+    const paddock = g.scene.getScene('PaddockScene');
+    const hot = g.scene.getScene('HotbarScene');
+    const built = !!paddock.props.generalStore;
+    const hasTexture = g.textures.exists('generalStore');
+
+    // Interact: open the store like walking up and pressing E (openGeneralStore is
+    // the interactable's activate()).
+    paddock.openGeneralStore();
+    await new Promise((r) => setTimeout(r, 200));
+    const sc = g.scene.getScene('GeneralStoreScene');
+    const opened = g.scene.isActive('GeneralStoreScene') && !!sc?.panel;
+    const worldPaused = g.scene.isPaused('PaddockScene');
+
+    // Seed a known balance, then buy the first seed row with enough gold. Emits the
+    // literal event name ('money-changed', data/events.js EVENTS.MONEY_CHANGED) —
+    // the same event the farm-stand sale / feed-shop purchase paths use.
+    const item = sc._counter.items[0];
+    const setMoney = (v) => { g.events.emit('money-changed', v); };
+    setMoney(50);
+    await new Promise((r) => setTimeout(r, 30));
+    const moneyBefore = sc._readMoney();
+    const invBefore = sc._inventory[item.key] ?? 0;
+    sc._buy(0);
+    await new Promise((r) => setTimeout(r, 30));
+    const moneyAfterBuy = sc._readMoney();
+    const invAfterBuy = sc._inventory[item.key] ?? 0;
+    const boughtOk = moneyAfterBuy === moneyBefore - item.price && invAfterBuy === invBefore + 1;
+
+    // Now drain to below the price and try again — must be blocked (no debit, no bump).
+    setMoney(item.price - 1);
+    await new Promise((r) => setTimeout(r, 30));
+    const moneyBeforeBlocked = sc._readMoney();
+    const invBeforeBlocked = sc._inventory[item.key] ?? 0;
+    sc._buy(0);
+    await new Promise((r) => setTimeout(r, 30));
+    const moneyAfterBlocked = sc._readMoney();
+    const invAfterBlocked = sc._inventory[item.key] ?? 0;
+    const blockedOk = moneyAfterBlocked === moneyBeforeBlocked && invAfterBlocked === invBeforeBlocked;
+
+    sc.close();
+    await new Promise((r) => setTimeout(r, 200));
+    const closedOk = !g.scene.isActive('GeneralStoreScene') && !g.scene.isPaused('PaddockScene');
+
+    return { built, hasTexture, opened, worldPaused, boughtOk, blockedOk, closedOk };
+  });
+  await page.screenshot({ path: '/tmp/general-store.png' });
+
   // Weather pass (#188): force the DayNightScene into rain and back, and assert the
   // paddock's hooks respond — the WEATHER_CHANGE event lands, _weather tracks it,
   // rain dirties a horse faster (2×), the wildlife rain-gate closes, and rain
@@ -1225,6 +1279,17 @@ try {
   if (result.missingMethods.length) fail('PaddockScene missing methods (mixin not wired?): ' + result.missingMethods.join(', '));
   if (result.horsesInScene !== 7) fail(`expected 7 horse sprites in scene, got ${result.horsesInScene}`);
   if (!result.hasFarmStand) fail('farm stand not built — farmStand mixin not wired');
+  // General store (#215): building exists, opens on interact, a purchase with enough
+  // gold debits exactly the item's price and grants +1 owned, and a purchase attempt
+  // without enough gold is blocked (no debit, no owned-count bump).
+  const gs = result.generalStore;
+  if (!gs.built) fail('general store not built — props.generalStore missing');
+  if (!gs.hasTexture) fail('general store texture missing — worldArt.js gen() failed');
+  if (!gs.opened) fail('general store did not open GeneralStoreScene on interact');
+  if (!gs.worldPaused) fail('general store open did not pause PaddockScene');
+  if (!gs.boughtOk) fail('general store purchase did not debit exactly the item price / grant +1 owned');
+  if (!gs.blockedOk) fail('general store purchase with insufficient gold was NOT blocked');
+  if (!gs.closedOk) fail('general store close did not resume PaddockScene / stop the scene');
   if (!result.hasBirdBath) fail('bird bath (#219) not built — world.js props.birdBath missing');
   if (!result.hasSeedFeeder) fail('seed feeder (#240) not built — props.seedFeeder missing');
   if (!result.hasNectarFeeder) fail('nectar feeder (#226) not built — props.nectarFeeder missing');
