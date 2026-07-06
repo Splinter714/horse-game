@@ -12,7 +12,7 @@ export const CARRIER_DEFS = {
   // animal that eats it, #136), so the basket's cap is just a safety ceiling, not a
   // limit you should hit. Kept finite (not Infinity) so it never trips serialization
   // or UI maths — but high enough that the demand always fits (and you can hoard eggs).
-  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey', 'jam', 'flour', 'pigFeed', 'blueberry', 'potato'] },
+  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey', 'jam', 'flour', 'pigFeed', 'blueberry', 'potato', 'orange', 'berry'] },
   bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'milk', 'nectar'] },
 };
 
@@ -124,6 +124,14 @@ export const CONTENT_DEFS = {
   // follow-up could add one, mirroring strawberry/wheat).
   blueberry:  { label: 'Blueberries',  icon: 'iconBasketBlueberry',  action: 'sell' },
   potato:     { label: 'Potatoes',     icon: 'iconBasketPotato',     action: 'sell' },
+  // More tree/bush fruit (#228): oranges (a second gatherable TREE, mirrors apple)
+  // and berries (a gatherable BUSH — same gather mechanic, just a low trunkless
+  // canopy — see world.js buildSources + propArt.js berryBush). Both are dropped as
+  // ground piles (feeds the same grazers as apples) AND grind into jam at the
+  // kitchen counter (#40), alongside strawberries — one shared "fruit jam" sink
+  // rather than a bespoke processed good per fruit, keeping this simple.
+  orange: { label: 'Oranges', icon: 'iconBasketOrange', action: 'feed', ground: 'orangePile', feeds: ['horse', 'cow', 'pig', 'goat'], craftsTo: 'jam' },
+  berry:  { label: 'Berries', icon: 'iconBasketBerry',  action: 'feed', ground: 'berryPile',  feeds: ['horse', 'cow', 'pig', 'goat'], craftsTo: 'jam' },
   // Jam — the processed form of strawberries (#40), worth more at the stand than raw
   // fruit (the payoff for the extra crafting step, mirrors yarn).
   jam:        { label: 'Jam',          icon: 'iconBasketJam',        action: 'sell' },

@@ -1194,6 +1194,37 @@ try {
       hasBeehive: !!paddock.props.beehive, // #239 beehive world object
       hasBirdhouse: !!paddock.props.birdhouse, // #218 decorative birdhouse world object
       birdhouseTextureOk: g.textures.exists('birdhouse'),
+      // More tree/bush fruit (#228): the orange tree and berry bush must exist as
+      // real gather sources (props.sources, mirroring the apple tree) with their
+      // textures built, and both new contents must be sellable at the stand.
+      hasOrangeTree: paddock.props.sources.some((s) => s.content === 'orange' && s.tex === 'orangeTree'),
+      hasBerryBush: paddock.props.sources.some((s) => s.content === 'berry' && s.tex === 'berryBush'),
+      orangeTreeTextureOk: g.textures.exists('orangeTree'),
+      berryBushTextureOk: g.textures.exists('berryBush'),
+      orangeGatherTarget: paddock._gatherTarget('orange', 999),
+      berryGatherTarget: paddock._gatherTarget('berry', 999),
+      orangeSellable: !!STAND_DEFS.orange,
+      berrySellable: !!STAND_DEFS.berry,
+      // Full round-trip: put oranges/berries in a basket and stock the farm stand,
+      // proving the new contents actually flow through the existing sell pipeline.
+      orangeStocked: (() => {
+        const hot = g.scene.getScene('HotbarScene');
+        hot.activeSlot = hot.hotbar.indexOf('basketGroup');
+        hot.activeCarrier.basket = 'basket1';
+        hot.carriers.basket1 = { content: 'orange', count: 3 };
+        const before = paddock.farmStand.stock.orange ?? 0;
+        paddock.stockStand();
+        return (paddock.farmStand.stock.orange ?? 0) === before + 3 && hot.carriers.basket1.count === 0;
+      })(),
+      berryStocked: (() => {
+        const hot = g.scene.getScene('HotbarScene');
+        hot.activeSlot = hot.hotbar.indexOf('basketGroup');
+        hot.activeCarrier.basket = 'basket1';
+        hot.carriers.basket1 = { content: 'berry', count: 2 };
+        const before = paddock.farmStand.stock.berry ?? 0;
+        paddock.stockStand();
+        return (paddock.farmStand.stock.berry ?? 0) === before + 2 && hot.carriers.basket1.count === 0;
+      })(),
       // Display scales: every animal is now super-sampled (ART_SCALE× art shown at
       // S/ART_SCALE), so the chicken and horse share the same base display scale. Guard
       // that ratio ≈ 1 — it jumps to ART_SCALE if a species' `superSampled` spawn flag
@@ -1814,6 +1845,18 @@ try {
   if (!result.hasBeehive) fail('beehive (#239) not built — props.beehive missing');
   if (!result.hasBirdhouse) fail('birdhouse (#218) not built — props.birdhouse missing');
   if (!result.birdhouseTextureOk) fail('birdhouse (#218) texture missing — worldArt.js gen() failed');
+  // More tree/bush fruit (#228): the orange tree and berry bush must be real gather
+  // sources with built textures, both gatherable (positive demand target) and sellable.
+  if (!result.hasOrangeTree) fail('orange tree (#228) not found in props.sources');
+  if (!result.hasBerryBush) fail('berry bush (#228) not found in props.sources');
+  if (!result.orangeTreeTextureOk) fail('orange tree (#228) texture missing — propArt.js gen() failed');
+  if (!result.berryBushTextureOk) fail('berry bush (#228) texture missing — propArt.js gen() failed');
+  if (!(result.orangeGatherTarget > 0)) fail(`orange (#228) gather target should be > 0 (got ${result.orangeGatherTarget})`);
+  if (!(result.berryGatherTarget > 0)) fail(`berry (#228) gather target should be > 0 (got ${result.berryGatherTarget})`);
+  if (!result.orangeSellable) fail('orange (#228) missing from STAND_DEFS — not sellable at farm stand');
+  if (!result.berrySellable) fail('berry (#228) missing from STAND_DEFS — not sellable at farm stand');
+  if (!result.orangeStocked) fail('orange (#228) failed to stock the farm stand via stockStand()');
+  if (!result.berryStocked) fail('berry (#228) failed to stock the farm stand via stockStand()');
   if (Math.abs(result.scaleRatio - 1) > 0.01) fail(`chicken/horse display-scale ratio ${result.scaleRatio} ≠ 1 — a species' superSampled spawn flag may be missing (chicken rendered 4× too big)?`);
   if (!result.movementOk) fail('creature movement/pathfinding threw: ' + result.movementError);
   if (result.behaviorDecision !== 'seekFood') fail(`hungry horse with hay nearby did not select seekFood (got ${result.behaviorDecision})`);

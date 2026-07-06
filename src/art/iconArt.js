@@ -94,6 +94,20 @@ export function buildIconTextures(scene) {
     g.fillStyle(0x8a5f2c, 1); // eye flecks
     g.fillRect(7, 12, 1, 1); g.fillRect(11, 14, 1, 1); g.fillRect(13, 10, 1, 1); g.fillRect(9, 15, 1, 1);
   });
+  gen(scene, 'iconOrange', 20, 20, (g) => { // orange (#228)
+    g.fillStyle(0xf0902a, 1); g.fillCircle(10, 12, 6);
+    g.fillStyle(0xffb85a, 1); g.fillCircle(8, 10, 2);
+    g.fillStyle(0x3b8a1c, 1); g.fillEllipse(13, 5, 6, 3);
+    g.fillStyle(0x6a3d1a, 1); g.fillRect(9, 4, 2, 4);
+  });
+  gen(scene, 'iconBerry', 20, 20, (g) => { // berries (#228)
+    g.fillStyle(0x4a2f8a, 1); // deep purple-red berries
+    g.fillCircle(7, 12, 3.6); g.fillCircle(13, 11, 3.6); g.fillCircle(10, 15, 3.6);
+    g.fillStyle(0x8a5fd6, 1); // lighter facet on each berry
+    g.fillCircle(6, 11, 1.2); g.fillCircle(12, 10, 1.2); g.fillCircle(9, 14, 1.2);
+    g.fillStyle(0x3b8a1c, 1); // leaf + stem
+    g.fillTriangle(10, 8, 6, 4, 10, 5); g.fillRect(9, 3, 1, 3);
+  });
   gen(scene, 'iconHoney', 20, 20, (g) => { // honey jar (#239) — sold at the stand
     // Glass jar of golden honey with a cloth lid and a little dipper.
     g.fillStyle(0xe8a828, 1); g.fillRoundedRect(5, 7, 10, 11, 2); // honey body
@@ -253,6 +267,21 @@ export function buildIconTextures(scene) {
     g.fillStyle(0xd64545, 1); g.fillCircle(7, 7, 3); g.fillCircle(13, 7, 3); g.fillCircle(10, 5, 3);
     g.fillStyle(0xe87a7a, 1); g.fillCircle(6, 6, 1); g.fillCircle(9, 4, 1);
     g.fillStyle(0x3b6d11, 1); g.fillRect(10, 2, 1, 2);
+  });
+  gen(scene, 'iconBasketOrange', 20, 20, (g) => { // #228
+    drawBasketBody(g);
+    g.fillStyle(0xf0902a, 1); g.fillCircle(7, 7, 3); g.fillCircle(13, 7, 3); g.fillCircle(10, 5, 3);
+    g.fillStyle(0xffb85a, 1); g.fillCircle(6, 6, 1); g.fillCircle(9, 4, 1);
+    g.fillStyle(0x3b6d11, 1); g.fillRect(10, 2, 1, 2);
+  });
+  gen(scene, 'iconBasketBerry', 20, 20, (g) => { // #228
+    drawBasketBody(g);
+    g.fillStyle(0x4a2f8a, 1);
+    g.fillCircle(6, 6, 2.6); g.fillCircle(10, 5, 2.6); g.fillCircle(14, 6, 2.6);
+    g.fillCircle(8, 8, 2.4); g.fillCircle(12, 8, 2.4);
+    g.fillStyle(0x8a5fd6, 1);
+    g.fillCircle(5, 5, 0.9); g.fillCircle(9, 4, 0.9); g.fillCircle(13, 5, 0.9);
+    g.fillStyle(0x3b8a1c, 1); g.fillRect(9, 2, 2, 2); // little leaf sprig
   });
   gen(scene, 'iconBasketCarrot', 20, 20, (g) => {
     drawBasketBody(g);
