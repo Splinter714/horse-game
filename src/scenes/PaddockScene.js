@@ -32,6 +32,7 @@ import { WithCompanion } from './paddock/companion.js';
 import { WithFarmStand } from './paddock/farmStand.js';
 import { WithNeighbor } from './paddock/neighbor.js';
 import { WithShop } from './paddock/shop.js';
+import { WithGeneralStore } from './paddock/generalStore.js';
 import { WithGarden } from './paddock/garden.js';
 import { WithDayNight } from './paddock/dayNight.js';
 import { WithWeather } from './paddock/weather.js';
@@ -70,6 +71,7 @@ const PADDOCK_MIXINS = [
   WithWorld, WithTrail, WithBirdEcosystem, WithBirdEcosystemVisits, WithBirdFriendship, WithBarn, WithChickenCoop, WithBunny, WithFox, WithDuck, WithBreeding, WithIncubation,
   WithHouseEntry, WithWildlife, WithRaccoon, WithOwls, WithAmbientEvents, WithCatAI,
   WithCompanion, WithCharm, WithCreatures, WithFlock, WithHerd, WithFarmStand, WithNeighbor, WithShop,
+  WithGeneralStore,
   WithGarden, WithDayNight, WithWeather, WithHorseAI, WithBehaviors, WithRiding, WithTractor, WithPlayer,
   WithEffects, WithPersistence, WithRendering, WithWorldObjects, WithCareActions,
   WithInteraction, WithInput, WithPlayerMovement, WithPrompts, WithInteractables, WithUseDispatch,
