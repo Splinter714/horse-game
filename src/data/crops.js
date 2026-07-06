@@ -2,13 +2,17 @@
 //
 // Crops are data-driven like coats/items: adding one is an entry here plus its art.
 // Each crop grows through a fixed sequence of visible STAGES, advancing one stage per
-// day/night cycle (the garden hooks the dawn roll — no real-time timers). The final
-// stage is ripe: harvest it with a basket to collect the crop's `harvest` content,
-// which rides the existing basket → farm-stand → sell pipeline (see items.js /
-// STAND_DEFS). Plant-and-wait: no watering in v1 (that's #245).
+// day/night cycle the slot is watered (the garden hooks the dawn roll — no real-time
+// timers; watering gate is #245, growIfWatered below). The final stage is ripe: harvest
+// it with a basket to collect the crop's `harvest` content, which rides the existing
+// basket → farm-stand → sell pipeline (see items.js / STAND_DEFS).
 //
 // The starter set spans fruit / grain / veg so crop-processing (#40) has inputs:
-//   strawberry → (future) jam · wheat → (future) flour / pig feed · carrot → veg / sell
+//   strawberry → jam · wheat → flour / pig feed · carrot → veg / sell
+// Crop variety (#216) adds two more, each with a DIFFERENT regrow behavior (real crops
+// don't all behave the same way — some keep producing, some are a one-time dig-up):
+//   blueberry → regrows after harvest (a bush keeps fruiting)
+//   potato    → one-and-done (a root veg — dig it up, replant from scratch)
 //
 // Pure data + tiny helpers only — no Phaser — so the growth logic is unit-testable in
 // the `node` test env alongside the other data modules.
@@ -40,6 +44,10 @@ export function growIfWatered(stage, watered) {
 // The crop table. `harvest` is the content type the ripe crop yields into a basket
 // (must exist in items.js CONTENT_DEFS + STAND_DEFS so it sells). `yield` is how many
 // units one ripe plant gives. `stageTex(stage)` names the ground texture for a stage.
+// `regrows` (#216): does harvesting leave the plant standing to fruit again (true, the
+// slot resets to an earlier growth stage — see REGROW_STAGE below) or dig it up clean
+// (false/omitted, the slot goes back to empty)? Real crops differ — berries/tomatoes
+// keep producing, root veg is one-and-done — so this is per-crop, not one blanket rule.
 export const CROPS = {
   strawberry: {
     id: 'strawberry',
@@ -47,6 +55,7 @@ export const CROPS = {
     harvest: 'strawberry',
     yield: 2,          // a plant gives a small handful of berries
     seedIcon: 'iconStrawberry',
+    regrows: true,     // a strawberry plant keeps fruiting once established
   },
   wheat: {
     id: 'wheat',
@@ -54,6 +63,7 @@ export const CROPS = {
     harvest: 'wheat',
     yield: 2,
     seedIcon: 'iconWheat',
+    // Wheat is cut at harvest (one-and-done) — regrows omitted/false.
   },
   carrot: {
     id: 'carrot',
@@ -61,12 +71,39 @@ export const CROPS = {
     harvest: 'carrot',
     yield: 1,
     seedIcon: 'iconCarrot',
+    // A carrot is pulled up whole at harvest (one-and-done) — regrows omitted/false.
+  },
+  // Blueberry (#216): a bush — harvesting picks the ripe berries but leaves the plant
+  // standing, so it regrows (resets to a mid-growth stage rather than back to seed) and
+  // fruits again later. A slower-ripening, higher-yield crop for variety.
+  blueberry: {
+    id: 'blueberry',
+    label: 'Blueberry',
+    harvest: 'blueberry',
+    yield: 3,
+    seedIcon: 'iconBlueberry',
+    regrows: true,
+  },
+  // Potato (#216): a root vegetable — dug up whole at harvest, same one-and-done shape
+  // as the carrot, giving a second one-shot crop for the pair (#216 scope: at least one
+  // of each behavior).
+  potato: {
+    id: 'potato',
+    label: 'Potato',
+    harvest: 'potato',
+    yield: 2,
+    seedIcon: 'iconPotato',
   },
 };
 
 // Fixed planting rotation — the order the plot cycles crops when the player plants
 // (kid-friendly: just tap to plant, and you get a nice mix). Data, so re-orderable.
-export const CROP_ORDER = ['strawberry', 'wheat', 'carrot'];
+export const CROP_ORDER = ['strawberry', 'wheat', 'carrot', 'blueberry', 'potato'];
+
+// The growth stage a REGROWING crop's slot resets to after harvest (not all the way
+// back to seed — the plant is already established, it just needs to fruit again).
+// One stage before ripe, clamped so it's still valid even if GROWTH_STAGES ever shrinks.
+export const REGROW_STAGE = Math.max(0, GROWTH_STAGES - 2);
 
 export function getCrop(id) {
   return CROPS[id] ?? null;

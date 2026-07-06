@@ -24,8 +24,9 @@ describe('carrier definitions', () => {
     // duckFood added with ducks (#275) — same ground-drop taming shape as the fox,
     // gathered at the duck feeder by the stream.
     // jam/flour/pigFeed added with crop processing (#40) — the kitchen counter's
-    // processed forms of strawberry/wheat/carrot.
-    expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey', 'jam', 'flour', 'pigFeed']);
+    // processed forms of strawberry/wheat/carrot. blueberry/potato added with crop
+    // variety (#216) — a regrowing bush crop and a one-and-done root veg.
+    expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey', 'jam', 'flour', 'pigFeed', 'blueberry', 'potato']);
     expect(CARRIER_DEFS.bucket.capacity).toBe(1);
     // milk added with the cow (#cow). catWater removed with the #202 rework, bunnyWater
     // removed with #283 — pet water bowls (cat's and the bunny's) both fill from a plain

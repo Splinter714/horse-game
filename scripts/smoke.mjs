@@ -564,6 +564,66 @@ try {
       }
     } catch (e) { gardenWatering = 'threw: ' + String(e); }
 
+    // Crop variety & regrow (#216): a regrow crop (e.g. strawberry/blueberry) resets to
+    // an earlier growth stage (not empty) after harvest so it produces again later; a
+    // one-and-done crop (e.g. carrot/potato/wheat) empties the plot on harvest.
+    let cropRegrow = 'no garden';
+    try {
+      const gd = paddock.garden;
+      if (gd) {
+        const { plant, advanceDay, waterSlot, resetWateredFlags, harvest, firstEmptySlot } =
+          await import('/src/data/garden.js');
+        const { CROPS, isRipe } = await import('/src/data/crops.js');
+        const ripenSlot = (state, i) => {
+          let s = state;
+          for (let n = 0; n < 10 && !isRipe(s[i].stage); n++) { // generous cap for any crop's stage count
+            s = waterSlot(s, i);
+            s = advanceDay(s);
+            s = resetWateredFlags(s);
+          }
+          return s;
+        };
+
+        // Find one crop of each regrow behavior from the live CROPS table (not
+        // hardcoded ids) so this probe stays correct if the table changes.
+        const regrowId = Object.values(CROPS).find((c) => c.regrows)?.id;
+        const oneShotId = Object.values(CROPS).find((c) => !c.regrows)?.id;
+
+        let regrowResult = 'no regrow crop', oneShotResult = 'no one-shot crop';
+        if (regrowId) {
+          let i = firstEmptySlot(gd.state);
+          if (i < 0) { gd.state[0] = null; i = 0; }
+          gd.state = plant(gd.state, i, regrowId);
+          gd.state = ripenSlot(gd.state, i);
+          const stageAtRipe = gd.state[i].stage;
+          const { garden: afterHarvest, crop, yield: amt } = harvest(gd.state, i);
+          const stillPlanted = afterHarvest[i] !== null && afterHarvest[i].crop === regrowId;
+          const resetEarlier = stillPlanted && afterHarvest[i].stage < stageAtRipe;
+          gd.state = afterHarvest;
+          regrowResult = (crop === regrowId && amt > 0 && stillPlanted && resetEarlier)
+            ? 'regrows-after-harvest'
+            : `crop=${crop},amt=${amt},stillPlanted=${stillPlanted},resetEarlier=${resetEarlier}`;
+        }
+        if (oneShotId) {
+          let i = firstEmptySlot(gd.state);
+          if (i < 0) { gd.state[1] = null; i = 1; }
+          gd.state = plant(gd.state, i, oneShotId);
+          gd.state = ripenSlot(gd.state, i);
+          const { garden: afterHarvest, crop, yield: amt } = harvest(gd.state, i);
+          const nowEmpty = afterHarvest[i] === null;
+          gd.state = afterHarvest;
+          oneShotResult = (crop === oneShotId && amt > 0 && nowEmpty)
+            ? 'empties-after-harvest'
+            : `crop=${crop},amt=${amt},nowEmpty=${nowEmpty}`;
+        }
+        paddock._saveGardenState?.();
+        paddock._renderGarden?.();
+        cropRegrow = (regrowResult === 'regrows-after-harvest' && oneShotResult === 'empties-after-harvest')
+          ? 'per-crop-regrow-behavior-correct'
+          : `regrow=${regrowResult},oneShot=${oneShotResult}`;
+      }
+    } catch (e) { cropRegrow = 'threw: ' + String(e); }
+
     // #187 charm behaviors: the night settle/wake cycle must round-trip without
     // throwing (it rewires restAllAnimals/wakeAllAnimals), and the new run primitives
     // must resolve. Probed last (it mutates animal state) and lenient — this proves
@@ -892,6 +952,7 @@ try {
     return {
       owl,
       gardenWatering,
+      cropRegrow,
       charm,
       chickenCoop,
       breeding,
@@ -1296,6 +1357,9 @@ try {
   // Crop watering chore (#245): unwatered growth stalls, watered growth advances, and
   // the watered flag resets each dawn.
   if (result.gardenWatering !== 'gates-growth-on-watering') fail(`crop watering (#245) failed: ${result.gardenWatering}`);
+  // Crop variety & regrow (#216): a regrow crop resets to an earlier stage (not empty)
+  // after harvest; a one-and-done crop empties the plot.
+  if (result.cropRegrow !== 'per-crop-regrow-behavior-correct') fail(`crop regrow (#216) failed: ${result.cropRegrow}`);
 
   if (result.breeding !== 'bonds-breeds-repeatedly-and-gates-growth') fail(`breeding & foals (#15/#114) failed: ${result.breeding}`);
   // Rooster (#269): spawned as a flock bird, doesn't lay, is a breeding partner, crows at dawn.

@@ -9,7 +9,9 @@
 //   plant  → set an empty slot to a crop at stage 0
 //   advance→ every planted slot grows one stage per day/night cycle (dawn roll) IF it
 //            was watered that cycle (#245) — otherwise it holds (no backward growth)
-//   harvest→ a ripe slot yields its crop's `yield`, then goes back to empty (replant)
+//   harvest→ a ripe slot yields its crop's `yield`, then EITHER regrows (resets to an
+//            earlier growth stage, still planted — #216) OR empties (one-and-done),
+//            per that crop's own `regrows` flag in crops.js
 //
 // Watering (#245): each planted slot carries its own `watered` flag (default false —
 // a freshly-planted crop needs its first watering like any other day). Watering is a
@@ -17,7 +19,9 @@
 // pattern, see scenes/paddock/garden.js `waterSlot`). `resetWateredFlags` is called each
 // dawn (alongside advanceDay) so yesterday's watering doesn't carry forward.
 
-import { CROPS, GROWTH_STAGES, getCrop, growIfWatered, isRipe, nextCrop } from './crops.js';
+import {
+  CROPS, GROWTH_STAGES, REGROW_STAGE, getCrop, growIfWatered, isRipe, nextCrop,
+} from './crops.js';
 
 // How many plantable slots the garden plot has (a small tidy patch, not a mega-farm).
 export const GARDEN_SLOTS = 6;
@@ -111,13 +115,17 @@ export function slotRipe(garden, i) {
 }
 
 // Harvest slot `i`: if it holds a ripe crop, returns `{ garden, crop, yield }` with the
-// slot cleared back to empty and the crop id + unit count it yielded. If the slot isn't
-// ripe (empty or still growing), returns `{ garden, crop: null, yield: 0 }` unchanged.
+// crop id + unit count it yielded, and the slot set per that crop's `regrows` flag
+// (#216) — a regrowing crop (berries, tomatoes) resets to REGROW_STAGE, still planted
+// and unwatered (needs tending again before its next growth tick); a one-and-done crop
+// (root veg like carrots/potatoes) is cleared back to empty (replant from scratch). If
+// the slot isn't ripe (empty or still growing), returns `{ garden, crop: null, yield: 0 }`
+// unchanged.
 export function harvest(garden, i) {
   if (!slotRipe(garden, i)) return { garden, crop: null, yield: 0 };
   const def = getCrop(garden[i].crop);
   const next = garden.slice();
-  next[i] = null;
+  next[i] = def.regrows ? { crop: def.id, stage: REGROW_STAGE, watered: false } : null;
   return { garden: next, crop: def.id, yield: def.yield };
 }
 

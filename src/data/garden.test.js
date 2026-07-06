@@ -6,7 +6,7 @@ import {
   GARDEN_SLOTS, emptyGarden, sanitizeGarden, plant, advanceDay, resetWateredFlags,
   harvest, slotRipe, slotWatered, waterSlot, firstEmptySlot,
 } from './garden.js';
-import { GROWTH_STAGES, getCrop } from './crops.js';
+import { GROWTH_STAGES, REGROW_STAGE, getCrop } from './crops.js';
 
 // Ripen a single planted garden slot by watering + advancing enough day cycles (mirrors
 // the in-world dawn roll: water during the day, advanceGarden gates growth on it,
@@ -128,13 +128,37 @@ describe('growth over day/night cycles', () => {
 });
 
 describe('harvest', () => {
-  it('yields the crop content + amount and clears the slot when ripe', () => {
+  it('a ONE-AND-DONE crop (e.g. carrot) yields + clears the slot back to empty (#216)', () => {
+    const g = ripen(plant(emptyGarden(), 2, 'carrot'), 2);
+    const res = harvest(g, 2);
+    expect(res.crop).toBe('carrot');
+    expect(res.yield).toBe(getCrop('carrot').yield);
+    expect(res.garden[2]).toBeNull();          // slot back to empty, ready to replant
+    expect(firstEmptySlot(res.garden)).toBe(0);
+  });
+
+  it('a REGROWING crop (e.g. strawberry) yields + stays planted at REGROW_STAGE, unwatered (#216)', () => {
     const g = ripen(plant(emptyGarden(), 2, 'strawberry'), 2);
     const res = harvest(g, 2);
     expect(res.crop).toBe('strawberry');
     expect(res.yield).toBe(getCrop('strawberry').yield);
-    expect(res.garden[2]).toBeNull();          // slot back to empty, ready to replant
-    expect(firstEmptySlot(res.garden)).toBe(0);
+    expect(res.garden[2]).toEqual({ crop: 'strawberry', stage: REGROW_STAGE, watered: false });
+    expect(slotRipe(res.garden, 2)).toBe(false); // not immediately ripe again
+  });
+
+  it('a second REGROWING crop (blueberry) also regrows, and can ripen again after more days (#216)', () => {
+    let g = ripen(plant(emptyGarden(), 3, 'blueberry'), 3);
+    const first = harvest(g, 3);
+    expect(first.crop).toBe('blueberry');
+    g = first.garden;
+    expect(g[3].crop).toBe('blueberry');
+    expect(slotRipe(g, 3)).toBe(false);
+    // Water + advance enough more days to ripen again from REGROW_STAGE.
+    g = ripen(g, 3);
+    expect(slotRipe(g, 3)).toBe(true);
+    const second = harvest(g, 3);
+    expect(second.crop).toBe('blueberry');
+    expect(second.yield).toBeGreaterThan(0);
   });
 
   it('is a no-op on an empty or still-growing slot', () => {
@@ -148,11 +172,19 @@ describe('harvest', () => {
     expect(res.garden[0]).not.toBeNull(); // crop still standing
   });
 
-  it('a harvested slot can be replanted and grown again', () => {
+  it('a one-and-done harvested slot can be replanted with a different crop', () => {
     let g = ripen(plant(emptyGarden(), 0, 'carrot'));
     g = harvest(g, 0).garden;
     g = plant(g, 0, 'wheat');
     expect(g[0]).toEqual({ crop: 'wheat', stage: 0, watered: false });
+  });
+
+  it('a regrowing slot canNOT be replanted (still occupied) until it is dug up — plant is a no-op there', () => {
+    let g = ripen(plant(emptyGarden(), 0, 'strawberry'));
+    g = harvest(g, 0).garden;
+    expect(g[0]).not.toBeNull(); // still planted (regrew)
+    const attempt = plant(g, 0, 'wheat');
+    expect(attempt).toBe(g); // plant() refuses an occupied slot
   });
 });
 
