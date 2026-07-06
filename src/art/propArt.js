@@ -197,6 +197,19 @@ export function buildPropTextures(scene) {
     g.fillStyle(0xe87a7a, 1); g.fillCircle(16, 8, 1.2);
     g.fillStyle(0x6a3d1a, 1); g.fillRect(18, 5, 1, 3);
   });
+  gen(scene, 'orangePile', 26, 14, (g) => { // a couple of oranges on the ground (#228)
+    g.fillStyle(0xf0902a, 1); g.fillCircle(8, 9, 5);
+    g.fillStyle(0xffb85a, 1); g.fillCircle(6, 7, 1.5);
+    g.fillStyle(0x3b8a1c, 1); g.fillEllipse(11, 4, 4, 2);
+    g.fillStyle(0xe07f20, 1); g.fillCircle(18, 10, 4.5);
+    g.fillStyle(0xffb85a, 1); g.fillCircle(16, 8, 1.2);
+  });
+  gen(scene, 'berryPile', 24, 12, (g) => { // a small handful of spilled berries (#228)
+    g.fillStyle(0x4a2f8a, 1);
+    g.fillCircle(6, 8, 2.4); g.fillCircle(11, 6, 2.4); g.fillCircle(16, 8, 2.4); g.fillCircle(9, 10, 2.2);
+    g.fillStyle(0x8a5fd6, 1);
+    g.fillCircle(5, 7, 0.8); g.fillCircle(10, 5, 0.8); g.fillCircle(15, 7, 0.8);
+  });
   gen(scene, 'carrotPile', 28, 14, (g) => { // a couple of carrots on the ground
     // Carrot 1 (lying diagonally)
     g.fillStyle(0xf07830, 1); g.fillTriangle(3, 11, 14, 6, 14, 10);
@@ -453,6 +466,33 @@ export function buildPropTextures(scene) {
     g.fillCircle(14, 28, 3); g.fillCircle(30, 16, 3); g.fillCircle(38, 30, 3); g.fillCircle(24, 34, 3);
     g.fillStyle(0xe87a7a, 1);
     g.fillCircle(13, 27, 1); g.fillCircle(29, 15, 1); g.fillCircle(37, 29, 1); g.fillCircle(23, 33, 1);
+  });
+  // Orange tree (#228) — a second gatherable tree, same silhouette as the apple
+  // tree (leafy crown over a trunk) but its own colour palette + round orange fruit.
+  gen(scene, 'orangeTree', 52, 68, (g) => {
+    g.fillStyle(0x6a4424, 1); g.fillRect(23, 40, 6, 26); // trunk
+    g.fillStyle(0x83562e, 1); g.fillRect(23, 40, 2, 26);
+    g.fillStyle(0x2f7a2a, 1); g.fillCircle(26, 26, 24); // crown (a touch yellower green than apple)
+    g.fillStyle(0x3f9a34, 1); g.fillCircle(18, 20, 14); g.fillCircle(36, 22, 13);
+    g.fillStyle(0x58b840, 1); g.fillCircle(20, 16, 8);
+    g.fillStyle(0xf0902a, 1); // oranges
+    g.fillCircle(14, 28, 3); g.fillCircle(30, 16, 3); g.fillCircle(38, 30, 3); g.fillCircle(24, 34, 3);
+    g.fillStyle(0xffb85a, 1);
+    g.fillCircle(13, 27, 1); g.fillCircle(29, 15, 1); g.fillCircle(37, 29, 1); g.fillCircle(23, 33, 1);
+  });
+  // Berry bush (#228) — the same gather interaction as the apple/orange trees, but a
+  // low, trunkless canopy sitting near the ground (no trunk texture at all): a wide,
+  // squat cluster of foliage with berries dotted through it.
+  gen(scene, 'berryBush', 46, 34, (g) => {
+    // ground shadow
+    g.fillStyle(0x000000, 0.12); g.fillEllipse(23, 32, 36, 6);
+    g.fillStyle(0x2f6e1f, 1); g.fillCircle(23, 22, 16); // low, wide canopy — no trunk
+    g.fillStyle(0x3b8a26, 1); g.fillCircle(13, 20, 10); g.fillCircle(33, 20, 10);
+    g.fillStyle(0x4fa838, 1); g.fillCircle(23, 14, 8);
+    g.fillStyle(0x4a2f8a, 1); // berries (deep purple-red)
+    g.fillCircle(11, 22, 2.6); g.fillCircle(23, 12, 2.6); g.fillCircle(33, 24, 2.6); g.fillCircle(20, 27, 2.6);
+    g.fillStyle(0x8a5fd6, 1);
+    g.fillCircle(10, 21, 0.9); g.fillCircle(22, 11, 0.9); g.fillCircle(32, 23, 0.9); g.fillCircle(19, 26, 0.9);
   });
   // Carrot garden — a tilled plot with carrot tops poking out
   gen(scene, 'carrotGarden', 56, 32, (g) => {

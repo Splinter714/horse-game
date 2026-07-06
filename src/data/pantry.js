@@ -12,7 +12,7 @@
 export const PANTRY_STORABLE = [
   'hay', 'apple', 'carrot', 'seed', 'egg', 'eggBrown', 'milk', 'wool', 'yarn',
   'strawberry', 'wheat', 'jam', 'flour', 'pigFeed', 'honey', 'catFood', 'bunnyFood',
-  'foxFood', 'duckFood',
+  'foxFood', 'duckFood', 'orange', 'berry',
 ];
 
 export function isPantryStorable(content) {

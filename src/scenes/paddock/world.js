@@ -159,8 +159,7 @@ export const WithWorld = (Base) => class extends Base {
     // to this.obstacles once that array exists — see the obstacle list below.
     this.buildGeneralStore(); // seed-shop building (#215); paddock/generalStore.js
 
-    // Gathering sources (issue #63) — static, infinite props the player fills their
-    // carriers at (one content each), across the farm band north of the pasture.
+    // Gathering sources (#63) — static, infinite props the player fills carriers at.
     this.buildSources();
 
     // Pet food + water bowls (#202 cat rework, #283 generalized) — fillable dishes the
@@ -303,6 +302,8 @@ export const WithWorld = (Base) => class extends Base {
       { x: 820,  y: 850, content: 'hay',    tex: 'haystack',     label: 'Hay Pile',      reach: 100, ob: { w: 84,  h: 36 } },
       { x: 760,  y: 560, content: 'carrot', tex: 'carrotGarden', label: 'Carrot Garden', reach: 100, ob: { w: 104, h: 42 } },
       { x: 1660, y: 560, content: 'apple',  tex: 'appleTree',    label: 'Apple Tree',    reach: 90,  ob: { w: 44,  h: 26 } },
+      { x: 1850, y: 480, content: 'orange', tex: 'orangeTree', label: 'Orange Tree', reach: 90, ob: { w: 44, h: 26 } }, // #228 tree, mirrors apple
+      { x: 1020, y: 250, content: 'berry',  tex: 'berryBush',  label: 'Berry Bush',  reach: 85, ob: { w: 40, h: 18 } }, // #228 bush, same mechanic, no trunk
       { x: 1120, y: 470, content: 'seed',   tex: 'grainBin',     label: 'Grain Bin',     reach: 95,  ob: { w: 66,  h: 40 } },
       { x: 1100, y: 850, content: 'water',  tex: 'well',         label: 'Well',          reach: 95,  ob: { w: 52,  h: 22 } },
       // Kibble sack (#202 rework) — the cat-food SOURCE, by the house. The player

@@ -231,6 +231,13 @@ export const STAND_DEFS = {
   // veg). First-pass balance levers to tune at playtest.
   blueberry:  { price: 7,  tex: 'iconBlueberry',   scale: 0.9, emoji: '🫐', floatIcon: 'iconBlueberry' },
   potato:     { price: 3,  tex: 'iconPotato',      scale: 0.9, emoji: '🥔', floatIcon: 'iconPotato' },
+  // More tree/bush fruit (#228): oranges (a second gatherable TREE, mirrors apple)
+  // and berries (a gatherable BUSH — same mechanic, low trunkless canopy). Priced a
+  // touch above apples/carrots; both also craft into jam at the kitchen counter
+  // (items.js craftsTo) alongside strawberries. First-pass balance levers to tune
+  // at playtest, same as every other crop price here.
+  orange: { price: 5, tex: 'iconOrange', scale: 0.9, emoji: '🍊', floatIcon: 'iconOrange' },
+  berry:  { price: 6, tex: 'iconBerry',  scale: 0.9, emoji: '🫐', floatIcon: 'iconBerry' },
 };
 export const STAND_TYPES = Object.keys(STAND_DEFS);
 
