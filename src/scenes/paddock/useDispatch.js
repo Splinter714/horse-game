@@ -217,6 +217,14 @@ export const WithUseDispatch = (Base) => class extends Base {
   useActiveTool() {
     if (this._paused || this._sleeping || this.riding) return;
     if (this.scene.get('HotbarScene')?.invOpen) return;
+
+    // Brushing timing mini-game (#296): if a bar is currently live (started by an
+    // earlier Use press on this same input), the NEXT Use press resolves it — good/
+    // perfect/miss depending on where the marker landed — rather than starting a
+    // second one or re-brushing. Same key/button as the one that started it, so it
+    // reads as one natural "tap again" beat.
+    if (this._resolveActiveBrushGame()) return;
+
     const item = this.getActiveItem();
     if (!item || item.action === 'interact') return; // empty hand: nothing to use
 
