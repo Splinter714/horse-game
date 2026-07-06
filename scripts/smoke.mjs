@@ -1389,6 +1389,19 @@ try {
       const fromNeither = hi.findIngredient('carrot', 1);
       const neitherOk = fromNeither.source === null && fromNeither.available === 0;
 
+      // Fish tank (#221): purely decorative — the tank furniture is baked into the
+      // houseInterior texture (checked via a live-drawn pixel isn't practical here,
+      // so we just confirm the texture built), and the scene keeps 2 ambient fish
+      // sprites alive, playing the swim animation, and actually moving (proof the
+      // back-and-forth tween is running, not just parked).
+      const tankTextureOk = g.textures.exists('houseInterior') && g.textures.exists('fish_0') && g.textures.exists('fish_1');
+      const tankFish = hi._tankFish ?? [];
+      const tankFishCountOk = tankFish.length === 2;
+      const tankFishActiveOk = tankFish.every((f) => f.sprite?.active && f.sprite.anims?.isPlaying);
+      const fishStartX = tankFish.map((f) => f.sprite.x);
+      await new Promise((r) => setTimeout(r, 2000));
+      const fishMovedOk = tankFish.every((f, i) => Math.abs(f.sprite.x - fishStartX[i]) > 0.5);
+
       // Leave the house so later probes see the normal world state.
       hi._exit();
       await new Promise((r) => setTimeout(r, 400));
@@ -1396,6 +1409,7 @@ try {
 
       return {
         active, stationsOk, stocked, persistsToStorage, pantryOk, inventoryOk, neitherOk, backInWorld,
+        tankTextureOk, tankFishCountOk, tankFishActiveOk, fishMovedOk,
       };
     } catch (e) {
       return { threw: String(e) };
@@ -1406,6 +1420,10 @@ try {
   if (hi.threw) fail(`house interior (#212/#213) probe threw: ${hi.threw}`);
   else {
     if (!hi.active) fail('house interior (#212/#213): HouseInteriorScene did not activate on enterHouse()');
+    if (!hi.tankTextureOk) fail('fish tank (#221): houseInterior/fish textures missing');
+    if (!hi.tankFishCountOk) fail('fish tank (#221): expected 2 ambient tank fish sprites');
+    if (!hi.tankFishActiveOk) fail('fish tank (#221): tank fish sprites not active/animating');
+    if (!hi.fishMovedOk) fail('fish tank (#221): tank fish did not move (swim tween not running)');
     if (!hi.stationsOk) fail('house interior (#212/#213): pantry and/or stove station missing or not canAct');
     if (!hi.stocked) fail('pantry (#212): stocking from the active carrier did not add to storage / empty the carrier');
     if (!hi.persistsToStorage) fail('pantry (#212): stock did not persist to localStorage (horse-game-pantry-v1)');

@@ -131,6 +131,22 @@ export function buildWorldTextures(scene) {
     g.fillStyle(0x8a6a44, 1); g.fillRect(66, HI_H - 10, 28, 8);  // doormat (south exit)
     g.fillStyle(0x9a7a52, 1); g.fillRect(68, HI_H - 9, 24, 2);
     g.fillStyle(0x6a4a2a, 1); g.fillRect(64, HI_H - 3, 32, 3);   // threshold board
+    g.layer('fishtank');
+    // Fish tank (#221) — a wooden stand + glass tank on the open west wall, below the
+    // dresser/mirror. PURELY DECORATIVE: no feed/catch mechanic. The ambient swimming
+    // fish themselves are separate sprites the scene animates over this glass (see
+    // HouseInteriorScene._buildFishTank) — reusing the stream fish art (#183) — so the
+    // texture here only needs the tank furniture (stand, glass, gravel, waterline).
+    g.fillStyle(0x6a4a2a, 1); g.fillRect(8, 92, 40, 10);          // wooden stand
+    g.fillStyle(0x5a3f24, 1); g.fillRect(8, 100, 40, 2);         // stand shadow/base
+    g.fillStyle(0x3a2a1a, 1); g.fillRect(9, 68, 2, 24); g.fillRect(45, 68, 2, 24); // tank frame sides
+    g.fillStyle(0x3a2a1a, 1); g.fillRect(9, 66, 38, 3);          // tank frame top
+    g.fillStyle(0x9adcec, 0.55); g.fillRect(11, 69, 34, 21);     // glass/water body
+    g.fillStyle(0xbdeaf5, 0.5); g.fillRect(11, 69, 34, 3);       // waterline sheen
+    g.fillStyle(0xcaa877, 1); g.fillRect(11, 87, 34, 3);         // gravel bed
+    g.fillStyle(0xd6b985, 1); g.fillRect(11, 87, 34, 1);        // gravel highlight
+    g.fillStyle(0x4a8a54, 1); g.fillRect(15, 80, 2, 8); g.fillRect(38, 78, 2, 10); // little water plants
+    g.fillStyle(0x5aa060, 1); g.fillRect(15, 79, 2, 2); g.fillRect(38, 77, 2, 2);
   });
 
   // --- barn interior + cutaway (#35) ---
