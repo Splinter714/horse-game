@@ -15,7 +15,7 @@
 
 import Phaser from 'phaser';
 import { EVENTS } from '../data/events.js';
-import { SHOP_STOCK, purchase } from '../data/shop.js';
+import { SHOP_STOCK, purchase, ALL_TOOL_UPGRADES, purchaseUpgrade } from '../data/shop.js';
 import { growHitArea, applyDpr, logicalW, logicalH } from './uiUtils.js';
 
 const CARD_W  = 340;
@@ -55,17 +55,32 @@ export default class ShopScene extends Phaser.Scene {
     return hb?._money ?? 0;
   }
 
+  // Tool upgrades (#295) not yet purchased — a one-time unlock, so once bought it
+  // drops off this list (mirrors a shop that doesn't re-sell what you already own).
+  // Generic over every tool in ALL_TOOL_UPGRADES, whichever ships first.
+  _availableUpgrades() {
+    const hb = this.scene.get('HotbarScene');
+    return ALL_TOOL_UPGRADES.filter((u) => !hb?.ownsToolUpgrade?.(u.id));
+  }
+
   build() {
     const sw = logicalW(this), sh = logicalH(this);
     this._sw = sw; this._sh = sh;
 
-    // Full-screen dim catcher — a tap outside the card closes the shop.
-    const catcher = this.add.rectangle(0, 0, sw, sh, 0x000000, 0.35)
-      .setOrigin(0, 0).setInteractive();
-    catcher.on('pointerdown', () => this.close());
+    // Full-screen dim catcher — a tap outside the card closes the shop. Built once;
+    // _rebuild() (after an upgrade purchase removes a row) only replaces the card.
+    if (!this._catcher) {
+      this._catcher = this.add.rectangle(0, 0, sw, sh, 0x000000, 0.35)
+        .setOrigin(0, 0).setInteractive();
+      this._catcher.on('pointerdown', () => this.close());
+    }
 
-    const rows = SHOP_STOCK.length;
-    const listH = rows * ROW_H;
+    this._upgradeRows = this._availableUpgrades();
+    // A small section header sits above the upgrade rows when there are any to show
+    // (0 extra rows' worth of height otherwise) — purely cosmetic grouping.
+    const upgradeHeaderH = this._upgradeRows.length ? 26 : 0;
+    const rows = SHOP_STOCK.length + this._upgradeRows.length;
+    const listH = rows * ROW_H + upgradeHeaderH;
     const cardH = HEADER + listH + PAD;
     const cardX = Math.round((sw - CARD_W) / 2);
     const cardY = Math.round((sh - cardH) / 2);
@@ -105,7 +120,19 @@ export default class ShopScene extends Phaser.Scene {
 
     // Product rows.
     this._rowNodes = []; // per-row { affordBg, buyLbl, item, y } for focus ring + refresh
-    SHOP_STOCK.forEach((item, i) => this._buildRow(item, i));
+    SHOP_STOCK.forEach((item, i) => this._buildRow(item, i, HEADER + i * ROW_H));
+
+    // Tool upgrades (#295): a one-time, permanent purchase per tier, listed under
+    // its own small section header below the feed rows. Only unowned tiers show.
+    if (this._upgradeRows.length) {
+      const headerY = HEADER + SHOP_STOCK.length * ROW_H;
+      this.panel.add(this.add.text(16, headerY + 6, 'Tool Upgrades', {
+        fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: '#8fd6ff', fontStyle: 'bold',
+      }).setOrigin(0, 0));
+      const rowsTop = headerY + upgradeHeaderH;
+      this._upgradeRows.forEach((item, j) =>
+        this._buildRow(item, SHOP_STOCK.length + j, rowsTop + j * ROW_H, true));
+    }
 
     // Close button.
     const closeBtn = this.add.text(CARD_W - 12, 8, '✕', {
@@ -124,8 +151,7 @@ export default class ShopScene extends Phaser.Scene {
     this.tweens.add({ targets: this.panel, y: cardY, alpha: 1, duration: 160, ease: 'Quad.easeOut' });
   }
 
-  _buildRow(item, i) {
-    const y = HEADER + i * ROW_H;
+  _buildRow(item, i, y, isUpgrade = false) {
     const canAfford = this._money >= item.price;
 
     // Icon.
@@ -156,7 +182,7 @@ export default class ShopScene extends Phaser.Scene {
     zone.on('pointerdown', () => this._buy(i));
     this.panel.add(zone);
 
-    this._rowNodes.push({ g, buyLbl, item, bx, by, bw, bh });
+    this._rowNodes.push({ g, buyLbl, item, bx, by, bw, bh, isUpgrade });
   }
 
   _drawBuyBtn(g, x, y, w, h, canAfford) {
@@ -168,12 +194,16 @@ export default class ShopScene extends Phaser.Scene {
   }
 
   // Attempt to buy row `i`: check funds AND that a matching carrier is equipped with
-  // room, then debit gold (via MONEY_CHANGED) and deposit into the carrier.
+  // room, then debit gold (via MONEY_CHANGED) and deposit into the carrier. Row `i`
+  // may be a feed row (SHOP_STOCK) or a tool-upgrade row (this._upgradeRows) — the
+  // row node itself says which via `isUpgrade`.
   _buy(i) {
-    const item = SHOP_STOCK[i];
+    const row = this._rowNodes[i];
     const hb = this.scene.get('HotbarScene');
-    if (!item || !hb) return;
+    if (!row || !hb) return;
+    if (row.isUpgrade) { this._buyUpgrade(i, row.item, hb); return; }
 
+    const item = row.item;
     // Refresh from the live balance (in case a sale credited between opens).
     this._money = this._readMoney();
     const res = purchase(this._money, item);
@@ -197,6 +227,36 @@ export default class ShopScene extends Phaser.Scene {
     this._moneyLbl.setText(`$${this._money}`);
     this._refreshAfford();
     this._flashRow(i, `+1 ${item.label}`);
+  }
+
+  // Buy a tool-upgrade tier (#295): a one-time, permanent purchase — no carrier
+  // needed, and it can't be bought twice. hb.buyToolUpgrade does the actual debit +
+  // persistence (mirrors HotbarScene owning money/scooperLoad/etc as the single
+  // writer); this just reflects the result back into the shop UI.
+  _buyUpgrade(i, upgrade, hb) {
+    this._money = this._readMoney();
+    const check = purchaseUpgrade(this._money, upgrade, hb.ownsToolUpgrade?.(upgrade.id));
+    if (!check.ok) {
+      this._flashRow(i, hb.ownsToolUpgrade?.(upgrade.id) ? 'Already owned' : "Can't afford");
+      return;
+    }
+    const res = hb.buyToolUpgrade(upgrade.id);
+    if (!res.ok) { this._flashRow(i, "Can't afford"); return; }
+
+    this._money = res.balance;
+    this.game.events.emit(EVENTS.MONEY_CHANGED, this._money);
+    this._moneyLbl.setText(`$${this._money}`);
+    this._flashRow(i, `Bought ${upgrade.label}`);
+    // Owned upgrades drop off the list — rebuild the card so the row disappears
+    // and the layout reflows (mirrors close/build rather than patching in place).
+    this.time.delayedCall(650, () => { if (!this.closing) this._rebuild(); });
+  }
+
+  // Tear down and rebuild the card in place (after an upgrade purchase removes a
+  // row) without replaying the open animation or touching the paused-scene state.
+  _rebuild() {
+    this.panel?.destroy();
+    this.build();
   }
 
   // Redraw every Buy button's affordable/greyed state after the balance changed.
@@ -257,7 +317,8 @@ export default class ShopScene extends Phaser.Scene {
 
   _moveFocus(d) {
     this._focusActive = true;
-    const n = SHOP_STOCK.length;
+    const n = this._rowNodes.length;
+    if (!n) return;
     this._focusIdx = (this._focusIdx + d + n) % n;
     this._refreshRing();
   }

@@ -344,6 +344,40 @@ describe('shears wool-load persistence (#254)', () => {
   });
 });
 
+describe('tool upgrades persistence (#295)', () => {
+  it('defaults to an empty array on a fresh save and for a save predating the feature', () => {
+    expect(save.loadGameState().toolUpgrades).toEqual([]);
+    globalThis.localStorage.setItem(GAME_STATE_KEY, JSON.stringify({
+      hotbar: ['basketGroup', 'bucketGroup', 'brush', 'saddle', 'lead'],
+      inventory: {}, carriers: {}, money: 20,
+    }));
+    expect(save.loadGameState().toolUpgrades).toEqual([]);
+  });
+
+  it('round-trips a purchased upgrade id', () => {
+    save.saveGameState({
+      hotbar: [], inventory: {}, carriers: {}, activeCarrier: {}, money: 0,
+      toolUpgrades: ['scooperCapacity1'],
+    });
+    expect(save.loadGameState().toolUpgrades).toEqual(['scooperCapacity1']);
+  });
+
+  it('drops unknown/stale ids and de-duplicates', () => {
+    save.saveGameState({
+      hotbar: [], inventory: {}, carriers: {}, activeCarrier: {}, money: 0,
+      toolUpgrades: ['scooperCapacity1', 'scooperCapacity1', 'notARealUpgrade'],
+    });
+    expect(save.loadGameState().toolUpgrades).toEqual(['scooperCapacity1']);
+  });
+
+  it('tolerates non-array/corrupt data (defaults to empty)', () => {
+    globalThis.localStorage.setItem(GAME_STATE_KEY, JSON.stringify({
+      hotbar: [], inventory: {}, carriers: {}, money: 20, toolUpgrades: 'nope',
+    }));
+    expect(save.loadGameState().toolUpgrades).toEqual([]);
+  });
+});
+
 describe('audio settings', () => {
   it('returns unmuted full-volume defaults when nothing is stored', () => {
     const a = save.loadAudioSettings();

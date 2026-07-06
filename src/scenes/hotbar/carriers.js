@@ -3,7 +3,7 @@
 // (#75) and their fly-out picker, and the getActiveItem public API the rest of the
 // game reads. Extracted from the monolithic HotbarScene (issue #167).
 
-import { ITEM_MAP, CARRIER_DEFS, CONTENT_DEFS, SCOOPER, SHEARS, dumpScooper, emptyCarrier, SADDLE_TYPE_ORDER, DEFAULT_SADDLE_TYPE } from '../../data/items.js';
+import { ITEM_MAP, CARRIER_DEFS, CONTENT_DEFS, SCOOPER, SHEARS, dumpScooper, emptyCarrier, SADDLE_TYPE_ORDER, DEFAULT_SADDLE_TYPE, getToolUpgrade, upgradedStat } from '../../data/items.js';
 import { saveGameState } from '../../data/save.js';
 import { FLYOUT_CLOSE_MS } from './constants.js';
 
@@ -49,7 +49,39 @@ export const WithCarriers = (Base) => class extends Base {
       compost: this._compost ?? 0,
       shearsLoad: this._shearsLoad ?? 0,
       activeSaddleType: this._activeSaddleType ?? DEFAULT_SADDLE_TYPE,
+      toolUpgrades: [...(this._toolUpgrades ?? [])],
     });
+  }
+
+  // ── Tool upgrades (#295) ────────────────────────────────────────────────────
+  // Purchased upgrade ids, gold-bought and permanent (mirrors the tack rack's
+  // persisted saddle type — a purchase, not a consumable). Generic over any tool:
+  // the effect itself is interpreted by that tool's own capacity/load logic via
+  // upgradedStat(), so a second tool's upgrade needs no new accessor here.
+
+  ownsToolUpgrade(id) {
+    return (this._toolUpgrades ?? []).includes(id);
+  }
+
+  // Buy an upgrade tier with gold. Returns { ok, balance } — ok:false (already
+  // owned, unknown id, or can't afford) leaves money/state untouched.
+  buyToolUpgrade(id) {
+    const upgrade = getToolUpgrade(id);
+    if (!upgrade) return { ok: false, balance: this._money ?? 0 };
+    if (this.ownsToolUpgrade(id)) return { ok: false, balance: this._money ?? 0 };
+    const money = this._money ?? 0;
+    if (money < upgrade.price) return { ok: false, balance: money };
+    this._money = money - upgrade.price;
+    this._toolUpgrades = [...(this._toolUpgrades ?? []), id];
+    this._persistGameState();
+    this._buildHotbar();
+    return { ok: true, balance: this._money };
+  }
+
+  // The effective capacity for the scooper (#232), factoring in any purchased
+  // capacity upgrade — the base SCOOPER.capacity if none is owned yet.
+  scooperCapacity() {
+    return upgradedStat('scooper', 'capacity', this._toolUpgrades, SCOOPER.capacity);
   }
 
   // ── Tack rack / saddle type (#134 follow-up to #21) ─────────────────────────
@@ -79,8 +111,9 @@ export const WithCarriers = (Base) => class extends Base {
   // so the load and store survive a reload.
 
   // Add scooped droppings to the scooper (returns how many were added — 0 when full).
+  // Capacity reflects any purchased upgrade (#295), not just the tool's base size.
   addScooperLoad(n = 1) {
-    const cap = SCOOPER.capacity;
+    const cap = this.scooperCapacity();
     const added = Math.min(cap - (this._scooperLoad ?? 0), Math.max(0, n));
     if (added <= 0) return 0;
     this._scooperLoad = (this._scooperLoad ?? 0) + added;
@@ -335,7 +368,7 @@ export const WithCarriers = (Base) => class extends Base {
     // capacity so the Use dispatch/prompt can tell "scoop" (room left) from "full,
     // go dump" without reaching back into the hotbar scene.
     if (item.action === 'scoop') {
-      return { ...item, load: this._scooperLoad ?? 0, capacity: SCOOPER.capacity };
+      return { ...item, load: this._scooperLoad ?? 0, capacity: this.scooperCapacity() };
     }
     // The shears (#254) likewise carry a wool load — surface it so the Use dispatch/
     // prompt can tell "shear" (room left) from "full, go dump at the stand".
