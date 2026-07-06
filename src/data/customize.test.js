@@ -4,7 +4,7 @@
 // (defaultKeys / lookFromKeys / swatchTone); the art builders run in the browser/smoke.
 
 import { describe, it, expect } from 'vitest';
-import { CUSTOMIZE, defaultKeys, lookFromKeys, swatchTone, defaultLook } from './customize.js';
+import { CUSTOMIZE, defaultKeys, lookFromKeys, swatchTone, defaultLook, isChoiceUnlocked, selectableChoices } from './customize.js';
 
 const PLAYER_PARTS = ['hairStyle', 'hair', 'skin', 'eyes', 'sleeves', 'shirt', 'bottom', 'bottomColor'];
 
@@ -73,5 +73,52 @@ describe('option parts do not regress the colour-only animal schemas', () => {
     const look = lookFromKeys('cow', defaultKeys('cow'));
     expect(look.coat).toBeTypeOf('object'); // a ramp, not a key string
     expect(look.spots).toBeTypeOf('object');
+  });
+});
+
+describe('clothing-shop unlocks (#217): locked swatches + selectableChoices', () => {
+  const shirtPart = () => CUSTOMIZE.player.parts.find((p) => p.id === 'shirt');
+  const bottomColorPart = () => CUSTOMIZE.player.parts.find((p) => p.id === 'bottomColor');
+
+  it('the starting wardrobe (default) shirts have no unlock field', () => {
+    const starting = shirtPart().palette.filter((s) => !s.unlock);
+    expect(starting.length).toBeGreaterThanOrEqual(8); // the original 8 colours
+  });
+
+  it('at least one shirt and one bottom-colour swatch are locked behind a clothing-shop key', () => {
+    expect(shirtPart().palette.some((s) => s.unlock)).toBe(true);
+    expect(bottomColorPart().palette.some((s) => s.unlock)).toBe(true);
+  });
+
+  it('isChoiceUnlocked: an un-gated choice is always unlocked, with or without ownedKeys', () => {
+    const [first] = shirtPart().palette;
+    expect(isChoiceUnlocked(first, undefined)).toBe(true);
+    expect(isChoiceUnlocked(first, new Set())).toBe(true);
+  });
+
+  it('isChoiceUnlocked: a gated choice is locked without ownership, unlocked with it', () => {
+    const locked = shirtPart().palette.find((s) => s.unlock);
+    expect(isChoiceUnlocked(locked, undefined)).toBe(false);
+    expect(isChoiceUnlocked(locked, new Set())).toBe(false);
+    expect(isChoiceUnlocked(locked, new Set([locked.unlock]))).toBe(true);
+    expect(isChoiceUnlocked(locked, [locked.unlock])).toBe(true); // plain array works too
+  });
+
+  it('selectableChoices omits locked swatches when ownedKeys is omitted', () => {
+    const choices = selectableChoices(shirtPart(), undefined);
+    expect(choices.every((c) => !c.unlock)).toBe(true);
+  });
+
+  it('selectableChoices includes a locked swatch once its unlock key is owned', () => {
+    const locked = shirtPart().palette.find((s) => s.unlock);
+    const withoutOwnership = selectableChoices(shirtPart(), new Set());
+    const withOwnership = selectableChoices(shirtPart(), new Set([locked.unlock]));
+    expect(withoutOwnership.some((c) => c.key === locked.key)).toBe(false);
+    expect(withOwnership.some((c) => c.key === locked.key)).toBe(true);
+  });
+
+  it('selectableChoices falls back to every choice for a species with no locked swatches', () => {
+    const part = CUSTOMIZE.cow.parts.find((p) => p.id === 'coat');
+    expect(selectableChoices(part, new Set())).toEqual(part.palette);
   });
 });

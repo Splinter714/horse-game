@@ -157,6 +157,11 @@ const PLAYER_SHIRT = [
   sw('purple', 'Purple', { main: 0x9a5ac0, shad: 0x7840a0 }),
   sw('pink',   'Pink',   { main: 0xe890b0, shad: 0xc86a90 }),
   sw('white',  'White',  { main: 0xeef0f0, shad: 0xc8ccce }),
+  // Clothing-shop unlocks (#217) — locked by default; `unlock` names the general
+  // store item key that must be OWNED (storeInventory.js) before this swatch shows
+  // up as a selectable option at the dresser. See customize.js's `unlockedChoices`.
+  { ...sw('gold',     'Gold',     { main: 0xd4a72c, shad: 0xa9821f }), unlock: 'shirt_gold' },
+  { ...sw('midnight', 'Midnight', { main: 0x2a2f4a, shad: 0x1a1e30 }), unlock: 'shirt_midnight' },
 ];
 const PLAYER_BOTTOM_COLOR = [
   sw('brown', 'Brown', { main: 0x7a5a38, shad: 0x5a4028 }), // today
@@ -166,6 +171,8 @@ const PLAYER_BOTTOM_COLOR = [
   sw('green', 'Green', { main: 0x5a7a4a, shad: 0x426034 }),
   sw('red',   'Red',   { main: 0xb05040, shad: 0x8a3a2e }),
   sw('tan',   'Tan',   { main: 0xc8a878, shad: 0xa88858 }),
+  // Clothing-shop unlock (#217) — see PLAYER_SHIRT comment above.
+  { ...sw('plum', 'Plum', { main: 0x6a3a5a, shad: 0x4e2942 }), unlock: 'bottoms_plum' },
 ];
 
 export const CUSTOMIZE = {
@@ -243,6 +250,27 @@ export const swatchTone = (ramp) => ramp.mid ?? ramp.lit ?? ramp.hi ?? ramp.colo
 // A part's choice list, regardless of flavour: colour parts carry `palette`, shape
 // OPTION parts carry `options`. Both are arrays of `{ key, label, … }`.
 const partChoices = (part) => part.palette ?? part.options;
+
+// Is a single choice unlocked? Most choices (the starting wardrobe) have no `unlock`
+// field and are always available. A choice with `unlock: <storeItemKey>` (#217,
+// clothing-shop swatches) only counts as unlocked once that key is owned — callers
+// pass in whichever set of owned keys applies (e.g. `Object.keys(storeInventory)`
+// filtered to positive counts). No ownership set passed → locked choices stay locked
+// (fail safe, so a caller that forgets to thread ownership doesn't accidentally leak
+// them in).
+export function isChoiceUnlocked(choice, ownedKeys) {
+  if (!choice.unlock) return true;
+  return !!ownedKeys && (ownedKeys instanceof Set ? ownedKeys.has(choice.unlock) : ownedKeys.includes?.(choice.unlock));
+}
+
+// A part's SELECTABLE choice list: the starting wardrobe (no `unlock`) plus any
+// clothing-shop swatch whose `unlock` key is in `ownedKeys` (#217). Species/parts with
+// no locked choices are completely unaffected regardless of `ownedKeys` (every choice
+// passes isChoiceUnlocked trivially) — only a part that actually has locked swatches
+// needs a real ownedKeys set threaded in to unlock them.
+export function selectableChoices(part, ownedKeys) {
+  return partChoices(part).filter((c) => isChoiceUnlocked(c, ownedKeys));
+}
 
 // The default KEY per part (first choice). Keys (not ramps) are what gets persisted on
 // the model, so the look survives reloads (the art is rebuilt from them on boot).

@@ -611,4 +611,29 @@ export function buildIconTextures(scene) {
     g.fillStyle(0x3b8a1c, 1); g.fillTriangle(10, 7, 7, 11, 13, 11); // little leaf motif
     g.fillStyle(0x5cae34, 1); g.fillTriangle(10, 8, 8.5, 10.5, 11.5, 10.5);
   });
+
+  // Clothing counter icons (#217) — generic store-list glyphs for the new outfit
+  // unlocks. Deliberately plain/neutral-toned (the actual purchased colour is a data
+  // swatch applied at the dresser, not drawn here).
+  gen(scene, 'iconShirt', 20, 20, (g) => { // folded shirt
+    g.fillStyle(0x5aab8a, 1); g.fillRoundedRect(4, 6, 12, 10, 2);      // torso
+    g.fillStyle(0x3d8a6c, 1); g.fillTriangle(4, 6, 1, 9, 4, 11);       // left sleeve
+    g.fillTriangle(16, 6, 19, 9, 16, 11);                              // right sleeve
+    g.fillStyle(0x2f6e55, 1); g.fillRect(8, 5, 4, 3);                  // collar shadow
+    g.fillStyle(0x76c2a4, 1); g.fillRect(6, 8, 8, 1.5);                // lit chest band
+  });
+
+  gen(scene, 'iconBottoms', 20, 20, (g) => { // folded trousers
+    g.fillStyle(0x7a5a38, 1); g.fillRoundedRect(5, 4, 10, 6, 2);       // waistband
+    g.fillStyle(0x5a4028, 1); g.fillRect(5, 9, 4, 7);                  // left leg
+    g.fillRect(11, 9, 4, 7);                                            // right leg
+    g.fillStyle(0x91714a, 1); g.fillRect(5, 4, 10, 2);                 // lit waist band top
+  });
+
+  gen(scene, 'iconHat', 20, 20, (g) => { // sun hat
+    g.fillStyle(0xc09a2e, 1); g.fillRoundedRect(2, 12, 16, 3, 1.5);    // brim (shaded)
+    g.fillStyle(0xe6c24a, 1); g.fillRoundedRect(2, 12, 16, 1.5, 1);    // brim lit top edge
+    g.fillStyle(0xe6c24a, 1); g.fillRoundedRect(6, 5, 8, 8, 3);        // crown
+    g.fillStyle(0xf3da84, 1); g.fillRect(7, 5, 6, 2);                  // crown highlight
+  });
 }

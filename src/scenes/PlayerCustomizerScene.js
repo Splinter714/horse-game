@@ -3,6 +3,7 @@ import { applyDpr } from './uiUtils.js';
 import { WithCustomizerShell } from './customizer/shell.js';
 import { WithCustomizerNav } from './customizer/nav.js';
 import { loadPlayerLook, savePlayerLook } from '../data/save.js';
+import { loadStoreInventory } from '../data/storeInventory.js';
 
 // Standalone host for the player character customizer (#44), launched ON TOP of the
 // world from the pause menu. It reuses the generic customizer shell + nav (the same
@@ -26,11 +27,17 @@ export default class PlayerCustomizerScene extends WithCustomizerShell(WithCusto
     // each edit and we persist it. previewFrames give the shell a down-facing walk cycle
     // to animate (the player has no idle_0/idle_1 sheet, only directional walk frames).
     const model = { look: loadPlayerLook() };
+    // Clothing-shop unlocks (#217): any store item with a positive owned count counts
+    // as "bought" — this is a plain Set of keys, not the counts themselves, since the
+    // dresser only ever cares about owned-or-not (one-time unlock, never consumed).
+    const inventory = loadStoreInventory();
+    const ownedKeys = new Set(Object.keys(inventory).filter((k) => inventory[k] > 0));
     this.custEnterFor({
       speciesId: 'player',
       key: 'player',
       model,
       persist: () => savePlayerLook(model.look),
+      ownedKeys,
       previewFrames: [
         { key: 'player_down_0' }, { key: 'player_down_1' },
         { key: 'player_down_2' }, { key: 'player_down_3' },

@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { S } from '../paddock/constants.js';
 import { growHitArea, logicalW, logicalH } from '../uiUtils.js';
-import { CUSTOMIZE, swatchTone, defaultKeys, lookFromKeys } from '../../data/customize.js';
+import { CUSTOMIZE, swatchTone, defaultKeys, lookFromKeys, selectableChoices } from '../../data/customize.js';
 import { reskinAnimal } from '../../art/index.js';
 import { ART_SCALE } from '../../art/_frames.js';
 import { DEMO_FOALS } from '../../data/demoFoals.js';
@@ -50,15 +50,20 @@ export const colorRank = (hex) => {
 
 export const WithCustomizerShell = (Base) => class extends Base {
   // ── Lifecycle ───────────────────────────────────────────────────────────────
-  // opts: { speciesId, key, persist?, host?, onExit? }
-  //   persist — optional save callback fired after each edit (in-world horse only).
-  //   host    — optional scene key to pause+hide while editing (art-preview host).
-  //   onExit  — optional callback when the editor closes (defaults to this._onCustExit).
+  // opts: { speciesId, key, persist?, host?, onExit?, ownedKeys? }
+  //   persist   — optional save callback fired after each edit (in-world horse only).
+  //   host      — optional scene key to pause+hide while editing (art-preview host).
+  //   onExit    — optional callback when the editor closes (defaults to this._onCustExit).
+  //   ownedKeys — optional Set/array of general-store item keys the player has bought
+  //               (#217 clothing shop). A palette/option choice with an `unlock` field
+  //               only shows up as selectable when its unlock key is in this set; omit
+  //               it and every part shows only its un-gated (starting wardrobe) choices.
   custEnterFor(opts) {
     this._custSpecies = opts.speciesId;
     this._editKey = opts.key;
     this._custPersist = opts.persist || null;
     this._custHostKey = opts.host || null;
+    this._ownedKeys = opts.ownedKeys || null;
     if (opts.onExit) this._onCustExit = opts.onExit;
     this._mode = 'edit';
 
@@ -300,16 +305,20 @@ export const WithCustomizerShell = (Base) => class extends Base {
   // Data-driven simple parts: one section per editable part. Colour parts get a swatch
   // grid; shape OPTION parts (player hair/sleeves/bottom) get a row of option pills.
   // Either way, picking recolours/reshapes the live sprite (#165, live-recolor only).
+  // Each part's choice list is filtered through selectableChoices (#217): a choice
+  // with an `unlock` field (a clothing-shop swatch) only appears once its unlock key
+  // is in this._ownedKeys, so an un-bought outfit simply isn't offered here.
   _buildPartSections(c, y0) {
     let y = y0;
     const parts = CUSTOMIZE[this._custSpecies].parts;
     for (const part of parts) {
       const curKey = this._lookKeys[part.id];
       const onPick = (k) => this._pickPartSwatch(part.id, k);
+      const choices = selectableChoices(part, this._ownedKeys);
       if (part.options) {
-        y = this._secOptions(c, part.label, part.options.map((o) => [o.key, o.label]), curKey, onPick, y) + 14;
+        y = this._secOptions(c, part.label, choices.map((o) => [o.key, o.label]), curKey, onPick, y) + 14;
       } else {
-        const entries = part.palette.map((s) => [s.key, s.label, swatchTone(s.ramp)]);
+        const entries = choices.map((s) => [s.key, s.label, swatchTone(s.ramp)]);
         y = this._secSwatches(c, part.label, entries, curKey, onPick, y) + 14;
       }
     }
@@ -318,9 +327,12 @@ export const WithCustomizerShell = (Base) => class extends Base {
 
   // Apply a part choice (a colour swatch or a shape option) and re-resolve the whole
   // look. Re-resolving via lookFromKeys handles both flavours uniformly (option parts
-  // resolve to their key, colour parts to a ramp).
+  // resolve to their key, colour parts to a ramp). Only a currently-SELECTABLE choice
+  // (starting wardrobe or owned via the clothing shop, #217) can be picked — a locked
+  // swatch was never offered as a zone in the UI, but this re-checks defensively.
   _pickPartSwatch(partId, swatchKey) {
-    const choices = (() => { const p = CUSTOMIZE[this._custSpecies].parts.find((p) => p.id === partId); return p?.palette ?? p?.options; })();
+    const part = CUSTOMIZE[this._custSpecies].parts.find((p) => p.id === partId);
+    const choices = part && selectableChoices(part, this._ownedKeys);
     if (!choices?.some((ch) => ch.key === swatchKey)) return;
     this._lookKeys = { ...this._lookKeys, [partId]: swatchKey };
     this._look = lookFromKeys(this._custSpecies, this._lookKeys);
