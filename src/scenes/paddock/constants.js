@@ -221,6 +221,10 @@ export const HOUSE_INTERIOR = {
     bed:     { x: 132, y: 42,  standX: 122, standY: 74, label: 'Sleep',             action: 'sleep' },
     dresser: { x: 25,  y: 30,  standX: 25,  standY: 66, label: 'Customize Character', action: 'customize' },
     kitchen: { x: 80,  y: 30,  standX: 80,  standY: 46, label: 'Kitchen  •  cooking coming soon', action: 'kitchen' },
+    // Pantry/fridge (#212): a standalone cupboard on the back wall between the
+    // dresser and the kitchen counter — a separate storage pool, not part of the
+    // counter itself. Deposits the active carrier's whole load on Use.
+    pantry:  { x: 47,  y: 30,  standX: 47,  standY: 46, label: 'Pantry',           action: 'pantry' },
   },
   // South doorway: the exit strip. When the player walks onto it they leave the house.
   exit: { x: 80, y: 116, w: 34 },

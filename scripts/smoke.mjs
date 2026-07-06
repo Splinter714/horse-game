@@ -1046,6 +1046,60 @@ try {
   });
   await page.screenshot({ path: '/tmp/player-customizer.png' });
 
+  // House interior — pantry (#212): enter the house, confirm the pantry station
+  // exists and is interactable (canAct), stock it from the active carrier, and
+  // confirm the deposit landed AND the carrier emptied, AND it persists to its
+  // own localStorage key. Enter via the same enterHouse() the world's door
+  // interactable calls.
+  result.houseInterior = await page.evaluate(async () => {
+    const g = window.__game;
+    const p = g.scene.getScene('PaddockScene');
+    const hot = g.scene.getScene('HotbarScene');
+    try {
+      p.enterHouse();
+      await new Promise((r) => setTimeout(r, 250));
+      const hi = g.scene.getScene('HouseInteriorScene');
+      const active = g.scene.isActive('HouseInteriorScene');
+
+      const pantryStation = hi.stations.find((s) => s.action === 'pantry');
+      const stationsOk = !!pantryStation?.canAct;
+
+      // Stock the pantry: put 5 carrots in the basket, then activate the pantry
+      // station directly (bypassing the walk-to-arrive nav for a deterministic probe).
+      hot.activeSlot = hot.hotbar.indexOf('basketGroup');
+      const basketKey = hot._resolveKey ? hot._resolveKey('basketGroup') : null;
+      hot.carriers[basketKey] = { content: 'carrot', count: 5 };
+      const beforeCount = hi.pantryCount('carrot');
+      hi._activate(pantryStation);
+      const stockedCount = hi.pantryCount('carrot');
+      const carrierEmptied = hot.getActiveItem()?.count === 0;
+      const stocked = stockedCount === beforeCount + 5 && carrierEmptied;
+
+      // Persists across reload: save.js's loadPantry/savePantry round-trip.
+      const persistedRaw = JSON.parse(localStorage.getItem('horse-game-pantry-v1') || '{}');
+      const persistsToStorage = persistedRaw.carrot === stockedCount;
+
+      // Leave the house so later probes see the normal world state.
+      hi._exit();
+      await new Promise((r) => setTimeout(r, 400));
+      const backInWorld = g.scene.isActive('PaddockScene') && !g.scene.isActive('HouseInteriorScene');
+
+      return { active, stationsOk, stocked, persistsToStorage, backInWorld };
+    } catch (e) {
+      return { threw: String(e) };
+    }
+  });
+  console.log(`House interior pantry (#212): ${JSON.stringify(result.houseInterior)}`);
+  const hi = result.houseInterior;
+  if (hi.threw) fail(`house interior pantry (#212) probe threw: ${hi.threw}`);
+  else {
+    if (!hi.active) fail('house interior (#212): HouseInteriorScene did not activate on enterHouse()');
+    if (!hi.stationsOk) fail('pantry (#212): station missing or not canAct');
+    if (!hi.stocked) fail('pantry (#212): stocking from the active carrier did not add to storage / empty the carrier');
+    if (!hi.persistsToStorage) fail('pantry (#212): stock did not persist to localStorage (horse-game-pantry-v1)');
+    if (!hi.backInWorld) fail('house interior (#212): exiting the house did not return to PaddockScene');
+  }
+
   // Weather pass (#188): force the DayNightScene into rain and back, and assert the
   // paddock's hooks respond — the WEATHER_CHANGE event lands, _weather tracks it,
   // rain dirties a horse faster (2×), the wildlife rain-gate closes, and rain
