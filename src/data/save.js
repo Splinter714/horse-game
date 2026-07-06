@@ -395,6 +395,29 @@ export function saveBirdFriendship({ counts = {}, roster = [] }) {
   } catch {}
 }
 
+// ── Neighbor relationship (#294) ──────────────────────────────────────────────
+// Mirrors the bird-friendship persistence shape above, but simpler: a single running
+// gift-count score (data/neighbor.js giftNeighbor) rather than a per-type tally +
+// roster, since there's only one neighbor for v1. Its own tiny storage key (not the
+// wholesale-rewritten gameState) so this stays a self-contained, easily-reset feature.
+const NEIGHBOR_FRIENDSHIP_KEY = 'horse-game-neighbor-friendship-v1';
+
+export function loadNeighborFriendship() {
+  try {
+    const data = JSON.parse(localStorage.getItem(NEIGHBOR_FRIENDSHIP_KEY));
+    const n = Number(data?.score);
+    return { score: Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0 };
+  } catch {
+    return { score: 0 };
+  }
+}
+
+export function saveNeighborFriendship({ score = 0 } = {}) {
+  try {
+    localStorage.setItem(NEIGHBOR_FRIENDSHIP_KEY, JSON.stringify({ score: Math.max(0, score | 0) }));
+  } catch {}
+}
+
 // ── Breeding gestations (#15) ─────────────────────────────────────────────────
 // In-flight pregnancies: an array of { aKey, bKey, startedAt, seed } that must
 // survive a reload so a foal paired before closing the game is still born on time

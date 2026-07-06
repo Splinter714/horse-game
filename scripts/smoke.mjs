@@ -64,6 +64,9 @@ try {
     const paddock = g.scene.getScene('PaddockScene');
     const expectMethods = [
       'buildWorld', 'buildObstacles', 'buildFarmStand', '_npcShop', 'stockStand', 'processCrop', 'buildKitchenCounter',
+      // Neighbor NPC (#294): periodic visits, trading & gift-based relationship score.
+      'buildNeighbor', '_scheduleNextNeighbor', '_spawnNeighbor', 'neighborTradeOffer',
+      'tradeWithNeighbor', 'giftNeighborWithActiveItem', '_neighborLeave',
       'buildPlayer', 'movePlayer', 'handleTap', '_findPath', 'gatherFrom',
       'mountHorse', 'dismount', 'toggleSaddle', 'toggleLead',
       'horseTick', 'horseGoEat', 'horseGoDrink', 'spawnHorse', 'spawnAnimal',
@@ -1493,6 +1496,123 @@ try {
   if (birdFriendPersist.named !== birdFriend.named) fail(`#223 bird befriending: name changed after reload (was ${birdFriend.named}, now ${birdFriendPersist.named})`);
   if (!birdFriendPersist.spriteActive) fail('#223 bird befriending: named regular not re-spawned into the world after reload');
   console.log(`Bird befriending persistence (#223): ${JSON.stringify(birdFriendPersist)}`);
+
+  // ── #294 Neighbor NPC: periodic visits, trading & a gift-based relationship score.
+  // Mirrors the farm-stand customer's arrival shape (spawn at world edge, walk in on
+  // a timer, npc_walk anim) but a different purpose. Drive _spawnNeighbor directly
+  // (bypassing the random arrival timer) for a deterministic probe, then exercise
+  // trade (give the player goods for gold) and gift (builds the relationship score,
+  // mirroring the bird-befriending counter above) before confirming both round-trip
+  // through a reload.
+  const neighbor = await page.evaluate(() => {
+    const g = window.__game, p = g.scene.getScene('PaddockScene');
+
+    // Arrival: spawn one in directly and let it walk to its visiting spot.
+    const beforeSpawn = !!p._neighbor;
+    p._spawnNeighbor();
+    const spawned = !!p._neighbor?.sprite?.active && p.npcs.includes(p._neighbor);
+
+    return { beforeSpawn, spawned, kind: p._neighbor?.kind, state: p._neighbor?.state };
+  });
+  if (neighbor.beforeSpawn) fail('#294 neighbor: a neighbor was already present before the probe spawned one');
+  if (!neighbor.spawned) fail(`#294 neighbor: _spawnNeighbor did not produce an active, tracked npc (${JSON.stringify(neighbor)})`);
+  if (neighbor.kind !== 'neighbor') fail(`#294 neighbor: spawned npc missing kind:'neighbor' tag (got ${neighbor.kind})`);
+  console.log(`Neighbor arrival (#294): ${JSON.stringify(neighbor)}`);
+
+  // Wait for the walk-in tween to land at the visiting spot (state → 'visiting').
+  await page.waitForFunction(() => {
+    const p = window.__game.scene.getScene('PaddockScene');
+    return p._neighbor?.state === 'visiting';
+  }, { timeout: 10000, polling: 100 });
+
+  // Trade: equip an empty basket, give the player enough gold, and trade — the
+  // offer's goods should land in the basket and gold should be deducted.
+  const trade = await page.evaluate(() => {
+    const g = window.__game, p = g.scene.getScene('PaddockScene');
+    const hot = g.scene.getScene('HotbarScene');
+    hot.activeSlot = hot.hotbar.indexOf('basketGroup');
+    hot.activeCarrier.basket = 'basket1';
+    hot.carriers.basket1 = { content: null, count: 0 };
+    p.money = 100;
+
+    const offer = p.neighborTradeOffer();
+    const moneyBefore = p.money;
+    const traded = p.tradeWithNeighbor();
+    return {
+      offer,
+      traded,
+      moneyDelta: moneyBefore - p.money,
+      basket: { ...hot.carriers.basket1 },
+      neighborLeftAfterTrade: !p._neighbor || p._neighbor.state === 'leaving',
+    };
+  });
+  if (!trade.traded) fail(`#294 neighbor: tradeWithNeighbor() returned false (${JSON.stringify(trade)})`);
+  if (trade.moneyDelta !== trade.offer.price) fail(`#294 neighbor: trade charged ${trade.moneyDelta}, expected offer price ${trade.offer.price}`);
+  if (trade.basket.content !== trade.offer.give.content || trade.basket.count !== trade.offer.give.qty) {
+    fail(`#294 neighbor: basket after trade = ${JSON.stringify(trade.basket)}, expected ${JSON.stringify(trade.offer.give)}`);
+  }
+  console.log(`Neighbor trade (#294): ${JSON.stringify(trade)}`);
+
+  // Gift: spawn a fresh neighbor (the traded one just left), equip a basket holding
+  // something, and gift it repeatedly — the relationship score must tick up by
+  // exactly one per gift and level up on crossing the first threshold (mirrors the
+  // bird-befriending rigor above).
+  const gift = await page.evaluate(async () => {
+    const g = window.__game, p = g.scene.getScene('PaddockScene');
+    const { NEIGHBOR_GIFT_THRESHOLDS } = await import('/src/data/neighbor.js');
+    // Wait for the previous (traded-with) neighbor to fully leave so a new one can spawn.
+    const waitLeave = async () => {
+      let waited = 0;
+      while (p._neighbor && waited < 5000) { await new Promise((r) => setTimeout(r, 100)); waited += 100; }
+    };
+    await waitLeave();
+    p._spawnNeighbor();
+    await new Promise((r) => {
+      const check = () => (p._neighbor?.state === 'visiting' ? r() : setTimeout(check, 100));
+      check();
+    });
+
+    const hot = g.scene.getScene('HotbarScene');
+    hot.activeSlot = hot.hotbar.indexOf('basketGroup');
+    hot.activeCarrier.basket = 'basket1';
+    hot.carriers.basket1 = { content: 'apple', count: 10 };
+
+    const scoreBefore = p._neighborScore;
+    const n = NEIGHBOR_GIFT_THRESHOLDS[0];
+    for (let i = 1; i <= n; i++) {
+      hot.carriers.basket1 = { content: 'apple', count: 10 }; // keep something to give each round
+      const gifted = p.giftNeighborWithActiveItem();
+      if (!gifted) return { error: `gift ${i} returned false`, scoreBefore, score: p._neighborScore };
+    }
+    return {
+      scoreBefore, scoreAfter: p._neighborScore, gifts: n,
+      threshold: NEIGHBOR_GIFT_THRESHOLDS[0],
+    };
+  });
+  if (gift.error) fail(`#294 neighbor gifting: ${gift.error}`);
+  if (gift.scoreAfter !== gift.scoreBefore + gift.gifts) {
+    fail(`#294 neighbor gifting: score went ${gift.scoreBefore} → ${gift.scoreAfter}, expected +${gift.gifts}`);
+  }
+  if (gift.scoreAfter < gift.threshold) {
+    fail(`#294 neighbor gifting: score ${gift.scoreAfter} never reached the first threshold ${gift.threshold}`);
+  }
+  console.log(`Neighbor gifting (#294): ${JSON.stringify(gift)}`);
+
+  // Persistence: the relationship score must survive a reload (mirrors the fox-taming
+  // counter / bird-friendship tally persistence checks above).
+  await page.reload({ waitUntil: 'load', timeout: 45000 });
+  await page.waitForFunction(() => {
+    const g = window.__game;
+    return !!(g && g.scene && g.scene.isActive('PaddockScene') && g.registry.get('allHorses'));
+  }, { timeout: 45000, polling: 200 });
+  const neighborPersist = await page.evaluate(() => {
+    const p = window.__game.scene.getScene('PaddockScene');
+    return { score: p._neighborScore };
+  });
+  if (neighborPersist.score !== gift.scoreAfter) {
+    fail(`#294 neighbor persistence: score ${gift.scoreAfter} did not survive reload (got ${neighborPersist.score})`);
+  }
+  console.log(`Neighbor persistence (#294): ${JSON.stringify(neighborPersist)}`);
 
   // ── HiDPI rendering: the game must render at the device's PHYSICAL pixels so
   // pixel-art/text are crisp on Retina screens (e.g. iPad, devicePixelRatio 2).

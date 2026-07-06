@@ -242,6 +242,54 @@ export const WithInteractables = (Base) => class extends Base {
       }];
     };
 
+    // Neighbor NPC (#294) — while visiting, offers a Trade (bare-hand-ish: just needs
+    // a compatible empty/matching carrier equipped, checked in tradeWithNeighbor) and
+    // accepts a Gift of whatever's in the held carrier (any non-empty carrier). Two
+    // separate prompts can't show at once, so gift takes priority when both would
+    // apply (you can always trade on repeat visits; gifting is the relationship
+    // progress you'd otherwise skip).
+    const neighborGift = (item) => {
+      const npc = this._neighbor;
+      if (!npc || npc.state !== 'visiting') return [];
+      const hasGift = item?.type === 'carrier' && (item.count ?? 0) > 0;
+      if (!hasGift) return [];
+      return [{
+        x: npc.sprite.x, y: npc.sprite.y, tapRadius: 130, reachDist: 120, promptOffsetY: 70,
+        canAct: true, label: `Gift ${CONTENT_DEFS[item.content]?.label ?? 'item'} to neighbor`,
+        approach: (world) => {
+          const refX = world ? world.x : this.player.sprite.x;
+          return { x: npc.sprite.x + (refX < npc.sprite.x ? -1 : 1) * 60, y: npc.sprite.y + 10 };
+        },
+        activate: () => this.giftNeighborWithActiveItem(),
+      }];
+    };
+
+    const neighborTrade = (item) => {
+      const npc = this._neighbor;
+      if (!npc || npc.state !== 'visiting') return [];
+      const hasGift = item?.type === 'carrier' && (item.count ?? 0) > 0;
+      if (hasGift) return []; // gifting takes priority when holding something to give
+      const offer = this.neighborTradeOffer();
+      const canAfford = this.money >= offer.price;
+      const compatibleCarrier = item?.type === 'carrier' && item.accepts?.includes(offer.give.content)
+        && (item.count === 0 || item.content === offer.give.content);
+      const canAct = canAfford && compatibleCarrier;
+      return [{
+        x: npc.sprite.x, y: npc.sprite.y, tapRadius: 130, reachDist: 120, promptOffsetY: 70,
+        canAct,
+        label: !canAfford
+          ? `Neighbor  •  need $${offer.price} to trade`
+          : compatibleCarrier
+            ? `Trade: ${offer.give.qty}× ${CONTENT_DEFS[offer.give.content].label} for $${offer.price}`
+            : `Neighbor  •  equip a Basket for ${CONTENT_DEFS[offer.give.content].label} to trade`,
+        approach: (world) => {
+          const refX = world ? world.x : this.player.sprite.x;
+          return { x: npc.sprite.x + (refX < npc.sprite.x ? -1 : 1) * 60, y: npc.sprite.y + 10 };
+        },
+        activate: () => this.tradeWithNeighbor(),
+      }];
+    };
+
     const farmStand = (item) => {
       const s = this.farmStand;
       const type = item?.content;
@@ -333,12 +381,16 @@ export const WithInteractables = (Base) => class extends Base {
     const gardenPlant   = gardenDescs.plant;
     const gardenHarvest = gardenDescs.harvest;
 
-    this.interactables = [gate, house, shop, barn, gardenPlant, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenHarvest];
+    this.interactables = [gate, house, shop, barn, gardenPlant, trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenHarvest, neighborGift, neighborTrade];
     // Split by input: gate/house/shop/barn/garden-plant are bare-hand "interact" targets
     // (tap/click/E); the rest require a carried tool/carrier and are triggered by Use (the
     // on-screen button / F / controller). See useActiveTool + handleTap.
+    // Neighbor trade/gift (#294) ride the Use path too — trade only needs money (no
+    // carrier required to receive), but it's grouped with toolWorld since gifting (the
+    // sibling interaction at the same spot) does require a held carrier, and only one
+    // of the two ever applies at a time (see neighborGift/neighborTrade above).
     this.interactWorld = [gate, house, shop, barn, gardenPlant];
-    this.toolWorld     = [trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenHarvest];
+    this.toolWorld     = [trough, catFoodBowl, catWaterBowl, bunnyFoodBowl, bunnyWaterBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenHarvest, neighborGift, neighborTrade];
   }
 
   // Nearest activatable instance to (x, y) within each instance's own radius
