@@ -86,6 +86,8 @@ try {
       'petEatFromBowl', '_catContext', '_catBowlDist',
       // careActions: brush-on-horse + generic produce harvesting (milk).
       'useItemOnHorse', '_produceFromAnimal',
+      // brushing timing mini-game (#296): start/tick/resolve the bonus-layer bar.
+      '_startBrushGame', 'tickBrushGame', '_resolveActiveBrushGame', '_resolveBrushGame', '_cancelBrushGame',
       // interaction: pet/info cluster + info-panel openers.
       'petAnimal', '_petPreferenceProximity', '_maybeGreetOnApproach', 'openProxInfo',
       'openPortrait', 'openChickenInfo', 'openCreatureInfo', '_openInfoPanel',
@@ -468,12 +470,16 @@ try {
           && (hot._shearsLoad ?? 0) === 0;
 
         // Secondary job: trimming the nearest horse routes through the brush path
-        // without throwing (grooming benefit reused, #254).
+        // without throwing (grooming benefit reused, #254). It now starts the #296
+        // timing mini-game rather than instantly applying, so cancel it right after
+        // (a bare non-throw is all this particular probe cares about) — the mini-game
+        // itself gets its own dedicated probe below.
         let trimmedOk = true;
         try {
           const horse = paddock.horses[0];
           const shearsItem = hot.getActiveItem();
           paddock.useItemOnHorse(shearsItem, horse);
+          paddock._cancelBrushGame();
         } catch { trimmedOk = false; }
 
         shears = (readyBefore && loadedOne && nowShorn && notReady && dumped && trimmedOk)
@@ -481,6 +487,58 @@ try {
           : `readyBefore=${readyBefore},loadedOne=${loadedOne},nowShorn=${nowShorn},notReady=${notReady},dumped=${dumped},trimmedOk=${trimmedOk}`;
       }
     } catch (e) { shears = 'threw: ' + String(e); }
+
+    // Brushing timing mini-game (#296): using the brush on a dirty horse must START
+    // the bar (not instantly apply the effect) — grooming stat stays untouched until
+    // it resolves. A PERFECT hit must apply MORE than the plain base amount (a bonus
+    // layer). A MISS (timeout) must still apply exactly the base amount — never less,
+    // never nothing — so a kid who whiffs the timing isn't punished. Drives the same
+    // entry points the real input does: useItemOnHorse starts it, _resolveActiveBrushGame
+    // is what useActiveTool's second Use press calls (we force the marker position via
+    // g.lastPos so the tier is deterministic instead of racing the real-time sweep).
+    let brushGame = 'no horse';
+    try {
+      const hot = g.scene.getScene('HotbarScene');
+      hot.activeSlot = hot.hotbar.indexOf('brush');
+      const brushItem = hot.getActiveItem();
+      const horse = paddock.horses[1];
+      const horseModel = horses[horse.key];
+
+      // Baseline single-tap amount (no mini-game), for comparison — matches the
+      // existing +35 feed-delta-style regression guard pattern.
+      horseModel.stats.grooming = 40;
+      horseModel.brush();
+      const baseAmount = horseModel.stats.grooming - 40;
+      horseModel.stats.grooming = 40; // reset for the probes below
+
+      // Starting the mini-game must NOT touch the stat yet (deferred until resolve).
+      paddock.useItemOnHorse(brushItem, horse);
+      const startedGame = !!paddock._brushGame && paddock._brushGame.horseKey === horse.key;
+      const noInstantApply = horseModel.stats.grooming === 40;
+
+      // Force a PERFECT hit (marker sitting exactly on the zone centre) and resolve.
+      paddock._brushGame.lastPos = paddock._brushGame.center;
+      paddock._resolveActiveBrushGame();
+      const perfectAmount = horseModel.stats.grooming - 40;
+      const perfectBeatsBase = perfectAmount > baseAmount;
+      const gameClearedAfterResolve = paddock._brushGame === null;
+
+      // A second brush stroke that TIMES OUT (miss) must still apply exactly the base
+      // amount — no punishment for missing the timing.
+      horseModel.stats.grooming = 40;
+      paddock.useItemOnHorse(brushItem, horse);
+      paddock.tickBrushGame(5000); // fast-forward well past the bar's ~1.6s auto-miss timeout
+      const missAmount = horseModel.stats.grooming - 40;
+      const missEqualsBase = missAmount === baseAmount;
+      const gameClearedAfterMiss = paddock._brushGame === null;
+
+      horseModel.stats.grooming = 60; // leave the probed horse tidy-ish for later checks
+
+      brushGame = (startedGame && noInstantApply && perfectBeatsBase && gameClearedAfterResolve
+                   && missEqualsBase && gameClearedAfterMiss)
+        ? 'bonus-layer-not-punishment'
+        : `startedGame=${startedGame},noInstantApply=${noInstantApply},baseAmount=${baseAmount},perfectAmount=${perfectAmount},perfectBeatsBase=${perfectBeatsBase},gameClearedAfterResolve=${gameClearedAfterResolve},missAmount=${missAmount},missEqualsBase=${missEqualsBase},gameClearedAfterMiss=${gameClearedAfterMiss}`;
+    } catch (e) { brushGame = 'threw: ' + String(e); }
 
     // Crop processing (#40): a basket of raw strawberries processed at the kitchen
     // counter becomes jam (converts, doesn't just no-op), a basket of carrots ground
@@ -868,6 +926,7 @@ try {
       fox,
       duck,
       shears,
+      brushGame,
       cropProcessing,
       catBowls,
       seedFeeder,
@@ -1279,6 +1338,10 @@ try {
   // #254 shears (multi-use tool): shear a sheep into the shears' own wool load, dump it
   // into the farm stand's wool stock, and trim a horse via the brush grooming path.
   if (result.shears !== 'shears-and-dumps') fail(`shears tool (#254) failed: ${result.shears}`);
+  // Brushing timing mini-game (#296): starting it defers the stat effect, a perfect
+  // hit applies MORE than the plain base amount (bonus layer), and a missed/timed-out
+  // attempt still applies exactly the base amount (never a punishment).
+  if (result.brushGame !== 'bonus-layer-not-punishment') fail(`brushing timing mini-game (#296) failed: ${result.brushGame}`);
   // #134 follow-up to #21: tack rack (barn) + multiple saddle types — the rack
   // interactable exists and is actionable, cycling steps through all 3 types, and
   // equipping picks up the rack's active type (distinct overlay per type, bareback

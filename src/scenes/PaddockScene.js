@@ -251,6 +251,7 @@ export default class PaddockScene extends PaddockBase {
     this.updateBarnCutaway(delta); // fade the barn façade when the player steps inside (#35)
     this.updateCoopCutaway(delta); // fade the coop façade when the player steps near/inside (#53)
     this.updateWildlife();
+    this.tickBrushGame(delta); // sweep the brushing timing bar, if one's active (#296)
     this.tickRegrowth();      // regrow shorn fleece once its timer completes (#233)
     this.tickDecay(delta);
     this.tickAutosave(delta);
