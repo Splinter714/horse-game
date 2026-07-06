@@ -63,6 +63,17 @@ export function buildWorldTextures(scene) {
     }
   });
 
+  // --- chimney smoke wisp (#230) — a soft puff drifting up from the house chimney ---
+  // A little translucent grey blob, layered light-to-dark so it reads as a puff of
+  // smoke rather than a flat circle. The scene (worldObjects.js) spawns a fresh one
+  // every few seconds above the chimney, tweening it up + fading it out — matching
+  // the fireplace burning inside (#230). One texture, reused per puff.
+  gen(scene, 'smokeWisp', 14, 14, (g) => {
+    g.fillStyle(0xc8c8c8, 0.35); g.fillCircle(7, 8, 6);
+    g.fillStyle(0xdcdcdc, 0.45); g.fillCircle(6, 6, 4);
+    g.fillStyle(0xeeeeee, 0.5);  g.fillCircle(8, 5, 2.5);
+  });
+
   // --- house interior (#56) ---
   // FIRST-PASS DRAFT ART, owner-art-directed. A single cozy one-room cottage interior
   // rendered as ONE floor-plan texture the HouseInteriorScene lays down as the room. It
@@ -147,7 +158,48 @@ export function buildWorldTextures(scene) {
     g.fillStyle(0xd6b985, 1); g.fillRect(11, 87, 34, 1);        // gravel highlight
     g.fillStyle(0x4a8a54, 1); g.fillRect(15, 80, 2, 8); g.fillRect(38, 78, 2, 10); // little water plants
     g.fillStyle(0x5aa060, 1); g.fillRect(15, 79, 2, 2); g.fillRect(38, 77, 2, 2);
+    g.layer('fireplace');
+    // Fireplace (#230) — a stone hearth on the open east wall, below the bed.
+    // PURELY DECORATIVE/AMBIENT: no temperature/gameplay mechanic. The stone
+    // surround + mantel + dark firebox are baked into this texture; the flickering
+    // flame itself is a separate animated sprite the scene places over the firebox
+    // (see HouseInteriorScene._buildFireplace), so re-skinning the flicker doesn't
+    // require regenerating the whole room texture.
+    g.fillStyle(0x8a8a8a, 1); g.fillRect(114, 62, 42, 44);          // stone surround block
+    g.fillStyle(0x9c9c9c, 1);                                       // stone highlight patches
+    g.fillRect(117, 65, 6, 6); g.fillRect(140, 68, 6, 6); g.fillRect(120, 92, 6, 5);
+    g.fillStyle(0x767676, 1);                                       // stone shadow patches
+    g.fillRect(130, 70, 5, 5); g.fillRect(118, 82, 5, 5); g.fillRect(142, 88, 5, 5);
+    g.fillStyle(0x6a4a2a, 1); g.fillRect(112, 60, 46, 5);           // wood mantel shelf
+    g.fillStyle(0x8a5a30, 1); g.fillRect(112, 60, 46, 2);          // mantel highlight
+    g.fillStyle(0x1a1410, 1); g.fillRect(122, 76, 22, 24);          // firebox opening (dark)
+    g.fillStyle(0x3a2a1a, 1); g.fillRect(122, 76, 22, 3);          // firebox lintel shadow
+    g.fillStyle(0x4a3a2a, 1); g.fillRect(126, 96, 5, 3); g.fillRect(134, 97, 6, 2); // charred logs
   });
+
+  // --- fireplace flame (#230) — 2-frame flicker, drawn over the firebox opening ---
+  // A simple layered-triangle flame (like the beehive's honey glow but animated): an
+  // outer orange flame + an inner yellow-white core, alternating a taller/shorter,
+  // left/right-leaning silhouette between frames for a cheap, cozy flicker. Small
+  // (22×20 design px, matching the firebox opening) so HouseInteriorScene can drop it
+  // straight over the hearth and just flip frames on a timer — no per-frame logic.
+  const FLAME_W = 22, FLAME_H = 20;
+  function drawFlame(g, variant) {
+    const lean = variant === 0 ? 1 : -1;
+    g.layer('flame_outer');
+    g.fillStyle(0xff8a2a, 0.95);
+    g.fillTriangle(2, FLAME_H, 11 + lean, 1, 20, FLAME_H);
+    g.fillStyle(0xffb040, 0.9);
+    g.fillTriangle(5, FLAME_H, 11 + lean * 0.5, 5, 17, FLAME_H);
+    g.layer('flame_core');
+    g.fillStyle(0xfff2a0, 0.95);
+    g.fillTriangle(8, FLAME_H, 11 - lean * 0.5, 8, 14, FLAME_H);
+    g.layer('ember_glow');
+    g.fillStyle(0xff6a1a, 0.5);
+    g.fillRect(3, FLAME_H - 3, 16, 3);
+  }
+  gen(scene, 'fireplaceFlame_0', FLAME_W, FLAME_H, (g) => drawFlame(g, 0));
+  gen(scene, 'fireplaceFlame_1', FLAME_W, FLAME_H, (g) => drawFlame(g, 1));
 
   // --- barn interior + cutaway (#35) ---
   // FIRST-PASS DRAFT ART, owner-art-directed. The barn is now a walk-in building

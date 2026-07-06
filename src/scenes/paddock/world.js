@@ -76,6 +76,7 @@ export const WithWorld = (Base) => class extends Base {
     // here. Its interior is built in #56.
     this.add.image(240, 280, 'house').setScale(S).setDepth(279).setOrigin(0.5, 1);
     this.props.house = { x: 240, y: 250 };
+    this._buildChimneySmoke(); // matches the indoor fireplace (#230) — a wisp above the chimney
 
     // Barn (#241 + #35) — the horses' building, now a WALK-IN structure with an
     // in-world cutaway interior (stalls + tack room). Built in the barn concern mixin

@@ -1398,8 +1398,28 @@ try {
       const tankFish = hi._tankFish ?? [];
       const tankFishCountOk = tankFish.length === 2;
       const tankFishActiveOk = tankFish.every((f) => f.sprite?.active && f.sprite.anims?.isPlaying);
+      // Fireplace (#230): the flame sprite exists, is playing the flicker anim, and
+      // actually flips texture frames over time (proof the 2-frame flicker runs).
+      // Checked BEFORE the fish wait below so its short window lands right after
+      // entering (the flicker is fast, 5fps — no need to wait out the fish's tween).
+      const fireplaceTextureOk = g.textures.exists('fireplaceFlame_0') && g.textures.exists('fireplaceFlame_1');
+      const flame = hi._fireplaceFlame;
+      const flameActiveOk = !!flame?.active && !!flame.anims?.isPlaying;
+      // Poll several times rather than one before/after pair — at 5fps (200ms/frame)
+      // a single pair can land on the same texture twice by unlucky timing.
+      const flameSamples = [];
+      for (let i = 0; i < 8; i++) {
+        flameSamples.push(flame?.texture?.key);
+        await new Promise((r) => setTimeout(r, 120));
+      }
+      const flameFlickeredOk = new Set(flameSamples).size > 1;
+
+      // Fish tank (#221): both fish are on independent randomized swim/pause loops
+      // (the 2nd fish's first leg starts ~700ms in, plus a randomized 300-900ms rest
+      // between legs), so give the pair a generous window to prove BOTH are moving,
+      // not just the first.
       const fishStartX = tankFish.map((f) => f.sprite.x);
-      await new Promise((r) => setTimeout(r, 2000));
+      await new Promise((r) => setTimeout(r, 6000));
       const fishMovedOk = tankFish.every((f, i) => Math.abs(f.sprite.x - fishStartX[i]) > 0.5);
 
       // Leave the house so later probes see the normal world state.
@@ -1407,9 +1427,25 @@ try {
       await new Promise((r) => setTimeout(r, 400));
       const backInWorld = g.scene.isActive('PaddockScene') && !g.scene.isActive('HouseInteriorScene');
 
+      // Chimney smoke (#230): the exterior chimney puffs a wisp every few seconds.
+      // Force-spawn one (rather than waiting out the real ambient timer) and confirm
+      // it renders + drifts/fades — same "actually running" bar as the tank fish.
+      const paddock2 = g.scene.getScene('PaddockScene');
+      const smokeTextureOk = g.textures.exists('smokeWisp');
+      const hasChimneySpawner = typeof paddock2._spawnChimneySmoke === 'function' && !!paddock2._chimneyTop;
+      paddock2._spawnChimneySmoke();
+      await new Promise((r) => setTimeout(r, 50));
+      const puffs = paddock2.children.list.filter((o) => o.texture?.key === 'smokeWisp');
+      const puffSpawnedOk = puffs.length > 0;
+      const puffStartAlpha = puffs.map((p) => p.alpha);
+      await new Promise((r) => setTimeout(r, 600));
+      const puffFadedOk = puffs.every((p, i) => !p.active || p.alpha < puffStartAlpha[i]);
+
       return {
         active, stationsOk, stocked, persistsToStorage, pantryOk, inventoryOk, neitherOk, backInWorld,
         tankTextureOk, tankFishCountOk, tankFishActiveOk, fishMovedOk,
+        fireplaceTextureOk, flameActiveOk, flameFlickeredOk,
+        smokeTextureOk, hasChimneySpawner, puffSpawnedOk, puffFadedOk,
       };
     } catch (e) {
       return { threw: String(e) };
@@ -1424,6 +1460,13 @@ try {
     if (!hi.tankFishCountOk) fail('fish tank (#221): expected 2 ambient tank fish sprites');
     if (!hi.tankFishActiveOk) fail('fish tank (#221): tank fish sprites not active/animating');
     if (!hi.fishMovedOk) fail('fish tank (#221): tank fish did not move (swim tween not running)');
+    if (!hi.fireplaceTextureOk) fail('fireplace (#230): flame textures missing');
+    if (!hi.flameActiveOk) fail('fireplace (#230): flame sprite not active/animating');
+    if (!hi.flameFlickeredOk) fail('fireplace (#230): flame did not flicker (frame did not change)');
+    if (!hi.smokeTextureOk) fail('chimney smoke (#230): smokeWisp texture missing');
+    if (!hi.hasChimneySpawner) fail('chimney smoke (#230): chimney smoke spawner not wired on PaddockScene');
+    if (!hi.puffSpawnedOk) fail('chimney smoke (#230): spawning a puff did not add a smokeWisp image');
+    if (!hi.puffFadedOk) fail('chimney smoke (#230): smoke puff did not fade/drift (tween not running)');
     if (!hi.stationsOk) fail('house interior (#212/#213): pantry and/or stove station missing or not canAct');
     if (!hi.stocked) fail('pantry (#212): stocking from the active carrier did not add to storage / empty the carrier');
     if (!hi.persistsToStorage) fail('pantry (#212): stock did not persist to localStorage (horse-game-pantry-v1)');

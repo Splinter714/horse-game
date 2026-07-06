@@ -5,6 +5,7 @@ import { HOUSE_INTERIOR } from './paddock/constants.js';
 import { loadPantry, savePantry } from '../data/save.js';
 import { addToPantry, takeFromPantry, isPantryStorable } from '../data/pantry.js';
 import { CONTENT_DEFS } from '../data/items.js';
+import { WithHouseInteriorDecor } from './houseInteriorDecor.js';
 
 // The enterable house interior (#56) — a small standalone room scene the player
 // walks INTO from the paddock's house door, does home-base things in, and walks
@@ -35,7 +36,7 @@ const PLAYER_SPEED = 150;            // a touch slower than the field — it's a
 const EXIT_COOLDOWN_MS = 400;        // ignore the doorway right after entering
 const PROMPT_REACH = 70;             // world px: how close to a station to prompt
 
-export default class HouseInteriorScene extends Phaser.Scene {
+export default class HouseInteriorScene extends WithHouseInteriorDecor(Phaser.Scene) {
   constructor() {
     super('HouseInteriorScene');
   }
@@ -76,6 +77,7 @@ export default class HouseInteriorScene extends Phaser.Scene {
 
     this._buildStations();
     this._buildFishTank();
+    this._buildFireplace();
     this._buildPlayer();
     this._buildInput();
 
@@ -113,59 +115,6 @@ export default class HouseInteriorScene extends Phaser.Scene {
       // now — the stove still has no cooking system behind it (#41).
       canAct: true,
     }));
-  }
-
-  // ── Fish tank (#221) ─────────────────────────────────────────────────────
-  // Purely decorative: a couple of ambient fish doing a gentle back-and-forth swim
-  // inside the tank glass (worldArt's `fishtank` layer, part of the houseInterior
-  // texture). Reuses the stream fish art/animation (#183 — art/wildlifeArt.js,
-  // fish_0/fish_1) at a smaller scale so it reads as tank-sized rather than
-  // stream-sized. No feed/catch mechanic, no interaction — the fish just swim.
-  _buildFishTank() {
-    if (!this.anims.exists('fish_swim')) {
-      this.anims.create({
-        key: 'fish_swim',
-        frames: [{ key: 'fish_0' }, { key: 'fish_1' }],
-        frameRate: 3, repeat: -1,
-      });
-    }
-    const { bounds } = HOUSE_INTERIOR.decor.fishTank;
-    const x0 = this._d(bounds.x0), x1 = this._d(bounds.x1);
-    const y0 = this._d(bounds.y0), y1 = this._d(bounds.y1);
-    const TANK_SCALE = 0.85; // small tank — a touch smaller than the stream fish
-    this._tankFish = [0.35, 0.65].map((frac, i) => {
-      const y = Phaser.Math.Linear(y0, y1, frac);
-      const sprite = this.add.sprite(x1 - 6, y, 'fish_0')
-        .setOrigin(0.5, 0.5).setScale(TANK_SCALE).setDepth(50 + i)
-        .play('fish_swim');
-      sprite.setFlipX(true); // starts swimming left (toward x0)
-      return { sprite, x0, x1, y };
-    });
-    this._swimTankFish(this._tankFish[0], true);
-    this.time.delayedCall(700, () => this._swimTankFish(this._tankFish[1], false));
-  }
-
-  // One fish glides to the opposite tank wall, pauses briefly, turns, and repeats —
-  // forever, independent of player state (ambient scenery, not gated on proximity).
-  _swimTankFish(fish, startGoingLeft) {
-    if (!fish?.sprite?.active) return;
-    const goingLeft = startGoingLeft;
-    const targetX = goingLeft ? fish.x0 + 4 : fish.x1 - 6;
-    fish.sprite.setFlipX(goingLeft);
-    const dist = Math.abs(targetX - fish.sprite.x);
-    const duration = Phaser.Math.Clamp(dist * 55, 900, 3200);
-    this.tweens.add({
-      targets: fish.sprite,
-      x: targetX,
-      y: fish.y + Phaser.Math.Between(-3, 3),
-      duration,
-      ease: 'Sine.easeInOut',
-      onComplete: () => {
-        this.time.delayedCall(Phaser.Math.Between(300, 900), () => {
-          this._swimTankFish(fish, !goingLeft);
-        });
-      },
-    });
   }
 
   _buildPlayer() {

@@ -268,7 +268,9 @@ export const HOUSE_INTERIOR = {
     // Fish tank (#221): glass bounds (design-grid) the scene keeps its 2 ambient
     // swimming fish within — a little inset from the tank frame drawn in the art.
     fishTank: { bounds: { x0: 13, x1: 43, y0: 71, y1: 86 } },
-    // Fireplace (#230): where the flame-flicker sprite sits over the hearth art.
-    fireplace: { x: 134, y: 92 },
+    // Fireplace (#230): where the flame-flicker sprite sits over the hearth's
+    // firebox opening (worldArt houseInterior's `fireplace` layer, x=122-144,
+    // y=76-100) — origin (0.5,1) so this is the flame's base/floor point.
+    fireplace: { x: 133, y: 99 },
   },
 };
