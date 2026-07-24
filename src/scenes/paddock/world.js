@@ -3,6 +3,7 @@
 
 import Phaser from 'phaser';
 import { WORLD_W, WORLD_H, PASTURE_BOUNDS, GATE_GAP_X0, GATE_GAP_X1, S } from './constants.js';
+import { SPECIES } from '../../data/species/index.js';
 
 export const WithWorld = (Base) => class extends Base {
   // ─── World ───────────────────────────────────────────────────────────────
@@ -388,10 +389,9 @@ export const WithWorld = (Base) => class extends Base {
       // Barn walls (#35) — the walk-in barn's perimeter with a south doorway gap.
       // Registered as this.barnObstacles by buildBarn (paddock/barn.js); spread in here.
       ...(this.barnObstacles || []), ...(this.doghouseObstacles || []), // + doghouse #237
-      // Coop (origin 0.5,1 at 930,400; sprite 64×52 at S=2 → 128×104).
-      // home:'chicken' → the coop is the chickens' home, so it's excluded from
-      // their personal obstacle list (they're allowed to walk in). See _obstaclesFor.
-      { x: 868, y: 300, w: 124, h: 100, home: 'chicken' },
+      // Coop (origin 0.5,1 at 930,400; 64×52 at S=2 → 128×104). home:'flock' →
+      // excluded from a flock bird's own obstacle list (#269, see _obstaclesFor).
+      { x: 868, y: 300, w: 124, h: 100, home: 'flock' },
       // Trough — tied to the live trough (origin 0.5,0.5; 200×52 sprite, inset to
       // its body) so the collision moves with it when repositioned (#110/#106).
       ...centredBox(this.props.trough, 176, 44, { isTrough: true }),
@@ -434,11 +434,10 @@ export const WithWorld = (Base) => class extends Base {
 
     // Nest obstacles added after nests are built (in buildWorld nests are created before this)
     // Each nest: origin 0.5,0.5 at (nx,ny); 18×12 at S=2 → 36×24.
-    // home:'chicken' → nests are part of the chickens' home (like the coop), so
-    // they're excluded from the chickens' obstacle list and a hen can walk onto
-    // a nest to lay. Other creatures still treat nests as solid.
+    // home:'flock' → like the coop, excluded from a flock bird's own obstacle
+    // list so a hen can walk onto a nest to lay. Other creatures treat it as solid.
     for (const n of this.props.nests) {
-      this.obstacles.push({ x: n.x - 18, y: n.y - 12, w: 36, h: 24, isNest: true, home: 'chicken' });
+      this.obstacles.push({ x: n.x - 18, y: n.y - 12, w: 36, h: 24, isNest: true, home: 'flock' });
     }
 
     // Trash can (#191) — solid drum footprint. Sprite 32×46 at S=2 (origin 0.5,1);
@@ -470,12 +469,13 @@ export const WithWorld = (Base) => class extends Base {
     return key.replace(/[0-9]+$/, '');
   }
 
-  // The obstacle list a given creature should respect: the shared obstacles
-  // minus any obstacle tagged as that species' home (e.g. the coop for chickens).
-  // Computed on demand so it always reflects the live gate state.
+  // The obstacle list a given creature should respect: shared obstacles minus any
+  // tagged as its home (species id, or shared home-group 'flock' for coop/nests).
+  // Bug fix #269: home:'chicken' alone meant a rooster's coop still blocked him.
   _obstaclesFor(key) {
     const species = this._speciesOf(key);
-    return this.obstacles.filter(o => o.home !== species);
+    const home = SPECIES[species]?.capabilities?.roosts ? 'flock' : species;
+    return this.obstacles.filter(o => o.home !== home);
   }
 
   // Returns true if (x,y) with radius r overlaps any obstacle in the list.
