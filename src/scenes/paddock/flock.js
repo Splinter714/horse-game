@@ -198,8 +198,8 @@ export const WithFlock = (Base) => class extends Base {
     nest.occupant = a;
     if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
 
-    // Pathfind to the nest. Nests are tagged home:'chicken', so they're absent
-    // from the chicken's obstacle list — it can settle right onto the nest.
+    // Pathfind to the nest. Nests are tagged home:'flock', so they're absent
+    // from the hen's obstacle list — it can settle right onto the nest.
     this.moveCreatureTo(a, nest.x, nest.y, () => {
       if (a.state !== 'laying') { nest.occupant = null; return; }
       // Settle onto the nest (a brief squat) instead of just standing idle while
