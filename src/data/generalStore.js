@@ -1,15 +1,19 @@
-// General store — seed shop (#215) + clothing shop (#217). One shop BUILDING,
-// structured as a registry of "counters" (tabs), so a second counter was a one-line
-// data addition, not a rewrite. Two counters exist today: `seeds` and `clothing`.
+// The unified store (#312) — ONE shop building (moved out of the farm, into town;
+// see paddock/generalStore.js) staffed by the shopkeeper NPC (#244), structured as a
+// registry of "counters" (tabs) per the owner's confirmed decision: keep the
+// existing tab-per-category UI, don't replace it with a single grid. Four counters
+// exist today: `seeds` (#215), `clothing` (#217), `pets` (#222), and `food` (#312 —
+// folded in from the market stall's old feed stock, data/shop.js SHOP_STOCK).
 //
-// A THIRD counter, `pets` (#222), also lives in this registry (so it reuses the
-// exact same money math / owned-inventory plumbing) but is NOT shown at the
-// general store building — GeneralStoreScene is launched with a `counterIds`
-// filter for each building (see paddock/generalStore.js vs paddock/town.js), so
-// `pets` only ever appears inside the new town pet-store building.
+// Before #312 these were separate buildings/scenes: the general store (seeds +
+// clothing) in the farm, the pet store in town (#222), and the market stall's feed
+// counter (ShopScene, #29). All four now live in this one registry and one building
+// (GeneralStoreScene reads STORE_COUNTERS directly — adding a counter here is a
+// data-only change, no UI edit). The market stall itself still exists for tool
+// upgrades only (#295) — a separate, non-shop purchase (see scenes/ShopScene.js).
 //
-// Mirrors the market stall's shop.js/ShopScene pattern (buy panel spends gold), but
-// what's bought here isn't carrier content:
+// Mirrors the market stall's shop.js purchase() pattern (buy panel spends gold), but
+// what's bought here isn't carrier content for three of the four counters:
 //   seeds    → a per-crop SEED count + fertilizer, a simple owned-item stock
 //              (see storeInventory.js for the persisted counts + the pure
 //              purchase/grant logic).
@@ -17,7 +21,13 @@
 //              owned-count mechanism (storeInventory.js), but the count is only ever
 //              read as "owned (>0) or not", never spent/consumed. See customize.js's
 //              `unlock` field + `selectableChoices`/`isChoiceUnlocked`.
-// Both reuse `purchase()` from data/shop.js for the buy-math (identical contract:
+//   pets     → cosmetic/care owned items (storeInventory.js), same mechanism.
+//   food     → THE ONE EXCEPTION: reuses data/shop.js's SHOP_STOCK feed rows as-is
+//              (same `content`/`carrier` fields), because feed deposits into the
+//              player's active carrier (fillActiveCarrier), not an owned count.
+//              GeneralStoreScene's buy handler branches on `item.content` to tell
+//              the two purchase shapes apart.
+// All reuse `purchase()` from data/shop.js for the buy-math (identical contract:
 // given money + an item with a `price`, can they afford it).
 //
 // A counter is `{ id, label, icon, items: [{ key, label, icon, desc, price }] }`.
@@ -31,6 +41,7 @@
 
 import { CROP_ORDER, getCrop } from './crops.js';
 import { CUSTOMIZE } from './customize.js';
+import { SHOP_STOCK } from './shop.js';
 
 // Seed price per crop: a flat base plus a small per-crop bump so pricier/rarer crops
 // (order position) cost a touch more. First-pass balance lever, tune at playtest.
@@ -91,6 +102,15 @@ export const STORE_COUNTERS = [
     label: 'Seeds & Supplies',
     icon: 'iconWheat',
     items: [...CROP_ORDER.map(seedItem), FERTILIZER_ITEM],
+  },
+  {
+    id: 'food',
+    label: 'Food & Feed',
+    icon: 'iconBasketHay',
+    // Same rows as the old market-stall feed stock (data/shop.js) — `content` +
+    // `carrier` fields intact, so GeneralStoreScene's buy handler can tell these
+    // apart from the owned-count counters and deposit into the carrier instead.
+    items: SHOP_STOCK,
   },
   {
     id: 'clothing',

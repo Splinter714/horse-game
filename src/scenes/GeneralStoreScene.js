@@ -1,24 +1,27 @@
-// GeneralStoreScene (#215) — the seed-shop buy panel: spend gold on seeds and
-// gardening supplies. Opened when the player interacts with the general store
-// building (PaddockScene.openGeneralStore). Mirrors ShopScene's modal-card buy-panel
-// pattern exactly (same look, same input handling, same pause-the-world behavior) —
-// the two differences are what's for sale and what buying deposits:
+// GeneralStoreScene (#215, unified #312) — the whole store's buy panel: spend gold
+// on seeds, food/feed, clothing, and pet supplies. Opened when the player interacts
+// with the one unified store building in town (PaddockScene.openGeneralStore).
+// Mirrors ShopScene's modal-card buy-panel pattern exactly (same look, same input
+// handling, same pause-the-world behavior) — ShopScene itself now only sells tool
+// upgrades (#295) from the market stall, unrelated to this store.
 //
-//   ShopScene         → buys feed, deposits into the equipped carrier (fillActiveCarrier)
-//   GeneralStoreScene → buys seeds/supplies, deposits into a persisted OWNED COUNT
-//                       (storeInventory.js) — there's no carrier/basket involved,
-//                       since seeds aren't a carried "content" type.
+// Two purchase shapes share this one panel (see `_buy`):
+//   owned-count   → seeds/clothing/pets deposit into a persisted OWNED COUNT
+//                   (storeInventory.js) — no carrier/basket involved.
+//   carrier-fill  → food/feed (folded in from the old market-stall stock, #312)
+//                   deposits into the equipped carrier (fillActiveCarrier), same as
+//                   ShopScene's old feed-buy flow.
 //
 // TABS: driven by data/generalStore.js's STORE_COUNTERS registry — a list of
-// { id, label, icon, items } counters. Only one exists today (`seeds`), but the tab
-// strip is drawn for the whole list, so adding a second counter (clothing, #217) is a
-// one-line data addition there — no UI code here changes. With a single counter the
-// tab strip renders as a single (non-interactive-looking but still functional) tab.
+// { id, label, icon, items } counters (seeds/food/clothing/pets). The tab strip is
+// drawn for the whole list, so adding a counter is a one-line data addition there —
+// no UI code here changes.
 
 import Phaser from 'phaser';
 import { EVENTS } from '../data/events.js';
 import { STORE_COUNTERS } from '../data/generalStore.js';
 import { loadStoreInventory, saveStoreInventory, buyStoreItem } from '../data/storeInventory.js';
+import { purchase } from '../data/shop.js';
 import { growHitArea, applyDpr, logicalW, logicalH } from './uiUtils.js';
 
 const CARD_W  = 340;
@@ -234,13 +237,18 @@ export default class GeneralStoreScene extends Phaser.Scene {
     g.strokeRoundedRect(x, y, w, h, 8);
   }
 
-  // Attempt to buy row `i`: check funds, debit gold (via MONEY_CHANGED), and bump the
-  // item's owned count in the persisted store inventory. No carrier is involved (#215
-  // — seeds/supplies are an owned count, not carrier content), so unlike ShopScene
-  // there's no "equip a basket" failure mode here.
+  // Attempt to buy row `i`. Two purchase shapes share this one buy panel (#312 —
+  // the food counter folded in the market stall's old feed stock as-is):
+  //   owned-count (seeds/clothing/pets) → bump the item's persisted owned count
+  //     (storeInventory.js). No carrier involved.
+  //   carrier-fill (food, identified by item.content) → deposit into the equipped
+  //     carrier (fillActiveCarrier), mirroring ShopScene's old feed-buy exactly,
+  //     including the "equip the right carrier" / "carrier full" refusals.
   _buy(i) {
     const item = this._counter.items[i];
     if (!item) return;
+
+    if (item.content) { this._buyCarrierItem(i, item); return; }
 
     // Refresh from the live balance (in case a sale credited between opens).
     this._money = this._readMoney();
@@ -252,6 +260,34 @@ export default class GeneralStoreScene extends Phaser.Scene {
 
     // Debit gold: HotbarScene is the persisted writer and listens for MONEY_CHANGED,
     // so this both updates the HUD and saves the new balance.
+    this._money = res.balance;
+    this.game.events.emit(EVENTS.MONEY_CHANGED, this._money);
+    this._moneyLbl.setText(`$${this._money}`);
+    this._refreshAfford();
+    this._flashRow(i, `+1 ${item.label}`);
+  }
+
+  // Carrier-fill purchase (food counter, #312) — mirrors ShopScene's old feed _buy
+  // exactly: check funds AND that a matching carrier is equipped with room, debit
+  // gold, deposit into the carrier.
+  _buyCarrierItem(i, item) {
+    const hb = this.scene.get('HotbarScene');
+    if (!hb) return;
+
+    this._money = this._readMoney();
+    const res = purchase(this._money, item);
+    if (!res.ok) { this._flashRow(i, "Can't afford"); return; }
+
+    const active = hb.getActiveItem?.();
+    const okCarrier = active?.type === 'carrier' && active.carrier === item.carrier;
+    if (!okCarrier) {
+      const cName = item.carrier === 'bucket' ? 'Bucket' : 'Basket';
+      this._flashRow(i, `Equip a ${cName}`);
+      return;
+    }
+    const added = hb.fillActiveCarrier?.(item.content, 1) ?? 0;
+    if (added <= 0) { this._flashRow(i, 'Carrier full'); return; }
+
     this._money = res.balance;
     this.game.events.emit(EVENTS.MONEY_CHANGED, this._money);
     this._moneyLbl.setText(`$${this._money}`);

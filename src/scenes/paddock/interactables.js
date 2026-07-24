@@ -31,22 +31,25 @@ export const WithInteractables = (Base) => class extends Base {
       }];
     };
 
-    // Shop / market (#29) — walk up and interact to open the buy panel (spend gold on
-    // feed). A bare-hand interact target like the house/gate: no carried item needed.
+    // Market stall (#29, narrowed by #312) — walk up and interact to open the
+    // tool-upgrades buy panel. A bare-hand interact target like the house/gate: no
+    // carried item needed.
     const shop = () => {
       const s = this.props.shop;
       if (!s) return [];
       return [{
         x: s.x, y: s.y, tapRadius: 150, reachDist: 150, promptOffsetY: 60,
-        canAct: true, label: 'Shop',
+        canAct: true, label: 'Tool Upgrades',
         approach: () => ({ x: s.x, y: s.y + 30 }), // walk to just below the counter
         activate: () => this.openShop(),
       }];
     };
 
-    // General store (#215) — walk up and interact to open the seed-shop buy panel
-    // (spend gold on seeds + gardening supplies). A bare-hand interact target like
-    // the market stall/house/gate: no carried item needed.
+    // The unified store (#215/#217/#222, unified + relocated to town by #312) —
+    // walk up and interact to open the buy panel (spend gold on seeds, food/feed,
+    // clothing, and pet supplies — every STORE_COUNTERS tab in one building). A
+    // bare-hand interact target like the market stall/house/gate: no carried item
+    // needed.
     const generalStore = () => {
       const s = this.props.generalStore;
       if (!s) return [];
@@ -402,16 +405,13 @@ export const WithInteractables = (Base) => class extends Base {
 
     // Riding trail (#36) — the one bare-hand collectible out on the trail.
     const trailCollectible = this._trailInteractables?.().collectible ?? (() => []);
-    // Town expansion (#222) — the pet store building, a bare-hand interact target
-    // like the general store.
-    const petStore = this._townInteractables?.().petStore ?? (() => []);
     // Tractor (#264) — bare-hand interact: "Enter Tractor" on the vehicle itself, and
     // a separate nearby paint-stand cycle for its color. Both no-op (return []) while
     // already driving (see tractor.js `_tractorInteractables`).
     const tractor = () => this._tractorInteractables?.() ?? [];
 
-    this.interactables = [gate, house, shop, generalStore, petStore, barn, gardenPlant, trailCollectible, tractor, trough, catBowl, bunnyBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenWater, gardenHarvest, neighborGift, neighborTrade];
-    // Split by input: gate/house/shop/generalStore/petStore/barn/garden-plant/
+    this.interactables = [gate, house, shop, generalStore, barn, gardenPlant, trailCollectible, tractor, trough, catBowl, bunnyBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenWater, gardenHarvest, neighborGift, neighborTrade];
+    // Split by input: gate/house/shop/generalStore/barn/garden-plant/
     // trail-collectible/tractor are bare-hand "interact" targets (tap/click/E); the
     // rest require a carried tool/carrier and are triggered by Use (the on-screen
     // button / F / controller). See useActiveTool + handleTap. Neighbor trade/gift
@@ -419,7 +419,7 @@ export const WithInteractables = (Base) => class extends Base {
     // receive), but it's grouped with toolWorld since gifting (the sibling
     // interaction at the same spot) does require a held carrier, and only one of
     // the two ever applies at a time (see neighborGift/neighborTrade above).
-    this.interactWorld = [gate, house, shop, generalStore, petStore, barn, gardenPlant, trailCollectible, tractor];
+    this.interactWorld = [gate, house, shop, generalStore, barn, gardenPlant, trailCollectible, tractor];
     this.toolWorld     = [trough, catBowl, bunnyBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenWater, gardenHarvest, neighborGift, neighborTrade];
   }
 
