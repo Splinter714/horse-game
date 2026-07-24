@@ -87,7 +87,10 @@ export const WithUseDispatch = (Base) => class extends Base {
   }
 
   // Scoop a dropping into the scooper: remove it from the world and add it to the
-  // scooper's load (via the hotbar). Plays a soft scoop and floats a compost icon.
+  // scooper's load (via the hotbar). Plays a soft scoop and floats the poop alone
+  // (the `dropping` texture — the same pellets prop sitting in the world) up off the
+  // player, with NO basket/scoop container around it (#318) — the pickup should read
+  // as "the poop is gone," not "it landed in a basket."
   // No mood/stat effect — the dropping was cosmetic clutter (#232).
   scoopDropping(dropping) {
     const hot = this.scene.get('HotbarScene');
@@ -95,7 +98,7 @@ export const WithUseDispatch = (Base) => class extends Base {
     if (added <= 0) return; // scooper full — nothing to do
     this.removeDropping(dropping);
     playGather('compost'); // light dry scatter — a soft scoop
-    this.showIcon('iconBasketCompost', this.player.sprite);
+    this.showIcon('dropping', this.player.sprite);
   }
 
   // Dump the scooper's whole load into the compost bin, growing the farm's compost
