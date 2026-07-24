@@ -569,48 +569,54 @@ export function buildPropTextures(scene) {
     g.fillStyle(roofLo, 1); g.fillRect(8, 9, 25, 1); g.fillRect(11, 6, 18, 1);
     g.fillStyle(roofLo, 1); g.fillRect(19, 1, 2, 11); // ridge
   });
-  // Cat food + water bowls (#202 rework). Each is a small pet-style dish the CAT
-  // eats/drinks from directly; the player keeps them filled. Two states apiece so
-  // the fill level reads at a glance: a `*Bowl` filled version and a `*BowlEmpty`
-  // bare-dish version (the sprite swaps between them as the cat empties the bowl and
-  // the player refills it, worldObjects.js `_setCatBowlLevel`). A shallow rimmed
-  // dish, sized to sit low and small like real pet dishes.
-  const catBowl = (g, empty) => { // shared bare dish
-    const bowl = 0xc85a3c, bowlHi = 0xe07854, bowlLo = 0x9c4228;
-    g.fillStyle(0x000000, 0.12); g.fillEllipse(13, 15, 22, 4); // ground shadow
-    g.fillStyle(bowlLo, 1); g.fillEllipse(13, 11, 24, 9);
-    g.fillStyle(bowl, 1); g.fillEllipse(13, 9, 22, 8);
-    if (empty) { g.fillStyle(bowlLo, 0.6); g.fillEllipse(13, 8, 15, 4); } // hollow shadow
-    g.fillStyle(bowlHi, 1); g.fillEllipse(13, 7, 18, 5); // rim highlight
+  // Combined pet food + water bowl (#202 cat rework, #311 merged the separate food
+  // and water dishes into ONE prop). A single two-sided dish — food on the left,
+  // water on the right, touching in the middle like a real two-bowl pet feeder — so
+  // the player interacts with one object instead of two side-by-side props. Each
+  // side fills/empties independently, so there are four texture states
+  // (`<tex>_00`/`_10`/`_01`/`_11`, food-bit then water-bit); the sprite swaps as
+  // either side's level crosses zero (worldObjects.js `_setPetBowlLevel`).
+  // `foodColor`/`foodHi` let a species tint its side's contents (kibble for the cat,
+  // green pellets for the bunny) while sharing the same dish shape + water side.
+  const drawPetBowl = (g, { foodFilled, waterFilled, foodColor = 0xb9793a, foodHi = 0xd6a25e }) => {
+    const dish = 0xc85a3c, dishHi = 0xe07854, dishLo = 0x9c4228;
+    const water = 0x8a97a0, waterDishHi = 0xaab5bc, waterDishLo = 0x6a747c;
+    // shared ground shadow beneath both dishes
+    g.fillStyle(0x000000, 0.12); g.fillEllipse(26, 15, 46, 5);
+    // food dish (left, warm terracotta)
+    g.fillStyle(dishLo, 1); g.fillEllipse(13, 11, 24, 9);
+    g.fillStyle(dish, 1); g.fillEllipse(13, 9, 22, 8);
+    if (!foodFilled) { g.fillStyle(dishLo, 0.6); g.fillEllipse(13, 8, 15, 4); } // hollow shadow
+    g.fillStyle(dishHi, 1); g.fillEllipse(13, 7, 18, 5); // rim highlight
+    if (foodFilled) {
+      g.fillStyle(foodColor, 1); g.fillEllipse(13, 6, 14, 5);
+      g.fillStyle(foodHi, 1);
+      g.fillCircle(9, 5, 1.4); g.fillCircle(13, 4, 1.4); g.fillCircle(17, 5, 1.4);
+      g.fillStyle(foodColor, 1);
+      g.fillCircle(11, 6, 1.2); g.fillCircle(15, 6, 1.2);
+    }
+    // water dish (right, blue-grey)
+    g.fillStyle(waterDishLo, 1); g.fillEllipse(39, 11, 24, 9);
+    g.fillStyle(water, 1); g.fillEllipse(39, 9, 22, 8);
+    if (!waterFilled) { g.fillStyle(waterDishLo, 0.6); g.fillEllipse(39, 8, 15, 4); } // hollow shadow
+    g.fillStyle(waterDishHi, 1); g.fillEllipse(39, 7, 18, 5); // rim highlight
+    if (waterFilled) {
+      const w = 0x3f7fb5, wHi = 0x9ae0f8;
+      g.fillStyle(w, 1); g.fillEllipse(39, 6, 14, 5);
+      g.fillStyle(wHi, 0.85); g.fillEllipse(36, 5, 5, 1.6); // sunlit ripple
+      g.fillStyle(wHi, 0.6); g.fillEllipse(42, 6, 3, 1);
+    }
   };
-  const catWaterBowl = (g, empty) => { // shared bare water dish (blue-grey)
-    const bowl = 0x8a97a0, bowlHi = 0xaab5bc, bowlLo = 0x6a747c;
-    g.fillStyle(0x000000, 0.12); g.fillEllipse(13, 15, 22, 4); // ground shadow
-    g.fillStyle(bowlLo, 1); g.fillEllipse(13, 11, 24, 9);
-    g.fillStyle(bowl, 1); g.fillEllipse(13, 9, 22, 8);
-    if (empty) { g.fillStyle(bowlLo, 0.6); g.fillEllipse(13, 8, 15, 4); } // hollow shadow
-    g.fillStyle(bowlHi, 1); g.fillEllipse(13, 7, 18, 5); // rim highlight
-  };
-  gen(scene, 'catFoodBowlEmpty', 26, 16, (g) => catBowl(g, true));
-  gen(scene, 'catFoodBowl', 26, 16, (g) => {
-    catBowl(g, false);
-    // kibble mounded inside
-    const kibble = 0xb9793a, kibbleHi = 0xd6a25e;
-    g.fillStyle(kibble, 1); g.fillEllipse(13, 6, 14, 5);
-    g.fillStyle(kibbleHi, 1);
-    g.fillCircle(9, 5, 1.4); g.fillCircle(13, 4, 1.4); g.fillCircle(17, 5, 1.4);
-    g.fillStyle(kibble, 1);
-    g.fillCircle(11, 6, 1.2); g.fillCircle(15, 6, 1.2);
-  });
-  gen(scene, 'catWaterBowlEmpty', 26, 16, (g) => catWaterBowl(g, true));
-  gen(scene, 'catWaterBowl', 26, 16, (g) => {
-    catWaterBowl(g, false);
-    // water filling the dish
-    const water = 0x3f7fb5, waterHi = 0x9ae0f8;
-    g.fillStyle(water, 1); g.fillEllipse(13, 6, 14, 5);
-    g.fillStyle(waterHi, 0.85); g.fillEllipse(10, 5, 5, 1.6); // sunlit ripple
-    g.fillStyle(waterHi, 0.6); g.fillEllipse(16, 6, 3, 1);
-  });
+  // One combined bowl texture set per pet — cat (kibble, orange-brown) and bunny
+  // (pellets, leafy green) — each with all four food/water fill-state combinations.
+  const BOWL_STATES = [[false, false], [true, false], [false, true], [true, true]];
+  for (const [foodFilled, waterFilled] of BOWL_STATES) {
+    const suffix = `${foodFilled ? 1 : 0}${waterFilled ? 1 : 0}`;
+    gen(scene, `catBowl_${suffix}`, 52, 16, (g) => drawPetBowl(g, { foodFilled, waterFilled }));
+    gen(scene, `bunnyBowl_${suffix}`, 52, 16, (g) => drawPetBowl(g, {
+      foodFilled, waterFilled, foodColor: 0x6a9c3c, foodHi: 0x8fc95e,
+    }));
+  }
 
   // Bunny hutch (#224) — the gathering source for bunny food + water. A little raised
   // wooden hutch with a wire-mesh front, a shingled roof, and a bowl of green food

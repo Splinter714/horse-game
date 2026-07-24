@@ -164,80 +164,104 @@ export const WithWorldObjects = (Base) => class extends Base {
     t.sprite.setTexture(this._troughTexture(t.level));
   }
 
-  // ─── Pet bowls (generic — #202 cat rework, #283 generalized to pets) ────────
+  // ─── Pet bowls (generic — #202 cat rework, #283 generalized, #311 combined) ─
 
-  // A pet food/water bowl is a small dish a companion animal (the cat, a bunny…)
-  // walks up to and eats/drinks from DIRECTLY (its seek behaviors) — NOT a gather
-  // source you scoop into a carrier. The player's only job is to keep it stocked:
-  // pour a matching carrier in and it tops up to BOWL_CAP (fillPetBowl). Each bowl
-  // carries a numeric `level` (0..BOWL_CAP servings) the pet depletes and the player
-  // refills; the sprite swaps filled/empty as level crosses zero. Every bowl is a
-  // plain descriptor in `this.props.petBowls`, tagged with the content that fills it
-  // (`fillContent`) and the care action it restores (`action`), so fill/consume are
-  // species-neutral — a new pet just registers its two bowls.
+  // A pet food/water bowl is a small two-sided dish a companion animal (the cat, a
+  // bunny…) walks up to and eats/drinks from DIRECTLY (its seek behaviors) — NOT a
+  // gather source you scoop into a carrier. The player's only job is to keep it
+  // stocked: pour a matching carrier in and that side tops up to BOWL_CAP
+  // (fillPetBowl). #311 merged the separate food + water dishes into ONE prop — one
+  // sprite, one interactable — with two independent sides (`bowl.sides.food` /
+  // `bowl.sides.water`), each carrying its own numeric `level` (0..BOWL_CAP
+  // servings), the content that fills it, and the care action it restores. The
+  // sprite (propArt.js `catBowl_${food}${water}`) swaps as either side's fill state
+  // crosses zero. Every combined bowl is a plain descriptor in `this.props.petBowls`,
+  // so a new pet just registers its one bowl.
   //
-  // The two cat bowls are the original set (#202), tucked just south of the house;
-  // #283 adds the bunny's set by the hutch (buildBunnyBowls, paddock/bunny.js). Both
-  // are built here through the same primitive so there's one owner of bowl state.
-  _addPetBowl({ x, y, tex, fillContent, action, propKey, onFill }) {
-    const sprite = this.add.image(x, y, `${tex}Empty`).setScale(S).setDepth(y).setOrigin(0.5, 1);
-    const bowl = { x, y, sprite, tex, level: 0, fillContent, action, onFill };
+  // The cat's bowl is the original set (#202), tucked just south of the house; #283
+  // added the bunny's by the hutch (buildBunnyBowl, paddock/bunny.js). Both are built
+  // here through the same primitive so there's one owner of bowl state.
+  _addPetBowl({ x, y, tex, foodContent, waterContent, propKey, onFillFood }) {
+    const sprite = this.add.image(x, y, `${tex}_00`).setScale(S).setDepth(y).setOrigin(0.5, 1);
+    const bowl = {
+      x, y, sprite, tex,
+      sides: {
+        // dx: offset from the bowl's centre to that side's dish (propArt.js draws
+        // the food dish at local x=13 and the water dish at x=39 in a 52px-wide
+        // sprite centred at x=26, so ±13 from centre).
+        food:  { level: 0, content: foodContent,  action: 'feed',  dx: -13, onFill: onFillFood },
+        water: { level: 0, content: waterContent, action: 'water', dx: 13 },
+      },
+    };
     (this.props.petBowls ??= []).push(bowl);
     if (propKey) this.props[propKey] = bowl; // named handle for behaviors/tests
     return bowl;
   }
 
-  // Cat food + water bowls (#202). Start empty so the first job is to fill them.
+  // The cat's combined food + water bowl (#202, #311). Starts empty on both sides so
+  // the first job is to fill them.
   buildCatBowls() {
-    this._addPetBowl({ x: 165, y: 420, tex: 'catFoodBowl',  fillContent: 'catFood', action: 'feed',  propKey: 'catFoodBowl'  });
-    this._addPetBowl({ x: 205, y: 420, tex: 'catWaterBowl', fillContent: 'water',   action: 'water', propKey: 'catWaterBowl' });
+    this._addPetBowl({ x: 185, y: 420, tex: 'catBowl', foodContent: 'catFood', waterContent: 'water', propKey: 'catBowl' });
   }
 
-  // The registered pet bowl a given carrier content fills, or null. Shared by the
-  // fill action and every pet's seek behaviors so both agree on where/what a bowl is.
-  // Species-neutral: keyed purely on the content, so cat food → the cat's food bowl,
-  // bunny food → the bunny's food bowl, plain water → whichever water bowl is nearest
-  // the pouring player (so one bucket of water fills the cat OR the bunny dish).
+  // The registered { bowl, sideKey } a given carrier content fills, or null. Shared
+  // by the fill action and every pet's seek behaviors so both agree on where/what a
+  // bowl is. Species-neutral: keyed purely on the content, so cat food → the cat
+  // bowl's food side, bunny food → the bunny bowl's food side, plain water →
+  // whichever bowl's water side is nearest the pouring player (so one bucket of
+  // water fills the cat's OR the bunny's dish).
   _petBowlFor(content) {
-    const bowls = (this.props.petBowls ?? []).filter(b => b.fillContent === content);
-    if (!bowls.length) return null;
-    if (bowls.length === 1) return bowls[0];
+    const matches = [];
+    for (const bowl of this.props.petBowls ?? []) {
+      for (const sideKey of ['food', 'water']) {
+        if (bowl.sides[sideKey].content === content) matches.push({ bowl, sideKey });
+      }
+    }
+    if (!matches.length) return null;
+    if (matches.length === 1) return matches[0];
     // Ambiguous fill content (water fills more than one pet's bowl): pick the one
     // nearest the player, so pouring at the cat dish tops the cat's and at the bunny
     // dish the bunny's.
     const px = this.player?.sprite?.x ?? 0, py = this.player?.sprite?.y ?? 0;
-    return bowls.reduce((best, b) =>
-      Phaser.Math.Distance.Between(px, py, b.x, b.y) <
-      Phaser.Math.Distance.Between(px, py, best.x, best.y) ? b : best);
+    return matches.reduce((best, m) =>
+      Phaser.Math.Distance.Between(px, py, m.bowl.x, m.bowl.y) <
+      Phaser.Math.Distance.Between(px, py, best.bowl.x, best.bowl.y) ? m : best);
   }
 
-  // Pour the active carrier into the matching pet bowl, topping it up to BOWL_CAP.
-  // Mirrors fillTrough: consumes one carrier unit and raises the bowl's level; the pet
-  // then eats/drinks straight from the bowl (its seek behaviors), lowering it. One
-  // scoop/pour refills the whole bowl (kid-friendly, like a real feeding). An optional
-  // per-bowl `onFill(bowl)` hook fires after a refill — used by the bunny food bowl to
-  // attract a wild bunny (paddock/bunny.js), so attraction now happens on stocking the
-  // bowl rather than dropping a pile on the ground (#283).
+  // Pour the active carrier into the matching pet bowl side, topping it up to
+  // BOWL_CAP. Mirrors fillTrough: consumes one carrier unit and raises that side's
+  // level; the pet then eats/drinks straight from the bowl (its seek behaviors),
+  // lowering it. One scoop/pour refills the whole side (kid-friendly, like a real
+  // feeding). An optional per-side `onFill(bowl, sideKey)` hook fires after a refill
+  // — used by the bunny bowl's food side to attract a wild bunny (paddock/bunny.js),
+  // so attraction now happens on stocking the bowl rather than dropping a pile on the
+  // ground (#283).
   fillPetBowl(content) {
-    const bowl = this._petBowlFor(content);
-    if (!bowl || bowl.level >= BOWL_CAP) return; // already full
+    const match = this._petBowlFor(content);
+    if (!match) return;
+    const { bowl, sideKey } = match;
+    const side = bowl.sides[sideKey];
+    if (side.level >= BOWL_CAP) return; // already full
     const item = this.getActiveItem();
     if (!item || item.content !== content || item.count <= 0) return;
     this.scene.get('HotbarScene')?.useActiveCarrier(1); // spend one unit to refill
-    this._setPetBowlLevel(bowl, fillBowlLevel(BOWL_CAP));
+    this._setPetBowlLevel(bowl, sideKey, fillBowlLevel(BOWL_CAP));
     playSplash();
-    bowl.onFill?.(bowl);
+    side.onFill?.(bowl, sideKey);
   }
 
-  // Set a pet bowl's level (clamped) and swap its sprite between the filled and empty
-  // texture as it crosses zero. The single owner of bowl-level changes — both the
-  // player refilling (fillPetBowl) and a pet eating/drinking (petEatFromBowl) go here.
-  // `filled` mirrors level>0 for the interactable's "already full" checks.
-  _setPetBowlLevel(bowl, level) {
+  // Set a pet bowl side's level (clamped) and swap the (single, combined) sprite to
+  // reflect both sides' fill states. The single owner of bowl-level changes — both
+  // the player refilling (fillPetBowl) and a pet eating/drinking (petEatFromBowl) go
+  // here. `filled` mirrors level>0 for the interactable's "already full" checks.
+  _setPetBowlLevel(bowl, sideKey, level) {
     if (!bowl) return;
-    bowl.level  = Phaser.Math.Clamp(level, 0, BOWL_CAP);
-    bowl.filled = bowlHasFood(bowl.level);
-    bowl.sprite.setTexture(bowl.filled ? bowl.tex : `${bowl.tex}Empty`);
+    const side = bowl.sides[sideKey];
+    side.level  = Phaser.Math.Clamp(level, 0, BOWL_CAP);
+    side.filled = bowlHasFood(side.level);
+    const foodOn  = bowl.sides.food.filled  ? 1 : 0;
+    const waterOn = bowl.sides.water.filled ? 1 : 0;
+    bowl.sprite.setTexture(`${bowl.tex}_${foodOn}${waterOn}`);
   }
 
   // Collision boxes for every pet bowl (#202 playtest fix — the cat/bunny dishes had

@@ -35,18 +35,21 @@ export const WithCatAI = (Base) => class extends Base {
     return {
       hunger: cat?.stats?.hunger ?? 100,
       thirst: cat?.stats?.thirst ?? 100,
-      nearestFoodDist:  this._catBowlDist(a, this.props.catFoodBowl),
-      nearestWaterDist: this._catBowlDist(a, this.props.catWaterBowl),
+      nearestFoodDist:  this._catBowlDist(a, this.props.catBowl, 'food'),
+      nearestWaterDist: this._catBowlDist(a, this.props.catBowl, 'water'),
       streamDist,
       isNight: !!this.isNight,
     };
   }
 
-  // Distance from the cat to a bowl, or Infinity if the bowl is missing/empty — an
-  // empty bowl is "nothing to seek". Used by seekFood/seekWater's range test.
-  _catBowlDist(a, bowl) {
-    if (!bowl || !bowlHasFood(bowl.level)) return Infinity;
-    return Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, bowl.x, bowl.y);
+  // Distance from the cat to a bowl's food/water side, or Infinity if the bowl is
+  // missing or that side is empty — an empty side is "nothing to seek". Used by
+  // seekFood/seekWater's range test. (#311: bowl is the combined food+water prop;
+  // sideKey picks which side's stock/position to check.)
+  _catBowlDist(a, bowl, sideKey) {
+    const side = bowl?.sides?.[sideKey];
+    if (!side || !bowlHasFood(side.level)) return Infinity;
+    return Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, bowl.x + side.dx, bowl.y);
   }
 
   // The nearest stream bank the cat can fish from. Unlike the horses' drink anchor
@@ -66,39 +69,42 @@ export const WithCatAI = (Base) => class extends Base {
     return best;
   }
 
-  // run() for a pet's seekFood/seekWater (#202 cat rework, #283 generalized): the pet
-  // walks up to a stocked pet bowl and consumes one serving DIRECTLY from it — head
-  // down at the bowl's edge, the eat/drink pose + sound, then the matching care action
-  // (feed → hunger, water → thirst) and the bowl's level drops by one (empties the
-  // dish over several visits). `action` is 'feed' (food bowl) or 'water' (water bowl);
-  // if omitted it's read off the bowl descriptor (bowls carry their own `action`).
-  // Species-neutral — any pet with a food/water bowl (cat, bunny) reuses this, so the
-  // eat sound keys off the bowl's own `fillContent` rather than a hardcoded 'catFood'.
-  // Returns true once it claims the pet; false if the bowl vanished/emptied first.
-  petEatFromBowl(a, bowl, action = bowl?.action) {
-    if (!bowl || !bowlHasFood(bowl.level) || !a.sprite.active) return false;
+  // run() for a pet's seekFood/seekWater (#202 cat rework, #283 generalized, #311
+  // combined bowl): the pet walks up to a stocked SIDE of its bowl and consumes one
+  // serving DIRECTLY from it — head down at that side's dish, the eat/drink pose +
+  // sound, then the matching care action (feed → hunger, water → thirst) and that
+  // side's level drops by one (empties the dish over several visits). `sideKey` is
+  // 'food' or 'water', picking which side of the combined bowl to eat/drink from
+  // (each side carries its own `action`/content). Species-neutral — any pet with a
+  // combined bowl (cat, bunny) reuses this, so the eat sound keys off the side's own
+  // `content` rather than a hardcoded 'catFood'. Returns true once it claims the pet;
+  // false if the bowl/side vanished or emptied first.
+  petEatFromBowl(a, bowl, sideKey) {
+    const side = bowl?.sides?.[sideKey];
+    if (!side || !bowlHasFood(side.level) || !a.sprite.active) return false;
 
     a.state = 'eating';
     a._eatBowl = bowl;
     if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
 
-    const facingRight = bowl.x >= a.sprite.x;
-    const tx = bowl.x + (facingRight ? -34 : 34);
-    const ty = bowl.y - 6; // stand just at the dish's rim
+    const bx = bowl.x + side.dx, by = bowl.y; // that side's dish, within the combined sprite
+    const facingRight = bx >= a.sprite.x;
+    const tx = bx + (facingRight ? -34 : 34);
+    const ty = by - 6; // stand just at the dish's rim
 
     this.moveCreatureTo(a, tx, ty, () => {
       if (a.state !== 'eating' || !a.sprite.active) return;
-      if (!bowlHasFood(bowl.level)) { this._petEatDone(a); return; } // someone/thing emptied it
+      if (!bowlHasFood(side.level)) { this._petEatDone(a); return; } // someone/thing emptied it
       a.sprite.setFlipX(!facingRight);
       a.sprite.play(`eat_${a.key}`, true); // head-down eat/drink pose (per-species eat frames)
-      if (action === 'water') playDrink(); else playEat(bowl.fillContent ?? 'catFood');
+      if (side.action === 'water') playDrink(); else playEat(side.content ?? 'catFood');
 
       a.eatTimer = this.time.delayedCall(1600, () => {
         a.eatTimer = null;
         if (a.state !== 'eating' || !a.sprite.active) return;
-        a.model?.applyAction(action);
+        a.model?.applyAction(side.action);
         this.game.events.emit(EVENTS.STATS_CHANGED);
-        this._setPetBowlLevel(bowl, drainBowlLevel(bowl.level)); // a serving eaten empties the dish a bit
+        this._setPetBowlLevel(bowl, sideKey, drainBowlLevel(side.level)); // a serving eaten empties the dish a bit
         this._petEatDone(a);
       });
     });

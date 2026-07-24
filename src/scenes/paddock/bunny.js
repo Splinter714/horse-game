@@ -17,19 +17,16 @@ import { nextBunny, BUNNY_CAP } from '../../data/species/bunny/index.js';
 import { Bunny } from '../../data/species/bunny/model.js';
 
 export const WithBunny = (Base) => class extends Base {
-  // Bunny food + water bowls (#283) — the bunny's counterpart to the cat's dishes,
-  // tucked by the hutch in the north yard. Built through the shared pet-bowl primitive
-  // (worldObjects.js _addPetBowl) so fill/consume are the same machinery as the cat's.
-  // The FOOD bowl carries an `onFill` hook: stocking it lures a wild bunny (attractBunny),
-  // so attraction lives on refilling the bowl rather than dropping a pile on the ground.
-  buildBunnyBowls() {
+  // Bunny food + water bowl (#283, combined into one prop #311) — the bunny's
+  // counterpart to the cat's dish, tucked by the hutch in the north yard. Built
+  // through the shared pet-bowl primitive (worldObjects.js _addPetBowl) so
+  // fill/consume are the same machinery as the cat's. The FOOD side carries an
+  // `onFill` hook: stocking it lures a wild bunny (attractBunny), so attraction
+  // lives on refilling the bowl rather than dropping a pile on the ground.
+  buildBunnyBowl() {
     this._addPetBowl({
-      x: 545, y: 340, tex: 'bunnyFoodBowl', fillContent: 'bunnyFood', action: 'feed',
-      propKey: 'bunnyFoodBowl', onFill: (bowl) => this.attractBunny(bowl.x, bowl.y),
-    });
-    this._addPetBowl({
-      x: 590, y: 340, tex: 'catWaterBowl', fillContent: 'water', action: 'water',
-      propKey: 'bunnyWaterBowl',
+      x: 565, y: 340, tex: 'bunnyBowl', foodContent: 'bunnyFood', waterContent: 'water',
+      propKey: 'bunnyBowl', onFillFood: (bowl) => this.attractBunny(bowl.x, bowl.y),
     });
   }
 
