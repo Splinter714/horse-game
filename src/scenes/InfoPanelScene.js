@@ -368,7 +368,7 @@ export default class InfoPanelScene extends WithCustomizerShell(WithCustomizerNa
     if (!text) return;
     this._breedStatus?.destroy();
     this._breedStatus = this.add.text(CARD_W / 2, (this._cardY ? 0 : 0), text, {
-      fontFamily: 'system-ui, sans-serif', fontSize: '11px', color: '#7a4a5a',
+      fontFamily: 'system-ui, sans-serif', fontSize: '14px', color: '#5a1e3a', fontStyle: 'bold',
       align: 'center', wordWrap: { width: CARD_W - 24 },
     }).setOrigin(0.5, 1).setDepth(20000);
     // Position it just above the card's bottom edge in screen space.
