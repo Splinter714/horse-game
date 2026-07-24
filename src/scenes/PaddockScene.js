@@ -114,6 +114,8 @@ export default class PaddockScene extends PaddockBase {
     this._rideStuck = 0;
     this.leadHorses = [];  // horses currently being led (in order, trailing the player)
     this.leadRope = null; // Graphics line
+    this.tiedHorses = []; // horses tied to a fence rail (#317) — stay put until untied
+    this.tieRope = null; // Graphics line, fence post → tied horse
 
     this.buildWorld();
     this.buildTrail(); // riding trail (#36) — continuous westward world extension
@@ -250,6 +252,7 @@ export default class PaddockScene extends PaddockBase {
     this.updateTractor(delta);
     this.movePlayer(delta);
     this.updateLeading(delta);
+    this.updateTied(delta);
     this.updateFoals(delta);
     this.updateBreeding(delta); // #15: tick gestations, birth ready foals
     this.updateIncubation(delta); // #274: tick incubations, hatch ready chicks

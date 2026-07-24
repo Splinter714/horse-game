@@ -3,7 +3,7 @@
 
 import Phaser from 'phaser';
 import { playBrush } from '../../audio/sounds.js';
-import { PLAYER_SPEED, RIDE_SPEED, PLAYER_BOUNDS, S } from './constants.js';
+import { PLAYER_SPEED, RIDE_SPEED, PLAYER_BOUNDS, S, USE_REACH } from './constants.js';
 import { SADDLE_TYPES, DEFAULT_SADDLE_TYPE } from '../../data/items.js';
 
 export const WithRiding = (Base) => class extends Base {
@@ -74,6 +74,7 @@ export const WithRiding = (Base) => class extends Base {
     if (!h.saddled) return; // a saddle is required before you can ride
     if (this.riding) this.dismount();
     if (this.leadHorses.includes(h)) this.stopLeadingHorse(h);
+    if (this.tiedHorses.includes(h)) this.untieHorse(h);
 
     // Interrupt any current behavior
     if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
@@ -231,8 +232,19 @@ export const WithRiding = (Base) => class extends Base {
   // ─── Leading ─────────────────────────────────────────────────────────────
 
   toggleLead(h) {
-    // Toggle this horse off if already led
-    if (this.leadHorses.includes(h)) { this.stopLeadingHorse(h); return; }
+    // Tied horses (#317): repeating Use on a tied horse unties it — that's the
+    // only untie action, no separate button.
+    if (this.tiedHorses.includes(h)) { this.untieHorse(h); return; }
+
+    // Already being led: tie it here if the player is near a fence rail (any
+    // rail — pasture perimeter or the house fence line, #317); otherwise the
+    // second Use press just releases it as before.
+    if (this.leadHorses.includes(h)) {
+      const tiePoint = this._nearestFenceTiePoint(this.player.sprite.x, this.player.sprite.y);
+      if (tiePoint) { this.tieHorseToFence(h, tiePoint); return; }
+      this.stopLeadingHorse(h);
+      return;
+    }
 
     if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
     if (h.eatTimer) { h.eatTimer.remove(); h.eatTimer = null; }
@@ -332,6 +344,95 @@ export const WithRiding = (Base) => class extends Base {
       }
       this.leadRope.strokePath();
     });
+  }
+
+  // ─── Tying to a fence (#317) ─────────────────────────────────────────────
+  // Any fence rail counts — the pasture perimeter and the house fence line are
+  // both tagged `isFence: true` on their collision rects in buildObstacles/
+  // buildPastureFence (world.js). Ties at the closest point on the nearest rail
+  // within reach of (x,y), nudged toward that side of the rail so the horse
+  // stands beside it rather than inside the solid fence.
+  _nearestFenceTiePoint(x, y, maxDist = USE_REACH) {
+    let best = null, bestD = Infinity;
+    for (const f of this.obstacles) {
+      if (!f.isFence) continue;
+      const cx = Phaser.Math.Clamp(x, f.x, f.x + f.w);
+      const cy = Phaser.Math.Clamp(y, f.y, f.y + f.h);
+      const d = Phaser.Math.Distance.Between(x, y, cx, cy);
+      if (d < bestD) { bestD = d; best = { x: cx, y: cy }; }
+    }
+    if (!best || bestD > maxDist) return null;
+
+    const MARGIN = 28; // stand this far off the rail, on the player's side
+    let dx = x - best.x, dy = y - best.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    return { x: best.x + (dx / dist) * MARGIN, y: best.y + (dy / dist) * MARGIN };
+  }
+
+  tieHorseToFence(h, point) {
+    // Drop out of the leading group (no more pull-toward-player).
+    const i = this.leadHorses.indexOf(h);
+    if (i !== -1) this.leadHorses.splice(i, 1);
+    if (this.leadHorses.length === 0) this.leadRope.clear();
+
+    if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
+    if (h.eatTimer) { h.eatTimer.remove(); h.eatTimer = null; }
+    if (h._begTimer) { this.time.removeEvent(h._begTimer); h._begTimer = null; }
+
+    h.state = 'tied';
+    h.tiedTo = { x: point.x, y: point.y };
+    this.tiedHorses.push(h);
+  }
+
+  untieHorse(h) {
+    const i = this.tiedHorses.indexOf(h);
+    if (i === -1) return;
+    this.tiedHorses.splice(i, 1);
+    h.tiedTo = null;
+    h.state = 'idle';
+    this.scheduleWander(h, 1500);
+    if (this.tiedHorses.length === 0) this.tieRope.clear();
+  }
+
+  // Walks a tied horse the last little bit to its tie point (it may have been
+  // a step away when tied) and draws a short rope from it to the fence. Unlike
+  // a led horse, a tied one never follows the player.
+  updateTied(delta) {
+    if (this.tiedHorses.length === 0) { this.tieRope.clear(); return; }
+
+    const dt = delta / 1000;
+    const SLACK = 4;
+    const maxStep = PLAYER_SPEED * dt;
+
+    this.tieRope.clear();
+    this.tieRope.lineStyle(3, 0xc8a040, 0.85);
+
+    for (const h of this.tiedHorses) {
+      const { x: tx, y: ty } = h.tiedTo;
+      const fromX = h.sprite.x, fromY = h.sprite.y;
+      const dx = tx - h.sprite.x, dy = ty - h.sprite.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      if (dist > SLACK) {
+        const pull = Math.min(dist - SLACK, maxStep);
+        const ux = dx / dist, uy = dy / dist;
+        const nx = h.sprite.x + ux * pull;
+        const ny = h.sprite.y + uy * pull;
+        if (!this._collides(nx, h.sprite.y, 16)) h.sprite.x = nx;
+        if (!this._collides(h.sprite.x, ny, 16)) h.sprite.y = ny;
+      }
+
+      const movedX = h.sprite.x - fromX;
+      if (Math.abs(movedX) > 0.2) h.sprite.setFlipX(movedX < 0);
+      const moved = Math.hypot(h.sprite.x - fromX, h.sprite.y - fromY);
+      h.sprite.play(moved > 0.3 ? `walk_${h.key}` : `idle_${h.key}`, true);
+
+      // Rope: fence post → horse's head.
+      const hx = h.sprite.x, hy = h.sprite.y - 32;
+      this.tieRope.beginPath();
+      this.tieRope.moveTo(tx, ty - 16);
+      this.tieRope.lineTo(hx, hy);
+      this.tieRope.strokePath();
+    }
   }
 
 };

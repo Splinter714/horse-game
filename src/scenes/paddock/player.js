@@ -140,6 +140,8 @@ export const WithPlayer = (Base) => class extends Base {
 
     // Lead rope drawn each frame when leading a horse
     this.leadRope = this.add.graphics().setDepth(9998);
+    // Tie rope drawn each frame for any horse tied to a fence rail (#317)
+    this.tieRope = this.add.graphics().setDepth(9998);
 
   }
 
