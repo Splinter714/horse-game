@@ -37,6 +37,32 @@ export const WithHouseInteriorDecor = (Base) => class extends Base {
     });
     this._swimTankFish(this._tankFish[0], true);
     this.time.delayedCall(700, () => this._swimTankFish(this._tankFish[1], false));
+
+    this._buildTankShimmer(x0, x1, y0, y1);
+  }
+
+  // Water-movement shimmer (2026-07-06 playtest): a couple of translucent glints
+  // drifting side to side with a slow alpha pulse, so the glass reads as moving
+  // water instead of a static painted rectangle. Purely cosmetic, no gameplay hook.
+  _buildTankShimmer(x0, x1, y0, y1) {
+    this._tankShimmer = [0, 1].map((i) => {
+      const bar = this.add.rectangle(
+        Phaser.Math.Linear(x0, x1, 0.3 + i * 0.35),
+        Phaser.Math.Linear(y0, y1, 0.25 + i * 0.3),
+        8, 3, 0xffffff, 0.3,
+      ).setDepth(49);
+      this.tweens.add({
+        targets: bar,
+        x: { from: x0 + 4, to: x1 - 4 },
+        alpha: { from: 0.05, to: 0.35 },
+        duration: 2600 + i * 900,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+        delay: i * 700,
+      });
+      return bar;
+    });
   }
 
   // One fish glides to the opposite tank wall, pauses briefly, turns, and repeats —

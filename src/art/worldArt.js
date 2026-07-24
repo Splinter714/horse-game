@@ -148,16 +148,20 @@ export function buildWorldTextures(scene) {
     // fish themselves are separate sprites the scene animates over this glass (see
     // HouseInteriorScene._buildFishTank) — reusing the stream fish art (#183) — so the
     // texture here only needs the tank furniture (stand, glass, gravel, waterline).
-    g.fillStyle(0x6a4a2a, 1); g.fillRect(8, 92, 40, 10);          // wooden stand
-    g.fillStyle(0x5a3f24, 1); g.fillRect(8, 100, 40, 2);         // stand shadow/base
-    g.fillStyle(0x3a2a1a, 1); g.fillRect(9, 68, 2, 24); g.fillRect(45, 68, 2, 24); // tank frame sides
-    g.fillStyle(0x3a2a1a, 1); g.fillRect(9, 66, 38, 3);          // tank frame top
-    g.fillStyle(0x9adcec, 0.55); g.fillRect(11, 69, 34, 21);     // glass/water body
-    g.fillStyle(0xbdeaf5, 0.5); g.fillRect(11, 69, 34, 3);       // waterline sheen
-    g.fillStyle(0xcaa877, 1); g.fillRect(11, 87, 34, 3);         // gravel bed
-    g.fillStyle(0xd6b985, 1); g.fillRect(11, 87, 34, 1);        // gravel highlight
-    g.fillStyle(0x4a8a54, 1); g.fillRect(15, 80, 2, 8); g.fillRect(38, 78, 2, 10); // little water plants
-    g.fillStyle(0x5aa060, 1); g.fillRect(15, 79, 2, 2); g.fillRect(38, 77, 2, 2);
+    // Proportions flattened per the 2026-07-06 playtest (was reading too tall/flat for
+    // a wall-mounted tank) — same footprint width, shorter overall, plus a vertical
+    // glass edge glint for a bit of depth instead of a flat wash.
+    g.fillStyle(0x3a2a1a, 1); g.fillRect(9, 78, 2, 20); g.fillRect(45, 78, 2, 20); // tank frame sides
+    g.fillStyle(0x3a2a1a, 1); g.fillRect(9, 76, 38, 3);           // tank frame top
+    g.fillStyle(0x9adcec, 0.55); g.fillRect(11, 79, 34, 15);      // glass/water body
+    g.fillStyle(0xbdeaf5, 0.5); g.fillRect(11, 79, 34, 2);        // waterline sheen
+    g.fillStyle(0xeaf8fc, 0.35); g.fillRect(12, 81, 2, 11);       // vertical glass edge glint (depth)
+    g.fillStyle(0xcaa877, 1); g.fillRect(11, 92, 34, 3);          // gravel bed
+    g.fillStyle(0xd6b985, 1); g.fillRect(11, 92, 34, 1);         // gravel highlight
+    g.fillStyle(0x4a8a54, 1); g.fillRect(15, 85, 2, 7); g.fillRect(38, 83, 2, 9); // little water plants
+    g.fillStyle(0x5aa060, 1); g.fillRect(15, 84, 2, 2); g.fillRect(38, 82, 2, 2);
+    g.fillStyle(0x6a4a2a, 1); g.fillRect(8, 98, 40, 8);           // wooden stand
+    g.fillStyle(0x5a3f24, 1); g.fillRect(8, 105, 40, 2);         // stand shadow/base
     g.layer('fireplace');
     // Fireplace (#230) — a stone hearth on the open east wall, below the bed.
     // PURELY DECORATIVE/AMBIENT: no temperature/gameplay mechanic. The stone
