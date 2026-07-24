@@ -308,23 +308,35 @@ export const WithCareActions = (Base) => class extends Base {
     if (!shorn) { this._clearRegrowCue(a); return; }
 
     const p = Phaser.Math.Clamp(model.regrowthProgress(), 0, 1);
-    const W = 28, H = 5;                                    // pill footprint (world px)
+    const W = 28, H = 6;                                    // pill footprint (world px)
     const topY = a.sprite.y - a.sprite.displayHeight - 12;  // just above the sprite
 
     if (!a._regrowCue) {
       const bg = this.add.graphics().setDepth(20000);
       const icon = this.add.image(0, 0, 'iconBasketWool')
-        .setScale(0.7).setDepth(20001);
+        .setScale(0.45).setDepth(20001);
       a._regrowCue = { bg, icon, w: W, h: H };
     }
     const cue = a._regrowCue;
     const x = a.sprite.x, y = topY;
-    // Redraw the pill each tick (fill tracks progress). Track + fill + thin outline.
+    // Redraw the pill each tick (fill tracks progress). Track + fill + thin outline,
+    // mirroring the InfoPanelScene stat-bar look (rounded track, flat-edged fill).
+    //
+    // Bug fix (#233 playtest 2026-07-24): the fill used to be drawn with the SAME
+    // rounded corner radius as the full-width track, but its width shrinks with
+    // progress down to a couple of px right after a shear. Phaser's fillRoundedRect
+    // draws corner arcs sized to the given radius regardless of how narrow the rect
+    // is — once the radius exceeds half the fill's width, the corner arcs overlap and
+    // the "bar" renders as a pinched blob instead of a clean sliver. Drawing the fill
+    // as a plain flat-edged rect (like InfoPanelScene doesn't need to worry about,
+    // since its min width of 5 is never that narrow) sidesteps the degenerate-radius
+    // case entirely — the fill simply grows out from the track's rounded left cap.
     cue.bg.clear();
     cue.bg.fillStyle(0x2a2018, 0.55); cue.bg.fillRoundedRect(x - W / 2 - 1, y - 1, W + 2, H + 2, 3);
     cue.bg.fillStyle(0x4a3a28, 1);    cue.bg.fillRoundedRect(x - W / 2, y, W, H, 2);
-    cue.bg.fillStyle(0xe8d8c0, 1);    cue.bg.fillRoundedRect(x - W / 2, y, Math.max(1, W * p), H, 2);
-    cue.icon.setPosition(x - W / 2 - 8, y + H / 2);
+    const fillW = Math.max(2, W * p);
+    cue.bg.fillStyle(0xe8d8c0, 1);    cue.bg.fillRect(x - W / 2, y, fillW, H);
+    cue.icon.setPosition(x - W / 2 - 10, y + H / 2);
   }
 
   _clearRegrowCue(a) {

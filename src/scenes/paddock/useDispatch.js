@@ -187,19 +187,24 @@ export const WithUseDispatch = (Base) => class extends Base {
 
   // Resolve what Use does with `item` on a nearby harvestable animal, or null. Only
   // produce harvesting is a direct interaction now: the right EMPTY carrier on a
-  // producing animal → harvest `produces` when ready (the cow's milk into a bucket,
-  // a sheep's wool into a basket). The carrier kind comes from `produces.carrier`
-  // (default 'bucket'), and readiness from the generic model gate (daily or regrowth-
-  // timer, #233). Feeding and watering are no longer direct — animals graze dropped
-  // food and drink at the trough/stream via their AI. Returns { label, run } so
-  // useActiveTool dispatches it and the prompt pass labels it identically. Adding a
-  // producing animal is pure data.
+  // producing animal → harvest `produces` when ready (the cow's milk into a bucket).
+  // The carrier kind comes from `produces.carrier` (default 'bucket'), and readiness
+  // from the generic model gate (daily or regrowth-timer, #233). Feeding and watering
+  // are no longer direct — animals graze dropped food and drink at the trough/stream
+  // via their AI. Returns { label, run } so useActiveTool dispatches it and the prompt
+  // pass labels it identically. Adding a producing animal is pure data.
+  //
+  // `produces.requiresTool` (playtest 2026-07-24, #233) opts a species OUT of this
+  // bare-carrier path entirely — the sheep/llama's wool declares `requiresTool: 'shear'`
+  // so a basket alone can no longer harvest it; only the matching tool's own Use path
+  // (shearWithTool, dispatched from item.action === 'shear' in useActiveTool) can.
   _animalUseAction(item) {
     if (!item || item.type !== 'carrier') return null;
     const animal = this._nearestCareAnimal();
     if (!animal) return null;
     const model = animal.model;
     const spec = getSpecies(model.species);
+    if (spec.produces?.requiresTool) return null; // needs a dedicated tool, not a bare carrier
     const who = model?.name ? ` ${model.name}` : '';
 
     // Empty carrier of the right kind → harvest, but only when the animal is ready.
