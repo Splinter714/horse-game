@@ -425,9 +425,9 @@ export const WithWorld = (Base) => class extends Base {
     ];
     for (const f of this.fenceObstacles) this.obstacles.push(f);
 
-    // Gate obstacle — fills the fence gap. Blocks everyone when closed, passable
-    // when open. Thin horizontal strip so movers block at the footing.
-    this.gateObstacle = { x: 960 - 56, y: 902 - 18, w: 112, h: 36, isGate: true };
+    // Gate obstacle — fills the fence gap; matches the fence's own vertical band
+    // (topY ± T/2) instead of a taller offset rect, which felt snaggy (#117).
+    this.gateObstacle = { x: 960 - 56, y: topY - T / 2, w: 112, h: T, isGate: true };
     if (this.props.gate && !this.props.gate.open) {
       this.obstacles.push(this.gateObstacle);
     }
