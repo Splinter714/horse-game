@@ -46,20 +46,42 @@ export const WithIncubationPanel = (Base) => class extends Base {
     // rooster requirement, #269's breedingPartner marker this issue was waiting on).
     if (!paddock._hasBreedingRooster?.()) return y;
     const already = paddock._isIncubating?.(key);
-    const label = already ? '🥚  Incubating…' : '🥚  Incubate';
-    const incBtn = this.add.text(CARD_W / 2, cy, label, {
-      fontFamily: 'system-ui, sans-serif', fontSize: '14px', color: '#5a1e3a',
-      fontStyle: 'bold', backgroundColor: already ? '#e3ded3' : '#ffc0d8',
-      padding: { x: 14, y: 8 }, align: 'center',
-    }).setOrigin(0.5, 0).setInteractive({ useHandCursor: !already });
-    growHitArea(incBtn);
-    if (!already) {
-      incBtn.on('pointerdown', () => {
-        const status = paddock.startIncubation?.(key);
+
+    // #322: already incubating → a disabled "Incubating…" state plus an active
+    // "Cancel incubation" button, instead of an inert label with no way out.
+    if (already) {
+      const incBtn = this.add.text(CARD_W / 2, cy, '🥚  Incubating…', {
+        fontFamily: 'system-ui, sans-serif', fontSize: '14px', color: '#7a746a',
+        fontStyle: 'bold', backgroundColor: '#e3ded3', padding: { x: 14, y: 8 }, align: 'center',
+      }).setOrigin(0.5, 0);
+      this.panel.add(incBtn);
+      cy += incBtn.height + 4;
+
+      const cancelBtn = this.add.text(CARD_W / 2, cy, '✋  Cancel incubation', {
+        fontFamily: 'system-ui, sans-serif', fontSize: '14px', color: '#5a1e3a',
+        fontStyle: 'bold', backgroundColor: '#ffc0d8', padding: { x: 14, y: 8 }, align: 'center',
+      }).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
+      growHitArea(cancelBtn);
+      cancelBtn.on('pointerdown', () => {
+        const status = paddock.cancelIncubation?.(key);
         this._flashBreedStatus(status);
         this.refresh();
       });
+      this.panel.add(cancelBtn);
+      cy += cancelBtn.height + 4;
+      return cy;
     }
+
+    const incBtn = this.add.text(CARD_W / 2, cy, '🥚  Incubate', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '14px', color: '#5a1e3a',
+      fontStyle: 'bold', backgroundColor: '#ffc0d8', padding: { x: 14, y: 8 }, align: 'center',
+    }).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
+    growHitArea(incBtn);
+    incBtn.on('pointerdown', () => {
+      const status = paddock.startIncubation?.(key);
+      this._flashBreedStatus(status);
+      this.refresh();
+    });
     this.panel.add(incBtn);
     cy += incBtn.height + 4;
     return cy;

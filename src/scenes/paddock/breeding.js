@@ -35,6 +35,7 @@
 
 import Phaser from 'phaser';
 import { PASTURE_BOUNDS } from './constants.js';
+import { EVENTS } from '../../data/events.js';
 import {
   nextFoalKey, makeFoalData, seedFoalLook, isBornReady, GROWN_AGE,
   isBonded, bondMateKey, canBond,
@@ -167,17 +168,42 @@ export const WithBreeding = (Base) => class extends Base {
   // Start a gestation between two horses: record it (persisted), sparkle over both,
   // and let updateBreeding count it down. The parent-seed is captured NOW (from the
   // parents' current looks) so it's stable even if a parent is later re-customized.
-  beginBreeding(aKey, bKey) {
+  // `cost` is recorded on the gestation itself (currently always 0 — breeding has no
+  // money cost today) so `cancelBreeding` below can refund whatever was actually
+  // charged, without needing to know the price rules — it just reads it back off.
+  beginBreeding(aKey, bKey, cost = 0) {
     const all = this.registry.get('allHorses') ?? {};
     const a = all[aKey], b = all[bKey];
     if (!a || !b) return null;
     const seed = seedFoalLook(a, b);
-    const gest = { aKey, bKey, startedAt: Date.now(), seed };
+    const gest = { aKey, bKey, startedAt: Date.now(), seed, cost };
     (this._gestations ??= []).push(gest);
     saveGestations(this._gestations);
     this._sparkle(this._horseSprite(aKey));
     this._sparkle(this._horseSprite(bKey));
     return `${a.name} and ${b.name} are expecting a foal! 💕`;
+  }
+
+  // #322: cancel an in-flight gestation for a horse (either parent named by `key`).
+  // Refunds whatever `cost` was recorded when the gestation started (0 today, since
+  // breeding has no money cost — this stays correct if one is ever added). The
+  // PERMANENT pair bond is untouched — cancelling only aborts this one gestation
+  // attempt, never the bond (standing monogamy rule, CLAUDE.md "Breeding & baby-
+  // animal design constraints"). Does not touch `_pairBonds` at all.
+  cancelBreeding(key) {
+    const idx = (this._gestations ?? []).findIndex((g) => g.aKey === key || g.bKey === key);
+    if (idx === -1) return null;
+    const [g] = this._gestations.splice(idx, 1);
+    saveGestations(this._gestations);
+    if (g.cost) {
+      this.money = (this.money ?? 0) + g.cost;
+      this.game.events.emit(EVENTS.MONEY_CHANGED, this.money);
+    }
+    const all = this.registry.get('allHorses') ?? {};
+    const name = all[g.aKey]?.name ?? all[g.bKey]?.name ?? 'The pair';
+    return g.cost
+      ? `Breeding cancelled — refunded $${g.cost}`
+      : `${name}'s breeding was cancelled`;
   }
 
   // Per-frame (from update): tick the gestation clock ~once a second. #299 — a

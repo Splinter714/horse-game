@@ -29,6 +29,7 @@
 
 import Phaser from 'phaser';
 import { SPECIES } from '../../data/species/index.js';
+import { EVENTS } from '../../data/events.js';
 import {
   nextChickKey, makeChickData, seedChickLook, isHatchReady, GROWN_CHICK_AGE,
 } from '../../data/species/chicken/incubation.js';
@@ -85,8 +86,11 @@ export const WithIncubation = (Base) => class extends Base {
   // The info-panel "Incubate" button routes here with the hen currently being
   // viewed. Starts a fertilized-egg incubation if a rooster is present and this
   // hen isn't already incubating. Returns a short status string the panel can
-  // flash as feedback (mirrors toggleBreedSelection's return contract).
-  startIncubation(henKey) {
+  // flash as feedback (mirrors toggleBreedSelection's return contract). `cost` is
+  // recorded on the incubation record itself (currently always 0 — incubation has
+  // no money cost today) so `cancelIncubation` below can refund whatever was
+  // actually charged, without needing to know the price rules.
+  startIncubation(henKey, cost = 0) {
     const hens = this.registry.get('allChickens') ?? {};
     const hen = hens[henKey];
     if (!hen) return null;
@@ -96,11 +100,32 @@ export const WithIncubation = (Base) => class extends Base {
     if (!rooster) return 'No rooster to father a chick yet';
 
     const seed = seedChickLook(hen, rooster.model);
-    const inc = { henKey, roosterKey: rooster.key, startedAt: Date.now(), seed };
+    const inc = { henKey, roosterKey: rooster.key, startedAt: Date.now(), seed, cost };
     (this._incubations ??= []).push(inc);
     saveIncubations(this._incubations);
     this._sparkle(this._chickenSprite(henKey));
     return `${hen.name} is incubating a fertilized egg! 🥚`;
+  }
+
+  // #322: cancel an in-flight incubation for a hen. Refunds whatever `cost` was
+  // recorded when the incubation started (0 today, since incubation has no money
+  // cost — this stays correct if one is ever added). Nothing pair-bond-like exists
+  // for chickens (only one rooster can ever be present today), so there's no bond
+  // record to touch — cancelling just removes the in-flight egg.
+  cancelIncubation(henKey) {
+    const idx = (this._incubations ?? []).findIndex((inc) => inc.henKey === henKey);
+    if (idx === -1) return null;
+    const [inc] = this._incubations.splice(idx, 1);
+    saveIncubations(this._incubations);
+    if (inc.cost) {
+      this.money = (this.money ?? 0) + inc.cost;
+      this.game.events.emit(EVENTS.MONEY_CHANGED, this.money);
+    }
+    const hens = this.registry.get('allChickens') ?? {};
+    const name = hens[henKey]?.name ?? 'The hen';
+    return inc.cost
+      ? `Incubation cancelled — refunded $${inc.cost}`
+      : `${name}'s incubation was cancelled`;
   }
 
   // Per-frame (from update): tick the incubation clock ~once a second and hatch
