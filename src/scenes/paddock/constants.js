@@ -294,6 +294,10 @@ export const HOUSE_INTERIOR = {
   // gets a footprint.
   collision: [
     { x0: 112, y0: 22, x1: 152, y1: 62 }, // bed frame (worldArt houseInterior fillRect)
+    // Fish tank footprint (#221 playtest fix — the player could walk onto/through
+    // the tank). Matches the stand + frame drawn in worldArt.js's houseInterior
+    // `fishtank` layer (post-#221 flattened-proportions pass).
+    { x0: 8, y0: 78, x1: 48, y1: 108 },
   ],
   // South doorway: the exit strip. When the player walks onto it they leave the house.
   exit: { x: 80, y: 116, w: 34 },
@@ -306,7 +310,7 @@ export const HOUSE_INTERIOR = {
   decor: {
     // Fish tank (#221): glass bounds (design-grid) the scene keeps its 2 ambient
     // swimming fish within — a little inset from the tank frame drawn in the art.
-    fishTank: { bounds: { x0: 13, x1: 43, y0: 71, y1: 86 } },
+    fishTank: { bounds: { x0: 13, x1: 43, y0: 81, y1: 91 } },
     // Fireplace (#230): where the flame-flicker sprite sits over the hearth's
     // firebox opening (worldArt houseInterior's `fireplace` layer, x=122-144,
     // y=76-100) — origin (0.5,1) so this is the flame's base/floor point.
