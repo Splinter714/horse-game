@@ -95,13 +95,17 @@ export const WithCompanion = (Base) => class extends Base {
     const pull = Math.min(dist - DOG_COMPANION.SLACK, step);
     const ux = dx / dist, uy = dy / dist;
 
-    // Axis-separated move with collision so the dog slides along the fence and can only
-    // cross into the pasture through the open gate — same discipline as a led horse.
+    // Axis-separated move with collision so the dog slides along the fence, same
+    // discipline as a led horse — except the dog always passes through the gate
+    // regardless of open/closed state (#314), so it uses its own obstacle list
+    // (_obstaclesFor strips the gate obstacle for the dog specifically) rather than
+    // the raw shared list a led horse would collide against.
     const R = a.bodyR ?? 11;
+    const obstacles = this._obstaclesFor(a.key);
     const fromX = a.sprite.x, fromY = a.sprite.y;
     const nx = a.sprite.x + ux * pull, ny = a.sprite.y + uy * pull;
-    if (!this._collides(nx, a.sprite.y, R)) a.sprite.x = nx;
-    if (!this._collides(a.sprite.x, ny, R)) a.sprite.y = ny;
+    if (!this._collides(nx, a.sprite.y, R, obstacles)) a.sprite.x = nx;
+    if (!this._collides(a.sprite.x, ny, R, obstacles)) a.sprite.y = ny;
 
     const movedX = a.sprite.x - fromX;
     if (Math.abs(movedX) > 0.2) a.sprite.setFlipX(movedX < 0);

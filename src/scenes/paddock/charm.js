@@ -7,11 +7,13 @@
 //
 // Spatial note: the dog & cat roam the north yard (BOUNDS) while the herd is penned
 // in the south pasture (PASTURE_BOUNDS), with a fence between. The gate is the only
-// crossing — when it's OPEN these behaviors path through it (the dog trots in among
-// the sheep; the cat curls up with a resting horse), exactly like a horse heading out
-// to the stream. When it's SHUT they stay on the reachable side (the dog postures at
-// the fence and the sheep still bunch; the cat curls by the dog/house). Gate state is
-// read via _gateOpen() per bout, so it always matches the player's current setup.
+// crossing. The cat only paths through it when it's OPEN (the cat curls up with a
+// resting horse), exactly like a horse heading out to the stream — when it's SHUT it
+// stays on the reachable side (curling by the dog/house instead). Gate state for the
+// cat is read via _gateOpen() per bout, so it always matches the player's current
+// setup. The dog is a special case (#314): it ALWAYS trots in among the sheep
+// regardless of gate state — its obstacle list drops the gate obstacle entirely (see
+// _obstaclesFor in world.js), so it never treats a shut gate as a barrier.
 
 import Phaser from 'phaser';
 import { CHARM, BOUNDS, PASTURE_BOUNDS } from './constants.js';
@@ -51,22 +53,19 @@ export const WithCharm = (Base) => class extends Base {
     const cx = flock.reduce((s, o) => s + o.sprite.x, 0) / flock.length;
     const cy = flock.reduce((s, o) => s + o.sprite.y, 0) / flock.length;
 
-    // Head toward the flock, pulling up a little short. When the gate's OPEN the dog
-    // can actually trot in among the sheep (moveCreatureTo paths it through the gate
-    // gap, the same way a horse heads out to the stream); when it's SHUT, it postures
-    // at the fence on its own side of the yard and the sheep still bunch in response.
+    // Head toward the flock, pulling up a little short. The dog always trots in
+    // among the sheep regardless of gate state (#314) — a special case unlike other
+    // cross-region animals, which only cross when the gate is open (_gateOpen()).
+    // moveCreatureTo paths it through the gate gap (its obstacle list drops the gate
+    // obstacle for the dog specifically — see _obstaclesFor in world.js), so the
+    // target clamp always allows the pasture side too.
     const dx = cx - a.sprite.x, dy = cy - a.sprite.y;
     const d = Math.hypot(dx, dy) || 1;
     const reach = Math.max(0, d - CHARM.HERD_STANDOFF);
     let tx = a.sprite.x + (dx / d) * reach;
     let ty = a.sprite.y + (dy / d) * reach;
-    if (this._gateOpen()) {
-      tx = Phaser.Math.Clamp(tx, PASTURE_BOUNDS.minX, PASTURE_BOUNDS.maxX);
-      ty = Phaser.Math.Clamp(ty, BOUNDS.minY, PASTURE_BOUNDS.maxY);
-    } else {
-      tx = Phaser.Math.Clamp(tx, BOUNDS.minX, BOUNDS.maxX);
-      ty = Phaser.Math.Clamp(ty, BOUNDS.minY, BOUNDS.maxY);
-    }
+    tx = Phaser.Math.Clamp(tx, PASTURE_BOUNDS.minX, PASTURE_BOUNDS.maxX);
+    ty = Phaser.Math.Clamp(ty, BOUNDS.minY, PASTURE_BOUNDS.maxY);
 
     a.state = 'herding';
     if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }

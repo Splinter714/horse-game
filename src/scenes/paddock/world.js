@@ -470,11 +470,11 @@ export const WithWorld = (Base) => class extends Base {
   }
 
   // The obstacle list a given creature should respect: shared obstacles minus any
-  // tagged as its home (species id, or shared home-group 'flock' for coop/nests).
-  // Bug fix #269: home:'chicken' alone meant a rooster's coop still blocked him.
+  // tagged as its home (species id, or 'flock' for coop/nests); dog is gate-exempt.
   _obstaclesFor(key) {
     const species = this._speciesOf(key);
     const home = SPECIES[species]?.capabilities?.roosts ? 'flock' : species;
+    if (species === 'dog') return this.obstacles.filter(o => o.home !== home && !o.isGate);
     return this.obstacles.filter(o => o.home !== home);
   }
 
