@@ -2,7 +2,7 @@
 // from DayNightScene's weather state machine. Applied as a functional mixin so
 // `this` is the scene.
 //
-// Three gameplay hooks, all data-driven by the pure rules in data/weather.js:
+// Four gameplay hooks, all data-driven by the pure rules in data/weather.js:
 //   • Rain dirties horses faster — see _dirtyHorse (dayNight.js), which scales the
 //     action-based grooming loss by dirtMultiplier(this._weather).
 //   • Ambient wildlife hides in rain — the wildlife schedulers gate on
@@ -11,7 +11,13 @@
 //   • Rain partially refills the trough — a slow timer tops it up toward a fraction
 //     of capacity (rainTroughFill), so the bucket loop still matters for a full
 //     trough. The tint/particles/indicator are DayNightScene's job.
+//   • Rain sends horses to the covered shelter (#319) — fully automatic AI: the
+//     seekShelter behavior (data/species/horse/behaviors.js) claims an idle/
+//     wandering horse and parks it at props.shelter (horseGoToShelter, horseAI.js)
+//     for the whole rain spell. When it clears, _releaseSheltering hands any
+//     parked horses back to the normal wander chain.
 
+import Phaser from 'phaser';
 import { WEATHER, rainTroughFill, RAIN_TROUGH_TICK_MS } from '../../data/weather.js';
 import { TROUGH_CAP } from './constants.js';
 
@@ -28,6 +34,18 @@ export const WithWeather = (Base) => class extends Base {
     } else if (wasRaining) {
       // Cleared up: stop the rain fill; wildlife resumes on its own schedulers.
       this._stopRainTroughFill();
+      this._releaseSheltering();
+    }
+  }
+
+  // Hand any horse parked at the shelter (#319) back to the normal wander chain
+  // once the rain clears — horseGoToShelter never resets state on its own (it
+  // stays 'sheltering' for the whole rain spell), so this is the only way out.
+  _releaseSheltering() {
+    for (const h of this._grazers()) {
+      if (h.state !== 'sheltering') continue;
+      h.state = 'idle';
+      this.scheduleWander(h, Phaser.Math.Between(500, 2000));
     }
   }
 

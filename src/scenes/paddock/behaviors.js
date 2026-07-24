@@ -14,6 +14,7 @@
 import Phaser from 'phaser';
 import { getSpecies, BEHAVIORS } from '../../data/species/index.js';
 import { speciesEatsContent } from '../../data/items.js';
+import { WEATHER } from '../../data/weather.js';
 import { BEG, CHICKEN_HUNGRY_FOLLOW_DIST, CHARM, HERD } from './constants.js';
 
 export const WithBehaviors = (Base) => class extends Base {
@@ -116,6 +117,10 @@ export const WithBehaviors = (Base) => class extends Base {
       bondChance: HERD.BOND_CHANCE,
       bondCooldown: HERD.BOND_COOLDOWN,
       lastBond: h._lastBond ?? null,
+      // Covered shelter (#319) — the seekShelter behavior just needs to know it's
+      // raining; the weather-change hook (weather.js) is what parks/releases the
+      // horse, so no distance/state field is needed here.
+      weather: this._weather ?? WEATHER.SUN,
     };
   }
 

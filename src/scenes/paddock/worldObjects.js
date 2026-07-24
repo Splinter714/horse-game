@@ -260,6 +260,23 @@ export const WithWorldObjects = (Base) => class extends Base {
     this.doghouseObstacles = [{ x: x - 30 + 2, y: y - 48 + 2, w: 60 - 4, h: 44 - 4 }];
   }
 
+  // ─── Covered shelter (#319) ─────────────────────────────────────────────
+
+  // An open-sided lean-to inside the pasture. Horses path here on their own
+  // when it starts raining (the seekShelter behavior, data/species/horse/
+  // behaviors.js) and wait it out — see horseGoToShelter (horseAI.js) — no
+  // player placement needed, per the issue's decision. Tucked in a clear SW
+  // pocket of the pasture, well clear of the trough/gate/fence and any hay/
+  // water traffic. Purely a covered patch of ground (no walls, no collision):
+  // horses and the player walk under it freely, so it adds no obstacle.
+  buildShelter() {
+    const x = 380, y = 1280;
+    const sprite = this.add.image(x, y, 'shelter').setScale(S).setDepth(y).setOrigin(0.5, 1);
+    // Standing spot is a little north of the sprite's base (under the roof, not
+    // in front of it) so a sheltering horse reads as covered, not just nearby.
+    this.props.shelter = { x, y: y - 24, sprite };
+  }
+
   // ─── Gate ────────────────────────────────────────────────────────────────
 
   toggleGate() {

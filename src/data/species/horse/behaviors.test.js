@@ -5,6 +5,7 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { chooseBehavior } from '../index.js';
+import { WEATHER } from '../../weather.js';
 
 // A content horse with everything topped up and nothing nearby — wanders.
 // (buddyDist Infinity + no bond tuning firing keeps seekBuddy out of these cases;
@@ -17,6 +18,7 @@ const BASE = {
   begHunger: 50, begNoticeDist: 520, begThrottleMs: 8000,
   happiness: 85, buddyDist: Infinity,
   bondHappy: 60, bondLingerGap: 120, bondChance: 0.5, bondCooldown: 14000, lastBond: null,
+  weather: WEATHER.SUN,
 };
 
 describe('horse chooseBehavior', () => {
@@ -94,6 +96,40 @@ describe('horse chooseBehavior', () => {
     const c = { ...BASE, hunger: 40, playerDist: 300, now: 100000, lastSeek: 95000 };
     expect(chooseBehavior('horse', c)).toBe('graze'); // only 5s since last seek (< 8s) → no beg
     expect(chooseBehavior('horse', { ...c, lastSeek: 90000 })).toBe('begPlayer'); // 10s
+  });
+});
+
+// Covered shelter (#319): rain sends an otherwise-idle horse to shelter — but
+// real needs (food/water/begging) still win first.
+describe('horse chooseBehavior — seekShelter (rain #319)', () => {
+  it('sunny and content → wanders (null), not shelter', () => {
+    expect(chooseBehavior('horse', BASE)).toBe(null);
+  });
+
+  it('raining and otherwise content → seekShelter', () => {
+    expect(chooseBehavior('horse', { ...BASE, weather: WEATHER.RAIN })).toBe('seekShelter');
+  });
+
+  it('raining but hungry with hay in range → seekFood still wins', () => {
+    const c = { ...BASE, weather: WEATHER.RAIN, hunger: 60, nearestHayDist: 300 };
+    expect(chooseBehavior('horse', c)).toBe('seekFood');
+  });
+
+  it('raining but thirsty with a filled trough in range → seekWater still wins', () => {
+    const c = { ...BASE, weather: WEATHER.RAIN, thirst: 60, troughDist: 500 };
+    expect(chooseBehavior('horse', c)).toBe('seekWater');
+  });
+
+  it('raining and peckish with nothing to eat nearby → seekShelter over graze', () => {
+    // hunger 65 < GRAZE_HUNGER (70) would normally graze; rain takes priority.
+    expect(chooseBehavior('horse', { ...BASE, weather: WEATHER.RAIN, hunger: 65 })).toBe('seekShelter');
+  });
+
+  it('raining, content, buddy drifted apart → seekShelter over the cosmetic bond amble', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.1); // would hit seekBuddy's roll if reached
+    const c = { ...BASE, weather: WEATHER.RAIN, buddyDist: 300, lastBond: null };
+    expect(chooseBehavior('horse', c)).toBe('seekShelter');
+    vi.restoreAllMocks();
   });
 });
 
