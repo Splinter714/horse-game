@@ -408,7 +408,7 @@ export const WithWorld = (Base) => class extends Base {
       ...(this.generalStoreObstacles || []), ...(this.petStoreObstacles || []),
       // Compost bin (#232) — solid ~80×40 footprint at S=2.
       ...(this.props.compostBin ? [{ x: this.props.compostBin.x - 40, y: this.props.compostBin.y - 40, w: 80, h: 40 }] : []),
-      ...(this.birdEcosystemObstacles || []), // #219/#240/#226/#239/#218 bird-ecosystem props
+      ...(this.birdEcosystemObstacles || []), ...this._petBowlObstacles(), // #202 fix; see worldObjects.js
     ];
 
     // ── Solid pasture fence ── (perimeter walls with a single gap at the gate)

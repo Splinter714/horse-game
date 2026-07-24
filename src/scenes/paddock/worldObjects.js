@@ -240,6 +240,16 @@ export const WithWorldObjects = (Base) => class extends Base {
     bowl.sprite.setTexture(bowl.filled ? bowl.tex : `${bowl.tex}Empty`);
   }
 
+  // Collision boxes for every pet bowl (#202 playtest fix — the cat/bunny dishes had
+  // no collision, so the player could walk straight through them). Sprite 26×16 at
+  // S=2 (origin 0.5,1), inset a touch. petEatFromBowl (catAI.js) stands the pet at
+  // the bowl's rim (offset ±34px, outside this box), so it doesn't block a pet from
+  // reaching its own bowl to eat/drink. Read by buildObstacles (world.js).
+  _petBowlObstacles() {
+    return (this.props.petBowls || []).map(b =>
+      ({ x: b.x - 22, y: b.y - 28, w: 44, h: 24, isPetBowl: true }));
+  }
+
   // ─── Doghouse (#237) ─────────────────────────────────────────────────────
 
   // A decorative kennel in the yard near the house — the dog is a yard companion,
