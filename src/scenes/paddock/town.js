@@ -3,26 +3,25 @@
 // riding trail (#36) exactly but on the opposite edge. Walking off the paddock's
 // east edge (the old WORLD_W boundary) just keeps going: the camera bounds and
 // PLAYER_BOUNDS were already widened in constants.js/player.js, so this mixin only
-// needs to build the town's terrain/scenery and its one new shop building.
+// needs to build the town's terrain/scenery and its one store building.
 //
 // The farm-stand customer and neighbor NPC already walk in from the east edge
 // (WORLD_W - 20, see paddock/farmStand.js / paddock/neighbor.js) — no change to
 // their spawn logic needed; they now narratively read as coming FROM town.
 //
-// v1 scope (per #222): the general store (#215/#217) and its clothing counter
-// already exist elsewhere in the world and are NOT relocated here — moving an
-// established, already-placed world object risks breaking other things and isn't
-// the core ask. This mixin adds the town TERRAIN plus one NEW building: the pet
-// store (cosmetic/care items only — a decorative pet bed, a toy, and a grooming
-// brush; "sells new animals" is out of scope, a separate future feature).
+// v1 scope (per #222) originally left the general store (#215/#217) in the farm and
+// added a separate NEW pet-store building here. #312 (unify all shops into one,
+// moved out of the farm) superseded that: the pet store and the general store are
+// now the SAME single building (paddock/generalStore.js's buildGeneralStore, called
+// below), staffed by the shopkeeper NPC (#244). There's no separate pet-store prop
+// or interactable anymore — pets is just another counter in that one building's
+// STORE_COUNTERS tabs.
 //
 // Kept a separate concern file (not grown into world.js, which is already near
 // the 500-line budget) so this doesn't collide with other agents editing the
 // farm's world.js in parallel — mirrors exactly how trail.js avoided that collision.
 
 import { S, TOWN_X0, TOWN_W, TOWN_Y0, TOWN_Y1 } from './constants.js';
-
-const PET_STORE_X = TOWN_X0 + 260, PET_STORE_Y = 700;
 
 export const WithTown = (Base) => class extends Base {
   buildTown() {
@@ -79,40 +78,12 @@ export const WithTown = (Base) => class extends Base {
     // clearly from the paddock, mirroring the trail's entrance marker.
     this.props.townEntrance = { x: TOWN_X0 - 20, y: midY };
 
-    // Pet store (#222 v1) — the one NEW building this town area adds. Mirrors the
-    // general store's build pattern (paddock/generalStore.js): a placed prop +
-    // its own solid footprint spread into this.obstacles.
-    const sprite = this.add.image(PET_STORE_X, PET_STORE_Y, 'petStore')
-      .setScale(S).setDepth(PET_STORE_Y).setOrigin(0.5, 1);
-    this.props.petStore = { x: PET_STORE_X, y: PET_STORE_Y, sprite };
-    // Solid building footprint (sprite 72×50 at S=2 → 144×100), bottom at PET_STORE_Y.
-    this.petStoreObstacles = [
-      { x: PET_STORE_X - 72, y: PET_STORE_Y - 100, w: 144, h: 100, isPetStore: true },
-    ];
-  }
-
-  // Interactable descriptor for the pet store building — bare-hand interact like
-  // the general store (paddock/interactables.js's `generalStore`).
-  _townInteractables() {
-    const petStore = () => {
-      const s = this.props.petStore;
-      if (!s) return [];
-      return [{
-        x: s.x, y: s.y, tapRadius: 150, reachDist: 150, promptOffsetY: 70,
-        canAct: true, label: 'Pet Store',
-        approach: () => ({ x: s.x, y: s.y + 40 }), // walk to just below the door
-        activate: () => this.openPetStore(),
-      }];
-    };
-    return { petStore };
-  }
-
-  // Launch the buy panel scoped to just the `pets` counter (data/generalStore.js's
-  // STORE_COUNTERS) — reuses GeneralStoreScene's exact UI/money-math, mirrors
-  // openGeneralStore (paddock/generalStore.js) exactly.
-  openPetStore() {
-    if (this.scene.isActive('GeneralStoreScene')) return; // already open
-    this.scene.launch('GeneralStoreScene', { counterIds: ['pets'], title: 'Pet Store', icon: 'petStore' });
-    this.scene.bringToTop('GeneralStoreScene');
+    // The unified store (#312) — the one shop building for the whole game, moved
+    // out of the farm into town. Builds its prop/obstacles/shopkeeper; see
+    // paddock/generalStore.js for buildGeneralStore/openGeneralStore. Its
+    // interactable descriptor lives in paddock/interactables.js's `generalStore`
+    // (unchanged since #215) — no town-specific interactable needed anymore now
+    // that the pet store isn't a separate building.
+    this.buildGeneralStore();
   }
 };

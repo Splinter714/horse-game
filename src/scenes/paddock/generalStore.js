@@ -1,20 +1,24 @@
-// General store (#215) — the seed-shop building: world placement + launch hook.
-// `buildGeneralStore` places the building prop (called from buildWorld, world.js) and
-// registers its solid footprint on `this.generalStoreObstacles` (spread into
-// this.obstacles by buildObstacles, mirroring the barn/doghouse pattern). Placed in
-// the north-central economy row (south of the kitchen counter/garden plot, west of
-// the shop stall/farm stand) with no overlap — see world.js's buildWorld for the
-// neighboring props' footprints. `openGeneralStore` launches the buy overlay
+// The unified store (#215/#217/#222/#244, unified by #312) — ONE store building:
+// world placement + launch hook. `buildGeneralStore` places the building prop
+// (called from buildTown, paddock/town.js — moved out of the farm per #312's
+// confirmed decision) and registers its solid footprint on
+// `this.generalStoreObstacles` (spread into this.obstacles by buildObstacles,
+// mirroring the barn/doghouse pattern). It also builds the shopkeeper NPC (#244)
+// standing at the counter — the unified store is staffed, not self-serve, per the
+// owner's confirmed decision on #312. `openGeneralStore` launches the buy overlay
 // (GeneralStoreScene) when the player interacts with the store, mirroring
 // paddock/shop.js's openShop exactly (same launch/bringToTop/already-open guard).
 //
-// Structured with a `counters` registry (data/generalStore.js STORE_COUNTERS) so a
-// second counter (clothing, #217) can slot in later without a second building —
-// GeneralStoreScene reads STORE_COUNTERS directly, no scene-side change needed here.
+// Structured with a `counters` registry (data/generalStore.js STORE_COUNTERS: seeds,
+// food, clothing, pets) — GeneralStoreScene reads STORE_COUNTERS directly, no
+// scene-side change needed here to add a counter. Before #312 this building only
+// held seeds+clothing (in the farm) and pets had a separate building in town
+// (paddock/town.js's old pet store) — both are now this one building/counterIds-free
+// launch, showing every counter.
 
-import { S } from './constants.js';
+import { S, TOWN_X0 } from './constants.js';
 
-const STORE_X = 1300, STORE_Y = 700;
+const STORE_X = TOWN_X0 + 260, STORE_Y = 700;
 
 export const WithGeneralStore = (Base) => class extends Base {
   buildGeneralStore() {
@@ -26,14 +30,15 @@ export const WithGeneralStore = (Base) => class extends Base {
     this.generalStoreObstacles = [
       { x: STORE_X - 72, y: STORE_Y - 100, w: 144, h: 100, isGeneralStore: true },
     ];
+
+    this.buildShopkeeper(this.props.generalStore); // shopkeeper NPC (#244); paddock/shop.js
   }
 
   openGeneralStore() {
     if (this.scene.isActive('GeneralStoreScene')) return; // already open
-    // Explicit counterIds (#222): the general store shows its own two counters —
-    // the new `pets` counter lives in the same STORE_COUNTERS registry but only
-    // ever shows up at the pet store building (paddock/town.js's openPetStore).
-    this.scene.launch('GeneralStoreScene', { counterIds: ['seeds', 'clothing'], title: 'General Store', icon: 'generalStore' });
+    // No counterIds filter (#312 — the unified store): every STORE_COUNTERS entry
+    // shows up here now (seeds, food, clothing, pets) since this is the one store.
+    this.scene.launch('GeneralStoreScene', { title: 'General Store', icon: 'generalStore' });
     this.scene.bringToTop('GeneralStoreScene');
   }
 };

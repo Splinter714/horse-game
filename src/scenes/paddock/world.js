@@ -148,16 +148,15 @@ export const WithWorld = (Base) => class extends Base {
     this.buildKitchenCounter(); // crop processing (#40); paddock/farmStand.js
     this.props.compostBin = { x: 300, y: 1000, sprite: this.add.image(300, 1000, 'compostBin').setScale(S).setDepth(1000).setOrigin(0.5, 1) }; // Compost bin (#232) — dump spot, pasture NW.
 
-    // Shop / market stall (#29) — where the player SPENDS gold on feed. West of the
-    // farm stand (SELL station, 1600,780) so the two economy halves read as distinct.
+    // Market stall (#29, narrowed by #312) — TOOL UPGRADES only (#295) now; feed +
+    // the shopkeeper NPC moved to the unified store in town (paddock/town.js's
+    // buildTown → buildGeneralStore), so this stall is unstaffed. West of the farm
+    // stand (SELL station, 1600,780) so the two economy halves read as distinct.
     const shopX = 1240, shopY = 800;
     const shopSprite = this.add.image(shopX, shopY, 'shopStall')
       .setScale(S).setDepth(shopY).setOrigin(0.5, 1);
     this.props.shop = { x: shopX, y: shopY, sprite: shopSprite };
-    this.buildShopkeeper(); // Shopkeeper NPC vendor at the stall (#244); see paddock/shop.js
-    // Solid counter footprint the player bumps into (mirrors the farm stand's), added
-    // to this.obstacles once that array exists — see the obstacle list below.
-    this.buildGeneralStore(); // seed-shop building (#215); paddock/generalStore.js
+    // Solid counter footprint, added to this.obstacles below.
 
     // Gathering sources (#63) — static, infinite props the player fills carriers at.
     this.buildSources();
@@ -403,9 +402,10 @@ export const WithWorld = (Base) => class extends Base {
       ...(this.props.kitchenCounter ? [{ x: this.props.kitchenCounter.x - 28, y: this.props.kitchenCounter.y - 16, w: 56, h: 16 }] : []),
       // Shop stall (#29) — solid ~128×48 counter footprint at S=2. Mirrors the farm stand.
       ...(this.props.shop ? [{ x: this.props.shop.x - 64, y: this.props.shop.y - 48, w: 128, h: 48, isShop: true }] : []),
-      // General store (#215) + pet store (#222) building footprints — registered
-      // by their own concern mixins, spread in here like the barn/doghouse.
-      ...(this.generalStoreObstacles || []), ...(this.petStoreObstacles || []),
+      // The unified store (#215/#217/#222/#312) building footprint — registered by
+      // its own concern mixin (buildGeneralStore, now built from buildTown), spread
+      // in here like the barn/doghouse.
+      ...(this.generalStoreObstacles || []),
       // Compost bin (#232) — solid ~80×40 footprint at S=2.
       ...(this.props.compostBin ? [{ x: this.props.compostBin.x - 40, y: this.props.compostBin.y - 40, w: 80, h: 40 }] : []),
       ...(this.birdEcosystemObstacles || []), // #219/#240/#226/#239/#218 bird-ecosystem props

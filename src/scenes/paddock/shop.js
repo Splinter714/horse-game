@@ -1,10 +1,15 @@
-// Shop launch hook (#29) + shopkeeper NPC (#244) — the PaddockScene-side glue for the
-// market stall. `openShop` launches the buy/sell overlay (ShopScene) when the player
-// interacts with the stall (see interactables.js `shop`); the shop UI itself lives in
-// ShopScene, so this only launches it (once), matching how _openInfoPanel launches the
-// info panel. `buildShopkeeper` places the vendor NPC standing at the stall with a
-// subtle idle bob + blink — no dialogue in v1; the keeper is just the friendly face of
-// the same shop-open interaction. Extracted as its own concern per the mixin convention.
+// Shop launch hook (#29) + shopkeeper NPC (#244, relocated by #312) — the
+// PaddockScene-side glue for the market stall (tool upgrades only, post-#312) and
+// the shopkeeper. `openShop` launches the buy/sell overlay (ShopScene) when the
+// player interacts with the stall (see interactables.js `shop`); the shop UI itself
+// lives in ShopScene, so this only launches it (once), matching how _openInfoPanel
+// launches the info panel. `buildShopkeeper` places the vendor NPC standing at
+// whichever building prop it's given, with a subtle idle bob + blink — no dialogue
+// in v1; the keeper is just the friendly face of a shop-open interaction. Since #312
+// the keeper stands at the unified store in town (paddock/generalStore.js calls
+// this with `this.props.generalStore`), not the market stall — the market stall no
+// longer sells anything the keeper would front, just tool upgrades. Extracted as its
+// own concern per the mixin convention.
 
 import Phaser from 'phaser';
 
@@ -15,12 +20,13 @@ export const WithShop = (Base) => class extends Base {
     this.scene.bringToTop('ShopScene');
   }
 
-  // The shopkeeper NPC (#244). Called from the world build once the stall prop exists.
+  // The shopkeeper NPC (#244). Called from the world build once the target building
+  // prop exists (the unified store, post-#312 — see paddock/generalStore.js).
   // Stands just in front of the counter so their head/torso read above the goods; a
   // gentle idle bob (tween) + occasional blink (frame swap) give a bit of life without
-  // any walking or dialogue. Purely cosmetic — the shop opens via the stall interactable.
-  buildShopkeeper() {
-    const shop = this.props && this.props.shop;
+  // any walking or dialogue. Purely cosmetic — the shop opens via the building's own
+  // interactable.
+  buildShopkeeper(shop) {
     if (!shop) return;
     const kx = shop.x;
     const ky = shop.y - 8; // feet just in front of the counter base

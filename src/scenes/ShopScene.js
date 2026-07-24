@@ -1,13 +1,13 @@
-// ShopScene (#29) — the buy panel: spend gold on feed supplies. Opened when the
+// ShopScene (#29, narrowed by #312) — the tool-upgrades buy panel. Opened when the
 // player interacts with the market stall (PaddockScene.openShop). A modal overlay
-// card mirroring the info panel / pause menu look, driven entirely by SHOP_STOCK
-// data (src/data/shop.js), so adding a product is a data edit with no UI change.
+// card mirroring the info panel / pause menu look, driven entirely by
+// ALL_TOOL_UPGRADES data (src/data/shop.js / items.js).
 //
-// The economy loop it closes: care for animals → gather/produce → SELL at the farm
-// stand for gold (farmStand.js) → SPEND that gold here. Money is the HUD's persisted
-// balance (HotbarScene owns the save); a purchase debits it via MONEY_CHANGED and
-// deposits the bought content into the player's active carrier (fillActiveCarrier),
-// reusing the existing carrier plumbing rather than inventing a new inventory.
+// Before #312 this scene ALSO sold feed (SHOP_STOCK) — that counter has moved into
+// the unified store (data/generalStore.js's `food` counter, opened at the one store
+// building in town; see GeneralStoreScene). Tool upgrades weren't part of that
+// unification ask, so they stayed here at the market stall, which is no longer
+// staffed by the shopkeeper NPC (moved to the unified store, #244/#312).
 //
 // Input parity (controller + touch + keyboard): tap a row's Buy button, or focus
 // rows with the d-pad/arrows and press A/Enter; B/Esc/✕ closes. The world is paused
@@ -15,7 +15,7 @@
 
 import Phaser from 'phaser';
 import { EVENTS } from '../data/events.js';
-import { SHOP_STOCK, purchase, ALL_TOOL_UPGRADES, purchaseUpgrade } from '../data/shop.js';
+import { ALL_TOOL_UPGRADES, purchaseUpgrade } from '../data/shop.js';
 import { growHitArea, applyDpr, logicalW, logicalH } from './uiUtils.js';
 
 const CARD_W  = 340;
@@ -76,11 +76,8 @@ export default class ShopScene extends Phaser.Scene {
     }
 
     this._upgradeRows = this._availableUpgrades();
-    // A small section header sits above the upgrade rows when there are any to show
-    // (0 extra rows' worth of height otherwise) — purely cosmetic grouping.
-    const upgradeHeaderH = this._upgradeRows.length ? 26 : 0;
-    const rows = SHOP_STOCK.length + this._upgradeRows.length;
-    const listH = rows * ROW_H + upgradeHeaderH;
+    const rows = this._upgradeRows.length;
+    const listH = rows * ROW_H;
     const cardH = HEADER + listH + PAD;
     const cardX = Math.round((sw - CARD_W) / 2);
     const cardY = Math.round((sh - cardH) / 2);
@@ -98,10 +95,10 @@ export default class ShopScene extends Phaser.Scene {
 
     // Title + shop icon.
     this.panel.add(this.add.image(30, 34, 'shopStall').setDisplaySize(48, 32).setOrigin(0.5, 0.5));
-    this.panel.add(this.add.text(58, 22, 'Market', {
+    this.panel.add(this.add.text(58, 22, 'Tool Upgrades', {
       fontFamily: 'system-ui, sans-serif', fontSize: '22px', color: '#eef0fa', fontStyle: 'bold',
     }).setOrigin(0, 0));
-    this.panel.add(this.add.text(58, 50, 'Buy feed for your animals', {
+    this.panel.add(this.add.text(58, 50, 'Permanent upgrades for your tools', {
       fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: '#9aa0c0',
     }).setOrigin(0, 0));
 
@@ -118,21 +115,11 @@ export default class ShopScene extends Phaser.Scene {
     div.lineBetween(14, HEADER - 8, CARD_W - 14, HEADER - 8);
     this.panel.add(div);
 
-    // Product rows.
+    // Product rows: tool upgrades (#295), a one-time permanent purchase per tier.
+    // Only unowned tiers show — an owned tier drops off the list.
     this._rowNodes = []; // per-row { affordBg, buyLbl, item, y } for focus ring + refresh
-    SHOP_STOCK.forEach((item, i) => this._buildRow(item, i, HEADER + i * ROW_H));
-
-    // Tool upgrades (#295): a one-time, permanent purchase per tier, listed under
-    // its own small section header below the feed rows. Only unowned tiers show.
-    if (this._upgradeRows.length) {
-      const headerY = HEADER + SHOP_STOCK.length * ROW_H;
-      this.panel.add(this.add.text(16, headerY + 6, 'Tool Upgrades', {
-        fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: '#8fd6ff', fontStyle: 'bold',
-      }).setOrigin(0, 0));
-      const rowsTop = headerY + upgradeHeaderH;
-      this._upgradeRows.forEach((item, j) =>
-        this._buildRow(item, SHOP_STOCK.length + j, rowsTop + j * ROW_H, true));
-    }
+    this._upgradeRows.forEach((item, j) =>
+      this._buildRow(item, j, HEADER + j * ROW_H, true));
 
     // Close button.
     const closeBtn = this.add.text(CARD_W - 12, 8, '✕', {
@@ -193,40 +180,13 @@ export default class ShopScene extends Phaser.Scene {
     g.strokeRoundedRect(x, y, w, h, 8);
   }
 
-  // Attempt to buy row `i`: check funds AND that a matching carrier is equipped with
-  // room, then debit gold (via MONEY_CHANGED) and deposit into the carrier. Row `i`
-  // may be a feed row (SHOP_STOCK) or a tool-upgrade row (this._upgradeRows) — the
-  // row node itself says which via `isUpgrade`.
+  // Buy row `i` — every row here is a tool-upgrade tier (#295) since #312 moved
+  // feed-buying into the unified store's food counter (GeneralStoreScene).
   _buy(i) {
     const row = this._rowNodes[i];
     const hb = this.scene.get('HotbarScene');
     if (!row || !hb) return;
-    if (row.isUpgrade) { this._buyUpgrade(i, row.item, hb); return; }
-
-    const item = row.item;
-    // Refresh from the live balance (in case a sale credited between opens).
-    this._money = this._readMoney();
-    const res = purchase(this._money, item);
-    if (!res.ok) { this._flashRow(i, "Can't afford"); return; }
-
-    // Need the right carrier equipped with capacity, else the purchase can't land.
-    const active = hb.getActiveItem?.();
-    const okCarrier = active?.type === 'carrier' && active.carrier === item.carrier;
-    if (!okCarrier) {
-      const cName = item.carrier === 'bucket' ? 'Bucket' : 'Basket';
-      this._flashRow(i, `Equip a ${cName}`);
-      return;
-    }
-    const added = hb.fillActiveCarrier?.(item.content, 1) ?? 0;
-    if (added <= 0) { this._flashRow(i, 'Carrier full'); return; }
-
-    // Debit gold: HotbarScene is the persisted writer and listens for MONEY_CHANGED,
-    // so this both updates the HUD and saves the new balance.
-    this._money = res.balance;
-    this.game.events.emit(EVENTS.MONEY_CHANGED, this._money);
-    this._moneyLbl.setText(`$${this._money}`);
-    this._refreshAfford();
-    this._flashRow(i, `+1 ${item.label}`);
+    this._buyUpgrade(i, row.item, hb);
   }
 
   // Buy a tool-upgrade tier (#295): a one-time, permanent purchase — no carrier
