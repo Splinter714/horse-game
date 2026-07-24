@@ -688,3 +688,37 @@ export function playRoosterCrow() {
   osc.stop(now + 1.02);
 }
 
+// ─── Tractor tilling (soft dirt scrape) ──────────────────────────────────────
+
+// A short, soft low-passed noise scrape — reads as tires dragging through loose
+// soil. Distinct from playBrush (highpass, bright bristle-on-coat) by staying
+// low/dull; fired sparingly while the tractor drives over the garden bed (#264
+// playtest follow-up: tilling had no audible feedback).
+export function playTill() {
+  const c = getCtx();
+  const now = c.currentTime;
+  const dur = 0.22;
+  const buf = c.createBuffer(1, Math.ceil(c.sampleRate * dur), c.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+
+  const src = c.createBufferSource();
+  src.buffer = buf;
+
+  const filter = c.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 700;
+  filter.Q.value = 0.7;
+
+  const env = c.createGain();
+  env.gain.setValueAtTime(0.001, now);
+  env.gain.linearRampToValueAtTime(0.22, now + 0.03);
+  env.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+  src.connect(filter);
+  filter.connect(env);
+  env.connect(master(1));
+  src.start(now);
+  src.stop(now + dur);
+}
+

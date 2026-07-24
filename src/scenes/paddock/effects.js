@@ -31,10 +31,13 @@ export const WithEffects = (Base) => class extends Base {
   // Brushing feedback (#95): little puffs of dust/dirt coming off the coat,
   // instead of a brush icon — reads as actually grooming the dirt out. Dirtier
   // coats (lower grooming) kick up more, bigger puffs. `dirtiness` is 0..1.
-  showDustPuff(sprite, dirtiness = 0.6) {
+  // `yOffset` shifts the puff origin from the default "around the horse's back"
+  // spot — ground-level callers (e.g. the tractor's tilling flourish, #264) pass
+  // something close to 0 so puffs kick up from the wheels, not float near the cab.
+  showDustPuff(sprite, dirtiness = 0.6, yOffset = -44) {
     const d = Phaser.Math.Clamp(dirtiness, 0, 1);
     const n = 4 + Math.round(d * 6); // 4..10 puffs
-    const baseY = sprite.y - 44;     // around the horse's body/back
+    const baseY = sprite.y + yOffset;
     for (let i = 0; i < n; i++) {
       // Dusty tan-to-brown, slightly varied per puff.
       const tint = Phaser.Display.Color.GetColor(

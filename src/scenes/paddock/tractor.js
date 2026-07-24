@@ -14,6 +14,7 @@ import Phaser from 'phaser';
 import { PLAYER_BOUNDS, S, TRACTOR_SPEED } from './constants.js';
 import { TRACTOR_COLORS, DEFAULT_TRACTOR_COLOR, tractorColor, buildTractorTextures } from '../../art/tractorArt.js';
 import { loadTractorState, saveTractorState } from '../../data/save.js';
+import { playTill } from '../../audio/sounds.js';
 
 // Parked near the garden bed (PLOT = {1500, 560} in garden.js) on open ground, so
 // driving out over the tilled bed for the cosmetic pass is a short, natural trip.
@@ -36,7 +37,7 @@ export const WithTractor = (Base) => class extends Base {
 
     this.tractor = {
       x: TRACTOR_SPAWN.x, y: TRACTOR_SPAWN.y, sprite, shadow, colorId,
-      moving: false, flipX: false,
+      moving: false, flipX: false, facing: 'side',
     };
     // Solid parked footprint so animals/player walk around it when not in use.
     // Kept out of `this.obstacles` while being DRIVEN (enter/exitTractor toggle it,
@@ -47,6 +48,7 @@ export const WithTractor = (Base) => class extends Base {
 
     this.driving = false; // mirrors `this.riding` — set while the player is at the wheel
     this._tillMarks = []; // fading cosmetic plow-line graphics over the garden (#242)
+    this._tillPatches = []; // longer-lived dirt-patch trail (#264 playtest follow-up)
   }
 
   // ─── Enter / exit ────────────────────────────────────────────────────────
@@ -116,9 +118,23 @@ export const WithTractor = (Base) => class extends Base {
     t.moving = moved;
     if (vx !== 0) t.flipX = vx < 0;
 
-    t.sprite.setFlipX(t.flipX);
+    // Facing (#264 playtest follow-up): pick a driving axis like the player's own
+    // up/down/side art (playerMovement.js) instead of always reusing the side view.
+    // Whichever input axis is stronger wins so a mostly-vertical nudge still reads
+    // as "up"/"down" even with a little horizontal drift.
+    if (moved) {
+      t.facing = Math.abs(vy) > Math.abs(vx) ? (vy < 0 ? 'up' : 'down') : 'side';
+    }
+    const facing = t.facing || 'side';
+
+    t.sprite.setFlipX(facing === 'side' ? t.flipX : false);
     t.sprite.setDepth(t.sprite.y);
-    t.sprite.setTexture(moved ? (Math.floor(this.time.now / 140) % 2 ? 'tractor_drive_1' : 'tractor_drive_0') : 'tractor_idle');
+    const bob = moved && (Math.floor(this.time.now / 140) % 2);
+    const texture = !moved ? (facing === 'up' ? 'tractor_up_0' : facing === 'down' ? 'tractor_down_0' : 'tractor_idle')
+      : facing === 'up' ? (bob ? 'tractor_up_1' : 'tractor_up_0')
+      : facing === 'down' ? (bob ? 'tractor_down_1' : 'tractor_down_0')
+      : (bob ? 'tractor_drive_1' : 'tractor_drive_0');
+    t.sprite.setTexture(texture);
     t.shadow.x = t.sprite.x;
     t.shadow.y = t.sprite.y;
     t.shadow.setDepth(t.sprite.y - 1);
@@ -135,21 +151,39 @@ export const WithTractor = (Base) => class extends Base {
   // ─── Cosmetic garden tilling flourish (#264, no mechanical effect) ────────
 
   // While driving over the existing garden-bed footprint, drop an occasional
-  // fading dust-puff + short plow-line — purely decorative flavor, no new
-  // tillable ground and no effect on planted crops (locked scope per #264).
+  // fading dust-puff + short plow-line, a longer-lived dirt patch, and a soft
+  // scrape sound — purely decorative flavor, no new tillable ground and no
+  // effect on planted crops (locked scope per #264).
+  //
+  // #264 playtest follow-up (2026-07-06): the original puff+line alone read as
+  // "no clear feedback" — the puff was offset for a horse's back (wrong height
+  // for a ground vehicle) and nothing stuck around to show where you'd been.
+  // Now: puffs kick up at wheel height, a dirt-tinted patch stays down as a
+  // visible tilled trail (capped so it can't grow unbounded), and a soft scrape
+  // plays on a slower cadence than the visual cue.
   _maybeTillGarden() {
     const gd = this.garden;
     if (!gd) return;
     const t = this.tractor;
     const dx = t.sprite.x - gd.x, dy = t.sprite.y - gd.y;
-    // Rough bed footprint (mirrors the obstacle box garden.js registers).
-    if (Math.abs(dx) > 90 || dy > 20 || dy < -110) return;
+    // Rough bed footprint (mirrors the obstacle box garden.js registers), padded
+    // by the tractor's collision radius so the reachable band right up against
+    // the solid bed obstacle reliably counts as "tilling", not just a lucky pixel.
+    if (Math.abs(dx) > 110 || dy > 40 || dy < -130) return;
 
     const now = this.time.now;
     if (this._lastTillAt && now - this._lastTillAt < 90) return;
     this._lastTillAt = now;
 
-    this.showDustPuff?.(t.sprite, 0.35);
+    this.showDustPuff?.(t.sprite, 0.5, -4); // ground/wheel height, not the horse-back default
+
+    // Persistent dirt patch — a soft dark ellipse that stays put (unlike the puff/
+    // line) so a pass over the bed leaves a visible trail. Capped to the most
+    // recent N so a long session doesn't accumulate unbounded display objects.
+    const patch = this.add.ellipse(t.sprite.x, t.sprite.y - 4, 22, 8, 0x4a3018, 0.3).setDepth(t.sprite.y - 3);
+    this._tillPatches.push(patch);
+    const MAX_PATCHES = 60;
+    while (this._tillPatches.length > MAX_PATCHES) this._tillPatches.shift().destroy();
 
     const line = this.add.graphics().setDepth(t.sprite.y - 2);
     line.lineStyle(3, 0x5a3f24, 0.55);
@@ -162,6 +196,11 @@ export const WithTractor = (Base) => class extends Base {
       targets: line, alpha: 0, duration: 2600, ease: 'Sine.easeOut',
       onComplete: () => { line.destroy(); const i = this._tillMarks.indexOf(line); if (i >= 0) this._tillMarks.splice(i, 1); },
     });
+
+    if (!this._lastTillSoundAt || now - this._lastTillSoundAt > 380) {
+      this._lastTillSoundAt = now;
+      playTill();
+    }
   }
 
   // ─── Paint stand (color cycle) ───────────────────────────────────────────
