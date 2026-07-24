@@ -126,17 +126,15 @@ export default class HouseInteriorScene extends WithHouseInteriorCooking(WithHou
     }));
   }
 
-  // Solid furniture footprints (#210 playtest fix — the player could walk right on
-  // top of the bed). DESIGN-GRID → room-world via the shared `_d` scale helper, kept
-  // in lockstep with the art the same way the stations are.
+  // Solid furniture footprints (#210 playtest fix — player could walk on the bed).
+  // DESIGN-GRID → room-world via the shared `_d` scale helper, like the stations.
   _buildCollision() {
     this._collisionRects = (HOUSE_INTERIOR.collision || []).map((r) => ({
       x0: this._d(r.x0), y0: this._d(r.y0), x1: this._d(r.x1), y1: this._d(r.y1),
     }));
   }
 
-  // The player sprite's origin is (0.5,1) — x,y is already the feet/floor point —
-  // so a simple point-in-rect test against each footprint is enough.
+  // Player sprite origin is (0.5,1) — x,y is the feet point, so a point-in-rect test suffices.
   _collidesAt(x, y) {
     for (const r of this._collisionRects) {
       if (x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1) return true;
@@ -236,10 +234,7 @@ export default class HouseInteriorScene extends WithHouseInteriorCooking(WithHou
     if (c.up.isDown || k.up.isDown) vy -= 1;
     if (c.down.isDown || k.down.isDown) vy += 1;
 
-    // Gamepad left stick steers too (#321 — indoors previously ignored the pad
-    // entirely). Same raw-pad read + deadzone as the paddock's movePlayer
-    // (paddock/input.js's _pollRawPad + paddock/playerMovement.js) — read fresh
-    // each frame rather than relying on Phaser's cached pad state.
+    // Gamepad left stick steers too (#321), mirroring paddock/playerMovement.js.
     const raw = navigator.getGamepads ? [...navigator.getGamepads()].find(Boolean) : null;
     if (raw) {
       const sx = raw.axes[0] ?? 0, sy = raw.axes[1] ?? 0;
