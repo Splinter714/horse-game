@@ -55,10 +55,13 @@ export const WithBirdEcosystem = (Base) => class extends Base {
   // and an empty feeder attracts no birds. The sprite swaps stocked↔empty as the
   // level crosses zero. Starts empty so the first chore is to stock it.
   //
-  // FIRST-PASS spot (330, 360) — just east of the house, flagged for the owner to
-  // redirect in the live preview.
+  // Placement pass (#316): the original first-pass spot (330, 360) sat right on
+  // the house→junction worn path (fromHouse passes ~28px away, inside the path's
+  // stroke width) and hugged the yard fence line. Moved to (394, 374) — clear of
+  // the path (~65px), the fence, the fox den, and the doghouse/nectar-feeder
+  // cluster, while staying in the same "east of the house" yard pocket.
   buildSeedFeeder() {
-    const x = 330, y = 360;
+    const x = 394, y = 374;
     const sprite = this.add.image(x, y, 'seedFeederEmpty')
       .setScale(S).setDepth(y).setOrigin(0.5, 1);
     this.props.seedFeeder = { x, y, sprite, level: 0, filled: false, fillContent: 'seed' };
@@ -108,9 +111,16 @@ export const WithBirdEcosystem = (Base) => class extends Base {
   // It holds a numeric nectar `level` (0..FEEDER_CAP): hummingbirds sipping at it drain
   // it (drainNectarFeeder), and an empty feeder draws no hummingbirds to it (they'll
   // still visit the flowers). The sprite swaps stocked↔empty as the level crosses zero.
-  // Starts empty so the first chore is to stock it. FIRST-PASS spot (250, 420).
+  // Starts empty so the first chore is to stock it.
+  //
+  // Placement pass (#316): the original first-pass spot (250, 420) actually
+  // overlapped the doghouse's collision box once the doghouse moved to (260, 460)
+  // for #237 — the two solid footprints intersected. Moved to (242, 394): still
+  // right by the nectar station it's filled from (~50px, same "gather then pour
+  // nearby" pairing as the bunny hutch/bowl), clear of the doghouse, cat bowl,
+  // house, and the worn path.
   buildNectarFeeder() {
-    const x = 250, y = 420;
+    const x = 242, y = 394;
     const sprite = this.add.image(x, y, 'nectarFeederEmpty')
       .setScale(S).setDepth(y).setOrigin(0.5, 1);
     this.props.nectarFeeder = { x, y, sprite, level: 0, filled: false, fillContent: 'nectar' };
@@ -210,9 +220,11 @@ export const WithBirdEcosystem = (Base) => class extends Base {
   // birdEcosystemVisits.js).
   //
   // FIRST-PASS spot (500, 260) — north yard, east of the house/doghouse cluster and
-  // clear of the bird bath (620,470) / seed feeder (330,360) / beehive (760,300) /
-  // doghouse (410,470), so it reads as its own distinct feature. Flagged for the
-  // owner to redirect in the live preview if a different yard corner reads better.
+  // clear of the bird bath (620,470) / seed feeder (394,374) / beehive (760,300) /
+  // doghouse (260,460) [#316: coords refreshed after the #237 doghouse move and the
+  // #316 seed-feeder move — this spot itself is unchanged, still clear of both], so
+  // it reads as its own distinct feature. Flagged for the owner to redirect in the
+  // live preview if a different yard corner reads better.
   buildBirdhouse() {
     const x = 500, y = 260;
     this.add.image(x, y, 'birdhouse').setScale(S).setDepth(y).setOrigin(0.5, 1);
