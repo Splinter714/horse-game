@@ -191,8 +191,8 @@ export const WithBehaviors = (Base) => class extends Base {
     return {
       hunger: bunny?.stats?.hunger ?? 100,
       thirst: bunny?.stats?.thirst ?? 100,
-      nearestFoodDist:  this._catBowlDist(a, this.props.bunnyFoodBowl),
-      nearestWaterDist: this._catBowlDist(a, this.props.bunnyWaterBowl),
+      nearestFoodDist:  this._catBowlDist(a, this.props.bunnyBowl, 'food'),
+      nearestWaterDist: this._catBowlDist(a, this.props.bunnyBowl, 'water'),
       isNight: !!this.isNight,
     };
   }

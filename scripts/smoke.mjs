@@ -252,30 +252,32 @@ try {
       }
     } catch (e) { pigDiet = 'threw: ' + String(e); }
 
-    // #202 rework: the cat eats DIRECTLY from a stocked bowl. Bowls start empty (a
-    // hungry cat with an empty food bowl falls through to fishing); once the food bowl
-    // is stocked, a hungry cat's behavior dispatch must claim it into the 'eating'
-    // state (petEatFromBowl, #283/#289 generic pet-bowl primitive) rather than
-    // dropping/gathering. Then draining the bowl to empty must flip its `filled` flag
-    // back off (the sprite swap the player sees).
+    // #202 rework, #311 combined bowl: the cat eats DIRECTLY from a stocked bowl side.
+    // The bowl starts empty on both sides (a hungry cat with an empty food side falls
+    // through to fishing); once the food side is stocked, a hungry cat's behavior
+    // dispatch must claim it into the 'eating' state (petEatFromBowl, #283/#289/#311
+    // generic pet-bowl primitive) rather than dropping/gathering. Then draining that
+    // side to empty must flip its `filled` flag back off (the sprite swap the player
+    // sees) on the ONE combined bowl object.
     let catBowls = 'no cat';
     try {
       const cat = paddock.animals.find((a) => a.model?.species === 'cat');
       if (cat) {
-        const fb = paddock.props.catFoodBowl, wb = paddock.props.catWaterBowl;
-        const startedEmpty = fb.level === 0 && wb.level === 0 && fb.filled !== true;
-        // Empty food bowl → a hungry cat should NOT be able to seek it (dist=Infinity).
+        const bowl = paddock.props.catBowl;
+        const food = bowl.sides.food, water = bowl.sides.water;
+        const startedEmpty = food.level === 0 && water.level === 0 && food.filled !== true;
+        // Empty food side → a hungry cat should NOT be able to seek it (dist=Infinity).
         cat.model.stats.hunger = 20;
-        const emptyDist = paddock._catBowlDist(cat, fb);
-        // Stock the food bowl and confirm the cat now commits to eating from it.
-        paddock._setPetBowlLevel(fb, 4);
-        const stockedFilled = fb.filled === true && fb.level === 4;
+        const emptyDist = paddock._catBowlDist(cat, bowl, 'food');
+        // Stock the food side and confirm the cat now commits to eating from it.
+        paddock._setPetBowlLevel(bowl, 'food', 4);
+        const stockedFilled = food.filled === true && food.level === 4;
         cat.state = 'idle';
         const claimed = paddock.runBehaviors(cat);
         const eating = claimed && cat.state === 'eating';
         // Drain to empty → filled flag off again.
-        paddock._setPetBowlLevel(fb, 0);
-        const emptiedOff = fb.filled === false;
+        paddock._setPetBowlLevel(bowl, 'food', 0);
+        const emptiedOff = food.filled === false;
         catBowls = (startedEmpty && emptyDist === Infinity && stockedFilled && eating && emptiedOff)
           ? 'eats-from-bowl'
           : `startedEmpty=${startedEmpty},emptyDist=${emptyDist},stockedFilled=${stockedFilled},eating=${eating}(claimed=${claimed},state=${cat.state}),emptiedOff=${emptiedOff}`;

@@ -9,7 +9,7 @@
 //                       water bowl → water), lowering the bowl's level.
 //
 // #283 rework — the bunny eats and drinks DIRECTLY from its food + water bowls, which
-// the player keeps stocked (buildBunnyBowls). A hungry or thirsty bunny hops to its
+// the player keeps stocked (buildBunnyBowl). A hungry or thirsty bunny hops to its
 // stocked bowl before its ordinary hop-wander (the wander is the implicit fallback
 // when neither test fires). Directly mirrors the cat's seekFood/seekWater —
 // `nearestFoodDist`/`nearestWaterDist` are Infinity when the bowl is empty
@@ -26,7 +26,7 @@ const BOWL_RANGE  = 1200; // …and the (stocked) bowl is within this many px
 export const seekBunnyFood = {
   id: 'seekBunnyFood',
   test: (ctx) => ctx.hunger < HUNGER_SEEK && ctx.nearestFoodDist < BOWL_RANGE,
-  run: (scene, a) => scene.petEatFromBowl(a, scene.props.bunnyFoodBowl, 'feed'),
+  run: (scene, a) => scene.petEatFromBowl(a, scene.props.bunnyBowl, 'food'),
 };
 
 // Thirsty → hop to the stocked bunny water bowl and drink a serving directly from it
@@ -35,5 +35,5 @@ export const seekBunnyFood = {
 export const seekBunnyWater = {
   id: 'seekBunnyWater',
   test: (ctx) => ctx.thirst < THIRST_SEEK && ctx.nearestWaterDist < BOWL_RANGE,
-  run: (scene, a) => scene.petEatFromBowl(a, scene.props.bunnyWaterBowl, 'water'),
+  run: (scene, a) => scene.petEatFromBowl(a, scene.props.bunnyBowl, 'water'),
 };
