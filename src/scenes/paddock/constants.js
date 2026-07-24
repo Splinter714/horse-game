@@ -288,6 +288,13 @@ export const HOUSE_INTERIOR = {
     // counter itself. Deposits the active carrier's whole load on Use.
     pantry:  { x: 47,  y: 30,  standX: 47,  standY: 46, label: 'Pantry',           action: 'pantry' },
   },
+  // Solid furniture footprints (DESIGN-GRID coords, matching worldArt's hit rects)
+  // the player can't walk through. v1: just the bed frame — playtest (#210) found
+  // the player could walk right on top of it. Extend this list as other furniture
+  // gets a footprint.
+  collision: [
+    { x0: 112, y0: 22, x1: 152, y1: 62 }, // bed frame (worldArt houseInterior fillRect)
+  ],
   // South doorway: the exit strip. When the player walks onto it they leave the house.
   exit: { x: 80, y: 116, w: 34 },
   // Where the player sprite spawns on entering (just inside the doorway).

@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { EVENTS } from '../data/events.js';
 import { applyDpr, dprOf, logicalW, logicalH } from './uiUtils.js';
-import { HOUSE_INTERIOR } from './paddock/constants.js';
+import { HOUSE_INTERIOR, PLAYER_SPEED as OUTDOOR_PLAYER_SPEED } from './paddock/constants.js';
 import { loadPantry, savePantry } from '../data/save.js';
 import { addToPantry, takeFromPantry, isPantryStorable } from '../data/pantry.js';
 import { CONTENT_DEFS } from '../data/items.js';
@@ -33,7 +33,9 @@ import { WithHouseInteriorCooking } from './houseInteriorCooking.js';
 // this simple single-room layout are a clean first cut, expect art-direction. The
 // scene-vs-cutaway choice (full scene here, cutaway for the barn) is flagged for review.
 
-const PLAYER_SPEED = 150;            // a touch slower than the field — it's a small room
+// Playtest (2026-07-06, #210) found the room felt awkwardly slow next to outdoor
+// movement — match the outdoor pace exactly rather than an arbitrary indoor value.
+const PLAYER_SPEED = OUTDOOR_PLAYER_SPEED;
 const EXIT_COOLDOWN_MS = 400;        // ignore the doorway right after entering
 const PROMPT_REACH = 70;             // world px: how close to a station to prompt
 
@@ -82,6 +84,7 @@ export default class HouseInteriorScene extends WithHouseInteriorCooking(WithHou
     glow.fillRect(0, this.roomH - 6 * sc, this.roomW, 6 * sc);    // bottom edge shade
 
     this._buildStations();
+    this._buildCollision();
     this._buildFishTank();
     this._buildFireplace();
     this._buildPlayer();
@@ -121,6 +124,24 @@ export default class HouseInteriorScene extends WithHouseInteriorCooking(WithHou
       // now — the stove still has no cooking system behind it (#41).
       canAct: true,
     }));
+  }
+
+  // Solid furniture footprints (#210 playtest fix — the player could walk right on
+  // top of the bed). DESIGN-GRID → room-world via the shared `_d` scale helper, kept
+  // in lockstep with the art the same way the stations are.
+  _buildCollision() {
+    this._collisionRects = (HOUSE_INTERIOR.collision || []).map((r) => ({
+      x0: this._d(r.x0), y0: this._d(r.y0), x1: this._d(r.x1), y1: this._d(r.y1),
+    }));
+  }
+
+  // The player sprite's origin is (0.5,1) — x,y is already the feet/floor point —
+  // so a simple point-in-rect test against each footprint is enough.
+  _collidesAt(x, y) {
+    for (const r of this._collisionRects) {
+      if (x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1) return true;
+    }
+    return false;
   }
 
   _buildPlayer() {
@@ -235,8 +256,12 @@ export default class HouseInteriorScene extends WithHouseInteriorCooking(WithHou
     if (vx === 0 && vy === 0) { this._setMoving(false); return; }
     const len = Math.hypot(vx, vy) || 1;
     const step = PLAYER_SPEED * (delta / 1000);
-    p.sprite.x = Phaser.Math.Clamp(p.sprite.x + (vx / len) * step, 12, this.roomW - 12);
-    p.sprite.y = Phaser.Math.Clamp(p.sprite.y + (vy / len) * step, 24, this.roomH - 6);
+    const nx = Phaser.Math.Clamp(p.sprite.x + (vx / len) * step, 12, this.roomW - 12);
+    const ny = Phaser.Math.Clamp(p.sprite.y + (vy / len) * step, 24, this.roomH - 6);
+    // Axis-separated furniture collision (#210) — try each axis independently so
+    // the player slides along a wall/bed edge instead of stopping dead on contact.
+    if (!this._collidesAt(nx, p.sprite.y)) p.sprite.x = nx;
+    if (!this._collidesAt(p.sprite.x, ny)) p.sprite.y = ny;
     p.sprite.setDepth(p.sprite.y);
     p.shadow.setPosition(p.sprite.x, p.sprite.y).setDepth(p.sprite.y - 1);
 
@@ -367,6 +392,28 @@ export default class HouseInteriorScene extends WithHouseInteriorCooking(WithHou
     });
   }
 
+  // Full-app fade-to-black graphic (#210 playtest fix: the old fade only covered the
+  // logical viewport rect at (0,0)-(sw,sh), but this scene's camera keeps a CENTRED
+  // origin (required for startFollow) — at DPR>1 (e.g. the owner's iPad, DPR 2) a
+  // scrollFactor-0 rect drawn there is zoomed about the viewport centre and no longer
+  // lines up with the physical screen edges, leaving a sliver of the room visible
+  // during the fade. Rather than hand-deriving the exact centred-zoom offset, draw a
+  // generously oversized rect centred on the viewport — comfortably covers the whole
+  // physical screen at any DPR without depending on that math being exactly right.
+  _buildFullScreenFade() {
+    const gfx = this.add.graphics().setScrollFactor(0).setDepth(2000);
+    const sw = logicalW(this), sh = logicalH(this);
+    const pad = Math.max(sw, sh) * 2; // generous margin either side
+    return {
+      draw: (alpha) => {
+        gfx.clear();
+        gfx.fillStyle(0x000000, alpha);
+        gfx.fillRect(-pad, -pad, sw + pad * 2, sh + pad * 2);
+      },
+      destroy: () => gfx.destroy(),
+    };
+  }
+
   // Bed → sleep. The interior fade is owned by DayNightScene (same EVENTS.SLEEP the
   // world used); we just freeze ourselves for the beat, then resume. DayNightScene is
   // paused while we're up, so we run a tiny local fade here so sleeping still reads.
@@ -374,10 +421,9 @@ export default class HouseInteriorScene extends WithHouseInteriorCooking(WithHou
     if (this._sleeping) return;
     this._sleeping = true;
     this.prompt.setVisible(false);
-    const fade = this.add.graphics().setScrollFactor(0).setDepth(2000);
+    const fade = this._buildFullScreenFade();
     const a = { v: 0 };
-    const sw = logicalW(this), sh = logicalH(this);
-    const draw = () => { fade.clear(); fade.fillStyle(0x000000, a.v); fade.fillRect(0, 0, sw, sh); };
+    const draw = () => fade.draw(a.v);
     this.tweens.add({
       targets: a, v: 1, duration: 600, ease: 'Sine.easeIn', onUpdate: draw,
       onComplete: () => {
@@ -424,10 +470,9 @@ export default class HouseInteriorScene extends WithHouseInteriorCooking(WithHou
     if (this._exiting) return;
     this._exiting = true;
     this.prompt.setVisible(false);
-    const fade = this.add.graphics().setScrollFactor(0).setDepth(2000);
+    const fade = this._buildFullScreenFade();
     const a = { v: 0 };
-    const sw = logicalW(this), sh = logicalH(this);
-    const draw = () => { fade.clear(); fade.fillStyle(0x000000, a.v); fade.fillRect(0, 0, sw, sh); };
+    const draw = () => fade.draw(a.v);
     this.tweens.add({
       targets: a, v: 1, duration: 260, ease: 'Sine.easeIn', onUpdate: draw,
       onComplete: () => {
