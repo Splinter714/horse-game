@@ -15,13 +15,16 @@ export const WORLD_H = 1600;
 // already enter from the EAST edge (WORLD_W), so the trail goes west to avoid
 // colliding with that entry point. TRAIL_X0 is negative (world-space x can go
 // below 0 once the trail is added) and TRAIL_W is how far it extends.
-export const TRAIL_W = 900;
+// Widened per the 2026-07-06 playtest ("make the trail bigger — a long loop,
+// not the short stretch") — nearly double the original 900, with more vertical
+// room too so the loop path (trail.js) has space to curve around and back.
+export const TRAIL_W = 1700;
 export const TRAIL_X0 = -TRAIL_W;
-// The trail occupies the same vertical band as the farm (not the full world
-// height) so it reads as a path leading off into the woods rather than a
-// second full map.
-export const TRAIL_Y0 = 120;
-export const TRAIL_Y1 = 1000;
+// The trail occupies a wide band (not the full world height) so it still
+// reads as a path leading off into the woods rather than a second full map —
+// widened from the original 880px band to give the loop shape room to curve.
+export const TRAIL_Y0 = 60;
+export const TRAIL_Y1 = 1240;
 
 // ── Town (#222) ─────────────────────────────────────────────────────────────
 // A continuous EASTward extension of the farm/pasture world — same technique as
