@@ -118,9 +118,9 @@ export const WithWorld = (Base) => class extends Base {
     const tx = 1130, ty = 992;
     const troughSprite = this.add.image(tx, ty, 'trough')
       .setScale(S).setDepth(ty).setOrigin(0.5, 0.5);
-    // level = numeric water (0..TROUGH_CAP); `filled` mirrors level>0 for the many
-    // readers that just ask "is there water?" — kept in sync by _setTroughLevel (#103).
+    // level = numeric water (0..TROUGH_CAP); `filled` mirrors level>0 (kept in sync by _setTroughLevel, #103).
     this.props.trough = { x: tx, y: ty, sprite: troughSprite, level: 0, filled: false };
+    this.buildShelter(); // covered shelter (#319); places props.shelter — worldObjects.js
 
     // Trash can (#191) — a dented metal bin the ambient raccoon rummages in at night.
     // Purely a charming prop (no stock/gathering/economy), in the farm band near the

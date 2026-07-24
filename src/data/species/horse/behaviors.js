@@ -13,6 +13,8 @@
 // behavior-neutral refactor. Begging thresholds come in via ctx because they're
 // shared with the begging primitive (BEG in scenes/paddock/constants.js).
 
+import { WEATHER } from '../../weather.js';
+
 const HUNGER_SEEK = 95;   // eat hay while hunger is below this
 const HAY_RANGE   = 700;  // …and the nearest reachable pile is within this many px
 const THIRST_SEEK = 95;   // drink while thirst is below this
@@ -71,6 +73,20 @@ export const begPlayer = {
     if (scene._horseBeg(h)) { h._lastSeek = scene.time.now; return true; }
     return false;
   },
+};
+
+// Rain → head for the covered shelter and wait it out (#319, automatic AI
+// pathing, decided in the issue discussion — no player placement needed). Real
+// needs (food/water/begging, all above) still win first; once one of those is
+// satisfied the horse comes back through here on its next idle tick and heads
+// to shelter instead of ambient-grazing or idle-wandering in the rain. Fires
+// for any idle/wandering horse while it's raining — horseGoToShelter (horseAI.js)
+// is itself a no-op once the horse is already 'sheltering' (its state stops it
+// from reaching this test at all — see horseTick's idle/wandering filter).
+export const seekShelter = {
+  id: 'seekShelter',
+  test: (ctx) => ctx.weather === WEATHER.RAIN,
+  run: (scene, h) => scene.horseGoToShelter(h),
 };
 
 // Peckish but with no hay to seek and nobody to beg → graze the grass where it

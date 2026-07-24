@@ -12,6 +12,15 @@ import { PLAYER_BOUNDS, PASTURE_BOUNDS, GATE_X, GATE_GAP_X0, GATE_GAP_X1, BEG } 
 // to top it right up, so feeding stays meaningful.
 const GRAZE_RESTORE = 4;
 
+// Offsets (from props.shelter's standing anchor) a horse can take under the
+// covered shelter (#319) so several sheltering horses spread out under the roof
+// instead of stacking on one spot. Cycled by how many are already there.
+const SHELTER_SPOTS = [
+  { x: -34, y: 6 }, { x: 34, y: 6 },
+  { x: -34, y: -14 }, { x: 34, y: -14 },
+  { x: 0, y: 16 }, { x: 0, y: -22 },
+];
+
 export const WithHorseAI = (Base) => class extends Base {
   // ─── Horse AI — eat / drink ───────────────────────────────────────────────
 
@@ -388,6 +397,35 @@ export const WithHorseAI = (Base) => class extends Base {
           this.scheduleWander(h, Phaser.Math.Between(900, 2500));
         }
       },
+    });
+    return true;
+  }
+
+  // Rain sends a horse to the covered shelter (#319) — fully automatic AI pathing,
+  // no player placement. Claims the horse immediately (state='sheltering', set
+  // BEFORE the walk completes) so horseTick's idle/wandering filter skips it for
+  // the whole trip, not just once parked — otherwise every tick mid-walk would
+  // re-fire the behavior and restart the path. It stays 'sheltering' (never reset
+  // to 'idle' on arrival) until the rain clears, when _releaseSheltering
+  // (weather.js, on WEATHER_CHANGE) hands it back to the normal wander chain.
+  horseGoToShelter(h) {
+    const shelter = this.props.shelter;
+    if (!shelter) return false;
+    if (h.state === 'sheltering') return true; // already there / already heading over
+
+    h.state = 'sheltering';
+    if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
+    if (h._begTimer)   { this.time.removeEvent(h._begTimer); h._begTimer = null; }
+    if (h.eatTimer)    { this.time.removeEvent(h.eatTimer); h.eatTimer = null; }
+
+    const already = this._grazers().filter(o => o !== h && o.state === 'sheltering').length;
+    const spot = SHELTER_SPOTS[already % SHELTER_SPOTS.length];
+    const tx = shelter.x + spot.x, ty = shelter.y + spot.y;
+
+    this.moveCreatureTo(h, tx, ty, () => {
+      if (h.state !== 'sheltering' || !h.sprite.active) return;
+      h.sprite.setFlipX(spot.x > 0);
+      h.sprite.play(`idle_${h.key}`, true);
     });
     return true;
   }

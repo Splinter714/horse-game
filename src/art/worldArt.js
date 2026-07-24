@@ -343,6 +343,46 @@ export function buildWorldTextures(scene) {
     // Post dividers so it reads as one long trough
     g.fillStyle(0x6a3c18, 1); g.fillRect(47, 4, 4, 22); g.fillRect(49, 2, 2, 4);
   });
+  // --- covered shelter (#319) — an open-sided lean-to horses tuck under when it
+  // rains. Four posts holding up a pitched roof over a straw-strewn patch of
+  // ground; deliberately open on every side (no walls) so a horse standing
+  // beneath it still reads clearly and can walk in/out freely — the AI just
+  // needs a covered spot to path to, not a building to enter. Dissect tags
+  // (g.layer) per logical part for the dev dissect tool.
+  gen(scene, 'shelter', 140, 108, (g) => {
+    const post = 0x8a5a2e, postDark = 0x6a3c18;
+    const roofDark = 0x5a3418, roofMid = 0x835024, roofHi = 0xa86a38;
+    const straw = 0xd9b25a, strawDark = 0xbd9646, strawShadow = 0x9c7c3a;
+
+    // Straw-covered ground patch under the roof
+    g.layer('floor');
+    g.fillStyle(strawShadow, 1); g.fillEllipse(70, 98, 116, 22);
+    g.fillStyle(straw, 1); g.fillEllipse(70, 94, 108, 18);
+    g.fillStyle(strawDark, 1);
+    for (let i = 0; i < 9; i++) {
+      const sx = 22 + i * 12;
+      g.fillRect(sx, 88 + (i % 3) * 3, 8, 2);
+    }
+
+    // Four support posts (back pair shorter/higher to read behind the roof pitch)
+    g.layer('posts');
+    g.fillStyle(post, 1);
+    g.fillRect(14, 38, 10, 58); g.fillRect(116, 38, 10, 58);   // front-left / front-right
+    g.fillRect(34, 26, 8, 50);  g.fillRect(98, 26, 8, 50);     // back-left / back-right
+    g.fillStyle(postDark, 1);
+    g.fillRect(14, 38, 3, 58); g.fillRect(116, 38, 3, 58);
+    g.fillRect(34, 26, 3, 50); g.fillRect(98, 26, 3, 50);
+
+    // Pitched roof spanning the posts
+    g.layer('roof');
+    g.fillStyle(roofDark, 1); g.fillTriangle(4, 40, 70, 2, 136, 40);
+    g.fillStyle(roofMid, 1);  g.fillTriangle(8, 38, 70, 6, 132, 38);
+    g.fillStyle(roofHi, 1);
+    g.fillRect(20, 26, 3, 5); g.fillRect(30, 20, 3, 5); g.fillRect(42, 14, 3, 5);
+    g.fillStyle(post, 1); g.fillRect(4, 38, 132, 4); // eave board
+    g.fillStyle(roofDark, 1); g.fillRect(68, 2, 4, 6); // ridge cap
+  });
+
   // Filled levels (#109): one texture per discrete water level (trough1..troughN)
   // so the rendered height maps 1:1 to the actual level — no more collapsing many
   // distinct levels into a few "looks full" buckets (#103 had only low/half/full,
