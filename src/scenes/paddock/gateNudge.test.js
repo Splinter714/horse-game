@@ -1,23 +1,26 @@
 import { describe, it, expect } from 'vitest';
 import { gateNudgeY } from './gateNudge.js';
 
-// Mirrors the live geometry (world.js): gate obstacle spans y∈[884,920] (h=36),
-// fence line = PASTURE_BOUNDS.minY = 910. That line — not the gate footprint's
-// center or an offset — is the true north(farm)/south(pasture) divide (#117).
-const GATE = { y: 884, h: 36 };
+// Mirrors the live geometry (world.js): the gate obstacle now matches the fence's
+// own vertical band, y∈[892,912] (h=20, same T as the fence segments) — it used to
+// be a taller, offset rect (y∈[884,920], h=36) that didn't line up with the fence,
+// which made walking along the fence toward the gate feel snaggy right at the gate
+// (#117). Fence line = PASTURE_BOUNDS.minY = 910, still the true north(farm)/
+// south(pasture) divide.
+const GATE = { y: 892, h: 20 };
 const FENCE = 910;
 
 describe('gateNudgeY — gate-close side decision (#117)', () => {
   it('pushes north when the entity is north of the fence line', () => {
     // Just north of the line → should go to the farm side (above the gate).
-    expect(gateNudgeY(905, GATE, FENCE)).toBe(GATE.y - 15); // 869
+    expect(gateNudgeY(905, GATE, FENCE)).toBe(GATE.y - 15); // 877
     // Well north.
     expect(gateNudgeY(870, GATE, FENCE)).toBe(GATE.y - 15);
   });
 
   it('pushes south when the entity is south of the fence line', () => {
     // Just south of the line → should go to the pasture side (below the gate).
-    expect(gateNudgeY(915, GATE, FENCE)).toBe(GATE.y + GATE.h + 15); // 935
+    expect(gateNudgeY(915, GATE, FENCE)).toBe(GATE.y + GATE.h + 15); // 927
     // Well south.
     expect(gateNudgeY(919, GATE, FENCE)).toBe(GATE.y + GATE.h + 15);
   });
