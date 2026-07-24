@@ -470,11 +470,11 @@ export const WithWorld = (Base) => class extends Base {
     return key.replace(/[0-9]+$/, '');
   }
 
-  // The obstacle list a given creature should respect: the shared obstacles
-  // minus any obstacle tagged as that species' home (e.g. the coop for chickens).
-  // Computed on demand so it always reflects the live gate state.
+  // The obstacle list a given creature should respect: shared obstacles minus any
+  // tagged as that species' home — except the dog (#314), always gate-exempt.
   _obstaclesFor(key) {
     const species = this._speciesOf(key);
+    if (species === 'dog') return this.obstacles.filter(o => o.home !== species && !o.isGate);
     return this.obstacles.filter(o => o.home !== species);
   }
 
