@@ -243,20 +243,24 @@ export const WithWorldObjects = (Base) => class extends Base {
   // ─── Doghouse (#237) ─────────────────────────────────────────────────────
 
   // A decorative kennel in the yard near the house — the dog is a yard companion,
-  // so its home-to-be sits between the house and the coop, doorway facing south
-  // toward the player. Purely scenery: the dog actually using it (sleeping in it /
-  // going home at night, like the cat/chickens) is deferred to #186. Registers a
-  // solid footprint (this.doghouseObstacles) that _buildObstacles spreads into
-  // this.obstacles, mirroring the barn.
+  // so its home-to-be sits in the house's yard pocket (near the cat's bowls),
+  // doorway facing south toward the player. Purely scenery: the dog actually
+  // using it (sleeping in it / going home at night, like the cat/chickens) is
+  // deferred to #186. Registers a solid footprint (this.doghouseObstacles) that
+  // _buildObstacles spreads into this.obstacles, mirroring the barn.
   //
-  // FIRST-PASS PLACEMENT at (410, 470) — flagged for the owner to redirect in the
-  // live preview if a different yard corner reads better.
+  // Playtest feedback (2026-07-06): the original first-pass spot (410, 470) sat
+  // right on the house→junction worn path (buildPath's fromHouse route passes
+  // ~(410, 455)), blocking the walkway. Moved to (260, 460) — a clear yard pocket
+  // south of the house and west of the fence/path, alongside the cat bowls
+  // (165/205, 420), with >90px clearance from every path segment and no overlap
+  // with the house wall or fence obstacles.
   buildDoghouse() {
-    const x = 410, y = 470;
+    const x = 260, y = 460;
     this.props.doghouse = { x, y };
     this.add.image(x, y, 'doghouse').setScale(S).setDepth(y).setOrigin(0.5, 1);
     // Sprite 48×42 at S (origin 0.5,1); solid kennel body ≈ local x8–38, y18–40 →
-    // world (378,422) size 60×44. Inset a touch so the player can brush right up to it.
+    // inset a touch so the player can brush right up to it.
     this.doghouseObstacles = [{ x: x - 30 + 2, y: y - 48 + 2, w: 60 - 4, h: 44 - 4 }];
   }
 
