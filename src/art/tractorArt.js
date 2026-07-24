@@ -93,4 +93,67 @@ export function buildTractorTextures(scene, colorId = DEFAULT_TRACTOR_COLOR) {
   gen(scene, 'tractor_idle', 68, 52, (g) => draw(g, 0));
   gen(scene, 'tractor_drive_0', 68, 52, (g) => draw(g, 0));
   gen(scene, 'tractor_drive_1', 68, 52, (g) => draw(g, -2));
+
+  // Front/back (driving up/down) views — #264 playtest follow-up: the tractor only
+  // had the one side silhouette, so driving north/south read identically to east/
+  // west. Mirrors the player's own up/down art (playerArt.js): a straight-on view,
+  // symmetric left/right (no flipX needed), same 2-frame bob for the "moving" read.
+  // Simpler than the side profile (no hood taper in silhouette either direction),
+  // but keeps the same palette/parts so it reads as the same vehicle.
+  const drawFrontBack = (g0, bob, rear) => {
+    const g = withLayer(g0);
+    const { base, hi, lo } = paint;
+    const glass = 0xbfe6f5, glassHi = 0xe4f6ff;
+    const metal = 0x8a8f96, metalHi = 0xb0b6bc;
+    const tire = 0x2a2a2a, tireHi = 0x4a4a4a, hub = 0xc9c9c9;
+
+    g.layer('shadow');
+    g.fillStyle(0x000000, 0.18); g.fillEllipse(34, 46, 46, 8);
+
+    // Rear wheels, one either side, wider stance than the side view's single pair.
+    g.layer('wheels');
+    const wy = 40 + bob;
+    g.fillStyle(tire, 1); g.fillCircle(14, wy, 13);
+    g.fillStyle(tireHi, 1); g.fillCircle(14, wy - 3, 5);
+    g.fillStyle(hub, 1); g.fillCircle(14, wy, 4);
+    g.fillStyle(tire, 1); g.fillCircle(54, wy, 13);
+    g.fillStyle(tireHi, 1); g.fillCircle(54, wy - 3, 5);
+    g.fillStyle(hub, 1); g.fillCircle(54, wy, 4);
+
+    // Body — a straight-on box, centred between the wheels.
+    g.layer('body');
+    const by = 18 + bob;
+    g.fillStyle(lo, 1); g.fillRect(18, by + 14, 32, 10);
+    g.fillStyle(base, 1); g.fillRect(18, by + 4, 32, 14);
+    g.fillStyle(hi, 1); g.fillRect(18, by + 4, 32, 3);
+
+    // Cab — sits centred atop the body, same glass either front or back (kid-scale
+    // pixel art, not worth a literal windshield-vs-rear-window distinction).
+    g.layer('cab');
+    g.fillStyle(base, 1); g.fillRect(22, by - 18, 24, 22);
+    g.fillStyle(hi, 1); g.fillRect(22, by - 18, 24, 3);
+    g.fillStyle(lo, 1); g.fillRect(22, by + 2, 24, 4);
+    g.layer('glass');
+    g.fillStyle(glass, 1); g.fillRect(26, by - 14, 16, 12);
+    g.fillStyle(glassHi, 0.8); g.fillRect(27, by - 13, 6, 4);
+
+    // Exhaust only reads on the back view (mounted behind the cab, toward camera
+    // when driving away/"up") — a small distinguishing detail between the two.
+    if (rear) {
+      g.layer('exhaust');
+      g.fillStyle(metal, 1); g.fillRect(46, by - 8, 3, 12);
+      g.fillStyle(metalHi, 1); g.fillRect(46, by - 8, 1, 12);
+      g.fillStyle(0xd8d8d8, 0.5); g.fillCircle(47, by - 12, 3);
+    } else {
+      // Headlights read on the front ("down"/toward-camera) view instead.
+      g.layer('details');
+      g.fillStyle(0xf0e08a, 1); g.fillCircle(23, by + 8, 2.2);
+      g.fillStyle(0xf0e08a, 1); g.fillCircle(45, by + 8, 2.2);
+    }
+  };
+
+  gen(scene, 'tractor_up_0', 68, 52, (g) => drawFrontBack(g, 0, true));
+  gen(scene, 'tractor_up_1', 68, 52, (g) => drawFrontBack(g, -2, true));
+  gen(scene, 'tractor_down_0', 68, 52, (g) => drawFrontBack(g, 0, false));
+  gen(scene, 'tractor_down_1', 68, 52, (g) => drawFrontBack(g, -2, false));
 }
