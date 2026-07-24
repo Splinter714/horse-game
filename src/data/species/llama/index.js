@@ -51,9 +51,11 @@ export const LLAMA = {
   // sound/icon/carrier to label the Use prompt, play the harvest sound, and float the
   // icon — all data, no llama code. `readyAtStart` lets a fresh llama be sheared right
   // away. Raw wool sells at the stand, or spins into yarn at the spinning wheel.
+  // `requiresTool: 'shear'` (playtest 2026-07-24, mirrors the sheep #233): a bare
+  // basket may no longer harvest wool directly — the shears tool (#254) is required.
   produces: {
     content: 'wool', mode: 'cooldown', cooldownMs: 6 * 60 * 1000,
-    carrier: 'basket', readyAtStart: true,
+    carrier: 'basket', readyAtStart: true, requiresTool: 'shear',
     verb: 'Shear', sound: 'brush', icon: 'iconBasketWool',
   },
 

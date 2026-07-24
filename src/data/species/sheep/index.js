@@ -46,9 +46,14 @@ export const SHEEP = {
   // sound, and float the icon — all data, no sheep code. `readyAtStart` lets a fresh
   // sheep be sheared right away so the mechanic is easy to try. Raw wool sells at the
   // stand, or spins into yarn at the spinning wheel (items.js `craftsTo`).
+  // `requiresTool: 'shear'` (playtest 2026-07-24): a bare basket may no longer harvest
+  // wool directly — the dedicated shears tool (#254) is required. `carrier` still names
+  // where the wool ultimately lands for selling/crafting; useDispatch's generic
+  // empty-carrier harvest path (_animalUseAction) skips any produce that declares
+  // `requiresTool`, so only the shears' own Use path (shearWithTool) can trigger it.
   produces: {
     content: 'wool', mode: 'cooldown', cooldownMs: 6 * 60 * 1000,
-    carrier: 'basket', readyAtStart: true,
+    carrier: 'basket', readyAtStart: true, requiresTool: 'shear',
     verb: 'Shear', sound: 'brush', icon: 'iconBasketWool',
   },
 
