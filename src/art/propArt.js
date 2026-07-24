@@ -612,6 +612,24 @@ export function buildPropTextures(scene) {
     g.fillStyle(waterHi, 0.6); g.fillEllipse(16, 6, 3, 1);
   });
 
+  // Bunny food bowl (#283) — the bunny's counterpart to the cat's dish (same shallow
+  // rimmed shape via the shared `catBowl` drawer), filled with the same green pellets
+  // used for the bunny-food basket icon (iconArt.js iconBasketBunnyFood) so the two
+  // read as the same food. Two states like the cat bowls: `bunnyFoodBowlEmpty` /
+  // `bunnyFoodBowl` swap as the bunnies eat and the player refills (worldObjects.js
+  // `_setPetBowlLevel`). Missing this pair left the bowl by the hutch (near the house
+  // fence) rendering as a blank/missing texture (#315).
+  gen(scene, 'bunnyFoodBowlEmpty', 26, 16, (g) => catBowl(g, true));
+  gen(scene, 'bunnyFoodBowl', 26, 16, (g) => {
+    catBowl(g, false);
+    // mound of green pellets
+    g.fillStyle(0x5c8a3a, 1); g.fillEllipse(13, 6, 14, 5);
+    g.fillStyle(0x74a84c, 1);
+    g.fillCircle(9, 5, 1); g.fillCircle(13, 4, 1); g.fillCircle(17, 5, 1);
+    g.fillStyle(0x466b2b, 1);
+    g.fillCircle(11, 6, 1); g.fillCircle(15, 6, 1);
+  });
+
   // Bunny hutch (#224) — the gathering source for bunny food + water. A little raised
   // wooden hutch with a wire-mesh front, a shingled roof, and a bowl of green food
   // pellets tucked in front. The player fills a carrier here, then drops a bunny-food
