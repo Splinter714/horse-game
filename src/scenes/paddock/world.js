@@ -395,8 +395,8 @@ export const WithWorld = (Base) => class extends Base {
       // Trough — tied to the live trough (origin 0.5,0.5; 200×52 sprite, inset to
       // its body) so the collision moves with it when repositioned (#110/#106).
       ...centredBox(this.props.trough, 176, 44, { isTrough: true }),
-      // Fence line (6 segments at y=320, origin 0,0.5; 96×48 each → x=300..876)
-      { x: 300, y: 300, w: 576, h: 40 },
+      // Fence line (6 segments at y=320, origin 0,0.5; 96×48 each → x=300..876). isFence (#317): any rail is tie-able.
+      { x: 300, y: 300, w: 576, h: 40, isFence: true },
       // Spinning wheel (#233) — solid ~52×20 footprint at swx,swy.
       ...(this.props.spinningWheel ? [{ x: this.props.spinningWheel.x - 26, y: this.props.spinningWheel.y - 20, w: 52, h: 20 }] : []),
       // Kitchen counter (#40) — solid ~56×16 counter-top footprint at S=2.

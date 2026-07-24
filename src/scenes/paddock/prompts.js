@@ -147,7 +147,13 @@ export const WithPrompts = (Base) => class extends Base {
         const who = this._animalName(target.key);
         let label;
         if (item.action === 'saddle')    label = target.saddled ? 'Unsaddle' : 'Saddle';
-        else if (item.action === 'lead') label = this.leadHorses.includes(target) ? 'Stop Leading' : 'Lead';
+        else if (item.action === 'lead') {
+          if (this.tiedHorses?.includes(target)) label = 'Untie';
+          else if (this.leadHorses.includes(target)) {
+            label = this._nearestFenceTiePoint(player.sprite.x, player.sprite.y) ? 'Tie' : 'Stop Leading';
+          }
+          else label = 'Lead';
+        }
         else                             label = 'Brush';
         useLabel = label; // the Use button keeps it about the action (Pet/Info name the animal)
         this._pushPrompt('use', who ? `${label} ${who}` : label);
