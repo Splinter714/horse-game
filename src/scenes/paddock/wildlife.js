@@ -12,12 +12,17 @@ import Phaser from 'phaser';
 import { S, WORLD_W, BOUNDS } from './constants.js';
 import { ART_SCALE } from '../../art/_frames.js';
 import { wildlifeActiveInWeather } from '../../data/weather.js';
-import { BIRD_TYPES, pickBirdType } from '../../data/wildlife.js';
+import { BIRD_TYPES, pickBirdType, shouldRaccoonBolt } from '../../data/wildlife.js';
 import { birdTexKey, birdAnimKey } from '../../art/wildlifeArt.js';
 
 // How close the player can get before a ground critter bolts (skittish). Birds in
 // flight and fish ignore the player.
 const FLEE_DIST = 200;
+
+// The raccoon gets its own, much tighter flee radius (#191 playtest 2026-07-06: it
+// bolted too easily/too far to actually watch it rummage). The player has to walk
+// right up to it — closer than the general wildlife radius — before it scurries off.
+const RACCOON_FLEE_DIST = 70;
 
 // World-px above horse sprite.y (origin bottom) to reach the back/withers.
 // FRAME_H=54, scale=2 → top of horse ≈ 108px up; back sits at ~64px up.
@@ -97,9 +102,13 @@ export const WithWildlife = (Base) => class extends Base {
       }
 
       if (c.ground) c.sprite.setDepth(c.sprite.y);
-      if (c.ground && !c.fleeing && Phaser.Math.Distance.Between(px, py, c.sprite.x, c.sprite.y) < FLEE_DIST) {
-        if (c.kind === 'bird') this._birdTakeOff(c);
-        else this._raccoonScurryOff(c);
+      if (c.ground) {
+        const dist = Phaser.Math.Distance.Between(px, py, c.sprite.x, c.sprite.y);
+        if (c.kind === 'bird') {
+          if (!c.fleeing && dist < FLEE_DIST) this._birdTakeOff(c);
+        } else if (shouldRaccoonBolt({ fleeing: c.fleeing, dist, fleeDist: RACCOON_FLEE_DIST })) {
+          this._raccoonScurryOff(c);
+        }
       }
     }
   }
