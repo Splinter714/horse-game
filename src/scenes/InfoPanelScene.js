@@ -8,6 +8,7 @@ import { WithCustomizerShell } from './customizer/shell.js';
 import { WithCustomizerNav } from './customizer/nav.js';
 import { WithHorseSections } from './customizer/horse.js';
 import { WithIncubationPanel } from './customizer/incubationPanel.js';
+import { WithBreedingPanel } from './customizer/breedingPanel.js';
 
 // Persisted rosters by species id, so an in-panel edit saves the right roster
 // generically (no per-species wiring). Every in-world customizable animal now has a
@@ -35,7 +36,7 @@ function cap(s) {
 // instantly close it on the same input.
 const OPEN_GRACE_MS = 140;
 
-export default class InfoPanelScene extends WithCustomizerShell(WithCustomizerNav(WithHorseSections(WithIncubationPanel(Phaser.Scene)))) {
+export default class InfoPanelScene extends WithCustomizerShell(WithCustomizerNav(WithHorseSections(WithIncubationPanel(WithBreedingPanel(Phaser.Scene))))) {
   constructor() {
     super('InfoPanelScene');
     this.statFills = {};
@@ -299,87 +300,10 @@ export default class InfoPanelScene extends WithCustomizerShell(WithCustomizerNa
     });
   }
 
-  // ── Breeding & foals panel controls (#15, redesigned #114) ──────────────────
-  // Unbonded grown horse → "Pair" (marks/forms a PERMANENT bond, no gestation).
-  // Already-bonded grown horse → separate, repeatable "Breed" (starts a gestation
-  // with its bonded mate). Foal → "Stay a baby forever" toggle. Horses only.
-  _addBreedingControls(animal, key, y) {
-    if (animal.species !== 'horse') return y;
-    const paddock = this.scene.get('PaddockScene');
-    if (!paddock) return y;
-
-    let cy = y + 6;
-
-    // A newborn foal shows the growth toggle rather than pair/breed buttons.
-    if (animal.isFoal) {
-      const on = !animal.stayBaby; // "Allow growing up" is the inverse of stayBaby
-      const label = animal.stayBaby ? '🍼  Stays a baby forever' : '🌱  Allowed to grow up';
-      const toggle = this.add.text(CARD_W / 2, cy, label, {
-        fontFamily: 'system-ui, sans-serif', fontSize: '13px',
-        color: on ? '#eafff0' : '#4f4d47', fontStyle: 'bold',
-        backgroundColor: on ? '#3a6a44' : '#e3ded3', padding: { x: 12, y: 7 }, align: 'center',
-      }).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
-      growHitArea(toggle);
-      toggle.on('pointerdown', () => {
-        // Flip the toggle. Turning growth ON grows the foal up right away (and the
-        // panel will close as the world takes over); otherwise just re-render.
-        paddock.setStayBaby(key, !animal.stayBaby);
-        if (!animal.isFoal) this.close(); // it grew up — model no longer a foal
-        else this.refresh();
-      });
-      this.panel.add(toggle);
-      return cy + toggle.height + 4;
-    }
-
-    // Already bonded → the separate, repeatable "Breed" button (monogamous, permanent).
-    if (paddock.isBonded?.(key)) {
-      return this._addPinkButton(cy, '💕  Breed', () => {
-        const status = paddock.startBreeding?.(key);
-        if (status && status.includes('expecting a foal')) { this.close(); return; }
-        this._flashBreedStatus(status);
-      });
-    }
-
-    // Not yet bonded: the pair button (label reflects any pending mate).
-    const mate = paddock.pendingMateName?.(key);
-    const label = mate ? `💞  Pair with ${mate}` : '💞  Pair';
-    return this._addPinkButton(cy, label, () => {
-      const status = paddock.toggleBondSelection?.(key);
-      if (status && status.includes('bonded for life')) { this.close(); return; }
-      this._flashBreedStatus(status);
-    });
-  }
-
-  // Shared pink-pill button used by both the "Pair" and "Breed" actions above —
-  // same styling, just a label + a click handler. Returns the new bottom-y cursor.
-  _addPinkButton(cy, label, onClick) {
-    const btn = this.add.text(CARD_W / 2, cy, label, {
-      fontFamily: 'system-ui, sans-serif', fontSize: '14px', color: '#5a1e3a',
-      fontStyle: 'bold', backgroundColor: '#ffc0d8', padding: { x: 14, y: 8 }, align: 'center',
-    }).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
-    growHitArea(btn);
-    btn.on('pointerdown', onClick);
-    this.panel.add(btn);
-    return cy + btn.height + 4;
-  }
-
-  // Flash a short breeding status message under the breed button (auto-fades).
-  _flashBreedStatus(text) {
-    if (!text) return;
-    this._breedStatus?.destroy();
-    this._breedStatus = this.add.text(CARD_W / 2, (this._cardY ? 0 : 0), text, {
-      fontFamily: 'system-ui, sans-serif', fontSize: '14px', color: '#5a1e3a', fontStyle: 'bold',
-      align: 'center', wordWrap: { width: CARD_W - 24 },
-    }).setOrigin(0.5, 1).setDepth(20000);
-    // Position it just above the card's bottom edge in screen space.
-    const y = (this._cardY ?? 0) + (this.panel?.getBounds?.().height ?? 0) - 2;
-    this._breedStatus.setPosition((this._cardX ?? 0) + CARD_W / 2, y + 34);
-    this.tweens.add({
-      targets: this._breedStatus, alpha: 0, y: this._breedStatus.y - 10,
-      delay: 1400, duration: 600, ease: 'Sine.easeIn',
-      onComplete: () => { this._breedStatus?.destroy(); this._breedStatus = null; },
-    });
-  }
+  // Horse breeding & foal panel controls (_addBreedingControls, _addPinkButton,
+  // _flashBreedStatus) live in ./customizer/breedingPanel.js (WithBreedingPanel,
+  // mixed in above) — extracted to stay under the line budget
+  // (src/scenes/modularity.test.js), mirroring the chick incubation panel split.
 
   addDivider(y) {
     const g = this.add.graphics();
