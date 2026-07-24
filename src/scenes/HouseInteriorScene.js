@@ -215,6 +215,17 @@ export default class HouseInteriorScene extends WithHouseInteriorCooking(WithHou
     if (c.up.isDown || k.up.isDown) vy -= 1;
     if (c.down.isDown || k.down.isDown) vy += 1;
 
+    // Gamepad left stick steers too (#321 — indoors previously ignored the pad
+    // entirely). Same raw-pad read + deadzone as the paddock's movePlayer
+    // (paddock/input.js's _pollRawPad + paddock/playerMovement.js) — read fresh
+    // each frame rather than relying on Phaser's cached pad state.
+    const raw = navigator.getGamepads ? [...navigator.getGamepads()].find(Boolean) : null;
+    if (raw) {
+      const sx = raw.axes[0] ?? 0, sy = raw.axes[1] ?? 0;
+      if (Math.abs(sx) > 0.15) vx += sx;
+      if (Math.abs(sy) > 0.15) vy += sy;
+    }
+
     const manual = vx !== 0 || vy !== 0;
     if (manual) this._navTarget = null; // keyboard cancels tap-nav
 
