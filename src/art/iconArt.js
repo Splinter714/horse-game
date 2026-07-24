@@ -628,19 +628,29 @@ export function buildIconTextures(scene) {
     g.fillStyle(0x7a8396, 1); g.fillEllipse(10, 18.4, 8.6, 2.2);
   });
 
-  // Milk jug/bottle — the saleable product shown on the farm-stand counter and as
-  // the float icon when stocking milk (#cow).
+  // Milk bottle — the single shared milk art asset (#313), reused wherever milk
+  // appears as a product/resource: the farm-stand counter, the float icon when
+  // stocking milk, and any pantry/inventory/cooking UI that looks up the milk
+  // content's icon (#cow). A proper glass-BOTTLE silhouette — narrow neck capped
+  // above a rounded, taller body — deliberately distinct from a drinking glass
+  // (which would be a plain straight-sided tumbler with no neck at all).
   gen(scene, 'iconMilk', 20, 20, (g) => {
-    // Bottle body
-    g.fillStyle(0xf4efe2, 1); g.fillRect(6, 7, 8, 11);
-    g.fillStyle(0xfffdf6, 1); g.fillRect(6, 7, 2, 11); // left highlight
-    g.fillStyle(0xe6dfce, 1); g.fillRect(12, 7, 2, 11); // right shade
-    // Shoulder + neck
-    g.fillStyle(0xf4efe2, 1); g.fillRect(8, 4, 4, 3);
-    // Blue cap + label band
-    g.fillStyle(0x5fa6d6, 1); g.fillRect(8, 2, 4, 2);
-    g.fillStyle(0x5fa6d6, 1); g.fillRect(6, 12, 8, 3);
-    g.fillStyle(0x9ae0f8, 1); g.fillRect(6, 12, 8, 1);
+    // Rounded bottle body — taller than it is wide, gently barrel-shaped
+    g.fillStyle(0xf4efe2, 1); g.fillRect(5, 10, 10, 7);
+    g.fillEllipse(10, 10, 10, 3.4); // rounded shoulder-to-body transition
+    g.fillEllipse(10, 17, 10, 3.4); // rounded base
+    g.fillStyle(0xfffdf6, 1); g.fillRect(5, 10, 2, 7); // left highlight
+    g.fillStyle(0xe6dfce, 1); g.fillRect(13, 10, 2, 7); // right shade
+    // Sloped shoulders tapering into a NARROW neck (the key bottle-vs-glass cue)
+    g.fillStyle(0xf4efe2, 1);
+    g.fillTriangle(5, 9, 15, 9, 12, 5);
+    g.fillTriangle(5, 9, 12, 5, 8, 5);
+    g.fillRect(8, 3, 4, 3); // neck, much narrower than the body
+    // Blue cap
+    g.fillStyle(0x5fa6d6, 1); g.fillRect(7, 1, 6, 2.4);
+    // Label band around the belly
+    g.fillStyle(0x5fa6d6, 1); g.fillRect(5, 12, 10, 3);
+    g.fillStyle(0x9ae0f8, 1); g.fillRect(5, 12, 10, 1);
   });
 
   // Wool bundle — the saleable raw fleece on the farm-stand counter and the float
