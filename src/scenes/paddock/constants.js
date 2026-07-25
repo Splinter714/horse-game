@@ -301,6 +301,11 @@ export const HOUSE_INTERIOR = {
     // the tank). Matches the stand + frame drawn in worldArt.js's houseInterior
     // `fishtank` layer (post-#221 flattened-proportions pass).
     { x0: 8, y0: 78, x1: 48, y1: 108 },
+    // Fireplace footprint (#230 playtest fix — the player could walk right onto the
+    // hearth). Bounding box of the mantel shelf (worldArt fillRect(112,60,46,5)) +
+    // stone surround block (fillRect(114,62,42,44)) drawn in the `fireplace` layer,
+    // so the whole hearth reads as solid, not just the dark firebox opening.
+    { x0: 112, y0: 60, x1: 158, y1: 106 },
   ],
   // South doorway: the exit strip. When the player walks onto it they leave the house.
   exit: { x: 80, y: 116, w: 34 },
