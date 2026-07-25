@@ -141,9 +141,6 @@ try {
       // never touches the horse breeding files above.
       'buildIncubation', 'startIncubation', 'updateIncubation', '_hatchChick', 'growUpChick',
       'setChickStayBaby', '_hasBreedingRooster', '_isIncubating',
-      // chicken coop cutaway (#53): mirrors the barn's walk-in pattern but purely
-      // visual — roost spots + façade fade, reusing the existing roost/leave-coop flow.
-      'buildChickenCoop', 'updateCoopCutaway', '_coopRoostSpotFor',
       // riding trail (#36): continuous westward world extension + its one
       // bare-hand collectible interactable.
       'buildTrail', '_trailInteractables', '_collectTrailTrinket',
@@ -760,80 +757,6 @@ try {
       charm = wired ? 'wired' : 'missing-methods';
     } catch (e) { charm = 'threw: ' + String(e); }
 
-    // #53 chicken coop cutaway: mirrors the barn's walk-in pattern (#35) but purely
-    // visual — a roosting bird must stay VISIBLE at a fixed roost spot (tucked
-    // behind the façade), not vanish (the old setVisible(false)). Also proves the
-    // façade actually fades when the player is near/inside the coop footprint and
-    // recovers when they leave, and that the two new cutaway textures exist.
-    let chickenCoop = 'no coop mixin';
-    try {
-      const { EVENTS } = await import('/src/data/events.js');
-      const coopTexOk = g.textures.exists('coopInterior') && g.textures.exists('coopFront');
-      const hasCoopProp = !!paddock.props.coop && !!paddock.coopFront && !!paddock.coopInteriorRect;
-
-      const bird = paddock.animals.find((a) => paddock._isFlockBird(a));
-      let roostVisible = 'no flock bird';
-      if (bird) {
-        // The real DayNightScene clock keeps advancing in the background — if a
-        // phase flips mid-probe, onPhaseChange's wakeAllAnimals would legitimately
-        // walk our just-roosted bird back out (chickenLeaveCoop), which is correct
-        // in-game behaviour but makes this deterministic isolation probe flaky.
-        // Detach the listener for the probe's short window and restore it right after.
-        paddock.game.events.off(EVENTS.PHASE_CHANGE, paddock.onPhaseChange, paddock);
-        // Park it right at the coop ramp first so the roost tween chain is short
-        // and deterministic (not racing the 700ms flock re-decide tick over a long
-        // walk from wherever it happened to be wandering).
-        if (bird.wanderTween) { bird.wanderTween.stop(); bird.wanderTween = null; }
-        bird.sprite.setPosition(paddock.props.coop.rampX, paddock.props.coop.rampY);
-        bird.state = 'idle';
-        paddock.chickenRoost(bird);
-        // The roost tween chain (ramp → pop-door → roost spot) is async and has a
-        // brief `wanderTween === null` gap between its two chained legs (right
-        // before the next tween starts) — so poll for the bird actually REACHING
-        // its roost spot rather than the tween-handle's presence, which would
-        // false-positive "done" mid-chain.
-        let waited = 0;
-        const spotCheck = paddock._coopRoostSpotFor(bird);
-        while (waited < 3000) {
-          const reached = Math.abs(bird.sprite.x - spotCheck.x) < 4 && Math.abs(bird.sprite.y - spotCheck.y) < 4;
-          if (bird.state !== 'roosting' || reached) break;
-          await new Promise((r) => setTimeout(r, 100));
-          waited += 100;
-        }
-        paddock.game.events.on(EVENTS.PHASE_CHANGE, paddock.onPhaseChange, paddock);
-        const spot = paddock._coopRoostSpotFor(bird);
-        const atSpot = Math.abs(bird.sprite.x - spot.x) < 4 && Math.abs(bird.sprite.y - spot.y) < 4;
-        roostVisible = (bird.state === 'roosting' && bird.sprite.visible === true && atSpot)
-          ? 'visible-at-roost'
-          : `state=${bird.state},visible=${bird.sprite.visible},atSpot=${atSpot},waited=${waited}`;
-      }
-
-      // Façade fade: force the player right into the coop's interior rect and tick
-      // the cutaway update several times — alpha should drop toward the faint-ghost
-      // floor. Then step the player far away and confirm it recovers to opaque.
-      const savedX = paddock.player.sprite.x, savedY = paddock.player.sprite.y;
-      const r = paddock.coopInteriorRect;
-      paddock.player.sprite.setPosition((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2);
-      for (let i = 0; i < 40; i++) paddock.updateCoopCutaway(50);
-      const fadedNear = paddock.coopFront.alpha < 0.3;
-      paddock.player.sprite.setPosition(savedX - 2000, savedY);
-      for (let i = 0; i < 40; i++) paddock.updateCoopCutaway(50);
-      const restoredFar = paddock.coopFront.alpha === 1;
-      paddock.player.sprite.setPosition(savedX, savedY);
-
-      // Clean up: settle the bird back to idle/wandering so it doesn't confuse
-      // later probes (charm's restAllAnimals/wakeAllAnimals already ran above).
-      if (bird && bird.state === 'roosting') {
-        bird.state = 'idle';
-        bird.sprite.setDepth(bird.sprite.y);
-        paddock.scheduleAnimalWander(bird, 10);
-      }
-
-      chickenCoop = (coopTexOk && hasCoopProp && roostVisible === 'visible-at-roost' && fadedNear && restoredFar)
-        ? 'cutaway-and-roost-visible'
-        : `coopTexOk=${coopTexOk},hasCoopProp=${hasCoopProp},roostVisible=${roostVisible},fadedNear=${fadedNear},restoredFar=${restoredFar}`;
-    } catch (e) { chickenCoop = 'threw: ' + String(e); }
-
     // #271 ambient nocturnal owl: present at night, absent by day. Owls are scenery
     // (no roster) — probe the scene mixin directly. Textures must exist; a direct
     // _spawnOwl at night puts an owl into _owls; and the pure night gate must reject
@@ -1209,7 +1132,6 @@ try {
       gardenWatering,
       cropRegrow,
       charm,
-      chickenCoop,
       breeding,
       incubation,
       rooster,
@@ -2013,9 +1935,6 @@ try {
   if (result.cowMilk !== 'milked-once') fail(`cow generic produce path failed (got ${result.cowMilk}) — #167 B3 unified care`);
   // #187 charm behaviors: night settle/wake cycle + charm run primitives must hold.
   if (result.charm !== 'wired') fail(`charm behaviors (#187) failed: ${result.charm}`);
-  // #53 chicken coop cutaway: textures exist, a roosting bird stays visible at its
-  // roost spot (not hidden), and the façade fades near/inside + recovers away.
-  if (result.chickenCoop !== 'cutaway-and-roost-visible') fail(`chicken coop cutaway (#53) failed: ${result.chickenCoop}`);
   // #231 stream swim: the dog can be driven into the swim behavior, the capability +
   // art wiring resolves, and it returns to normal wandering afterward.
   if (result.swim !== 'swims-and-returns') fail(`stream swim (#231) failed: ${result.swim}`);

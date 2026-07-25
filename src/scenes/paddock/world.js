@@ -79,12 +79,11 @@ export const WithWorld = (Base) => class extends Base {
     this.props.house = { x: 240, y: 250 };
     this._buildChimneySmoke(); // matches the indoor fireplace (#230) — a wisp above the chimney
 
-    // Barn (#241 + #35) — the horses' building, now a WALK-IN structure with an
-    // in-world cutaway interior (stalls + tack room). Built in the barn concern mixin
-    // (paddock/barn.js): it lays down the interior floor/stalls under the world, the
-    // front-façade overlay that fades out when you step inside, the collision walls
-    // with a south doorway, and loads persisted stall assignments. NO home-base
-    // semantics live here (those anchor on the HOUSE). `this.props.barn` is set there.
+    // Barn (#241 + #35) — the horses' building, a WALK-IN structure with an in-world
+    // cutaway interior (stalls + tack room). Built in the barn concern mixin
+    // (paddock/barn.js): interior floor/stalls, front-façade fade, collision walls
+    // with a south doorway, persisted stall assignments. NO home-base semantics live
+    // here (those anchor on the HOUSE). `this.props.barn` is set there.
     this.buildBarn(); // origin at the south doorway; places props.barn
 
     // Fence line near the house
@@ -92,17 +91,18 @@ export const WithWorld = (Base) => class extends Base {
       this.add.image(300 + i * 96, 320, 'fence').setScale(S).setDepth(320).setOrigin(0, 0.5);
     }
 
-    // Chicken coop — right of the fence line (fence ends ~x=876). Built as an
-    // in-world CUTAWAY (#53), mirroring the barn's walk-in pattern (#35): the
-    // interior (floor/nestboxes/roost bar) built here under the flock, the front
-    // façade fade + roost-spot placement owned by the chickenCoop concern mixin
-    // (paddock/chickenCoop.js), so a roosting flock is visible inside instead of
-    // vanishing at night.
+    // Chicken coop, right of the fence line (fence ends ~x=876). Roost geometry
+    // (pop-door + ramp foot; coop is 64×52, origin 0.5,1) is what chickens file
+    // in/out of at nightfall (dayNight.js chickenRoost/chickenLeaveCoop).
     const coopX = 930, coopY = 400;
-    this.buildChickenCoop(coopX, coopY); // places props.coop + the interior/façade sprites
+    this.add.image(coopX, coopY, 'coop').setScale(S).setDepth(coopY).setOrigin(0.5, 1);
+    this.props.coop = {
+      x: coopX, y: coopY,
+      doorX: coopX + (17 - 32) * S, doorY: coopY + (39 - 52) * S, // ≈ (900, 374)
+      rampX: coopX + (10 - 32) * S, rampY: coopY,                 // ≈ (886, 400)
+    };
 
-    // Nests in front of (below) the coop
-    const nestPositions = [[906, 410], [930, 416], [954, 410]];
+    const nestPositions = [[906, 410], [930, 416], [954, 410]]; // in front of (below) the coop
     for (const [nx, ny] of nestPositions) {
       const sprite = this.add.image(nx, ny, 'nest').setScale(S).setDepth(ny + 1).setOrigin(0.5, 0.5);
       this.props.nests.push({ x: nx, y: ny, hasEgg: false, sprite, occupant: null });

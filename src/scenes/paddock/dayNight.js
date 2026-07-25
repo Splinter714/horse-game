@@ -48,20 +48,9 @@ export const WithDayNight = (Base) => class extends Base {
   // First phase change after boot: the flock was spawned hidden (see buildAnimals).
   // In the morning they wake up roosting and file out of the coop; if the game
   // opens later in the day they're simply already milling in the yard; at night
-  // they stay tucked in the coop — but now (#53) VISIBLY, at their roost spot
-  // behind the cutaway façade, instead of the old invisible boot-at-night hold.
+  // they stay tucked in the coop (restAllAnimals already roosted them).
   _enterChickensForStart(isNight, phase) {
-    if (isNight) {
-      for (const a of this.animals) {
-        if (!this._isFlockBird(a)) continue;
-        const spot = this._coopRoostSpotFor(a);
-        a.sprite.setPosition(spot.x, spot.y).setVisible(true).setAlpha(1)
-          .setDepth((this.coopFront?.depth ?? spot.y) - 1);
-        a.sprite.play(`idle_${a.key}`, true);
-        a.shadow.setVisible(false);
-      }
-      return;
-    }
+    if (isNight) return;
     for (const a of this.animals) {
       if (!this._isFlockBird(a)) continue; // hens AND roosters roost/emerge together (#269)
       if (phase === 'Morning') {
@@ -240,11 +229,8 @@ export const WithDayNight = (Base) => class extends Base {
     }
   }
 
-  // Nightfall: walk a chicken to the coop ramp, then up into the pop-door and on
-  // to its roost spot, where it stays VISIBLE — tucked behind the front façade,
-  // which the chickenCoop cutaway (#53, updateCoopCutaway) fades near-transparent
-  // when the player is close, so the roosting flock reads as actually inside the
-  // coop rather than vanishing (the old setVisible(false)).
+  // Nightfall: walk a chicken to the coop ramp, then up into the pop-door,
+  // fading out of view (depth-sorting also tucks it behind the coop body).
   chickenRoost(a) {
     if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
     if (a.eatTimer)    { a.eatTimer.remove?.() ?? this.time.removeEvent(a.eatTimer); a.eatTimer = null; }
@@ -267,55 +253,42 @@ export const WithDayNight = (Base) => class extends Base {
         if (a.state !== 'roosting' || !a.sprite.active) return;
         a.sprite.setFlipX(false);
         a.shadow.setVisible(false);
-        const spot = this._coopRoostSpotFor(a);
         a.wanderTween = this.tweens.add({
-          targets: a.sprite, x: spot.x, y: spot.y,
-          duration: 500, ease: 'Sine.easeIn',
+          targets: a.sprite, x: coop.doorX, y: coop.doorY, alpha: 0,
+          duration: 600, ease: 'Sine.easeIn',
           onComplete: () => {
             a.wanderTween = null;
-            if (a.state !== 'roosting' || !a.sprite.active) return;
-            // Depth just under the front façade so the fade-out (near/inside the
-            // coop) is what reveals it, not normal y-depth sorting.
-            a.sprite.setDepth((this.coopFront?.depth ?? spot.y) - 1);
-            a.sprite.play(`idle_${a.key}`, true);
+            if (a.state === 'roosting') a.sprite.setVisible(false);
           },
         });
       },
     });
   }
 
-  // Morning: chicken wakes at its roost spot, walks out through the pop-door and
-  // hops down the ramp to resume.
+  // Morning: chicken reappears at the pop-door and hops down the ramp to resume.
   chickenLeaveCoop(a) {
     if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
     const coop = this.props.coop;
     a.state = 'leaving';
-    const spot = this._coopRoostSpotFor(a);
-    a.sprite.setPosition(spot.x, spot.y).setAlpha(1).setVisible(true).setDepth(coop.doorY);
+    a.sprite.setPosition(coop.doorX, coop.doorY).setAlpha(0).setVisible(true);
     a.shadow.setPosition(coop.doorX, coop.doorY).setVisible(true);
     a.sprite.setFlipX(true);
     a.sprite.play(`walk_${a.key}`, true);
 
     a.wanderTween = this.tweens.add({
-      targets: a.sprite, x: coop.doorX, y: coop.doorY,
-      duration: 400, ease: 'Sine.easeOut',
+      targets: a.sprite, x: coop.rampX, y: coop.rampY, alpha: 1,
+      duration: 600, ease: 'Sine.easeOut',
       onComplete: () => {
         a.wanderTween = null;
         // Guard against a stale callback firing after something else (a fresh
         // chickenRoost/chickenLeaveCoop call) has already taken over this bird —
-        // mirrors chickenRoost's own state guard.
+        // mirrors chickenRoost's own state guard (fixes a double-apply bug where
+        // a stale callback could clobber a freshly-roosted bird).
         if (a.state !== 'leaving' || !a.sprite.active) return;
-        a.wanderTween = this.tweens.add({
-          targets: a.sprite, x: coop.rampX, y: coop.rampY,
-          duration: 500, ease: 'Sine.easeOut',
-          onComplete: () => {
-            a.wanderTween = null;
-            if (a.state !== 'leaving' || !a.sprite.active) return;
-            if (this.isNight) { this.chickenRoost(a); return; }
-            a.state = 'idle';
-            this.scheduleAnimalWander(a, Phaser.Math.Between(300, 2500));
-          },
-        });
+        a.sprite.setAlpha(1);
+        if (this.isNight) { this.chickenRoost(a); return; }
+        a.state = 'idle';
+        this.scheduleAnimalWander(a, Phaser.Math.Between(300, 2500));
       },
     });
   }
