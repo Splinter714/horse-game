@@ -11,7 +11,6 @@ import { WithHouseChimney } from './paddock/houseChimney.js';
 import { WithTrail } from './paddock/trail.js';
 import { WithTown } from './paddock/town.js';
 import { WithBarn } from './paddock/barn.js';
-import { WithChickenCoop } from './paddock/chickenCoop.js';
 import { WithHouseEntry } from './paddock/houseEntry.js';
 import { WithWildlife } from './paddock/wildlife.js';
 import { WithBirdEcosystem } from './paddock/birdEcosystem.js';
@@ -70,7 +69,7 @@ import { applyDpr } from './uiUtils.js';
 // pure build-graph refactor — runtime behavior (method resolution order, `this`, super
 // calls) is unchanged.
 const PADDOCK_MIXINS = [
-  WithWorld, WithHouseChimney, WithTrail, WithTown, WithBirdEcosystem, WithBirdEcosystemVisits, WithBirdFriendship, WithBarn, WithChickenCoop, WithBunny, WithFox, WithDuck, WithBreeding, WithIncubation,
+  WithWorld, WithHouseChimney, WithTrail, WithTown, WithBirdEcosystem, WithBirdEcosystemVisits, WithBirdFriendship, WithBarn, WithBunny, WithFox, WithDuck, WithBreeding, WithIncubation,
   WithHouseEntry, WithWildlife, WithRaccoon, WithOwls, WithAmbientEvents, WithCatAI,
   WithCompanion, WithCharm, WithCreatures, WithFlock, WithHerd, WithFarmStand, WithNeighbor, WithShop,
   WithGeneralStore,
@@ -261,7 +260,6 @@ export default class PaddockScene extends PaddockBase {
     this.separateHorses();
     this.depthSort();
     this.updateBarnCutaway(delta); // fade the barn façade when the player steps inside (#35)
-    this.updateCoopCutaway(delta); // fade the coop façade when the player steps near/inside (#53)
     this.updateWildlife();
     this.tickBrushGame(delta); // sweep the brushing timing bar, if one's active (#296)
     this.tickRegrowth();      // regrow shorn fleece once its timer completes (#233)
