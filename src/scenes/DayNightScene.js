@@ -9,15 +9,16 @@ import {
   LATE_NIGHT_WARN_FRACTION, LATE_NIGHT_LOCK_FRACTION,
 } from '../data/lateNight.js';
 
-// Rain adds a subtle cool darkening on TOP of the day/night tint (composed, not
-// replacing it — a blue-grey wash at low alpha). Kept gentle so it reads as
-// overcast, never murky.
+// Rain adds a subtle cool darkening ON TOP of the day/night tint (composed, gentle
+// so it reads as overcast, never murky).
 const RAIN_TINT_COLOR = 0x3a4a66;
 const RAIN_TINT_ALPHA = 0.22;
 
 // Rain particle field: thin pale streaks falling across the whole (logical) screen.
 const RAIN_DROPS = 120;
 const RAIN_ICONS = { [WEATHER.SUN]: '☀️', [WEATHER.RAIN]: '🌧️' };
+// Dev weather-toggle label text (#327) — pairs with RAIN_ICONS for the readout.
+const WEATHER_TEXT = { [WEATHER.SUN]: 'Sunny', [WEATHER.RAIN]: 'Rain' };
 
 // Total cycle ~10.5 min. Long daylight so there's plenty of time for chores:
 // morning 2 min + afternoon 5 min + evening 2 min = 9 min day, night 1.5 min.
@@ -36,9 +37,8 @@ const TRANSITION_MS = 15_000;
 
 const PHASE_ICONS = ['🌅', '☀️', '🌇', '🌙'];
 
-// Winter snow particle field (#272): thin pale flakes drifting down across the whole
-// (logical) screen. Mirrors the rain field — drawn once per frame into a single
-// Graphics object so it's renderer-agnostic (works under Phaser.CANVAS in smoke).
+// Winter snow particle field (#272): mirrors the rain field, drawn once per frame
+// into a single Graphics object (renderer-agnostic, works under Phaser.CANVAS).
 const SNOW_FLAKES = 90;
 
 export default class DayNightScene extends Phaser.Scene {
@@ -68,20 +68,14 @@ export default class DayNightScene extends Phaser.Scene {
 
     this.overlay = this.add.graphics().setDepth(500);
 
-    // ── Weather (#188) ──────────────────────────────────────────────────────
-    // The rain wash sits just above the day/night tint so it composes with it,
-    // and below the sleep fade + label. The rain particle streaks sit above the
-    // wash. Both are set up here; _applyWeather() drives their visibility.
+    // ── Weather (#188) — rain wash composes over the day/night tint; _applyWeather()
+    // drives visibility of it + the rain particle streaks.
     this.weatherTint = this.add.graphics().setDepth(501).setScrollFactor(0);
     this._buildRain();
     this._startWeather();
 
-    // ── Seasons (#272, VISUAL FIRST) ─────────────────────────────────────────
-    // A seasonal palette wash composed on top of the day/night + weather tint
-    // (spring green, summer near-neutral, fall amber, winter cold blue), plus a
-    // winter snow particle field. The season advances one day at each Morning; a
-    // dev-only tap on the season label skips a season. All logic is pure in
-    // data/seasons.js; this scene only applies the look + emits SEASON_CHANGE.
+    // ── Seasons (#272) — a palette wash composed on top of day/night + weather,
+    // plus winter snow. Advances one day per Morning; pure logic in data/seasons.js.
     this.seasonTint = this.add.graphics().setDepth(502).setScrollFactor(0);
     this._buildSnow();
     this._startSeasons();
@@ -90,9 +84,8 @@ export default class DayNightScene extends Phaser.Scene {
     // (and, while sleeping, above the UI scenes — see doSleep).
     this.fade = this.add.graphics().setDepth(100_000).setScrollFactor(0);
 
-    // Late-night forced sleep (#300): a vignette fading in past the warn fraction of
-    // Night, deepening toward the hard-lock — a "getting sleepy" tell so auto-sleep
-    // doesn't feel random. First-pass visual, owner-art-reviewed at playtest.
+    // Late-night forced sleep (#300): a vignette deepening toward the hard-lock —
+    // a "getting sleepy" tell so auto-sleep doesn't feel random.
     this.lateNightVignette = this.add.graphics().setDepth(505).setScrollFactor(0);
     this.lateNightLabel = this.add.text(0, 0, '💤 Getting late...', {
       fontFamily: 'system-ui, sans-serif', fontSize: '16px', fontStyle: 'italic',
@@ -113,9 +106,7 @@ export default class DayNightScene extends Phaser.Scene {
     this.label.on('pointerdown', () => this._advancePhase());
 
     // Season readout, tucked under the time label (top-right). Dev-only: tapping it
-    // skips to the next season (gated behind import.meta.env.DEV, like the world's
-    // other dev skips) so the owner can eyeball each season's look without waiting
-    // out the day cycle.
+    // skips to the next season (gated behind import.meta.env.DEV).
     this.seasonLabel = this.add.text(0, 0, '', {
       fontFamily: 'system-ui, sans-serif', fontSize: '18px', fontStyle: 'bold',
       color: '#ffffff', backgroundColor: '#000000bf', padding: { x: 10, y: 6 },
@@ -123,6 +114,18 @@ export default class DayNightScene extends Phaser.Scene {
     if (import.meta.env.DEV) {
       this.seasonLabel.setInteractive({ useHandCursor: true });
       this.seasonLabel.on('pointerdown', () => this._advanceSeason());
+    }
+
+    // Weather readout, tucked under the season label (top-right, #327). Dev-only:
+    // tapping it force-toggles sun ↔ rain via _devSetWeather (same mechanism the
+    // pause-menu's Random Events dev triggers use).
+    this.weatherLabel = this.add.text(0, 0, '', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '18px', fontStyle: 'bold',
+      color: '#ffffff', backgroundColor: '#000000bf', padding: { x: 10, y: 6 },
+    }).setDepth(520).setOrigin(1, 0).setScrollFactor(0);
+    if (import.meta.env.DEV) {
+      this.weatherLabel.setInteractive({ useHandCursor: true });
+      this.weatherLabel.on('pointerdown', () => this._advanceWeather());
     }
 
     this.overlay.setScrollFactor(0);
@@ -145,17 +148,14 @@ export default class DayNightScene extends Phaser.Scene {
     });
   }
 
-  // Fade to black, jump the clock to morning, then fade back in. The day/night
-  // tint normally renders below the UI scenes; for the fade we lift this scene
-  // to the top so the black covers everything, then restore the UI on top after.
+  // Fade to black, jump the clock to morning, then fade back in. Lifts this scene
+  // to the top so the black covers everything, then restores the UI on top after.
   doSleep() {
     if (this._sleeping) return;
 
-    // Sleeping from INSIDE the house (#56): this scene is paused, so its tweens/
-    // delayedCalls won't advance and the fade below would never complete. The house
-    // interior runs its OWN local fade for the visual, so here we just jump the clock
-    // to morning synchronously; when the world resumes, the next _applyClock() fires
-    // the Morning phase-change (waking animals) exactly as a normal sleep would.
+    // Sleeping from INSIDE the house (#56): this scene is paused, so its tweens
+    // won't advance. The house runs its own local fade; here we just jump the
+    // clock synchronously so the next _applyClock() fires Morning on resume.
     if (this.scene.isPaused()) {
       this.elapsed = 0;
       this.currentPhase = -1;
@@ -218,12 +218,9 @@ export default class DayNightScene extends Phaser.Scene {
     this._animateSnow(delta);
   }
 
-  // ── Weather state machine (#188) ──────────────────────────────────────────
-  // A simple sun ↔ rain timer. Each state runs for a rolled duration, then
-  // nextWeather() (pure) picks the following state + its duration. State changes
-  // fan out on EVENTS.WEATHER_CHANGE so PaddockScene can react (dirt rate,
-  // wildlife hiding, trough rain-fill).
-
+  // ── Weather state machine (#188): a sun ↔ rain timer. Each state runs for a
+  // rolled duration, then nextWeather() (pure) picks the next state. Changes fan
+  // out on EVENTS.WEATHER_CHANGE so PaddockScene can react.
   _startWeather() {
     this._weather = WEATHER.SUN;
     this._weatherLeft = 0; // forces an immediate roll on the first tick
@@ -254,9 +251,8 @@ export default class DayNightScene extends Phaser.Scene {
     if (announce) this.game.events.emit(EVENTS.WEATHER_CHANGE, { weather });
   }
 
-  // Dev trigger (#188/#253): force the weather to a given state on demand, announcing
-  // it so all the paddock hooks react, and re-arm the timer with a fresh duration so
-  // the forced state actually lingers instead of being rolled away next tick.
+  // Dev trigger (#188/#253): force the weather on demand, re-arming the timer with
+  // a fresh duration so the forced state lingers instead of rolling away next tick.
   _devSetWeather(weather) {
     this._weatherReady = true;
     const { durationMs } = nextWeather(weather, 1);
@@ -264,9 +260,8 @@ export default class DayNightScene extends Phaser.Scene {
     this._setWeather(weather, /* announce */ true);
   }
 
-  // Build the rain particle field: a pool of thin pale streaks that fall and wrap.
-  // Drawn once per frame into a single Graphics object (cheap, renderer-agnostic —
-  // no WebGL particle emitter, so it works under Phaser.CANVAS in the smoke test).
+  // Build the rain particle field: a pool of thin pale streaks that fall and wrap,
+  // drawn once per frame into a single Graphics object (renderer-agnostic).
   _buildRain() {
     this.rainGfx = this.add.graphics().setDepth(510).setScrollFactor(0).setVisible(false);
     this._rainDrops = [];
@@ -296,9 +291,8 @@ export default class DayNightScene extends Phaser.Scene {
     }
   }
 
-  // Show/hide the rain wash + particles for the current weather. The wash is a
-  // separate low-alpha layer composited over the day/night tint (not merged into
-  // it), so both read together — overcast at any time of day.
+  // Show/hide the rain wash + particles for the current weather; composited over
+  // the day/night tint (not merged) so both read together at any time of day.
   _applyWeather() {
     const raining = this._weather === WEATHER.RAIN;
     this.weatherTint.clear();
@@ -308,13 +302,23 @@ export default class DayNightScene extends Phaser.Scene {
     }
     this.rainGfx?.setVisible(raining);
     if (!raining) this.rainGfx?.clear();
+    if (this.weatherLabel) {
+      const icon = RAIN_ICONS[this._weather] ?? RAIN_ICONS[WEATHER.SUN];
+      const label = WEATHER_TEXT[this._weather] ?? WEATHER_TEXT[WEATHER.SUN];
+      this.weatherLabel.setText(`${icon} ${label}`);
+      this.weatherLabel.setPosition(this._sw - 8, 80);
+    }
   }
 
-  // ── Seasons (#272, VISUAL FIRST) ───────────────────────────────────────────
-  // A day counter advances at each Morning; the season is derived from it (pure
-  // seasonForDay). Season changes fan out on EVENTS.SEASON_CHANGE and re-apply the
-  // seasonal tint + snow. VISUAL ONLY in v1 — no gameplay hooks yet.
+  // Dev tool: force-toggle the weather on tap (#327). Only two states exist
+  // (data/weather.js), so this just flips between them via _devSetWeather.
+  _advanceWeather() {
+    const next = this._weather === WEATHER.RAIN ? WEATHER.SUN : WEATHER.RAIN;
+    this._devSetWeather(next);
+  }
 
+  // ── Seasons (#272, VISUAL ONLY): a day counter advances at each Morning; season
+  // is derived from it (pure seasonForDay). Changes fan out on EVENTS.SEASON_CHANGE.
   _startSeasons() {
     this._day = 0;
     this._season = null; // forces the first _setSeason to announce + apply
@@ -338,8 +342,7 @@ export default class DayNightScene extends Phaser.Scene {
     if (announce) this.game.events.emit(EVENTS.SEASON_CHANGE, { season });
   }
 
-  // Dev tool: skip to the next season on demand (wired to the season label's tap in
-  // create(), gated behind import.meta.env.DEV). Jumps the day counter to the start
+  // Dev tool: skip to the next season on tap. Jumps the day counter to the start
   // of the next season so the derived season stays consistent with the day count.
   _advanceSeason() {
     const target = nextSeason(this._season ?? seasonForDay(this._day));
@@ -386,9 +389,8 @@ export default class DayNightScene extends Phaser.Scene {
     }
   }
 
-  // Apply the current season's palette wash + snow visibility. The wash is a low-alpha
-  // layer composited over the day/night + weather tints (not merged), so all three
-  // read together — an ambient seasonal cast at any time of day.
+  // Apply the current season's palette wash + snow visibility, composited over the
+  // day/night + weather tints so all three read together.
   _applySeason() {
     const pal = seasonPalette(this._season);
     this.seasonTint.clear();
@@ -404,10 +406,8 @@ export default class DayNightScene extends Phaser.Scene {
     }
   }
 
-  // Recompute the lighting overlay + clock label from the current `elapsed` time
-  // and emit any phase change. Split out of update() so the dev-tools "Advance
-  // Time" button can refresh the clock on demand WITHOUT unpausing — a paused
-  // Phaser scene still renders, so a redraw here is visible while paused.
+  // Recompute the lighting overlay + clock label from `elapsed` and emit any phase
+  // change. Split out of update() so a paused scene can still refresh on demand.
   _applyClock() {
     // Find which phase we're in based on variable durations
     let phaseIdx = 0, phaseStart = 0;
@@ -470,10 +470,8 @@ export default class DayNightScene extends Phaser.Scene {
     this._applyLateNight(p0.name === 'Night' ? nightProgress(intoPhase, dur) : 0, p0.name);
   }
 
-  // Warning vignette + forced-sleep trigger (#300). `progress` is 0..1 into Night (0
-  // outside it). Pure decisions live in data/lateNight.js; this applies the visual and
-  // fires the SAME EVENTS.SLEEP → doSleep flow a bed uses (a second, automatic trigger
-  // path, not a parallel sleep system).
+  // Warning vignette + forced-sleep trigger (#300). `progress` is 0..1 into Night.
+  // Pure decisions live in data/lateNight.js; this fires the same EVENTS.SLEEP flow.
   _applyLateNight(progress, phase) {
     const warning = isLateNightWarning(phase, progress);
     this.lateNightVignette.clear();
