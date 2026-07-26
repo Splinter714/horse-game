@@ -6,6 +6,7 @@
 // as its own concern mixin (mirroring HotbarScene's other hotbar/* files).
 
 import { WORLD_W, WORLD_H, TRAIL_X0 } from '../paddock/constants.js';
+import { renderBakedLayer } from './bakedLayer.js';
 
 const MAP_W = 132;
 const MAP_H = 96;
@@ -28,13 +29,6 @@ export const WithMinimap = (Base) => class extends Base {
     this._minimapNodes?.forEach((n) => n.destroy());
     this._minimapNodes = [];
 
-    const bg = this.add.graphics().setDepth(950);
-    bg.fillStyle(0x111622, 0.72);
-    bg.fillRoundedRect(MAP_X, MAP_Y, MAP_W, MAP_H, 8);
-    bg.lineStyle(1.5, 0xdfe4f5, 0.6);
-    bg.strokeRoundedRect(MAP_X, MAP_Y, MAP_W, MAP_H, 8);
-    this._minimapNodes.push(bg);
-
     // World-space → minimap-space mapping. The full span includes the trail
     // extension (negative x), so the minimap widens to the west accordingly —
     // it's schematic, not to scale with the farm's own proportions.
@@ -50,14 +44,22 @@ export const WithMinimap = (Base) => class extends Base {
       };
     };
 
-    // Landmark dots (static).
-    const landmarks = this.add.graphics().setDepth(951);
-    for (const lm of LANDMARKS) {
-      const p = this._minimapMap(lm.x, lm.y);
-      landmarks.fillStyle(lm.color, 1);
-      landmarks.fillCircle(p.x, p.y, 2.2);
-    }
-    this._minimapNodes.push(landmarks);
+    // Frame + landmark dots are 100% static once built, so they're baked into a
+    // single texture instead of two live Graphics re-tessellated every frame
+    // (#326 — they were ~196 of the HUD's ~1,374 per-frame commands). Only the
+    // player dot below stays a live object, because only it moves.
+    this._minimapLayer = renderBakedLayer(this, this._minimapLayer,
+      { x: MAP_X - 2, y: MAP_Y - 2, w: MAP_W + 4, h: MAP_H + 4 }, 950, (g) => {
+        g.fillStyle(0x111622, 0.72);
+        g.fillRoundedRect(MAP_X, MAP_Y, MAP_W, MAP_H, 8);
+        g.lineStyle(1.5, 0xdfe4f5, 0.6);
+        g.strokeRoundedRect(MAP_X, MAP_Y, MAP_W, MAP_H, 8);
+        for (const lm of LANDMARKS) {
+          const p = this._minimapMap(lm.x, lm.y);
+          g.fillStyle(lm.color, 1);
+          g.fillCircle(p.x, p.y, 2.2);
+        }
+      });
 
     // Live player-position dot, updated every frame in _updateMinimap.
     this._minimapPlayerDot = this.add.circle(MAP_X + pad, MAP_Y + pad, 3, 0xff5a5a)

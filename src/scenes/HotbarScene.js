@@ -57,6 +57,17 @@ export default class HotbarScene
     this._flyoutTimer = null; // auto-dismiss timer for the fly-out
     this._slotHold    = null; // in-progress press/tap on a slot (tap vs hold, #75)
     this._slotFlash   = null; // transient "slot changed" blink overlay (#75)
+    // Baked HUD chrome (#326): the strip/slot/minimap/fly-out/action-button
+    // backgrounds live in cached RenderTextures instead of live Graphics, so they
+    // aren't re-tessellated every frame. Nulled here so a scene restart starts from
+    // fresh textures rather than handles to destroyed ones. `*Sig` is the cached
+    // "what was last drawn" signature that makes a redundant re-stamp a no-op.
+    this._chromeLayer = null;
+    this._chromeSig   = null;
+    this._flyoutLayer = null;
+    this._minimapLayer = null;
+    this._actionBtnLayer = null;
+    this._actionBtnSig   = null;
     this._pauseNodes = [];
     this._pauseBtn   = null;
     this._muteRowLbl = null;

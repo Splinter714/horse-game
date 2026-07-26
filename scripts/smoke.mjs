@@ -2345,6 +2345,45 @@ try {
   if (!minimap.moved) fail(`minimap (#36): player dot did not move between two far-apart positions (${JSON.stringify(minimap)})`);
   console.log(`Minimap (#36): ${JSON.stringify(minimap)}`);
 
+  // ── Baked HUD chrome (#326): the hotbar's backgrounds/slot boxes/minimap frame
+  // are stamped into cached RenderTextures, so the idle HUD must hold NO live
+  // Graphics at all — a live one means something regressed to an immediate-mode
+  // draw that Phaser re-tessellates every frame (the ~1.1 ms/frame this fixed).
+  // Also proves the invalidation actually works: switching slots must change the
+  // baked signature (highlight moved), while a carrier fill must NOT (labels only).
+  const hudBake = await page.evaluate(() => {
+    const h = window.__game.scene.getScene('HotbarScene');
+    h._closeFlyout();
+    const live = h.children.list.filter((o) => o.visible && o.type === 'Graphics');
+    const liveGraphics = live.length;
+    const liveCommands = live.reduce((n, o) => n + o.commandBuffer.length, 0);
+    const renderTextures = h.children.list.filter((o) => o.type === 'RenderTexture').length;
+
+    const sig0 = h._chromeSig;
+    h._setActive((h.activeSlot + 1) % h.hotbar.length);
+    const sigAfterSlotSwitch = h._chromeSig;
+
+    // A carrier fill rebuilds the labels/badges but must not re-stamp the chrome.
+    h.activeSlot = h.hotbar.indexOf('basketGroup');
+    h._setActive(h.activeSlot);
+    const sigBeforeFill = h._chromeSig;
+    h.fillActiveCarrier('apple', 1);
+    const sigAfterFill = h._chromeSig;
+
+    return {
+      liveGraphics, liveCommands, renderTextures,
+      slotSwitchInvalidates: sig0 !== sigAfterSlotSwitch,
+      fillSkipsRebake: sigBeforeFill === sigAfterFill,
+    };
+  });
+  if (hudBake.liveGraphics !== 0) {
+    fail(`hotbar bake (#326): ${hudBake.liveGraphics} live Graphics (${hudBake.liveCommands} per-frame commands) in the idle HUD — expected 0`);
+  }
+  if (hudBake.renderTextures < 2) fail(`hotbar bake (#326): expected the strip + minimap baked textures, got ${hudBake.renderTextures}`);
+  if (!hudBake.slotSwitchInvalidates) fail('hotbar bake (#326): switching slots did not invalidate the baked chrome (highlight would be stale)');
+  if (!hudBake.fillSkipsRebake) fail('hotbar bake (#326): a carrier fill re-stamped the chrome — the change-gate is not working');
+  console.log(`Hotbar bake (#326): ${JSON.stringify(hudBake)}`);
+
   // ── HiDPI rendering: the game must render at the device's PHYSICAL pixels so
   // pixel-art/text are crisp on Retina screens (e.g. iPad, devicePixelRatio 2).
   // The main boot above runs at deviceScaleFactor 1, where the DPR path is a no-op

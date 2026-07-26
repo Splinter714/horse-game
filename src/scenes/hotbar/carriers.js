@@ -6,6 +6,7 @@
 import { ITEM_MAP, CARRIER_DEFS, CONTENT_DEFS, SCOOPER, SHEARS, dumpScooper, emptyCarrier, SADDLE_TYPE_ORDER, DEFAULT_SADDLE_TYPE, getToolUpgrade, upgradedStat } from '../../data/items.js';
 import { saveGameState } from '../../data/save.js';
 import { FLYOUT_CLOSE_MS } from './constants.js';
+import { renderBakedLayer, destroyBakedLayer } from './bakedLayer.js';
 
 export const WithCarriers = (Base) => class extends Base {
   // Resolve how an item should render in a slot: icon, label, and count badge.
@@ -302,15 +303,20 @@ export const WithCarriers = (Base) => class extends Base {
 
     const active = this._resolveKey(key);
     const n = group.members.length;
+    // All member boxes go into ONE baked texture rather than one live Graphics each
+    // (#326) — a 4-member picker was ~470 re-tessellated commands per frame while open.
+    const topY = stripTop - n * (ss + gap);
+    this._flyoutLayer = renderBakedLayer(this, this._flyoutLayer,
+      { x: x - 6, y: topY - 6, w: ss + 12, h: n * (ss + gap) - gap + 12 }, 41, (g) => {
+        group.members.forEach((mKey, idx) => {
+          this._drawSlot(g, x, stripTop - (n - idx) * (ss + gap), ss, radius, mKey === active);
+        });
+      });
+
     group.members.forEach((mKey, idx) => {
       // First member at the top, last nearest the slot — so re-pressing the slot's
       // key cycles the highlight top → bottom through the list (#75 follow-up).
       const ey = stripTop - (n - idx) * (ss + gap);
-      const isActive = mKey === active;
-
-      const g = this.add.graphics().setDepth(41);
-      this._drawSlot(g, x, ey, ss, radius, isActive);
-      this._flyoutNodes.push(g);
 
       const view = this._slotView(ITEM_MAP[mKey], mKey);
       const iconSize = Math.round(ss * 0.46);
@@ -352,6 +358,7 @@ export const WithCarriers = (Base) => class extends Base {
   _closeFlyout() {
     this._flyoutTimer?.remove();
     this._flyoutTimer = null;
+    this._flyoutLayer = destroyBakedLayer(this._flyoutLayer);
     if (!this._flyoutNodes?.length) { this._flyoutSlot = null; return; }
     for (const o of this._flyoutNodes) o.destroy();
     this._flyoutNodes = [];
