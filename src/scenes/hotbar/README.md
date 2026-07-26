@@ -22,6 +22,7 @@ the same name. To add behaviour, find the concern below; if it fits none, add a 
 | Inventory | `hotbar/inventory.js` (`WithInventory`) | the full item grid + assign-to-slot |
 | Action buttons | `hotbar/actionButtons.js` (`WithActionButtons`) | the touch Interact/Info/Use buttons |
 | Pause menu | `hotbar/pauseMenu.js` (`WithPauseMenu`) | settings overlay, volume sliders, dev tools, gamepad focus nav, world freeze/resume |
+| FPS counter | `hotbar/fpsCounter.js` (`WithFpsCounter`) | the bottom-left fps/worst-frame readout (#325). Opt-in via the pause menu's dev tools (persisted in devSettings, default OFF) and deliberately available in production builds, since the frame-rate problem it was built for shows up on the deployed game. Refreshes 5×/sec, not per frame |
 
 The chain (innermost → outermost) is in `HotbarScene.js`:
 

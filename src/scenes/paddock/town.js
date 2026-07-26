@@ -22,6 +22,7 @@
 // farm's world.js in parallel — mirrors exactly how trail.js avoided that collision.
 
 import { S, TOWN_X0, TOWN_W, TOWN_Y0, TOWN_Y1 } from './constants.js';
+import { bakeStaticGraphics } from './bakeGraphics.js';
 
 export const WithTown = (Base) => class extends Base {
   buildTown() {
@@ -54,6 +55,9 @@ export const WithTown = (Base) => class extends Base {
     };
     stamp(26, 0x9a8a5c, 0.85);
     stamp(18, 0xc9bb86, 0.9);
+
+    // Static once stamped — bake the street into a texture (#325).
+    bakeStaticGraphics(this, g, pts, 30, -95);
 
     // Scenery: a scattering of trees + flowers along the street so it still feels
     // like the same world's palette (reusing the trail's tree/flower textures).

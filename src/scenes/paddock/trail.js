@@ -27,6 +27,7 @@
 
 import { S, TRAIL_X0, TRAIL_W, TRAIL_Y0, TRAIL_Y1 } from './constants.js';
 import { EVENTS } from '../../data/events.js';
+import { bakeStaticGraphics } from './bakeGraphics.js';
 
 const TRAIL_TINT = 0xbfe0c0;
 // How far the tint blend zone extends on either side of the farm/trail
@@ -105,6 +106,10 @@ export const WithTrail = (Base) => class extends Base {
     };
     stamp(24, 0x977f52, 0.85);
     stamp(16, 0xc3a87b, 0.9);
+
+    // Static once stamped — bake the loop into a texture (#325). It was the
+    // single largest command buffer in the world (~13.5k fillCircles).
+    bakeStaticGraphics(this, g, pts, 28, -95);
 
     // Scenery: trees and mossy rocks scattered through the (now much bigger)
     // trail band, plus a scattering of wildflowers (reusing the existing flower

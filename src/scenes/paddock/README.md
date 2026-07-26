@@ -16,7 +16,8 @@ core orchestrator.
 | Concern | File | Owns |
 |---|---|---|
 | Orchestration | `PaddockScene.js` (core) | `constructor`/`create`/`update`, `buildHorses`, `checkProximity`, `movePlayer`, sleep/wake |
-| World build | `paddock/world.js` (`WithWorld`) | terrain/props, obstacles, collision helpers, stream + `streamPath` |
+| World build | `paddock/world.js` (`WithWorld`) | terrain/props, obstacles, collision helpers |
+| Stream | `paddock/stream.js` (`WithStream`) | the watercourse: banks/water/stones/reeds graphics, its collision rects, `streamPath` (centerline + flow tangents, read by the fish #183 and the cat's fishing spot #163) and the bank gather points. Split out of `world.js` in #325 (it was exactly at the 500-line budget) |
 | Ambient wildlife | `paddock/wildlife.js` (`WithWildlife`) | scenery critters (stream fish, fly-by/peck birds, horse-back perch, bird-bath splash #219) — spawn timers, tween movement, skittish flee. Not roster/care animals |
 | Bird ecosystem (objects) | `paddock/birdEcosystem.js` (`WithBirdEcosystem`) | the FIXED bird-ecosystem props + their fill/harvest STATE. Bird bath (#219), refillable seed feeder (#240, `fillSeedFeeder`/`_setSeedFeederLevel`/`drainSeedFeeder`), hummingbird nectar feeder (#226, `fillNectarFeeder`/`drainNectarFeeder`; nectar is its own bucket resource from the nectar station), and the beehive (#239, `buildBeehive`/`_ripenHoneyTick`/`_setHoneyLevel`/`harvestBeehive`; honey ripens on a timer, basket-harvested, sold at the stand). `buildBirdEcosystem` places sprites/`props.*` + collects footprints into `this.birdEcosystemObstacles` (spread by `world.js`). Pure feeder math in `data/feeder.js`, hive math in `data/hive.js` |
 | Bird ecosystem (visits) | `paddock/birdEcosystemVisits.js` (`WithBirdEcosystemVisits`) | the tween-driven ambient VISITS to those props: bird-bath splashing (#219), seed-feeder feeding (#240, songbirds visit only while stocked), hummingbird hover-and-dart (#226, drawn to the STOCKED nectar feeder AND the flowers, `_hummerTargets`/`_hummerDartTo`/`_hummerHover`), and benign bees buzzing the hive + flowers (#239, no sting, `_spawnBeeVisit`/`_beeWanderTo`). Reuses `wildlife.js`'s shared `_pickBird`/`_birdTakeOff`/`_despawnCritter`/`_wildCritters`/`WILD_SCALE`; kicked off from `buildWildlife` via `startBirdEcosystemVisits`; hummingbirds/bees are airborne kinds cleared on rain in `_clearWildlifeForRain`. Each bath/birdhouse/feeder landing also calls `registerBirdVisit` (birdFriendship.js) so a qualifying visit ticks that bird type's befriending tally |
@@ -53,6 +54,7 @@ core orchestrator.
 | Pet/info interaction | `paddock/interaction.js` (`WithInteraction`) | pet-preference cluster + info-panel openers (`openPortrait`…) |
 | Input plumbing | `paddock/input.js` (`WithInput`) | `_pollRawPad`, `_togglePause`, `_syncInputMode`, `_onPromptsChanged` |
 | Shared tuning | `paddock/constants.js` | layout/tuning constants (not a mixin) |
+| Static-graphics bake | `paddock/bakeGraphics.js` | `bakeStaticGraphics` — replays a finished, never-again-modified Graphics into a RenderTexture (not a mixin). Phaser re-tessellates a Graphics command buffer EVERY frame; the four ground layers held ~26k commands between them, which was the #1 frame cost found in #325. Use only for graphics that are never `clear()`ed or redrawn |
 
 > Core dropped from ~1,236 → ~360 lines across issue #167 Phase A. Still in core
 > by design: the orchestration (`create`/`update`), `checkProximity`, and
