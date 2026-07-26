@@ -214,6 +214,16 @@ export const WithPauseMenu = (Base) => class extends Base {
       this._toggleDevEvents();
     });
     dy += rowH;
+    // FPS counter overlay (#325) — bottom-left readout. Persisted and live
+    // (no reload needed), and deliberately available in production builds so
+    // frame-rate can be checked on the deployed game where it's actually felt.
+    const fpsLbl = this._addToggleRow(rowX, dy, rowW, rowH,
+      `📈 FPS Counter: ${loadDevSettings().showFps ? 'ON' : 'Off'}`,
+      () => {
+        this._toggleFpsCounter();
+        fpsLbl.setText(`📈 FPS Counter: ${loadDevSettings().showFps ? 'ON' : 'Off'}`);
+      });
+    dy += rowH;
     const freezeDecayLbl = this._addToggleRow(rowX, dy, rowW, rowH,
       `❄️ Freeze Decay: ${window.__devFreezeDecay ? 'ON' : 'Off'}`,
       () => {
@@ -411,8 +421,9 @@ export const WithPauseMenu = (Base) => class extends Base {
   // While the pause menu is open the world scenes are paused, so HotbarScene drives
   // the gamepad here: d-pad/stick to focus a row, A to activate a toggle/button,
   // left/right to adjust the focused slider, B/Start to close (#159).
-  update() {
+  update(_time, delta) {
     this._updateMinimap(); // corner minimap (#36) — live player-position dot, every frame
+    this._tickFpsCounter(delta); // FPS readout (#325) — no-op unless toggled on
     if (!this.pauseOpen || !this._pauseFocus?.length) return;
     const pad = this.input.gamepad && this.input.gamepad.getPad(0);
     if (!pad) return;

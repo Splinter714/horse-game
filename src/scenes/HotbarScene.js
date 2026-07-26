@@ -15,9 +15,10 @@ import { WithInventory } from './hotbar/inventory.js';
 import { WithActionButtons } from './hotbar/actionButtons.js';
 import { WithPauseMenu } from './hotbar/pauseMenu.js';
 import { WithMinimap } from './hotbar/minimap.js';
+import { WithFpsCounter } from './hotbar/fpsCounter.js';
 
 export default class HotbarScene
-  extends WithMinimap(WithPauseMenu(WithInventory(WithActionButtons(WithCarriers(WithHotbarSlots(Phaser.Scene)))))) {
+  extends WithFpsCounter(WithMinimap(WithPauseMenu(WithInventory(WithActionButtons(WithCarriers(WithHotbarSlots(Phaser.Scene))))))) {
   constructor() { super('HotbarScene'); }
 
   create() {
@@ -77,6 +78,7 @@ export default class HotbarScene
 
     this._buildHotbar();
     this._buildMinimap(); // corner minimap (#36) — orientation only, no fast-travel
+    this._buildFpsCounter(); // dev FPS readout, bottom-left (#325) — off unless toggled on
 
     const KEY_NAMES = ['ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN','EIGHT','NINE','ZERO'];
     KEY_NAMES.slice(0, NUM_SLOTS).forEach((name, i) => {
@@ -110,6 +112,7 @@ export default class HotbarScene
     this._onResize = () => {
       this._closeFlyout();
       this._buildHotbar();
+      this._buildFpsCounter();
       if (this.invOpen)   this._openInventory();
       if (this.pauseOpen) this._openPause();
     };
@@ -136,6 +139,7 @@ export default class HotbarScene
       this._isTouch = touch;
       this._closeFlyout();
       this._buildHotbar(); // recreate the strip with/without the action buttons
+      this._buildFpsCounter();
     };
     this.game.events.on(EVENTS.INPUT_MODE_CHANGED, this._onInputMode);
 
