@@ -7,29 +7,29 @@ import { ITEM_MAP } from '../../data/items.js';
 import { growHitArea, logicalW, logicalH } from '../uiUtils.js';
 import { saveDevSettings } from '../../data/save.js';
 import { SLOT_SIZE, SLOT_GAP, NUM_SLOTS, HOLD_FLYOUT_MS } from './constants.js';
+import { renderBakedLayer } from './bakedLayer.js';
 
 export const WithHotbarSlots = (Base) => class extends Base {
   _buildHotbar() {
-    // Destroy all tracked hotbar display objects
+    // Destroy all tracked hotbar display objects. (The strip's background/slot
+    // boxes/stacked-carrier cards are NOT here — they're baked into one static
+    // texture, `_chromeLayer`, which is reused and only re-stamped when the
+    // drawing would actually differ; see _renderHotbarChrome.)
     for (const o of this._slots) {
-      o.g?.destroy();
       o.numLbl?.destroy();
       o.icon?.destroy();
       o.itemLbl?.destroy();
       o.qtyLbl?.destroy();
       o.zone?.destroy();
-      o.stackG?.destroy();
     }
-    this._stripBg?.destroy();
     this._pauseBtn?.destroy();
     this._previewBtn?.destroy();
     this._moneyLbl?.destroy();
-    for (const b of this._actionBtns ?? []) { b.g.destroy(); b.lbl.destroy(); b.zone.destroy(); }
+    for (const b of this._actionBtns ?? []) { b.lbl.destroy(); b.zone.destroy(); }
     this._slots      = [];
     this._pauseBtn   = null;
     this._previewBtn = null;
     this._moneyLbl   = null;
-    this._stripBg    = null;
     this._actionBtns = null;
 
     const sw = logicalW(this);
@@ -47,9 +47,12 @@ export const WithHotbarSlots = (Base) => class extends Base {
     this._ss     = ss;
     this._fit    = fit;
 
-    this._stripBg = this.add.graphics().setDepth(1);
-    this._stripBg.fillStyle(0x111622, 0.72);
-    this._stripBg.fillRoundedRect(startX - 8, slotY - 8, totalW + 16, ss + 16, radius + 2);
+    // Geometry of the strip's own backing panel — drawn into the baked chrome
+    // texture rather than as a live Graphics (#326).
+    this._stripRect = { x: startX - 8, y: slotY - 8, w: totalW + 16, h: ss + 16, r: radius + 2 };
+    // The baked chrome covers the panel plus the few px the active-slot glow and
+    // the stacked-carrier card peek outside it.
+    this._chromeRect = { x: startX - 12, y: slotY - 12, w: totalW + 24, h: ss + 24 };
 
     // Pause / settings menu button — top-left corner (clear of the time-of-day
     // display in the top-right). Mute lives inside it.
@@ -95,10 +98,6 @@ export const WithHotbarSlots = (Base) => class extends Base {
     // Slots
     for (let i = 0; i < NUM_SLOTS; i++) {
       const x     = startX + i * (ss + sg);
-      const active = i === this.activeSlot;
-
-      const g = this.add.graphics().setDepth(2);
-      this._drawSlot(g, x, slotY, ss, radius, active);
 
       // Text/icon scale with the actual slot size (#119) so bigger slots read as
       // bigger, clearer icons + labels — not just a wider box with tiny glyphs.
@@ -145,20 +144,43 @@ export const WithHotbarSlots = (Base) => class extends Base {
 
       // A carrier group draws a faint "stacked card" peeking behind the slot, so
       // it reads as several carriers in one slot (#75). The slot itself shows the
-      // active member; the fly-out lists them all.
-      let stackG = null;
-      if (item?.type === 'carrierGroup') {
-        stackG = this.add.graphics().setDepth(1.5);
-        stackG.fillStyle(0x1a1e30, 0.85);
-        stackG.fillRoundedRect(x + 3, slotY - 3, ss, ss, radius);
-        stackG.lineStyle(2, 0x3a4060, 1);
-        stackG.strokeRoundedRect(x + 3, slotY - 3, ss, ss, radius);
-      }
+      // active member; the fly-out lists them all. (Drawn into the baked chrome.)
+      const isGroup = item?.type === 'carrierGroup';
 
-      this._slots.push({ g, numLbl, icon, itemLbl, qtyLbl, zone, stackG, x, slotY, ss, radius });
+      this._slots.push({ numLbl, icon, itemLbl, qtyLbl, zone, isGroup, x, slotY, ss, radius });
     }
 
+    this._renderHotbarChrome();
     this._buildActionButtons(startX, totalW, slotY, fit);
+  }
+
+  // Stamp the strip's static chrome — backing panel, stacked-carrier cards, and the
+  // seven slot boxes incl. the active-slot highlight — into ONE cached texture
+  // (#326). These pixels only change on a slot switch, a carrier-group slot moving,
+  // or a relayout, so the signature check below makes every other call free: a
+  // carrier fill or a money tick rebuilds the labels but re-stamps nothing.
+  _renderHotbarChrome() {
+    const rect = this._chromeRect;
+    if (!rect) return;
+    const sig = `${this.activeSlot}|${rect.x},${rect.y},${rect.w},${rect.h}|` +
+      this._slots.map((s) => (s.isGroup ? 'g' : '-')).join('');
+    if (sig === this._chromeSig) return; // nothing that affects these pixels moved
+    this._chromeSig = sig;
+
+    const strip = this._stripRect;
+    this._chromeLayer = renderBakedLayer(this, this._chromeLayer, rect, 1, (g) => {
+      g.fillStyle(0x111622, 0.72);
+      g.fillRoundedRect(strip.x, strip.y, strip.w, strip.h, strip.r);
+      for (const s of this._slots) {
+        if (!s.isGroup) continue;
+        g.fillStyle(0x1a1e30, 0.85);
+        g.fillRoundedRect(s.x + 3, s.slotY - 3, s.ss, s.ss, s.radius);
+        g.lineStyle(2, 0x3a4060, 1);
+        g.strokeRoundedRect(s.x + 3, s.slotY - 3, s.ss, s.ss, s.radius);
+      }
+      this._slots.forEach((s, i) =>
+        this._drawSlot(g, s.x, s.slotY, s.ss, s.radius, i === this.activeSlot));
+    });
   }
 
   // Update just the money text without rebuilding everything
@@ -168,8 +190,10 @@ export const WithHotbarSlots = (Base) => class extends Base {
     else                 this._moneyLbl.setVisible(false);
   }
 
+  // Append one slot box to `g`. Deliberately does NOT clear: several slots are
+  // stamped into the same scratch Graphics when the chrome texture is baked (#326).
+  // Callers that want a fresh box pass a fresh/cleared Graphics.
   _drawSlot(g, x, y, ss, radius, active) {
-    g.clear();
     if (active) {
       // Bold "selected" treatment so it's unmistakable which slot / fly-out member
       // is active: a soft gold glow ring behind, a noticeably brighter fill, and a
@@ -190,11 +214,8 @@ export const WithHotbarSlots = (Base) => class extends Base {
 
   _setActive(index) {
     this._closeFlyout(); // any picker belongs to the previously-active slot
-    const prev = this._slots[this.activeSlot];
-    if (prev) this._drawSlot(prev.g, prev.x, prev.slotY, prev.ss, prev.radius, false);
     this.activeSlot = index;
-    const curr = this._slots[this.activeSlot];
-    if (curr) this._drawSlot(curr.g, curr.x, curr.slotY, curr.ss, curr.radius, true);
+    this._renderHotbarChrome(); // moves the highlight — a re-stamp, not a per-frame redraw
     // The Use button's availability follows the equipped tool, but that's driven
     // by PaddockScene's per-frame ACTIONS_CHANGED — no direct refresh needed here.
   }
