@@ -144,9 +144,12 @@ try {
       // riding trail (#36): continuous westward world extension + its one
       // bare-hand collectible interactable.
       'buildTrail', '_trailInteractables', '_collectTrailTrinket',
-      // town expansion (#222): continuous eastward world extension + the new
-      // pet store building's interactable/launch.
-      'buildTown', '_townInteractables', 'openPetStore',
+      // town expansion (#222): continuous eastward world extension. #312 unified
+      // the separate pet-store building into the one general store, so there's no
+      // standalone `_townInteractables`/`openPetStore` anymore — the store's
+      // interactable lives in interactables.js's `generalStore` and the launch hook
+      // is `openGeneralStore` (paddock/generalStore.js).
+      'buildTown', 'buildGeneralStore', 'openGeneralStore',
     ];
     const missingMethods = expectMethods.filter((m) => typeof paddock[m] !== 'function');
 
@@ -1024,8 +1027,11 @@ try {
     // #222 town expansion: mirrors the riding trail probe above but on the opposite
     // edge — walking off the paddock's EAST edge (past the old WORLD_W boundary)
     // must keep the player in PaddockScene (no scene transition/pause) and let them
-    // reach world-x beyond WORLD_W, in town terrain. Also confirms the new pet
-    // store building exists/is interactable, and buying a pet-store item works.
+    // reach world-x beyond WORLD_W, in town terrain. #312 unified the standalone
+    // pet-store building into the ONE general store (paddock/generalStore.js) — so
+    // this now confirms that building exists/is interactable, and that buying a
+    // pet-supplies item via its `pets` counter/tab works (the pet store no longer
+    // gets its own scene launch — it's just a STORE_COUNTERS tab in GeneralStoreScene).
     let townExpansion = 'ok';
     try {
       const { WORLD_W } = await import('/src/scenes/paddock/constants.js');
@@ -1038,22 +1044,27 @@ try {
       const stillSameScene = g.scene.isActive('PaddockScene')
         && scenesBefore.every((k) => g.scene.isActive(k));
       const playerInTown = paddock.player.sprite.x > WORLD_W;
-      const hasTownProps = !!paddock.props.petStore && !!paddock.props.townEntrance;
-      const hasTexture = g.textures.exists('petStore');
+      const hasTownProps = !!paddock.props.generalStore && !!paddock.props.townEntrance;
+      const hasTexture = g.textures.exists('generalStore');
 
-      // The pet store's interactable resolves at close range.
-      const ps = paddock.props.petStore;
-      paddock.player.sprite.setPosition(ps.x, ps.y + 20);
+      // The unified store's interactable resolves at close range.
+      const gs = paddock.props.generalStore;
+      paddock.player.sprite.setPosition(gs.x, gs.y + 20);
       const inst = paddock._nearestInteractable(paddock.player.sprite.x, paddock.player.sprite.y, null, 'reachDist', paddock.interactWorld);
-      const petStoreReachable = !!inst && inst.label === 'Pet Store';
+      const storeReachable = !!inst && inst.label === 'General Store';
 
-      // Buying a pet-store item works: opens GeneralStoreScene scoped to just the
-      // `pets` counter, buying deducts EXACTLY its price and bumps the owned count.
-      paddock.openPetStore();
+      // Buying a pet-supplies item works: open the unified store (every counter
+      // shows, no #312 filtering), switch to the `pets` tab, buy an item there —
+      // deducts EXACTLY its price and bumps the owned count.
+      paddock.openGeneralStore();
       await new Promise((r) => setTimeout(r, 200));
       const sc = g.scene.getScene('GeneralStoreScene');
       const opened = g.scene.isActive('GeneralStoreScene') && !!sc?.panel;
-      const onlyPetsCounter = sc?._counters?.length === 1 && sc._counters[0].id === 'pets';
+      const petsIdx = sc?._counters?.findIndex((c) => c.id === 'pets') ?? -1;
+      const hasPetsCounter = petsIdx !== -1;
+      if (hasPetsCounter) sc._switchCounter(petsIdx);
+      await new Promise((r) => setTimeout(r, 30));
+      const onPetsTab = sc._counter.id === 'pets';
       const item = sc._counter.items[0];
       const setMoney = (v) => { g.events.emit('money-changed', v); };
       setMoney(50);
@@ -1070,10 +1081,10 @@ try {
       const closedOk = !g.scene.isActive('GeneralStoreScene') && !g.scene.isPaused('PaddockScene');
 
       paddock.player.sprite.setPosition(savedX, savedY);
-      townExpansion = (stillSameScene && playerInTown && hasTownProps && hasTexture && petStoreReachable
-        && opened && onlyPetsCounter && boughtOk && closedOk)
+      townExpansion = (stillSameScene && playerInTown && hasTownProps && hasTexture && storeReachable
+        && opened && hasPetsCounter && onPetsTab && boughtOk && closedOk)
         ? 'continuous-and-pet-store-ok'
-        : `stillSameScene=${stillSameScene},playerInTown=${playerInTown},hasTownProps=${hasTownProps},hasTexture=${hasTexture},petStoreReachable=${petStoreReachable},opened=${opened},onlyPetsCounter=${onlyPetsCounter},boughtOk=${boughtOk},closedOk=${closedOk}`;
+        : `stillSameScene=${stillSameScene},playerInTown=${playerInTown},hasTownProps=${hasTownProps},hasTexture=${hasTexture},storeReachable=${storeReachable},opened=${opened},hasPetsCounter=${hasPetsCounter},onPetsTab=${onPetsTab},boughtOk=${boughtOk},closedOk=${closedOk}`;
     } catch (e) { townExpansion = 'threw: ' + String(e); }
 
     // Drivable tractor (#264): exists in the world, enter/exit redirects movement,
@@ -1620,13 +1631,15 @@ try {
   });
   await page.screenshot({ path: '/tmp/general-store.png' });
 
-  // Clothing shop (#217): a second counter in the SAME store building/scene (not a
-  // separate stand) — the tab strip must now render (GeneralStoreScene only draws it
-  // once STORE_COUNTERS.length > 1, per its own code comment), buying a clothing item
-  // is a ONE-TIME unlock (owned count persists to localStorage, no re-buying), and the
-  // purchased swatch must actually become selectable at the dresser/player customizer
-  // — i.e. NOT offered before purchase, offered after. Persistence-across-reload is
-  // checked separately below (mirrors the #295 tool-upgrade / #223 bird-friend pattern).
+  // Clothing shop (#217): one of the unified store's counters (not a separate
+  // stand) — the tab strip must render (GeneralStoreScene only draws it once
+  // STORE_COUNTERS.length > 1, per its own code comment; #312 made it 4 counters —
+  // seeds/food/clothing/pets — so look the clothing tab up by id rather than
+  // assuming a fixed index), buying a clothing item is a ONE-TIME unlock (owned
+  // count persists to localStorage, no re-buying), and the purchased swatch must
+  // actually become selectable at the dresser/player customizer — i.e. NOT offered
+  // before purchase, offered after. Persistence-across-reload is checked separately
+  // below (mirrors the #295 tool-upgrade / #223 bird-friend pattern).
   result.clothingStore = await page.evaluate(async () => {
     const g = window.__game;
     const paddock = g.scene.getScene('PaddockScene');
@@ -1635,10 +1648,12 @@ try {
     const sc = g.scene.getScene('GeneralStoreScene');
 
     const counterCount = sc._counterIdx === 0 && Array.isArray(sc._tabNodes) ? sc._tabNodes.length : (sc._tabNodes?.length ?? 0);
-    const hasTwoTabs = counterCount === 2;
+    const hasTabsForEveryCounter = counterCount === sc._counters.length && counterCount > 1;
 
-    // Switch to the clothing counter (tab index 1) like tapping the 2nd tab.
-    sc._switchCounter(1);
+    // Switch to the clothing counter by id (its tab index shifted once #312 added
+    // the `food` counter ahead of it — seeds, food, clothing, pets).
+    const clothingIdx = sc._counters.findIndex((c) => c.id === 'clothing');
+    sc._switchCounter(clothingIdx);
     await new Promise((r) => setTimeout(r, 30));
     const onClothingTab = sc._counter.id === 'clothing';
     const clothingItem = sc._counter.items[0]; // shirt_gold
@@ -1686,7 +1701,7 @@ try {
     await new Promise((r) => setTimeout(r, 60));
 
     return {
-      hasTwoTabs, onClothingTab, offeredBefore, boughtOk, offeredAfter, pickedOk,
+      hasTabsForEveryCounter, onClothingTab, offeredBefore, boughtOk, offeredAfter, pickedOk,
       savedShirt: savedLook.shirt,
       ownedInventory: JSON.parse(localStorage.getItem('horse-game-store-inventory-v1') || '{}'),
     };
@@ -1888,7 +1903,7 @@ try {
   // permanent unlock that gates the dresser's swatch list (locked before, offered
   // and pickable after).
   const cs = result.clothingStore;
-  if (!cs.hasTwoTabs) fail(`clothing shop (#217): expected 2 store tabs once the clothing counter exists, got ${JSON.stringify(cs)}`);
+  if (!cs.hasTabsForEveryCounter) fail(`clothing shop (#217): expected a tab per unified-store counter (#312: seeds/food/clothing/pets), got ${JSON.stringify(cs)}`);
   if (!cs.onClothingTab) fail('clothing shop (#217): tab switch did not select the clothing counter');
   if (cs.offeredBefore) fail('clothing shop (#217): dresser offered the gold shirt swatch BEFORE it was purchased');
   if (!cs.boughtOk) fail('clothing shop (#217): purchase did not grant +1 owned count');
