@@ -105,28 +105,26 @@ export default class DayNightScene extends Phaser.Scene {
     this.label.setInteractive({ useHandCursor: true });
     this.label.on('pointerdown', () => this._advancePhase());
 
-    // Season readout, tucked under the time label (top-right). Dev-only: tapping it
-    // skips to the next season (gated behind import.meta.env.DEV).
+    // Season readout, tucked under the time label (top-right). Tapping it skips to
+    // the next season. Available in the live build too, not just dev (mirrors the
+    // time label and FPS counter — the owner tests on the deployed build).
     this.seasonLabel = this.add.text(0, 0, '', {
       fontFamily: 'system-ui, sans-serif', fontSize: '18px', fontStyle: 'bold',
       color: '#ffffff', backgroundColor: '#000000bf', padding: { x: 10, y: 6 },
     }).setDepth(520).setOrigin(1, 0).setScrollFactor(0);
-    if (import.meta.env.DEV) {
-      this.seasonLabel.setInteractive({ useHandCursor: true });
-      this.seasonLabel.on('pointerdown', () => this._advanceSeason());
-    }
+    this.seasonLabel.setInteractive({ useHandCursor: true });
+    this.seasonLabel.on('pointerdown', () => this._advanceSeason());
 
-    // Weather readout, tucked under the season label (top-right, #327). Dev-only:
-    // tapping it force-toggles sun ↔ rain via _devSetWeather (same mechanism the
-    // pause-menu's Random Events dev triggers use).
+    // Weather readout, tucked under the season label (top-right, #327). Tapping it
+    // force-toggles sun ↔ rain via _devSetWeather (same mechanism the pause-menu's
+    // Random Events dev triggers use). Available in the live build too, not just
+    // dev — same reasoning as the time/season labels above.
     this.weatherLabel = this.add.text(0, 0, '', {
       fontFamily: 'system-ui, sans-serif', fontSize: '18px', fontStyle: 'bold',
       color: '#ffffff', backgroundColor: '#000000bf', padding: { x: 10, y: 6 },
     }).setDepth(520).setOrigin(1, 0).setScrollFactor(0);
-    if (import.meta.env.DEV) {
-      this.weatherLabel.setInteractive({ useHandCursor: true });
-      this.weatherLabel.on('pointerdown', () => this._advanceWeather());
-    }
+    this.weatherLabel.setInteractive({ useHandCursor: true });
+    this.weatherLabel.on('pointerdown', () => this._advanceWeather());
 
     this.overlay.setScrollFactor(0);
 
