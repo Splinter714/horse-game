@@ -582,7 +582,7 @@ export function saveIncubations(list) {
 // release.
 const DEV_KEY = 'horse-game-dev-v1';
 
-const DEFAULT_DEV = { startPhase: null, startEditor: null, startLocation: null, showFps: false };
+const DEFAULT_DEV = { startPhase: null, startEditor: null, startLocation: null, showFps: true };
 
 export function loadDevSettings() {
   try {
