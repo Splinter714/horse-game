@@ -23,7 +23,6 @@ import * as catBehaviors from './cat/behaviors.js';
 import * as dogBehaviors from './dog/behaviors.js';
 import * as pigBehaviors from './pig/behaviors.js';
 import * as bunnyBehaviors from './bunny/behaviors.js';
-import * as llamaBehaviors from './llama/behaviors.js';
 import * as foxBehaviors from './fox/behaviors.js';
 import * as duckBehaviors from './duck/behaviors.js';
 import * as swimBehaviors from './swim.js';
@@ -92,9 +91,9 @@ export const BEHAVIORS = {
   goat: indexById(horseBehaviors),
   // The llama is a grazer like the sheep/cow/pig — reuses the horse grazer behavior
   // modules; her `behaviors` list (llama/index.js) picks the subset (hay/water/graze,
-  // no begging). She also gets her own `spit` module (#268) — a low-priority charm
-  // behavior (a harmless "ptooey"), layered on top of the reused horse modules.
-  llama: { ...indexById(horseBehaviors), ...indexById(llamaBehaviors) },
+  // no begging). (She no longer has her own charm module — the spitting quirk was
+  // turned off per playtest feedback, #268.)
+  llama: indexById(horseBehaviors),
   // The tamed fox is a grazer that eats dropped FOX-FOOD piles — it reuses the horse
   // grazer run primitives (horseGoEat/horseGoDrink) plus its own seekFoxFood/seekFoxWater
   // gates (fox/behaviors.js); its `behaviors` list (fox/index.js) picks the fox subset.
