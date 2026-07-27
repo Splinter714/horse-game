@@ -43,6 +43,10 @@ describe('horse chooseBehavior', () => {
     expect(chooseBehavior('horse', { ...BASE, hunger: 70 })).toBe(null);
   });
 
+  it('peckish but indoors → does not graze (no grass on the barn floor, #350)', () => {
+    expect(chooseBehavior('horse', { ...BASE, hunger: 65, indoors: true })).toBe(null);
+  });
+
   it('seekFood still wins over graze when hay is reachable', () => {
     expect(chooseBehavior('horse', { ...BASE, hunger: 60, nearestHayDist: 300 })).toBe('seekFood');
   });
@@ -182,5 +186,10 @@ describe('horse chooseBehavior — seekBuddy (herd bonds #31)', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.1);
     const c = { ...BONDED, hunger: 60, nearestHayDist: 300 };
     expect(chooseBehavior('horse', c)).toBe('seekFood');
+  });
+
+  it('would otherwise amble over, but indoors → does not (no clustering on the barn floor, #350)', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.1);
+    expect(chooseBehavior('horse', { ...BONDED, indoors: true })).toBe(null);
   });
 });

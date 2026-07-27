@@ -85,7 +85,7 @@ export const begPlayer = {
 // The whole walkable world is grass, so there's no location test — just hunger.
 export const graze = {
   id: 'graze',
-  test: (ctx) => ctx.hunger < GRAZE_HUNGER,
+  test: (ctx) => !ctx.indoors && ctx.hunger < GRAZE_HUNGER, // no grass on the barn floor (#350)
   run: (scene, h) => scene.horseGraze(h),
 };
 
@@ -101,6 +101,7 @@ export const graze = {
 export const seekBuddy = {
   id: 'seekBuddy',
   test: (ctx) =>
+    !ctx.indoors && // no herd-clustering on the barn floor while sheltering (#350)
     ctx.happiness >= ctx.bondHappy &&
     ctx.buddyDist > ctx.bondLingerGap &&
     ctx.buddyDist < Infinity &&
