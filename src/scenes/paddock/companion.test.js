@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { companionDecision } from './companionDecision.js';
-import { DOG_COMPANION as C } from './constants.js';
+import { DOG_COMPANION as C, PLAYER_SPEED } from './constants.js';
 
 describe('dog companionDecision', () => {
   it('player moving, dog far → follow (catch up)', () => {
@@ -36,5 +36,29 @@ describe('dog companionDecision', () => {
   it('player moving is enough to prevent a sit even if idleMs is stale', () => {
     expect(companionDecision({ playerMoving: true, playerIdleMs: C.SIT_IDLE_MS + 1, slotDist: 10 }))
       .toBe('hold');
+  });
+});
+
+// #353: the dog read as glued to the player, so the tuning was loosened. These
+// guard the shape of that looseness rather than the exact numbers.
+describe('dog companion tuning stays loose but functional (#353)', () => {
+  it('holds well beyond the old 34px slack — a real gap opens before it moves', () => {
+    expect(C.SLACK).toBeGreaterThanOrEqual(80);
+    expect(companionDecision({ playerMoving: true, playerIdleMs: 0, slotDist: 70 })).toBe('hold');
+  });
+
+  it('still follows once the player has genuinely walked off', () => {
+    expect(C.SLACK).toBeLessThan(200); // not so loose it never follows
+    expect(companionDecision({ playerMoving: true, playerIdleMs: 0, slotDist: 260 })).toBe('follow');
+  });
+
+  it('can sit anywhere it is allowed to hold (SIT_NEAR covers the slack ring)', () => {
+    expect(C.SIT_NEAR).toBeGreaterThanOrEqual(C.SLACK);
+    expect(companionDecision({ playerMoving: false, playerIdleMs: C.SIT_IDLE_MS + 1, slotDist: C.SLACK }))
+      .toBe('sit');
+  });
+
+  it('can still close a gap: the catch-up run outpaces the player', () => {
+    expect(C.SPEED * C.RUN_MULT).toBeGreaterThan(PLAYER_SPEED);
   });
 });

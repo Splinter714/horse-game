@@ -46,7 +46,10 @@ export const DOG = {
   // The dog is the only swimmer for now (fittingly — its personality pool below
   // already lists "loves water"); a future swimmer (ducks, #275) just needs its own
   // `${key}_swim_0/1` art frames + `swims: true` — no changes to the behavior itself.
-  capabilities: { saddleable: false, rideable: false, leadable: false, laysEggs: false, herds: true, swims: true },
+  // `companion` (#186/#353): this species follows the player around, and its pet
+  // interact doubles as the follow ↔ free-wander toggle (companion.js). Generic —
+  // any future companion species gets both behaviours from this one flag.
+  capabilities: { saddleable: false, rideable: false, leadable: false, laysEggs: false, herds: true, swims: true, companion: true },
 
   // Paddock "feel" knobs read by the scene movement primitives (creatures.js). A dog
   // is restless and quick — short pauses, brisk trots — unlike the cat's slow prowl.
