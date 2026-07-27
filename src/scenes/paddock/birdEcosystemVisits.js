@@ -14,6 +14,24 @@ import Phaser from 'phaser';
 import { S, WORLD_W } from './constants.js';
 import { WILD_SCALE } from './wildlife.js';
 
+// ── Landing spots on the props (#340) ─────────────────────────────────────────
+// Each prop texture is authored at 1× (worldArt.js `gen(scene, key, W, H, …)`) with
+// origin (0.5,1) at its base, and displayed at `.setScale(S)`. So a feature drawn at
+// texture row `ty` sits `(H - ty) * S` WORLD px above the prop's anchor — the texture
+// offset must be multiplied by S. The original offsets were the raw texture numbers
+// (bath 26, feeder 28, birdhouse 29), i.e. HALF the real height, which parked every
+// visiting bird partway down the pedestal/post instead of on the rim/tray/perch.
+//   bird bath   34×40 — water surface at ty≈13  → 27 texture px up
+//   seed feeder 28×56 — landing tray top ty=28  → 28 texture px up
+//   birdhouse   26×58 — perch dowel top  ty=27  → 31 texture px up
+const BATH_PERCH_UP = 27 * S;      // stand in the basin water
+const FEEDER_PERCH_UP = 28 * S;    // stand on the landing tray
+const BIRDHOUSE_PERCH_UP = 31 * S; // stand on the perch dowel under the hole
+// Half-widths of the usable landing surface, likewise in texture px × S.
+const BATH_PERCH_SPREAD = 5 * S;      // basin is 24 texture px across
+const FEEDER_PERCH_SPREAD = 4 * S;    // tray is 18 texture px across
+const BIRDHOUSE_PERCH_SPREAD = 1 * S; // dowel is only 6 texture px across
+
 export const WithBirdEcosystemVisits = (Base) => class extends Base {
   startBirdEcosystemVisits() {
     this._scheduleBirdBathVisit(Phaser.Math.Between(14000, 30000));   // #219 bath splashes
@@ -39,16 +57,16 @@ export const WithBirdEcosystemVisits = (Base) => class extends Base {
 
   _spawnBirdBathVisit() {
     const bath = this.props.birdBath;
-    // Land on the front rim. Sprite 34×40 at S (origin 0.5,1) → water ~26px up.
-    const rimX = bath.x + Phaser.Math.Between(-6, 6);
-    const rimY = bath.y - 26;
+    // Land in the basin (see the landing-spot notes at the top of this file).
+    const rimX = bath.x + Phaser.Math.Between(-BATH_PERCH_SPREAD, BATH_PERCH_SPREAD);
+    const rimY = bath.y - BATH_PERCH_UP;
     const dir = Math.random() < 0.5 ? 1 : -1;
     const b = this._pickBird();
     const sprite = this.add.sprite(dir === 1 ? -40 : WORLD_W + 40, rimY - 200, b.tex)
       .setOrigin(0.5, 1).setScale(WILD_SCALE).setDepth(bath.y + 1)
       .setFlipX(dir === -1).play(b.flyAnim);
     const c = { sprite, kind: 'bird', ground: false, state: 'descending',
-                tween: null, fleeing: false, bird: b, atBath: true };
+                tween: null, fleeing: false, bird: b, atBath: true, fixedDepth: true };
     this._wildCritters.push(c);
 
     sprite.setFlipX(sprite.x > rimX);
@@ -111,16 +129,16 @@ export const WithBirdEcosystemVisits = (Base) => class extends Base {
 
   _spawnBirdhouseVisit() {
     const bh = this.props.birdhouse;
-    // Land on the perch dowel. Sprite 26×58 at S (origin 0.5,1) → perch ~29px up.
-    const px = bh.x + Phaser.Math.Between(-2, 2);
-    const py = bh.y - 29;
+    // Land on the perch dowel (see the landing-spot notes at the top of this file).
+    const px = bh.x + Phaser.Math.Between(-BIRDHOUSE_PERCH_SPREAD, BIRDHOUSE_PERCH_SPREAD);
+    const py = bh.y - BIRDHOUSE_PERCH_UP;
     const dir = Math.random() < 0.5 ? 1 : -1;
     const b = this._pickBird();
     const sprite = this.add.sprite(dir === 1 ? -40 : WORLD_W + 40, py - 200, b.tex)
       .setOrigin(0.5, 1).setScale(WILD_SCALE).setDepth(bh.y + 1)
       .setFlipX(dir === -1).play(b.flyAnim);
     const c = { sprite, kind: 'bird', ground: false, state: 'descending',
-                tween: null, fleeing: false, bird: b, atBirdhouse: true };
+                tween: null, fleeing: false, bird: b, atBirdhouse: true, fixedDepth: true };
     this._wildCritters.push(c);
 
     sprite.setFlipX(sprite.x > px);
@@ -168,16 +186,16 @@ export const WithBirdEcosystemVisits = (Base) => class extends Base {
 
   _spawnFeederVisit() {
     const f = this.props.seedFeeder;
-    // Land on the tray. Sprite 28×56 at S (origin 0.5,1) → tray ~28px up.
-    const tx = f.x + Phaser.Math.Between(-8, 8);
-    const ty = f.y - 28;
+    // Land on the tray (see the landing-spot notes at the top of this file).
+    const tx = f.x + Phaser.Math.Between(-FEEDER_PERCH_SPREAD, FEEDER_PERCH_SPREAD);
+    const ty = f.y - FEEDER_PERCH_UP;
     const dir = Math.random() < 0.5 ? 1 : -1;
     const b = this._pickBird();
     const sprite = this.add.sprite(dir === 1 ? -40 : WORLD_W + 40, ty - 200, b.tex)
       .setOrigin(0.5, 1).setScale(WILD_SCALE).setDepth(f.y + 1)
       .setFlipX(dir === -1).play(b.flyAnim);
     const c = { sprite, kind: 'bird', ground: false, state: 'descending',
-                tween: null, fleeing: false, bird: b, atFeeder: true };
+                tween: null, fleeing: false, bird: b, atFeeder: true, fixedDepth: true };
     this._wildCritters.push(c);
 
     sprite.setFlipX(sprite.x > tx);
