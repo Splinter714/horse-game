@@ -300,6 +300,9 @@ export const WithWildlife = (Base) => class extends Base {
     c.fleeing = true; c.ground = false; c.state = 'leaving';
     if (c.tween) { c.tween.stop(); c.tween = null; }
     const sprite = c.sprite;
+    // A startle can interrupt the birdhouse enter/peek beats (#365) mid-shrink/fade —
+    // restore full scale/alpha so a flushed bird always reads normally in flight.
+    sprite.setScale(WILD_SCALE).setAlpha(1);
     sprite.play(c.bird?.flyAnim ?? 'bird_fly');
     // Leave past the nearer edge of the CURRENT view (#354) and climb as it goes —
     // the old exit tweened to a fixed sky y up at the farm's north end, which sent a

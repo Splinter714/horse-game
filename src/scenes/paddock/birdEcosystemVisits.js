@@ -25,9 +25,11 @@ import { offscreenX, exitX } from './offscreen.js';
 //   bird bath   34×40 — water surface at ty≈13  → 27 texture px up
 //   seed feeder 28×56 — landing tray top ty=28  → 28 texture px up
 //   birdhouse   26×58 — perch dowel top  ty=27  → 31 texture px up
+//   birdhouse   26×58 — entrance hole    ty=23  → 35 texture px up (#365 enter/peek)
 const BATH_PERCH_UP = 27 * S;      // stand in the basin water
 const FEEDER_PERCH_UP = 28 * S;    // stand on the landing tray
 const BIRDHOUSE_PERCH_UP = 31 * S; // stand on the perch dowel under the hole
+const BIRDHOUSE_HOLE_UP = 35 * S;  // the entrance hole itself, just above the perch
 // Half-widths of the usable landing surface, likewise in texture px × S.
 const BATH_PERCH_SPREAD = 5 * S;      // basin is 24 texture px across
 const FEEDER_PERCH_SPREAD = 4 * S;    // tray is 18 texture px across
@@ -139,7 +141,8 @@ export const WithBirdEcosystemVisits = (Base) => class extends Base {
       .setOrigin(0.5, 1).setScale(WILD_SCALE).setDepth(bh.y + 1)
       .setFlipX(dir === -1).play(b.flyAnim);
     const c = { sprite, kind: 'bird', ground: false, state: 'descending',
-                tween: null, fleeing: false, bird: b, atBirdhouse: true, fixedDepth: true };
+                tween: null, fleeing: false, bird: b, atBirdhouse: true, fixedDepth: true,
+                perchX: px, perchY: py }; // remembered so the enter/re-emerge tweens (#365) can return here
     this._wildCritters.push(c);
 
     sprite.setFlipX(sprite.x > px);
@@ -156,16 +159,92 @@ export const WithBirdEcosystemVisits = (Base) => class extends Base {
     });
   }
 
-  // Bob/look around `n` times on the perch (like checking the nest hole), then flush.
-  _birdhouseLook(c, n) {
+  // Bob/look around `n` times on the perch (like checking the nest hole), then squeeze
+  // inside (#365) rather than flushing straight off the dowel.
+  _birdhouseLook(c, n, round = 0) {
     if (!c.sprite.active || c.state !== 'perched') return;
-    if (n <= 0) { this._birdTakeOff(c); return; }
+    if (n <= 0) { this._birdhouseEnter(c, round); return; }
     const sprite = c.sprite;
     if (Math.random() < 0.4) sprite.setFlipX(!sprite.flipX);
     c.tween = this.tweens.add({
       targets: sprite, y: sprite.y - 3, duration: 140, yoyo: true, ease: 'Quad.easeOut',
       onComplete: () => this.time.delayedCall(Phaser.Math.Between(400, 1000),
-        () => this._birdhouseLook(c, n - 1)),
+        () => this._birdhouseLook(c, n - 1, round)),
+    });
+  }
+
+  // ── Enter/peek (#365) ── after the look beats, the bird squeezes up into the
+  // entrance hole (shrinking + fading as if disappearing inside), hangs out hidden for
+  // a beat, then partially reappears at the hole to look around before either fully
+  // re-emerging to perch again or flying off from the hole. `round` caps this at two
+  // enter cycles so the visit always eventually ends (the last round always flies off).
+  _birdhouseEnter(c, round) {
+    if (!c.sprite.active || c.fleeing) return;
+    const sprite = c.sprite;
+    c.state = 'entering';
+    const holeY = c.perchY - (BIRDHOUSE_HOLE_UP - BIRDHOUSE_PERCH_UP);
+    c.tween = this.tweens.add({
+      targets: sprite, y: holeY, scaleX: WILD_SCALE * 0.15, scaleY: WILD_SCALE * 0.15, alpha: 0,
+      duration: 480, ease: 'Sine.easeIn',
+      onComplete: () => {
+        if (!sprite.active || c.fleeing) return;
+        c.state = 'inside';
+        this.time.delayedCall(Phaser.Math.Between(1300, 2600), () => this._birdhousePeek(c, round));
+      },
+    });
+  }
+
+  _birdhousePeek(c, round) {
+    if (!c.sprite.active || c.fleeing) return;
+    const sprite = c.sprite;
+    c.state = 'peeking';
+    if (Math.random() < 0.5) sprite.setFlipX(!sprite.flipX);
+    c.tween = this.tweens.add({
+      targets: sprite, scaleX: WILD_SCALE * 0.55, scaleY: WILD_SCALE * 0.55, alpha: 0.9,
+      duration: 260, ease: 'Sine.easeOut',
+      onComplete: () => {
+        if (!sprite.active || c.fleeing) return;
+        this.time.delayedCall(Phaser.Math.Between(500, 950), () => this._birdhouseResolvePeek(c, round));
+      },
+    });
+  }
+
+  // Decide, after the peek, whether the bird climbs back out to perch or flies off
+  // straight from the hole. Capped at one re-emerge (round 0) so it can't loop forever.
+  _birdhouseResolvePeek(c, round) {
+    if (!c.sprite.active || c.fleeing) return;
+    if (round >= 1 || Math.random() < 0.45) this._birdhouseFlyOffFromHole(c);
+    else this._birdhouseReemerge(c, round);
+  }
+
+  _birdhouseReemerge(c, round) {
+    if (!c.sprite.active || c.fleeing) return;
+    const sprite = c.sprite;
+    c.tween = this.tweens.add({
+      targets: sprite, y: c.perchY, scaleX: WILD_SCALE, scaleY: WILD_SCALE, alpha: 1,
+      duration: 420, ease: 'Sine.easeOut',
+      onComplete: () => {
+        if (!sprite.active || c.fleeing) return;
+        c.state = 'perched';
+        sprite.play(c.bird.peckAnim);
+        this._birdhouseLook(c, Phaser.Math.Between(2, 4), round + 1);
+      },
+    });
+  }
+
+  // Restore full scale/alpha (in case a startle interrupts mid-enter/peek — _birdTakeOff
+  // itself also defensively resets these) before flushing off via the shared take-off.
+  _birdhouseFlyOffFromHole(c) {
+    if (!c.sprite.active || c.fleeing) return;
+    const sprite = c.sprite;
+    c.tween = this.tweens.add({
+      targets: sprite, scaleX: WILD_SCALE, scaleY: WILD_SCALE, alpha: 1,
+      duration: 200, ease: 'Sine.easeOut',
+      onComplete: () => {
+        if (!sprite.active || c.fleeing) return;
+        c.state = 'perched';
+        this._birdTakeOff(c);
+      },
     });
   }
 
