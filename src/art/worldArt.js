@@ -496,19 +496,21 @@ export function buildWorldTextures(scene) {
     const CAP_H = END_H - LOWER_H;
     const shoulderHalf = MID - SX0;
     const wallHalf = MID - X0;
-    // notchY(x): how deep (in y, measured from the wide/full-width base of whichever
-    // end this is applied to) the silhouette's boundary sits at this x — 0 at the
-    // wall edges (full width available right at the base), growing through the
-    // lower-slope band to LOWER_H at the shoulder, then through the cap band to
-    // END_H at dead centre (the peak point).
-    const notchY = (x) => {
+    // kiteEdgeY(x): the y-coordinate of the top (back) notch's own outline at this
+    // x — END_H at the wall edges (the notch's wide base, matching the fillPoints
+    // vertices below), down through LOWER_H at the shoulder, down to 0 at dead
+    // centre (the peak point). (First pass had this inverted — it returned 0 at
+    // the wall edges instead of at the peak, so the SLATS below extended full
+    // height right at the edges, poking out past the actual dome the fill above
+    // draws — that mismatch, not the fill shape itself, was what read as broken.)
+    const kiteEdgeY = (x) => {
       const d = Math.abs(x - MID);
-      if (d >= wallHalf) return 0;
-      if (d > shoulderHalf) return ((wallHalf - d) / (wallHalf - shoulderHalf)) * LOWER_H;
-      return LOWER_H + ((shoulderHalf - d) / shoulderHalf) * CAP_H;
+      if (d >= wallHalf) return END_H;
+      if (d > shoulderHalf) return LOWER_H + (END_H - LOWER_H) * (d - shoulderHalf) / (wallHalf - shoulderHalf);
+      return LOWER_H * (d / shoulderHalf);
     };
-    const topY    = (x) => notchY(x);                  // back-end notch, measured down from y=0
-    const bottomY = (x) => ROOF_MID_H - notchY(x);      // front-end notch, measured up from y=ROOF_MID_H
+    const topY    = (x) => kiteEdgeY(x);                  // back-end notch's own boundary, from y=0
+    const bottomY = (x) => ROOF_MID_H - kiteEdgeY(x);     // front-end notch's own boundary, to y=ROOF_MID_H
     g.layer('roof');
     g.fillStyle(0x9a3826, 1);
     // Full-width middle band…
