@@ -104,12 +104,28 @@ export const S = 2;
 
 // The 'fence' texture (worldArt.js) is one repeating unit of "post (near the
 // left edge, x2-6) + rail spanning the FULL tile width to connect to the NEXT
-// post" — so N posts in a row only need N-1 full tiles between them, plus an
-// END-CAP tile for the last post that shows the post but crops off the
-// trailing rail (there's nothing further right for it to connect to). #372.
+// post". #372 rework: house-fence posts are now ALWAYS cropped to just the post
+// column (no per-tile rail baked in at all, not even an end-cap special case) —
+// the rails themselves are drawn separately as two continuous line segments
+// spanning the whole run (see FENCE_RAIL_* below), so no post sprite needs its
+// own rail slice.
 export const FENCE_TEX_W = 48;   // native texture px (96 world px at S)
 export const FENCE_TEX_H = 24;
 export const FENCE_POST_CROP_W = 8; // native px: just enough to keep the post, drop the rail
+
+// House-fence rail lines (#372 rework — replaces the earlier per-tile rotated-
+// sprite rail approach). A continuous Graphics line per rail follows any run
+// angle with zero per-tile rotation math and reaches exactly post-to-post (no
+// dangling end past the last post, unlike a fixed-length tile sprite).
+// Offsets/colors are read off the 'fence' texture's two rail bands (worldArt.js:
+// top rail native y 6-9, bottom rail native y 14-17, texture vertical center at
+// y=12, scaled by S) so a horizontal run's lines land exactly where the old
+// per-tile rails used to.
+export const FENCE_RAIL_TOP_OFFSET    = -9; // screen px from a post's y (its vertical center) to the top rail
+export const FENCE_RAIL_BOTTOM_OFFSET = 7;  // screen px from a post's y to the bottom rail
+export const FENCE_RAIL_THICKNESS     = 6;  // screen px (native rail band height 3 * S)
+export const FENCE_RAIL_TOP_COLOR     = 0xc8924c;
+export const FENCE_RAIL_BOTTOM_COLOR  = 0xbc8442;
 
 // ── Animal droppings (#232) ─────────────────────────────────────────────────
 // The most droppings allowed lying in the pasture at once. Cosmetic clutter the
