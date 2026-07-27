@@ -48,9 +48,32 @@
 // (its first and last waypoints are the literal same array reference, so
 // dragging that shared point moves both ends together for free) and longer
 // than the others.
+//
+// INSERTING new waypoints (#373 second follow-up): the fixed-length arrays
+// above only let you MOVE an existing waypoint. `_splineDragTap` now runs a
+// second pass when the tap misses every existing point — it finds the
+// closest point along any SEGMENT (the line between two adjacent waypoints,
+// not just its midpoint, so grabbing anywhere along a long stretch works,
+// not only its exact centre) within `INSERT_R`, splices a brand-new waypoint
+// into the array right there, and hands it back through the exact same
+// `{ spline, index }` shape an ordinary grab returns — so from the caller's
+// side (devDrag.js) "insert" and "drag" are literally the same gesture: tap
+// near a segment, a point appears under your finger already held, drag it
+// like any other. This is shared by every spline in `_splines`, paths and
+// stream alike, with no per-route special-casing.
+//
+// The one wrinkle insertion creates is RESET: the array can now be a
+// different length than `spline.orig`'s one-time snapshot, so `_resetSplines`
+// rebuilds the array from `orig` wholesale (splice-replace) instead of
+// walking matching indices. For a closed loop (the forest loop, whose first
+// and last waypoints are the SAME array reference) that rebuild would create
+// two separate-but-equal objects instead of one shared one — `spline.closed`
+// (recorded once at mount time) tells reset to re-link the last point back
+// to the first so the "drag one end, both move" behaviour survives a reset.
 
 const MARK_DEPTH    = 9504;    // above the #370 fence-endpoint marks (9503)
 const PICK_R        = 22;      // world px: how close a tap must be to grab a control point
+const INSERT_R       = 26;     // world px: how close a tap must be to a segment to insert a new point there
 const PATH_COLOR     = 0xffa64d; // warm orange — the worn-path route handles (incl. the forest loop)
 const STREAM_COLOR   = 0x39c6ff; // cyan-blue — the stream centerline handles
 
@@ -81,6 +104,7 @@ export const WithSplineDrag = (Base) => class extends Base {
       out.push({
         id: `path:${name}`, label: `Path: ${name}`, color: PATH_COLOR,
         points, orig: points.map((p) => [p[0], p[1]]),
+        closed: points.length > 1 && points[0] === points[points.length - 1],
         onChange: () => this._bakePathGraphics(),
       });
     }
@@ -88,6 +112,7 @@ export const WithSplineDrag = (Base) => class extends Base {
       out.push({
         id: 'stream', label: 'Stream', color: STREAM_COLOR,
         points: this._streamCtrl, orig: this._streamCtrl.map((p) => [p[0], p[1]]),
+        closed: false,
         onChange: () => this._rebuildStream(),
       });
     }
@@ -98,6 +123,12 @@ export const WithSplineDrag = (Base) => class extends Base {
   // per-post pick — same priority as the #370 fence endpoints, so grabbing a
   // control point always wins over anything else that happens to sit near it.
   // Returns `{ spline, index }` or null.
+  //
+  // Two passes: first, try to grab an EXISTING point (unchanged radius/
+  // behaviour — this always wins when both a point and a segment are in
+  // range). Second, if nothing existing was hit, see if the tap landed near a
+  // SEGMENT and, if so, INSERT a new waypoint there and hand it back already
+  // "held" — see the file header for why this is one gesture, not two.
   _splineDragTap(w) {
     if (!this._splines) return null;
     let best = null, bestD = PICK_R;
@@ -107,7 +138,36 @@ export const WithSplineDrag = (Base) => class extends Base {
         if (d < bestD) { bestD = d; best = { spline, index }; }
       });
     }
-    return best;
+    if (best) return best;
+    return this._splineInsertTap(w);
+  }
+
+  // Finds the closest point along any segment (of any spline) to `w`, within
+  // `INSERT_R`, splices a new waypoint in right there, and returns it as an
+  // already-held `{ spline, index }` — identical shape to an ordinary grab.
+  _splineInsertTap(w) {
+    let best = null, bestD = INSERT_R;
+    for (const spline of this._splines) {
+      const pts = spline.points;
+      for (let i = 1; i < pts.length; i++) {
+        const [x0, y0] = pts[i - 1];
+        const [x1, y1] = pts[i];
+        const dx = x1 - x0, dy = y1 - y0;
+        const lenSq = dx * dx + dy * dy;
+        if (lenSq < 1) continue; // zero-length segment (e.g. a degenerate pair) — nothing to insert into
+        let t = ((w.x - x0) * dx + (w.y - y0) * dy) / lenSq;
+        t = Math.max(0, Math.min(1, t));
+        const px = x0 + dx * t, py = y0 + dy * t;
+        const d = Math.hypot(px - w.x, py - w.y);
+        if (d < bestD) { bestD = d; best = { spline, segIndex: i, x: px, y: py }; }
+      }
+    }
+    if (!best) return null;
+    const { spline, segIndex, x, y } = best;
+    spline.points.splice(segIndex, 0, [x, y]);
+    spline.onChange();
+    this._drawSplineMarks();
+    return { spline, index: segIndex };
   }
 
   // Called from devDrag.js's `_devDragMove` while a control point is held.
@@ -146,27 +206,38 @@ export const WithSplineDrag = (Base) => class extends Base {
 
   // Put every control point back where the source code put it, and re-run each
   // touched feature's own rebuild. Called from devDrag.js's `resetDevPositions`.
+  //
+  // Rebuilds the array wholesale from `orig` (splice-replace, not a per-index
+  // walk) so this also undoes any inserted points — an inserted waypoint has
+  // no counterpart in `orig` at all, so there's no per-index value to reset it
+  // TO; the only sane "undo" is dropping it. A closed spline (the forest loop)
+  // needs its shared first/last reference re-linked afterwards, since the
+  // fresh copies made from `orig` are two separate-but-equal objects.
   _resetSplines() {
     for (const spline of this._splines ?? []) {
-      let moved = false;
-      spline.points.forEach((p, i) => {
-        const [ox, oy] = spline.orig[i];
-        if (p[0] !== ox || p[1] !== oy) moved = true;
-        p[0] = ox; p[1] = oy;
-      });
-      if (moved) spline.onChange();
+      const { points, orig, closed } = spline;
+      const same = points.length === orig.length &&
+        points.every((p, i) => p[0] === orig[i][0] && p[1] === orig[i][1]);
+      if (!same) {
+        const rebuilt = orig.map(([x, y]) => [x, y]);
+        if (closed && rebuilt.length > 1) rebuilt[rebuilt.length - 1] = rebuilt[0];
+        points.splice(0, points.length, ...rebuilt);
+        spline.onChange();
+      }
     }
     this._drawSplineMarks();
   }
 
-  // Every spline whose points differ from its source snapshot, as a copy-pasteable
+  // Every spline whose points differ from its source snapshot (moved OR a
+  // different length, i.e. a point was inserted), as a copy-pasteable
   // `{ [id]: [[x,y],...] }`, bakeable straight into world.js's route consts /
   // stream.js's `ctrl` array. Called from devDrag.js's `exportDevPositions`.
   _splineExport() {
     if (!this._splines) return null;
     const out = {};
     for (const spline of this._splines) {
-      const moved = spline.points.some((p, i) => p[0] !== spline.orig[i][0] || p[1] !== spline.orig[i][1]);
+      const moved = spline.points.length !== spline.orig.length ||
+        spline.points.some((p, i) => p[0] !== spline.orig[i][0] || p[1] !== spline.orig[i][1]);
       if (!moved) continue;
       out[spline.id] = spline.points.map(([x, y]) => [Math.round(x), Math.round(y)]);
     }
