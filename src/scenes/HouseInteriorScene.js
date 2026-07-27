@@ -337,7 +337,7 @@ export default class HouseInteriorScene extends WithHouseInteriorCooking(WithHou
     const content = item?.content;
     const count = item?.count ?? 0;
     if (!content || count <= 0 || !isPantryStorable(content)) {
-      this._flashPromptMessage('Nothing to stock');
+      this._eatMealFromPantry(); // no carrier to stock — offer to eat a cooked dish (#277)
       return;
     }
     const label = CONTENT_DEFS[content]?.label ?? content;

@@ -20,9 +20,11 @@ export class Horse extends Animal {
   }
 
   // Convenience wrappers around the data-driven applyAction(). Kept so existing
-  // call sites (horse.feed(), etc.) continue to work unchanged.
+  // call sites (horse.feed(), etc.) continue to work unchanged. `mult` (default 1)
+  // passes through the player's meal buff (#277) for brush/pet, the two actions the
+  // player performs directly in-world.
   feed()  { this.applyAction('feed');  }
   water() { this.applyAction('water'); }
-  brush() { this.applyAction('brush'); }
-  pet()   { this.applyAction('pet');   }
+  brush(mult = 1) { this.applyAction('brush', mult); }
+  pet(mult = 1)   { this.applyAction('pet', mult);   }
 }

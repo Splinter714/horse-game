@@ -43,6 +43,7 @@ core orchestrator.
 | Riding | `paddock/riding.js` (`WithRiding`) | riding, saddle, leading |
 | Player core | `paddock/player.js` (`WithPlayer`) | `buildPlayer` (sprite/camera/input bindings), `handleTap`, `_isDoubleTap` |
 | Player movement | `paddock/playerMovement.js` (`WithPlayerMovement`) | `movePlayer`, hold-to-move, tap-to-move + A* (`_findPath`), `_stepNav` |
+| Player meal buff | `paddock/playerBuff.js` (`WithPlayerBuff`) | `_buffSpeedMult`/`_buffChoreMult` (read the shared `playerBuff` registry state), `buildPlayerBuffHud`/`updatePlayerBuffHud` (#277: "well fed" status readout while a cooked meal's speed/chore buff is active — set by HouseInteriorScene's cooking mixin on eating a pantry dish) |
 | Control prompts | `paddock/prompts.js` (`WithPrompts`) | hint panel, touch action-button labels, `checkToolProximity` |
 | Interactables | `paddock/interactables.js` (`WithInteractables`) | gate/house/trough/sources/nests/stand descriptors |
 | Use dispatch | `paddock/useDispatch.js` (`WithUseDispatch`) | `useActiveTool`, cow-use resolution, `gatherFrom`, `getActiveItem` |

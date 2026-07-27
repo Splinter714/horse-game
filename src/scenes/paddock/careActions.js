@@ -37,7 +37,8 @@ export const WithCareActions = (Base) => class extends Base {
     const preDirt = (100 - (horse.stats.grooming ?? 100)) / 100;
     const brushClean = (horse.stats.grooming ?? 100) >= 99.5;
 
-    if (brushClean) horse.pet(); else horse.brush();
+    const mult = this._buffChoreMult(); // #277: meal buff bumps the gain
+    if (brushClean) horse.pet(mult); else horse.brush(mult);
 
     this._saveHorses();
     this.game.events.emit(EVENTS.STATS_CHANGED);
