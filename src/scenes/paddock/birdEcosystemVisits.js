@@ -79,7 +79,7 @@ export const WithBirdEcosystemVisits = (Base) => class extends Base {
       onComplete: () => {
         if (!sprite.active) return;
         c.ground = true; c.state = 'perched';
-        sprite.play(b.peckAnim);
+        sprite.play(b.batheAnim); // #366 distinct wing-flutter pose, not the peck
         this.registerBirdVisit?.('bath', b.type.id, { x: rimX, y: rimY }); // #223 befriending tally
         this._birdBathSplash(c, Phaser.Math.Between(4, 7));
       },
