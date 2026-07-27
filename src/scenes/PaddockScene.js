@@ -229,15 +229,19 @@ export default class PaddockScene extends PaddockBase {
   // ─── Horses ──���─────────────────────────────────────────────���─────────────
 
   buildHorses() {
-    // Spawn spots sit in the OPEN pasture, east of the barn. #349 moved horses 1, 2
-    // and 5 out of the west half — the enlarged barn now covers x 210–890, y 900–1360,
-    // so their old spots (680,1200 / 380,1300 / 520,1350) were inside the building.
+    // Spawn spots sit in the OPEN pasture, clear of the barn. #349 moved horses 1, 2
+    // and 5 out of the west half for the barn's original placeholder footprint
+    // (x 210-890, y 900-1360) — but the owner later repositioned the barn itself
+    // with the #330 drag tool, to (1399, 1306), whose actual collision now covers
+    // x 1075-1723, y 962-1302. That stranded horses 3, 5 and 6 INSIDE the building
+    // (2026-07-27 playtest: a horse stuck in a spawn spot) since nobody re-checked
+    // spawn points against the barn's new position. Re-picked all three clear of it.
     const h1 = this.spawnHorse(1000, 1180, 'horse',  1500);
     const h2 = this.spawnHorse(1150, 1400, 'horse2',  800);
-    const h3 = this.spawnHorse(1380, 1250, 'horse3', 2200);
+    const h3 = this.spawnHorse(1620, 1380, 'horse3', 2200);
     const h4 = this.spawnHorse(1050, 1150, 'horse4', 1200);
-    const h5 = this.spawnHorse(1300, 1080, 'horse5', 3000);
-    const h6 = this.spawnHorse(1600, 1280, 'horse6', 1800);
+    const h5 = this.spawnHorse(960,  1300, 'horse5', 3000);
+    const h6 = this.spawnHorse(1250, 1400, 'horse6', 1800);
     const h7 = this.spawnHorse(900,  1220, 'horse7', 2600); // Ebony — Friesian
 
     // Restore saddles for any horse that was saddled when the game was last saved.
