@@ -60,7 +60,7 @@ export const PET_SOUND_MS = 500;
 // In-place reach for using a tool on an animal (brush/saddle/lead, cow care). Use
 // never walks you anywhere — the animal has to already be within this range.
 export const USE_REACH = 110;
-export const PLAYER_SPEED  = 210;
+export const PLAYER_SPEED  = 420; // 2026-07-27: doubled from 210 per owner request
 export const RIDE_SPEED    = 340;
 // Drivable tractor (#264): faster than walking, slower than a ridden horse — a
 // first-pass balance number, flag for playtest.
