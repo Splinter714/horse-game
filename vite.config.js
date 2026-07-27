@@ -65,6 +65,10 @@ export default defineConfig(({ command }) => ({
         // at runtime, not fetched files. Precaching the built JS/HTML/icon shell is
         // enough for the whole game to boot and run with no connection.
         globPatterns: ['**/*.{js,css,html,png,ico,svg}'],
+        // Default 2 MiB limit is too small now that the single JS bundle has grown
+        // past it — raise it rather than split the bundle, since there's nothing to
+        // lazy-load (the whole game boots at once).
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       },
     }),
   ],
