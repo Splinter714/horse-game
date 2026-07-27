@@ -115,7 +115,7 @@ export const WithPauseMenu = (Base) => class extends Base {
       ['Ambient', 'ambient'],
       ['Effects', 'effects'],
     ];
-    const devH   = 38 + rowH * 7;  // TEMP dev-tools: heading + hint + 7 rows
+    const devH   = 38 + rowH * 8;  // TEMP dev-tools: heading + hint + dev rows
     // 3 action/toggle rows: mute, control-prompts, Customize Character.
     const panelH = 56 + rowH * 3 + sliders.length * sliderH + 8 + devH;
     const px = Math.round((sw - panelW) / 2);
@@ -222,6 +222,17 @@ export const WithPauseMenu = (Base) => class extends Base {
       () => {
         this._toggleFpsCounter();
         fpsLbl.setText(`📈 FPS Counter: ${loadDevSettings().showFps ? 'ON' : 'Off'}`);
+      });
+    dy += rowH;
+    // World-object labels + coordinate grid (#329) — names every placed prop with
+    // its (x, y) and lays a faint 100px grid over the world, so placement can be
+    // discussed in absolute coordinates. Persisted, live, default OFF.
+    const gridLbl = this._addToggleRow(rowX, dy, rowW, rowH,
+      `📐 Object Labels + Grid: ${loadDevSettings().showDevLabels ? 'ON' : 'Off'}`,
+      () => {
+        saveDevSettings({ showDevLabels: !loadDevSettings().showDevLabels });
+        this.scene.get('PaddockScene')?.refreshDevOverlay();
+        gridLbl.setText(`📐 Object Labels + Grid: ${loadDevSettings().showDevLabels ? 'ON' : 'Off'}`);
       });
     dy += rowH;
     const freezeDecayLbl = this._addToggleRow(rowX, dy, rowW, rowH,

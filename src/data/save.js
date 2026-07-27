@@ -582,7 +582,7 @@ export function saveIncubations(list) {
 // release.
 const DEV_KEY = 'horse-game-dev-v1';
 
-const DEFAULT_DEV = { startPhase: null, startEditor: null, startLocation: null, showFps: true };
+const DEFAULT_DEV = { startPhase: null, startEditor: null, startLocation: null, showFps: true, showDevLabels: false };
 
 export function loadDevSettings() {
   try {
@@ -595,6 +595,8 @@ export function loadDevSettings() {
       startLocation: typeof data.startLocation === 'string' ? data.startLocation : DEFAULT_DEV.startLocation,
       // FPS counter overlay (#325) — opt-in, works in production builds too.
       showFps:       typeof data.showFps       === 'boolean' ? data.showFps      : DEFAULT_DEV.showFps,
+      // World-object labels + coordinate grid overlay (#329) — dev aid, default OFF.
+      showDevLabels: typeof data.showDevLabels === 'boolean' ? data.showDevLabels : DEFAULT_DEV.showDevLabels,
     };
   } catch {
     return { ...DEFAULT_DEV };
