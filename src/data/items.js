@@ -12,7 +12,7 @@ export const CARRIER_DEFS = {
   // animal that eats it, #136), so the basket's cap is just a safety ceiling, not a
   // limit you should hit. Kept finite (not Infinity) so it never trips serialization
   // or UI maths — but high enough that the demand always fits (and you can hoard eggs).
-  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey', 'jam', 'flour', 'pigFeed', 'blueberry', 'potato', 'orange', 'berry', 'vegetableStew', 'berryPie', 'honeyBread'] },
+  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey', 'jam', 'flour', 'pigFeed', 'blueberry', 'potato', 'orange', 'berry', 'vegetableStew', 'berryPie', 'honeyBread', 'pigSlop'] },
   bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'milk', 'nectar'] },
 };
 
@@ -157,10 +157,26 @@ export const CONTENT_DEFS = {
   // ToCook — unit-tested) AND restores an animal's stats when fed at the stove
   // (recipe's `feedEffect`, since there's no in-house animal roster to walk a dish
   // out to). No `feeds`/`ground` — a dish isn't dropped as a pile; it's fed directly.
-  vegetableStew: { label: 'Vegetable Stew', icon: 'iconBasketStew',      action: 'sell' },
-  berryPie:      { label: 'Berry Pie',      icon: 'iconBasketBerryPie', action: 'sell' },
-  honeyBread:    { label: 'Honey Bread',    icon: 'iconBasketHoneyBread', action: 'sell' },
+  // `junk` (#225) marks a leftover/surplus content as accepted at the slop-maker —
+  // a wide "not worth selling/eating" bucket rather than a curated recipe list, so a
+  // pile of dishes you don't want to sell always has somewhere to go. Cooked dishes
+  // are the leftover category that actually exists in-game today (there's no crop-
+  // scrap/spoilage mechanic yet); a future spoilage/scrap system can just add `junk:
+  // true` to its own content defs and the slop-maker picks it up automatically.
+  vegetableStew: { label: 'Vegetable Stew', icon: 'iconBasketStew',      action: 'sell', junk: true },
+  berryPie:      { label: 'Berry Pie',      icon: 'iconBasketBerryPie', action: 'sell', junk: true },
+  honeyBread:    { label: 'Honey Bread',    icon: 'iconBasketHoneyBread', action: 'sell', junk: true },
+  // Pig slop (#225) — the slop-maker's output: leftover/junk food ground down into a
+  // dedicated pig ration. Mirrors ground pig feed (#40, above): a DROPPED ground pile
+  // only the pig eats (`feeds: ['pig']`), not sellable — the payoff for recycling
+  // leftovers is feed, not gold.
+  pigSlop: { label: 'Pig Slop', icon: 'iconBasketPigSlop', action: 'feed', ground: 'pigSlopPile', feeds: ['pig'] },
 };
+
+// Every content flagged `junk` (#225) — the slop-maker's wide, low-friction input
+// list. Data-driven off CONTENT_DEFS so adding a future junk source (crop scraps,
+// spoiled pantry items, #212) is just tagging its content def, no station edit.
+export const JUNK_CONTENTS = Object.keys(CONTENT_DEFS).filter((c) => CONTENT_DEFS[c].junk);
 
 // How many of a food to gather in one fill-up (#136): one unit per live animal that
 // can mechanically eat it, summed across every species in its `feeds` diet. Returns

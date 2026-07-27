@@ -261,6 +261,28 @@ export const WithInteractables = (Base) => class extends Base {
       }];
     };
 
+    // Slop-maker (#225) — feed a basket of junk-tagged leftover dishes into pig
+    // slop. Only offers the action when the held carrier holds a craftable input;
+    // shows a passive hint otherwise. Data-driven off the maker's `recipes` list
+    // (from → to), mirroring the kitchen counter but for leftovers, not raw crop.
+    const slopMaker = (item) => {
+      const m = this.props.slopMaker;
+      if (!m) return [];
+      const recipe = m.recipes.find(r => r.from === item?.content && item.count > 0);
+      return [{
+        x: m.x, y: m.y, tapRadius: 130, reachDist: 110, promptOffsetY: 60,
+        canAct: !!recipe,
+        label: recipe
+          ? `Make Slop: ${CONTENT_DEFS[recipe.from].label} → ${CONTENT_DEFS[recipe.to].label}  (basket: ${item.count})`
+          : 'Slop-Maker  •  bring a basket of leftover dishes to grind into pig slop',
+        approach: (world) => {
+          const refX = world ? world.x : this.player.sprite.x;
+          return { x: m.x + (refX < m.x ? -1 : 1) * 70, y: m.y + 10 };
+        },
+        activate: () => this.makeSlop(),
+      }];
+    };
+
     // Neighbor NPC (#294) — while visiting, offers a Trade (bare-hand-ish: just needs
     // a compatible empty/matching carrier equipped, checked in tradeWithNeighbor) and
     // accepts a Gift of whatever's in the held carrier (any non-empty carrier). Two
@@ -410,7 +432,7 @@ export const WithInteractables = (Base) => class extends Base {
     // already driving (see tractor.js `_tractorInteractables`).
     const tractor = () => this._tractorInteractables?.() ?? [];
 
-    this.interactables = [gate, house, shop, generalStore, barn, gardenPlant, trailCollectible, tractor, trough, catBowl, bunnyBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenWater, gardenHarvest, neighborGift, neighborTrade];
+    this.interactables = [gate, house, shop, generalStore, barn, gardenPlant, trailCollectible, tractor, trough, catBowl, bunnyBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, slopMaker, compostBin, trashCan, gardenWater, gardenHarvest, neighborGift, neighborTrade];
     // Split by input: gate/house/shop/generalStore/barn/garden-plant/
     // trail-collectible/tractor are bare-hand "interact" targets (tap/click/E); the
     // rest require a carried tool/carrier and are triggered by Use (the on-screen
@@ -420,7 +442,7 @@ export const WithInteractables = (Base) => class extends Base {
     // interaction at the same spot) does require a held carrier, and only one of
     // the two ever applies at a time (see neighborGift/neighborTrade above).
     this.interactWorld = [gate, house, shop, generalStore, barn, gardenPlant, trailCollectible, tractor];
-    this.toolWorld     = [trough, catBowl, bunnyBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, compostBin, trashCan, gardenWater, gardenHarvest, neighborGift, neighborTrade];
+    this.toolWorld     = [trough, catBowl, bunnyBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, slopMaker, compostBin, trashCan, gardenWater, gardenHarvest, neighborGift, neighborTrade];
   }
 
   // Nearest activatable instance to (x, y) within each instance's own radius

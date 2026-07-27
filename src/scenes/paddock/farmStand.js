@@ -3,7 +3,7 @@
 
 import Phaser from 'phaser';
 import { EVENTS } from '../../data/events.js';
-import { CONTENT_DEFS } from '../../data/items.js';
+import { CONTENT_DEFS, JUNK_CONTENTS } from '../../data/items.js';
 import { playGather } from '../../audio/sounds.js';
 import { WORLD_W, PLAYER_SPEED, PLAYER_BOUNDS, S, STAND_DEFS, STAND_TYPES } from './constants.js';
 
@@ -180,6 +180,49 @@ export const WithFarmStand = (Base) => class extends Base {
     if (n <= 0) return;
     playGather(to); // a soft thud/grind, mirroring the wheel's whirr
     const icon = this.add.image(k.x, k.y - 40, CONTENT_DEFS[to].icon)
+      .setScale(1.8).setDepth(10000);
+    this.tweens.add({
+      targets: icon, y: icon.y - 40, alpha: 0,
+      duration: 900, ease: 'Sine.easeOut',
+      onComplete: () => icon.destroy(),
+    });
+  }
+
+  // ─── Slop-maker — leftovers sink (#225) ─────────────────────────────────────
+
+  // Build the slop-maker world prop: grinds any junk-tagged leftover dish into pig
+  // slop. Lives at the house exterior, near the kitchen/pantry it's fed from —
+  // called from buildWorld (world.js), right after the house is placed, so its
+  // solid footprint can be registered alongside the other house-adjacent props in
+  // buildObstacles. `recipes` is built from JUNK_CONTENTS (items.js) so any content
+  // tagged `junk: true` is accepted here automatically — a wide "leftovers" bucket,
+  // not a curated list — mirroring the kitchen counter's recipes shape.
+  buildSlopMaker() {
+    const smx = 150, smy = 520;
+    const sprite = this.add.image(smx, smy, 'slopMaker')
+      .setScale(S).setDepth(smy).setOrigin(0.5, 1);
+    this.props.slopMaker = {
+      x: smx, y: smy, sprite,
+      recipes: JUNK_CONTENTS.map((from) => ({ from, to: 'pigSlop' })),
+    };
+  }
+
+  // Process the active carrier's whole load at the slop-maker, converting a held
+  // junk-tagged leftover into pig slop, per the maker's `recipes` list. Data-driven
+  // off whichever recipe matches the held content — mirrors processCrop/spinWool.
+  // No-op unless the carrier holds a craftable input. Floats the output icon as
+  // feedback, mirroring the other crafting stations.
+  makeSlop() {
+    const m = this.props.slopMaker;
+    if (!m) return;
+    const item = this.getActiveItem();
+    const recipe = m.recipes.find(r => r.from === item?.content);
+    if (!recipe) return;
+    const { from, to } = recipe;
+    const n = this.scene.get('HotbarScene')?.convertActiveCarrier(from, to) ?? 0;
+    if (n <= 0) return;
+    playGather(to); // a soft squelchy churn, distinct from the counter's grind
+    const icon = this.add.image(m.x, m.y - 40, CONTENT_DEFS[to].icon)
       .setScale(1.8).setDepth(10000);
     this.tweens.add({
       targets: icon, y: icon.y - 40, alpha: 0,

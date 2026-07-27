@@ -83,6 +83,7 @@ export const WithWorld = (Base) => class extends Base {
     this.add.image(240, 280, 'house').setScale(S).setDepth(279).setOrigin(0.5, 1);
     this.props.house = { x: 240, y: 250 };
     this._buildChimneySmoke(); // matches the indoor fireplace (#230) — a wisp above the chimney
+    this.buildSlopMaker(); // slop-maker (#225) — house-exterior leftovers sink; paddock/farmStand.js
 
     // Barn (#241 + #35) — the horses' building, a WALK-IN structure with an in-world
     // cutaway interior (stalls + tack room). Built in the barn concern mixin
@@ -286,6 +287,8 @@ export const WithWorld = (Base) => class extends Base {
       ...(this.props.spinningWheel ? [{ x: this.props.spinningWheel.x - 26, y: this.props.spinningWheel.y - 20, w: 52, h: 20 }] : []),
       // Kitchen counter (#40) — solid ~56×16 counter-top footprint at S=2.
       ...(this.props.kitchenCounter ? [{ x: this.props.kitchenCounter.x - 28, y: this.props.kitchenCounter.y - 16, w: 56, h: 16 }] : []),
+      // Slop-maker (#225) — solid ~48×20 barrel footprint at S=2, house exterior.
+      ...(this.props.slopMaker ? [{ x: this.props.slopMaker.x - 24, y: this.props.slopMaker.y - 20, w: 48, h: 20 }] : []),
       // Shop stall (#29) — solid ~128×48 counter footprint at S=2. Mirrors the farm stand.
       ...(this.props.shop ? [{ x: this.props.shop.x - 64, y: this.props.shop.y - 48, w: 128, h: 48, isShop: true }] : []),
       // The unified store (#215/#217/#222/#312) building footprint — registered by
