@@ -59,7 +59,16 @@ export const SPECIES_TEXTURES = {
     // Demo foal textures, from the shared DEMO_FOALS spec (data/demoFoals.js) so the
     // art-preview customizer can seed editable models from the same coats. Fixed, not
     // per-roster, so built here unconditionally.
+    //
+    // NEVER let a demo sample overwrite a real herd member's frames (#352): the demo
+    // keys used to be `foal1`..`foal3`, exactly the keys nextFoalKey hands a bred foal,
+    // so this loop re-drew a player's own horse with demo BABY art on the shared
+    // idle/walk/eat/sleep frames — leaving the adult-only posture/swish/roll frames
+    // full-size, which is what made a grown-up former foal render as a foal while
+    // walking and an adult while standing. The keys are prefixed now; this skip is the
+    // belt-and-braces so a future colliding key can't silently repaint the herd.
     for (const [key, f] of Object.entries(DEMO_FOALS)) {
+      if (key in allHorses) continue;
       buildFoalTextures(scene, key, composeCoat(f.coat, f.markings));
     }
   },
