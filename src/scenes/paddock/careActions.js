@@ -100,10 +100,11 @@ export const WithCareActions = (Base) => class extends Base {
   }
 
   // Each tick, regrow any animal whose fleece has grown back since it was sheared
-  // (flip the shorn look off once the regrowth timer completes) AND keep the visible
-  // "regrowing" cue in sync (#233 playtest — the timer used to be silent). Cheap: it
-  // only touches cooldown-produce animals; the sprite re-skin still fires once, at the
-  // moment fleece crosses back to full. Called from the update loop.
+  // (flip the shorn look off once the regrowth timer completes). Cheap: it only
+  // touches cooldown-produce animals; the sprite re-skin fires once, at the moment
+  // fleece crosses back to full. Called from the update loop. Regrowth is silent/
+  // discoverable purely by the shorn look reverting (#359 — the floating progress
+  // cue that used to track this was removed as unwanted playtest feedback).
   tickRegrowth() {
     for (const a of this.animals) {
       const model = a.model;
@@ -115,44 +116,6 @@ export const WithCareActions = (Base) => class extends Base {
         a._shownShorn = shorn;
         this._refreshShornLook(a);
       }
-      this._updateRegrowCue(a, model);                      // keep the floating cue current
     }
-  }
-
-  // A small floating "wool regrowing" cue above a freshly-sheared animal so the 6-min
-  // regrowth timer is legible instead of silent (#233 playtest). It's a tiny progress
-  // pill that fills as the fleece grows back, with a wool tuft icon; it appears while
-  // shorn and is removed the moment the fleece is full again. Built lazily per animal
-  // and reused across ticks. Positioned just above the sprite each frame so it tracks
-  // the wandering sheep.
-  _updateRegrowCue(a, model) {
-    const shorn = model.isShorn();
-    if (!shorn) { this._clearRegrowCue(a); return; }
-
-    const p = Phaser.Math.Clamp(model.regrowthProgress(), 0, 1);
-    const W = 28, H = 5;                                    // pill footprint (world px)
-    const topY = a.sprite.y - a.sprite.displayHeight - 12;  // just above the sprite
-
-    if (!a._regrowCue) {
-      const bg = this.add.graphics().setDepth(20000);
-      const icon = this.add.image(0, 0, 'iconBasketWool')
-        .setScale(0.7).setDepth(20001);
-      a._regrowCue = { bg, icon, w: W, h: H };
-    }
-    const cue = a._regrowCue;
-    const x = a.sprite.x, y = topY;
-    // Redraw the pill each tick (fill tracks progress). Track + fill + thin outline.
-    cue.bg.clear();
-    cue.bg.fillStyle(0x2a2018, 0.55); cue.bg.fillRoundedRect(x - W / 2 - 1, y - 1, W + 2, H + 2, 3);
-    cue.bg.fillStyle(0x4a3a28, 1);    cue.bg.fillRoundedRect(x - W / 2, y, W, H, 2);
-    cue.bg.fillStyle(0xe8d8c0, 1);    cue.bg.fillRoundedRect(x - W / 2, y, Math.max(1, W * p), H, 2);
-    cue.icon.setPosition(x - W / 2 - 8, y + H / 2);
-  }
-
-  _clearRegrowCue(a) {
-    if (!a?._regrowCue) return;
-    a._regrowCue.bg.destroy();
-    a._regrowCue.icon.destroy();
-    a._regrowCue = null;
   }
 };
