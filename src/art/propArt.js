@@ -302,6 +302,18 @@ export function buildPropTextures(scene) {
     g.fillStyle(0xf07830, 1); g.fillCircle(9, 4, 0.9); g.fillCircle(15, 5, 0.9); // carrot flecks
   });
 
+  // Pig slop pile (#225) — a dropped serving from the slop-maker: leftover food ground
+  // into pig chow. Duller and wetter-looking than pigFeedPile's warm mash, with a
+  // couple of colored flecks hinting at the mixed leftovers that went in.
+  gen(scene, 'pigSlopPile', 22, 10, (g) => {
+    g.fillStyle(0x000000, 0.1); g.fillEllipse(11, 9, 20, 3); // ground shadow
+    g.fillStyle(0x54503e, 1); g.fillEllipse(11, 6, 18, 6);   // dull slop mound
+    g.fillStyle(0x6a6250, 1); g.fillEllipse(9, 5, 12, 4);    // lit crown
+    g.fillStyle(0x38362a, 1); g.fillCircle(6, 6, 1); g.fillCircle(15, 5, 1); // wet dark bits
+    g.fillStyle(0x8a3ca0, 1); g.fillCircle(9, 4, 0.8); // fleck of leftover pie
+    g.fillStyle(0xe8a848, 1); g.fillCircle(14, 4, 0.8); // fleck of leftover bread
+  });
+
   // Duck feeder (#275) — the gather SOURCE for duck food: a rustic wooden feed tray
   // set on a post by the stream bank, scattered with grain. The player fills a basket
   // here, then drops duck-food piles to befriend the wild duck. Origin bottom-centre

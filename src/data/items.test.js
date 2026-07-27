@@ -33,8 +33,9 @@ describe('carrier definitions', () => {
     // two raw ingredients at the house stove, sold like jam/flour. Trinket added with
     // #36's playtest follow-up. rawSugar/sugarCube added with #227 — raw sugar is a
     // bought-in pantry staple (not gathered), sugar cubes the cooked dish (raw sugar +
-    // water), a horse treat.
-    expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey', 'jam', 'flour', 'pigFeed', 'blueberry', 'potato', 'orange', 'berry', 'vegetableStew', 'berryPie', 'honeyBread', 'trinket', 'rawSugar', 'sugarCube']);
+    // water), a horse treat. pigSlop added with the slop-maker (#225) — the processed
+    // form of junk-tagged leftover dishes, a dedicated pig feed like ground pig feed (#40).
+    expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey', 'jam', 'flour', 'pigFeed', 'blueberry', 'potato', 'orange', 'berry', 'vegetableStew', 'berryPie', 'honeyBread', 'trinket', 'rawSugar', 'sugarCube', 'pigSlop']);
     expect(CARRIER_DEFS.bucket.capacity).toBe(1);
     // milk added with the cow (#cow). catWater removed with the #202 rework, bunnyWater
     // removed with #283 — pet water bowls (cat's and the bunny's) both fill from a plain

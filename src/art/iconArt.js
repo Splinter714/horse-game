@@ -546,6 +546,17 @@ export function buildIconTextures(scene) {
     g.fillStyle(0xe8d8a8, 1); g.fillRect(4, 7, 5, 1); g.fillRect(10, 8, 5, 1); g.fillRect(7, 6, 5, 1);
     g.fillStyle(0xffe066, 1); g.fillRect(12, 2, 1, 1); g.fillRect(13, 1, 1, 2); g.fillRect(11, 3, 2, 1); // sparkle
   });
+  // Basket of pig slop (#225) — a slick greyish-brown mash of ground-up leftovers,
+  // the slop-maker's output. Distinct from ground pig feed's warm brown mash (#40) —
+  // slop reads wetter/duller, since it's recycled leftovers rather than fresh-ground
+  // carrot.
+  gen(scene, 'iconBasketPigSlop', 20, 20, (g) => {
+    drawBasketBody(g);
+    g.fillStyle(0x6a6250, 1); g.fillRoundedRect(4, 4, 12, 7, 2); // dull grey-brown mound
+    g.fillStyle(0x554e3e, 1); g.fillRect(4, 7, 12, 1); g.fillRect(4, 9, 12, 1);
+    g.fillStyle(0x8a3ca0, 1); g.fillCircle(7, 5, 1); // fleck of leftover berry pie
+    g.fillStyle(0xe8a848, 1); g.fillCircle(12, 6, 1); // fleck of leftover bread
+  });
 
   // Scooper tool (#232) — a stable rake/scoop on a handle. Reads as the "clean up
   // droppings" tool at hotbar size: a wooden handle with a fan of tines at the head.

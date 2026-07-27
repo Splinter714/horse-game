@@ -1106,6 +1106,33 @@ export function buildWorldTextures(scene) {
     g.fillStyle(WOOD, 1);   g.fillCircle(mx - 1, my - 6, 2);
   });
 
+  // --- Slop-maker (28 × 26) — the leftovers sink (#225): a squat metal barrel/bin
+  // near the house that grinds junk-tagged leftover dishes into pig slop. Origin
+  // (0.5, 1). Reads as a stout metal drum with a hinged lid and a hand-crank on the
+  // side, distinct from the kitchen counter's food-prep silhouette and the compost
+  // bin's open earthy look. ---
+  gen(scene, 'slopMaker', 28, 26, (g) => {
+    const METAL = 0x767a72, METAL_D = 0x565a52, METAL_L = 0x9aa096;
+    const LID   = 0x4a5048, LID_L = 0x646a5e;
+    const WOOD  = 0x8a5a2c, WOOD_D = 0x6a4420;
+    // Feet
+    g.fillStyle(METAL_D, 1); g.fillRect(4, 22, 4, 3); g.fillRect(20, 22, 4, 3);
+    // Barrel body
+    g.fillStyle(METAL_D, 1); g.fillRect(3, 8, 22, 15);
+    g.fillStyle(METAL, 1);   g.fillRect(3, 8, 22, 13);
+    g.fillStyle(METAL_L, 1); g.fillRect(3, 8, 22, 2);
+    // Barrel bands
+    g.fillStyle(METAL_D, 1); g.fillRect(3, 13, 22, 2); g.fillRect(3, 18, 22, 2);
+    // Hinged lid on top
+    g.fillStyle(LID, 1);   g.fillRoundedRect(2, 4, 24, 6, 2);
+    g.fillStyle(LID_L, 1); g.fillRect(2, 4, 24, 2);
+    g.fillStyle(METAL_D, 1); g.fillCircle(14, 5, 1.4); // lid latch
+    // Hand-crank on the side, wood handle on a metal arm
+    g.fillStyle(METAL_D, 1); g.fillRect(24, 12, 4, 2);
+    g.fillStyle(WOOD_D, 1);  g.fillRect(26, 10, 3, 6);
+    g.fillStyle(WOOD, 1);    g.fillRect(26, 10, 2, 6);
+  });
+
   // --- NPC customer sprite (16 × 24, same layout as player) ---
   const NPC_SKIN  = 0xf0c080;
   const NPC_HAIR  = 0x5a3a20;
