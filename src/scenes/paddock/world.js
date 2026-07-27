@@ -2,10 +2,16 @@
 // collision helpers. Applied as a functional mixin so `this` is the scene.
 
 import Phaser from 'phaser';
-import { WORLD_W, WORLD_H, PASTURE_BOUNDS, GATE_GAP_X0, GATE_GAP_X1, S } from './constants.js';
+import {
+  WORLD_W, WORLD_H, PASTURE_BOUNDS, GATE_GAP_X0, GATE_GAP_X1, S,
+  FENCE_TEX_H, FENCE_POST_CROP_W,
+  FENCE_RAIL_TOP_OFFSET, FENCE_RAIL_BOTTOM_OFFSET, FENCE_RAIL_THICKNESS,
+  FENCE_RAIL_TOP_COLOR, FENCE_RAIL_BOTTOM_COLOR,
+} from './constants.js';
 import { SPECIES } from '../../data/species/index.js';
 import { bakeStaticGraphics } from './bakeGraphics.js';
 import { houseFenceRect } from './houseFence.js';
+import { respaceHouseFence } from './houseFencePath.js';
 
 // Collision band thickness for the house fence line (#344) — the solid slice of the
 // 48px-tall rail sprite, matching the height the old hardcoded rect used.
@@ -138,12 +144,29 @@ export const WithWorld = (Base) => class extends Base {
     // Anchor (-136, 57) — the owner grouped all 6 posts with the #337 multi-select
     // tool and dragged the whole run up-left in one go (#330 export, baked in by
     // #343). Spacing is unchanged at 96px, so only the base x/y move.
+    // #372 rework: built from start/end + `respaceHouseFence` (same maths the
+    // #370 drag tool uses) rather than a flat i*96 loop, so a future bake-in of a
+    // diagonal run (dragging an endpoint, then exporting via the dev drag tool)
+    // can just replace `fenceStart`/`fenceEnd` here and everything below keeps
+    // working — it isn't hardcoded to a horizontal run. Construction: post
+    // sprites (cropped to just the post column, drawn un-rotated — a vertical
+    // post bar reads fine at any run angle) at each spaced position, plus two
+    // continuous rail LINES spanning the whole run start-to-end
+    // (`_buildHouseFenceRails`, below) instead of a rail baked into every post
+    // tile. Supersedes the earlier per-tile `setRotation` + last-post-crop
+    // approach (see git history) — that one needed a special-cased end-cap crop
+    // to avoid a dangling rail past the last post; a single line per rail can't
+    // dangle since it's drawn exactly post-to-post.
+    const fenceStart = { x: -136, y: 57 };
+    const fenceEnd   = { x: -136 + 5 * 96, y: 57 }; // 6 posts, 96px spacing
+    const fenceSpecs = respaceHouseFence(fenceStart, fenceEnd, 96);
     this.props.houseFence = [];
-    for (let i = 0; i < 6; i++) {
-      const x = -136 + i * 96, y = 57;
-      const sprite = this.add.image(x, y, 'fence').setScale(S).setDepth(y).setOrigin(0, 0.5);
+    fenceSpecs.forEach(({ x, y }, i) => {
+      const sprite = this.add.image(x, y, 'fence').setScale(S).setDepth(y).setOrigin(0, 0.5)
+        .setCrop(0, 0, FENCE_POST_CROP_W, FENCE_TEX_H);
       this.props.houseFence.push({ x, y, sprite, label: `Fence Post ${i + 1}` });
-    }
+    });
+    this._buildHouseFenceRails(fenceStart, fenceEnd);
 
     // Chicken coop, right of the fence line (fence ends ~x=876). Roost geometry
     // (pop-door + ramp foot; coop is 64×52, origin 0.5,1) is what chickens file
@@ -319,6 +342,32 @@ export const WithWorld = (Base) => class extends Base {
       this.add.image(x + fenceW / 2, gateY, 'fence')
         .setScale(S).setDepth(gateY).setOrigin(0.5, 0.5);
     }
+  }
+
+  // House-fence rail lines (#372 rework). Draws the two rails as continuous line
+  // segments from `start` to `end` — offset perpendicular to the run direction so
+  // they read correctly at any angle, not just horizontal — instead of stitching
+  // them from N rotated per-tile rail sprites. Destroys/recreates its own single
+  // Graphics object each call (stashed on `this._houseFenceRailGfx`) so the #370
+  // drag tool's `_respaceHouseFenceTo` (houseFencePath.js) can just call this
+  // again after every respace, same as the initial build here.
+  _buildHouseFenceRails(start, end) {
+    this._houseFenceRailGfx?.destroy();
+    const angle = Math.atan2(end.y - start.y, end.x - start.x);
+    // Unit vector perpendicular to the run, used to offset each rail off the
+    // start↔end centerline (rather than a plain vertical offset, so a diagonal
+    // run's rails stay parallel to the posts instead of just shifting in y).
+    const px = -Math.sin(angle), py = Math.cos(angle);
+    const g = this.add.graphics().setDepth((start.y + end.y) / 2);
+    const drawRail = (offset, color) => {
+      const ox = px * offset, oy = py * offset;
+      g.lineStyle(FENCE_RAIL_THICKNESS, color, 1);
+      g.lineBetween(start.x + ox, start.y + oy, end.x + ox, end.y + oy);
+    };
+    drawRail(FENCE_RAIL_TOP_OFFSET, FENCE_RAIL_TOP_COLOR);
+    drawRail(FENCE_RAIL_BOTTOM_OFFSET, FENCE_RAIL_BOTTOM_COLOR);
+    this._houseFenceRailGfx = g;
+    return g;
   }
 
   // ─── Obstacles & collision ───────────────────────────────────────────────

@@ -44,7 +44,7 @@
 // a follow-up would look completely different from this file, closer to
 // resampling `buildPath`'s stamp positions along a spline.
 
-import { S } from './constants.js';
+import { S, FENCE_TEX_H, FENCE_POST_CROP_W } from './constants.js';
 
 const SPACING      = 96;      // world px between posts — matches the fence's original fixed spacing
 const ENDPOINT_R   = 26;      // world px: how close a tap must be to grab an endpoint handle
@@ -118,12 +118,24 @@ export const WithHouseFencePath = (Base) => class extends Base {
     const posts = this._fencePosts();
     if (!posts.length) return;
     const specs = respaceHouseFence(start, end, SPACING);
+    // #372 rework: posts are plain cropped-to-post-column sprites, un-rotated —
+    // a vertical post bar reads fine at any run angle, so no per-post rotation
+    // math is needed here at all. The rails (top/bottom lines spanning the WHOLE
+    // run) are redrawn separately below via `_buildHouseFenceRails`, which is
+    // shared with the initial static build in world.js — see that method for how
+    // the lines follow the run's angle and always reach exactly start-to-end.
     for (const p of posts) p.sprite?.destroy();
     posts.length = 0;
     specs.forEach((p, i) => {
-      const sprite = this.add.image(p.x, p.y, 'fence').setScale(S).setDepth(p.y).setOrigin(0, 0.5);
+      const sprite = this.add.image(p.x, p.y, 'fence').setScale(S).setDepth(p.y).setOrigin(0, 0.5)
+        .setCrop(0, 0, FENCE_POST_CROP_W, FENCE_TEX_H);
       posts.push({ x: p.x, y: p.y, sprite, label: `Fence Post ${i + 1}` });
     });
+    // Redraw the rail lines for the new span — this destroys/recreates the same
+    // Graphics object `_buildHouseFenceRails` built initially, so a mid-drag
+    // respace (every pointermove tick) keeps the rails glued to the moving
+    // endpoint instead of leaving a stale line behind from the old span.
+    this._buildHouseFenceRails?.(start, end);
     this.refitHouseFence?.();
     // The #330 drag tool's own object snapshot (`_dragEntries`) was taken at
     // mount time and still names the OLD post objects/count — re-snapshot it so
