@@ -139,17 +139,25 @@ export const WithBarn = (Base) => class extends Base {
     this.barnState = loadBarnState();
 
     // props.barn — kept for the barn/house split guard + any consumers. Anchor point
-    // is the doorway; `interior` gives the walkable rect. `sprite`/`floor` are the
-    // façade + interior-floor images, kept here (not just on scene fields) so the
-    // dev drag tool (#330) can move the whole visible barn, not just this record's
-    // numbers. The collision walls follow a drag too (they're tagged `own` below);
-    // the stalls and the interior rect still stay where the source put them.
-    // `door` is the middle of the south doorway gap — the way in, and (since #349)
-    // what the rain-shelter AI aims for before stepping inside.
+    // is the doorway; `interior` gives the walkable rect. `sprite`/`floor`/`back`/
+    // `roofMid` are the façade, interior-floor, back-wall, and mid-roof-connector
+    // images, kept here (not just on scene fields) so the dev drag tool (#330) can
+    // move the WHOLE visible barn as one unit, not just part of it — `_devDragShift`
+    // only recurses into GameObjects it can reach one level down off this record, so
+    // every sprite that's part of the barn's silhouette has to be listed here or it's
+    // left behind (2026-07-27: barnBack/barnRoofMid were added for #362 but never
+    // added here, so a drag split the barn into a moved front half and a stationary
+    // back half — the general lesson: any multi-sprite world object must register
+    // ALL its constituent sprites on its props record, not just one). The collision
+    // walls follow a drag too (they're tagged `own` below); the stalls and the
+    // interior rect still stay where the source put them. `door` is the middle of
+    // the south doorway gap — the way in, and (since #349) what the rain-shelter AI
+    // aims for before stepping inside.
     this.props.barn = {
       x: ax, y: ay, interior: this.barnInterior, doorway: this.barnDoorway, stalls: this.barnStalls,
       door: { x: dx((DOOR_X0 + DOOR_X1) / 2), y: dy(WALL_Y1) },
       sprite: this.barnFront, floor: this.barnInteriorSprite,
+      back: this.barnBack, roofMid: this.barnRoofMid,
     };
     // Tag the wall rects with the prop record they belong to (#330) so the dev drag
     // tool moves the barn's collision along with its art. Done here rather than in
