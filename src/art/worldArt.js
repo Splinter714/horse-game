@@ -733,7 +733,6 @@ export function buildWorldTextures(scene) {
     g.fillStyle(water, 1);   g.fillRect(5, 8, 24, 4); g.fillEllipse(17, 12, 24, 7);
     g.fillStyle(waterHi, 0.85);
     g.fillEllipse(12, 11, 6, 2);                             // sun glint
-    g.fillRect(20, 13, 5, 1); g.fillRect(15, 14, 4, 1);      // little ripple lines
     g.layer('rim');
     g.fillStyle(stoneHi, 1); g.fillEllipse(17, 10, 30, 3);   // front rim highlight
   });
