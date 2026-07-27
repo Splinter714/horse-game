@@ -270,8 +270,9 @@ export const WithDevTooltips = (Base) => class extends Base {
     let best = null, bestD = FENCE_RADIUS;
     for (const o of this.obstacles ?? []) {
       if (!o.isFence) continue;
-      const x = Math.min(Math.max(px, o.x), o.x + o.w);
-      const y = Math.min(Math.max(py, o.y), o.y + o.h);
+      // #387: fence rects may now be oriented (angle + center x/y), so use
+      // the shared helper instead of a plain corner-based clamp.
+      const { x, y } = this._nearestPointOnObstacleRect(px, py, o);
       const d = Math.hypot(x - px, y - py);
       if (d < bestD) { bestD = d; best = { name: 'fence', x, y }; }
     }
