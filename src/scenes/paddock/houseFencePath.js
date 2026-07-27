@@ -126,13 +126,14 @@ export const WithHouseFencePath = (Base) => class extends Base {
     });
     this.refitHouseFence?.();
     // The #330 drag tool's own object snapshot (`_dragEntries`) was taken at
-    // mount time and still names the OLD post objects/count — remount it (and
-    // this tool, so the endpoint handles stay put on the fresh run) so the new
-    // posts are immediately pickable without toggling Drag Objects off and on.
-    if (this._dragEntries) {
-      this._clearDevDrag();
-      this._mountDevDrag();
-    }
+    // mount time and still names the OLD post objects/count — re-snapshot it so
+    // the new posts are immediately pickable without toggling Drag Objects off
+    // and on. A FULL _clearDevDrag()/_mountDevDrag() here (the original
+    // approach) also reset `_fenceEndpointHeld`/`_dragHeld`/`_dragMoved` on
+    // every single move tick during an active drag, silently cancelling it
+    // after the first tiny move (2026-07-27 playtest) — this lighter refresh
+    // only replaces the stale object references.
+    this._refreshDragEntries?.();
     this._drawFenceEndpoints();
   }
 

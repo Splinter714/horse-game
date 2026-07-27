@@ -105,12 +105,18 @@ export const WithDevDrag = (Base) => class extends Base {
     this._dragBtns    = [];
   }
 
-  _mountDevDrag() {
-    // Snapshot every placed object AND where it started, so "moved" is knowable
-    // and a reset is possible without reloading.
+  // Snapshot every placed object AND where it started, so "moved" is knowable
+  // and a reset is possible without reloading. Split out from _mountDevDrag so
+  // a mid-drag object-list refresh (houseFencePath.js's respace, #370) can
+  // re-snapshot WITHOUT the rest of a full mount — see _refreshDragEntries.
+  _snapshotDragEntries() {
     this._dragEntries = this._devLabelTargets().map(t => ({
       name: t.name, obj: t.obj, also: t.also ?? [], ox: t.x, oy: t.y,
     })).filter(e => e.obj);
+  }
+
+  _mountDevDrag() {
+    this._snapshotDragEntries();
     this.initDevSelection(); // #337 selection set + persisted groups
 
     this._dragMarks = this.add.graphics().setDepth(MARK_DEPTH);
@@ -138,6 +144,17 @@ export const WithDevDrag = (Base) => class extends Base {
     // the fence run, on top of the ordinary per-post handles above. Same
     // toggle, same lifecycle; see houseFencePath.js.
     this._mountHouseFencePath?.();
+  }
+
+  // Re-snapshot `_dragEntries` after posts are destroyed/recreated mid-drag
+  // (houseFencePath.js's respace, #370) WITHOUT touching anything else — a
+  // full _clearDevDrag()/_mountDevDrag() here reset `_fenceEndpointHeld`/
+  // `_dragHeld`/`_dragMoved` on every single pointermove tick, silently
+  // cancelling the in-progress drag after its first tiny move (2026-07-27
+  // playtest: "dragging stops after first tiny move"). This only replaces the
+  // stale object references so the NEXT plain per-post pick still works.
+  _refreshDragEntries() {
+    if (this._dragEntries) this._snapshotDragEntries();
   }
 
   // Screen-fixed button. Hit-testing is done by hand in _devDragTap (against the
