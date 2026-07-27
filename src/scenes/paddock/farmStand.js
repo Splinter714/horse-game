@@ -11,7 +11,8 @@ export const WithFarmStand = (Base) => class extends Base {
   // ─── Farm Stand ──────────────────────────────────────────────────────────
 
   buildFarmStand() {
-    const sx = 1600, sy = 780;
+    // Position (812, 850) — the owner's own placement (#330 drag tool, baked in by #341).
+    const sx = 812, sy = 850;
     const sprite = this.add.image(sx, sy, 'farmStand')
       .setScale(S).setDepth(sy).setOrigin(0.5, 1);
     const stock = Object.fromEntries(STAND_TYPES.map(t => [t, 0]));
@@ -149,8 +150,8 @@ export const WithFarmStand = (Base) => class extends Base {
   // (unlike the spinning wheel's single fixed craft) lists every from→to conversion
   // the counter knows; useDispatch/interactables pick whichever matches the held basket.
   buildKitchenCounter() {
-    // Position (109, 279) - the owner's own placement (#330 drag tool, baked in by #335).
-    const kcx = 109, kcy = 279;
+    // Position (396, 843) - the owner's own placement (#330 drag tool, baked in by #341).
+    const kcx = 396, kcy = 843;
     const kitchenSprite = this.add.image(kcx, kcy, 'kitchenCounter')
       .setScale(S).setDepth(kcy).setOrigin(0.5, 1);
     this.props.kitchenCounter = {
@@ -199,8 +200,8 @@ export const WithFarmStand = (Base) => class extends Base {
   // tagged `junk: true` is accepted here automatically — a wide "leftovers" bucket,
   // not a curated list — mirroring the kitchen counter's recipes shape.
   buildSlopMaker() {
-    // Position (1476, 1174) - the owner's own placement (#330 drag tool, baked in by #335).
-    const smx = 1476, smy = 1174;
+    // Position (466, 849) - the owner's own placement (#330 drag tool, baked in by #341).
+    const smx = 466, smy = 849;
     const sprite = this.add.image(smx, smy, 'slopMaker')
       .setScale(S).setDepth(smy).setOrigin(0.5, 1);
     this.props.slopMaker = {

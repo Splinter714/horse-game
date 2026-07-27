@@ -201,7 +201,8 @@ export const WithWorldObjects = (Base) => class extends Base {
   // The cat's combined food + water bowl (#202, #311). Starts empty on both sides so
   // the first job is to fill them.
   buildCatBowls() {
-    this._addPetBowl({ x: 185, y: 420, tex: 'catBowl', foodContent: 'catFood', waterContent: 'water', propKey: 'catBowl' });
+    // Position (891, 140) - the owner's own placement (#330 drag tool, baked in by #341).
+    this._addPetBowl({ x: 891, y: 140, tex: 'catBowl', foodContent: 'catFood', waterContent: 'water', propKey: 'catBowl' });
   }
 
   // The registered { bowl, sideKey } a given carrier content fills, or null. Shared
@@ -290,8 +291,8 @@ export const WithWorldObjects = (Base) => class extends Base {
   // (165/205, 420), with >90px clearance from every path segment and no overlap
   // with the house wall or fence obstacles.
   buildDoghouse() {
-    // Position (160, 682) - the owner's own placement (#330 drag tool, baked in by #335).
-    const x = 160, y = 682;
+    // Position (94, 281) - the owner's own placement (#330 drag tool, baked in by #341).
+    const x = 94, y = 281;
     const sprite = this.add.image(x, y, 'doghouse').setScale(S).setDepth(y).setOrigin(0.5, 1);
     // `sprite` kept so the dev drag tool (#330) can move the visible kennel, not
     // just this record's numbers.

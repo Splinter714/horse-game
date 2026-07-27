@@ -125,7 +125,8 @@ export const WithBirdEcosystem = (Base) => class extends Base {
   // nearby" pairing as the bunny hutch/bowl), clear of the doghouse, cat bowl,
   // house, and the worn path.
   buildNectarFeeder() {
-    const x = 242, y = 394;
+    // Position (629, 234) - the owner's own placement (#330 drag tool, baked in by #341).
+    const x = 629, y = 234;
     const sprite = this.add.image(x, y, 'nectarFeederEmpty')
       .setScale(S).setDepth(y).setOrigin(0.5, 1);
     this.props.nectarFeeder = { x, y, sprite, level: 0, filled: false, fillContent: 'nectar' };

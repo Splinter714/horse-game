@@ -69,8 +69,8 @@ export const WithWorld = (Base) => class extends Base {
       [1100, 450], [1200, 620], [1340, 390], [1460, 570], [1580, 430],
       [1700, 600], [1480, 720], [1860, 520], [1050, 800], [1180, 950],
       [1380, 850], [1520, 980], [1650, 780], [1780, 900], [280, 880],
-      [420, 1020], [560, 900], [700, 1040], [850, 820], [980, 1020],
-      [120, 750], [240, 1100], [360, 980], [500, 800], [630, 1100],
+      [420, 1020], [560, 900], [700, 1040], [1344, 695], [980, 1020],
+      [120, 750], [240, 1100], [360, 980], [499, 718], [630, 1100],
     ].forEach(([x, y], i) => {
       const sprite = this.add.image(x, y, flowers[i % flowers.length]).setScale(S).setDepth(y);
       // `sprite` kept so the dev drag tool (#330) can move the actual flower, not
@@ -143,7 +143,8 @@ export const WithWorld = (Base) => class extends Base {
     // Trash can (#191) — a dented metal bin the ambient raccoon rummages in at night.
     // Purely a charming prop (no stock/gathering/economy), in the farm band near the
     // stand so the nocturnal mischief happens somewhere the player passes.
-    const trashX = 1470, trashY = 720;
+    // Position (687, 847) — the owner's own placement (#330 drag tool, baked in by #341).
+    const trashX = 687, trashY = 847;
     const trashSprite = this.add.image(trashX, trashY, 'trashCan')
       .setScale(S).setDepth(trashY).setOrigin(0.5, 1);
     this.props.trashCan = { x: trashX, y: trashY, sprite: trashSprite, spill: null, open: false };
@@ -151,8 +152,8 @@ export const WithWorld = (Base) => class extends Base {
     // Spinning wheel (#233) — the crafting station that spins a basket of raw wool into
     // yarn (worth more at the stand). In a crafting nook east of the BARN. `craft` names
     // the conversion the useDispatch spin action reads (wool → yarn), so it's data-driven.
-    // Position (1673, 1177) — the owner's own placement (#330 drag tool, baked in by #335).
-    const swx = 1673, swy = 1177;
+    // Position (541, 848) — the owner's own placement (#330 drag tool, baked in by #341).
+    const swx = 541, swy = 848;
     const spinSprite = this.add.image(swx, swy, 'spinningWheel')
       .setScale(S).setDepth(swy).setOrigin(0.5, 1);
     // Spoked-disc overlay centred on the wheel hub, spun during a craft (#233). The
@@ -166,7 +167,8 @@ export const WithWorld = (Base) => class extends Base {
     };
     // (Its solid footprint is added to this.obstacles below, once that array exists.)
     this.buildKitchenCounter(); // crop processing (#40); paddock/farmStand.js
-    this.props.compostBin = { x: 300, y: 1000, sprite: this.add.image(300, 1000, 'compostBin').setScale(S).setDepth(1000).setOrigin(0.5, 1) }; // Compost bin (#232) — dump spot, pasture NW.
+    // Compost bin (#232) — dump spot. Position (615, 850) — the owner's own placement (#330 drag tool, baked in by #341).
+    this.props.compostBin = { x: 615, y: 850, sprite: this.add.image(615, 850, 'compostBin').setScale(S).setDepth(850).setOrigin(0.5, 1) };
 
     // Market stall (#29, narrowed by #312) — TOOL UPGRADES only (#295) now; feed +
     // the shopkeeper NPC moved to the unified store in town (paddock/town.js's
@@ -211,14 +213,16 @@ export const WithWorld = (Base) => class extends Base {
       // scoops cat food into a basket here (like the grain bin for seed), then pours
       // it into the food bowl. The bowls themselves are no longer gather sources —
       // they're fillable dishes the cat eats/drinks from directly (buildCatBowls).
-      { x: 120,  y: 420, content: 'catFood',  tex: 'kibbleSack',   label: 'Kibble Sack',   reach: 90, ob: { w: 22, h: 20 } },
+      // Position (815, 142) — the owner's own placement (#330 drag tool, baked in by #341).
+      { x: 815,  y: 142, content: 'catFood',  tex: 'kibbleSack',   label: 'Kibble Sack',   reach: 90, ob: { w: 22, h: 20 } },
       // Bunny hutch (#224, reworked #283) — gather SOURCE for bunny food, scooped into a
       // basket then poured into the bunny FOOD BOWL (buildBunnyBowl), which bunnies eat
       // from directly; stocking it also lures a wild bunny in (capped at 4). No ground
       // pile (items.js `stocks`). Water bowl fills from a plain bucket, like the cat's.
       { x: 1293, y: 107, content: 'bunnyFood',  tex: 'bunnyHutch',    label: 'Bunny Hutch', reach: 100, ob: { w: 44, h: 30 } },
       // Nectar station (#226) — sugar-water jug by the house; fill a bucket, pour into the hummingbird feeder (its OWN resource vs seed #240).
-      { x: 190,  y: 360, content: 'nectar',   tex: 'nectarStation', label: 'Nectar Jug',  reach: 90,  ob: { w: 24, h: 24 } },
+      // Position (691, 236) — the owner's own placement (#330 drag tool, baked in by #341).
+      { x: 691,  y: 236, content: 'nectar',   tex: 'nectarStation', label: 'Nectar Jug',  reach: 90,  ob: { w: 24, h: 24 } },
       // Fox den (#266) / duck feeder (#275) — SOURCEs for their food; fill a basket, DROP piles to befriend each.
       // Fox den moved off (300,320) — that was the exact spot of the first house-fence
       // post (the fence loop below places posts at 300 + i*96, 320, so i=0 stacked
