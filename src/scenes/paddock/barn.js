@@ -69,8 +69,15 @@ export const WithBarn = (Base) => class extends Base {
     // connector stopped short of the back gable's tip and the two didn't read as
     // one continuous roof.
     const backPeakY = backY - (BACK_WALL_H + BACK_ROOF_H) * S;
-    this.barnRoofMid = this.add.image(ax, frontEaveY, 'barnRoofMid')
-      .setDisplaySize(BARN_DW * S, Math.max(4, frontEaveY - backPeakY))
+    // A few px of deliberate overlap into both facades (2026-07-27 owner feedback:
+    // small gaps at the front/back seams) — the connector's own undulating ribbon
+    // shape is scaled to fit the front-eave-to-back-peak span exactly, but that
+    // stretch can't guarantee pixel-perfect alignment with the two independently-
+    // drawn textures it's bridging. Overlapping a little rather than chasing exact
+    // alignment hides any residual rounding at the seam.
+    const ROOF_MID_OVERLAP = 8;
+    this.barnRoofMid = this.add.image(ax, frontEaveY + ROOF_MID_OVERLAP, 'barnRoofMid')
+      .setDisplaySize(BARN_DW * S, Math.max(4, (frontEaveY - backPeakY) + ROOF_MID_OVERLAP * 2))
       .setDepth(frontEaveY).setOrigin(0.5, 1);
 
     // Interior walkable rect (inside the walls, clear of the back stalls). Used to
