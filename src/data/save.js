@@ -603,7 +603,7 @@ export function saveIncubations(list) {
 // release.
 const DEV_KEY = 'horse-game-dev-v1';
 
-const DEFAULT_DEV = { startPhase: null, startEditor: null, startLocation: null, showFps: true, showDevLabels: false, dragObjects: false, usageTips: false };
+const DEFAULT_DEV = { startPhase: null, startEditor: null, startLocation: null, showFps: true, showDevLabels: false, dragObjects: false, dragGroups: [], usageTips: false };
 
 export function loadDevSettings() {
   try {
@@ -620,6 +620,10 @@ export function loadDevSettings() {
       showDevLabels: typeof data.showDevLabels === 'boolean' ? data.showDevLabels : DEFAULT_DEV.showDevLabels,
       // Drag-world-objects positioning aid (#330) — session-only drags, default OFF.
       dragObjects:   typeof data.dragObjects   === 'boolean' ? data.dragObjects   : DEFAULT_DEV.dragObjects,
+      // Named object GROUPS for the drag tool (#337) — `[{ name, members: [objectName] }]`.
+      // Tool config, not world state: the drags themselves stay session-only, but which
+      // objects the tool treats as one handle (e.g. the house fence run) is worth keeping.
+      dragGroups:    Array.isArray(data.dragGroups) ? data.dragGroups             : [],
       // "How do I use this?" usage tooltips on world objects (#332) — dev aid, default OFF.
       usageTips:     typeof data.usageTips     === 'boolean' ? data.usageTips     : DEFAULT_DEV.usageTips,
     };
