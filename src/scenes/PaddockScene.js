@@ -57,6 +57,7 @@ import { WithCareActions } from './paddock/careActions.js';
 import { WithInteraction } from './paddock/interaction.js';
 import { WithInput } from './paddock/input.js';
 import { WithDevLabels } from './paddock/devLabels.js';
+import { WithDevDrag } from './paddock/devDrag.js';
 import { applyDpr } from './uiUtils.js';
 
 // The concern mixins, listed outermost-first (same order the old deeply-nested
@@ -81,7 +82,7 @@ const PADDOCK_MIXINS = [
   WithPlayerBuff,
   WithEffects, WithPersistence, WithRendering, WithWorldObjects, WithCareActions,
   WithInteraction, WithInput, WithPlayerMovement, WithCoop, WithPrompts, WithInteractables, WithUseDispatch,
-  WithDevLabels,
+  WithDevLabels, WithDevDrag,
 ];
 const PaddockBase = PADDOCK_MIXINS.reduceRight((Base, Mixin) => Mixin(Base), Phaser.Scene);
 
@@ -145,6 +146,7 @@ export default class PaddockScene extends PaddockBase {
     this.buildBirdFriendship(); // bird befriending (#223): restore visit tallies + named regulars
     this.startAmbientEvents(); // unified data-driven ambient rotation (#253)
     this.buildDevLabels(); // dev overlay (#329): object labels + coordinate grid, default off
+    this.buildDevDrag();   // dev tool (#330): drag objects + export positions, default off
 
     // Periodic AI tick: direct idle horses to food/water
     this.time.addEvent({ delay: 3000, loop: true, callback: this.horseTick, callbackScope: this });

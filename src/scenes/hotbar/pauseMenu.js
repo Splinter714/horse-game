@@ -115,7 +115,7 @@ export const WithPauseMenu = (Base) => class extends Base {
       ['Ambient', 'ambient'],
       ['Effects', 'effects'],
     ];
-    const devH   = 38 + rowH * 8;  // TEMP dev-tools: heading + hint + dev rows
+    const devH   = 38 + rowH * 10; // TEMP dev-tools: heading + hint + dev rows
     // 3 action/toggle rows: mute, control-prompts, Customize Character.
     const panelH = 56 + rowH * 3 + sliders.length * sliderH + 8 + devH;
     const px = Math.round((sw - panelW) / 2);
@@ -233,6 +233,16 @@ export const WithPauseMenu = (Base) => class extends Base {
         saveDevSettings({ showDevLabels: !loadDevSettings().showDevLabels });
         this.scene.get('PaddockScene')?.refreshDevOverlay();
         gridLbl.setText(`📐 Object Labels + Grid: ${loadDevSettings().showDevLabels ? 'ON' : 'Off'}`);
+      });
+    dy += rowH;
+    // Drag world objects (#330) — session-only positioning aid: drag a prop, then
+    // hit "Export positions" in-world to read the new coordinates back out.
+    const dragLbl = this._addToggleRow(rowX, dy, rowW, rowH,
+      `✋ Drag Objects: ${loadDevSettings().dragObjects ? 'ON' : 'Off'}`,
+      () => {
+        saveDevSettings({ dragObjects: !loadDevSettings().dragObjects });
+        this.scene.get('PaddockScene')?.refreshDevDrag();
+        dragLbl.setText(`✋ Drag Objects: ${loadDevSettings().dragObjects ? 'ON' : 'Off'}`);
       });
     dy += rowH;
     const freezeDecayLbl = this._addToggleRow(rowX, dy, rowW, rowH,

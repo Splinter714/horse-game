@@ -166,6 +166,10 @@ export const WithPlayer = (Base) => class extends Base {
   }
 
   handleTap(pointer) {
+    // Dev drag mode (#330) gets first refusal on the tap: it claims presses on its
+    // own buttons and on a grabbable object, and declines everything else so
+    // ordinary tap-to-move still works while the mode is on.
+    if (this._devDragTap?.(pointer)) return;
     if (this.scene.isActive('InfoPanelScene')) return;
     if (this.scene.get('HotbarScene')?.invOpen) return;
     if (pointer.button !== 0) return;
