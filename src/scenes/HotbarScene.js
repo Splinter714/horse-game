@@ -14,11 +14,12 @@ import { WithCarriers } from './hotbar/carriers.js';
 import { WithInventory } from './hotbar/inventory.js';
 import { WithActionButtons } from './hotbar/actionButtons.js';
 import { WithPauseMenu } from './hotbar/pauseMenu.js';
+import { WithDevTools } from './hotbar/devTools.js';
 import { WithMinimap } from './hotbar/minimap.js';
 import { WithFpsCounter } from './hotbar/fpsCounter.js';
 
 export default class HotbarScene
-  extends WithFpsCounter(WithMinimap(WithPauseMenu(WithInventory(WithActionButtons(WithCarriers(WithHotbarSlots(Phaser.Scene))))))) {
+  extends WithFpsCounter(WithMinimap(WithDevTools(WithPauseMenu(WithInventory(WithActionButtons(WithCarriers(WithHotbarSlots(Phaser.Scene)))))))) {
   constructor() { super('HotbarScene'); }
 
   create() {

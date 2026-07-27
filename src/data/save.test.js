@@ -13,6 +13,9 @@ function makeLocalStorageStub() {
     setItem: (k, v) => store.set(k, String(v)),
     removeItem: (k) => store.delete(k),
     clear: () => store.clear(),
+    // Enumeration half of the Storage API — resetAllSaveData (#351) scans by prefix.
+    get length() { return store.size; },
+    key: (i) => [...store.keys()][i] ?? null,
   };
 }
 
@@ -413,5 +416,50 @@ describe('player look persistence (#44)', () => {
   it('tolerates corrupt JSON, returning {}', () => {
     globalThis.localStorage.setItem('horse-game-player-v1', '{not json');
     expect(save.loadPlayerLook()).toEqual({});
+  });
+});
+
+describe('resetAllSaveData (#351 — Reset Save)', () => {
+  it('clears every horse-game-* and horse-care-* key', () => {
+    // One key from each family the game writes, plus a couple of animal rosters.
+    save.saveGameState({ money: 500 });
+    save.saveAllHorses(save.loadAllHorses());
+    save.saveAllChickens(save.loadAllChickens());
+    save.saveDevSettings({ startPhase: 'Night' });
+    save.saveUiSettings({ showPrompts: false });
+    save.savePlayerLook({ hair: 'black' });
+    save.savePairBonds([['horse', 'horse2']]);
+    save.saveGestations([{ mare: 'horse' }]);
+    globalThis.localStorage.setItem('horse-care-save-v1', '{}');   // legacy roster
+    globalThis.localStorage.setItem('horse-game-barn-v1', '{}');   // written outside save.js
+    globalThis.localStorage.setItem('horse-game-store-inventory-v1', '{}');
+
+    const before = globalThis.localStorage.length;
+    expect(before).toBeGreaterThan(8);
+
+    const removed = save.resetAllSaveData();
+    expect(removed.length).toBe(before);
+    expect(globalThis.localStorage.length).toBe(0);
+    expect(save.hasSave()).toBe(false);
+    expect(save.loadGameState().money).not.toBe(500);
+  });
+
+  it('leaves keys belonging to other apps alone', () => {
+    globalThis.localStorage.setItem('some-other-app', 'keep me');
+    save.saveGameState({ money: 12 });
+    save.resetAllSaveData();
+    expect(globalThis.localStorage.getItem('some-other-app')).toBe('keep me');
+  });
+
+  it('covers every storage key the game actually writes', () => {
+    // Guard: if a new feature adds a key with a different prefix, this fails loudly
+    // rather than the wipe quietly leaving part of the save behind.
+    save.saveGameState({ money: 1 });
+    save.saveAllHorses(save.loadAllHorses());
+    save.saveDevSettings({ startPhase: 'Night' });
+    for (let i = 0; i < globalThis.localStorage.length; i++) {
+      const k = globalThis.localStorage.key(i);
+      expect(save.SAVE_KEY_PREFIXES.some((p) => k.startsWith(p))).toBe(true);
+    }
   });
 });
