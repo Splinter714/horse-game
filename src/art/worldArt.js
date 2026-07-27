@@ -465,8 +465,13 @@ export function buildWorldTextures(scene) {
     g.layer('roof');
     g.fillStyle(0x9a3826, 1); g.fillRect(4, 0, BARN_W - 8, ROOF_MID_H);
     g.fillStyle(0xb6432e, 1); g.fillRect(4, 0, BARN_W - 8, 6);           // ridge highlight
+    // Vertical rafter slats running the depth of the roof (front-to-back), so this
+    // stretched-to-fit plane reads as following the roof's slope/ridge line instead
+    // of looking like flat horizontal shingle courses running across it.
     g.fillStyle(0x7a2a1c, 1);
-    for (let y = 14; y < ROOF_MID_H; y += 16) g.fillRect(4, y, BARN_W - 8, 2); // shingle courses
+    for (let x = 12; x < BARN_W - 8; x += 18) g.fillRect(x, 6, 2, ROOF_MID_H - 6);
+    g.fillStyle(0xa8462e, 1);
+    for (let x = 14; x < BARN_W - 8; x += 18) g.fillRect(x, 6, 1, ROOF_MID_H - 6); // slat highlight
     g.fillStyle(0x6a2418, 1); g.fillRect(4, ROOF_MID_H - 3, BARN_W - 8, 3);   // south edge shadow
   });
 

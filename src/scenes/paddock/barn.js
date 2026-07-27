@@ -18,7 +18,7 @@ import {
   NUM_STALLS, loadBarnState, saveBarnState, assignStall, nextStallOccupant, stallOfHorse, isInsideBarn,
   BARN_W as BARN_DW, BARN_H as BARN_DH, STALL_SIGN_Y, STALL_STAND_Y, stallCenterX,
   TACK_X, TACK_Y, WALL_X0, WALL_X1, WALL_Y0, WALL_Y1, DOOR_X0, DOOR_X1,
-  BACK_WALL_H, FRONT_EAVE, isBehindWall, wallTargetAlpha,
+  BACK_WALL_H, BACK_ROOF_H, FRONT_EAVE, isBehindWall, wallTargetAlpha,
 } from '../../data/barn.js';
 import { SADDLE_TYPES } from '../../data/items.js';
 // How fast the façade fades in/out for the cutaway (alpha per ms).
@@ -64,9 +64,13 @@ export const WithBarn = (Base) => class extends Base {
     // footprints' exact proportions, rather than hardcoding a height that could
     // drift out of sync. Fades in lockstep with barnFront (updateBarnCutaway).
     const frontEaveY = ay - (BARN_DH - FRONT_EAVE) * S;
-    const backEaveY = backY - BACK_WALL_H * S;
+    // Reaches all the way up to the PEAK of the back roof's arc (BACK_WALL_H +
+    // BACK_ROOF_H above the back wall line), not just its eave — otherwise the
+    // connector stopped short of the back gable's tip and the two didn't read as
+    // one continuous roof.
+    const backPeakY = backY - (BACK_WALL_H + BACK_ROOF_H) * S;
     this.barnRoofMid = this.add.image(ax, frontEaveY, 'barnRoofMid')
-      .setDisplaySize(BARN_DW * S, Math.max(4, frontEaveY - backEaveY))
+      .setDisplaySize(BARN_DW * S, Math.max(4, frontEaveY - backPeakY))
       .setDepth(frontEaveY).setOrigin(0.5, 1);
 
     // Interior walkable rect (inside the walls, clear of the back stalls). Used to
