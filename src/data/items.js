@@ -44,13 +44,17 @@ export const CONTENT_DEFS = {
   // Seed feeds the chickens — and the goat (she eats everything). A dropped seed pile in
   // the pasture is fair game for a wandering goat.
   seed:   { label: 'Seed',    icon: 'iconBasketSeed',   action: 'feed',  ground: 'seedPile',   feeds: ['chicken', 'goat'] },
-  // Cat food feeds only the cat (#202 rework) — scooped from the kibble sack into a
-  // basket, then poured into the FOOD BOWL (fillCatBowl), which the cat eats from
-  // directly. It is NOT dropped as a ground pile: `stocks: 'catFood'` marks it as a
-  // bowl-fill content (see useDispatch), so Use near the bowl fills it and there's no
-  // drop-on-ground fallback (no `ground` texture). `feeds` still names the cat so the
-  // basket auto-gathers one serving per cat (#136) and demand maths stay data-driven.
-  catFood: { label: 'Cat Food', icon: 'iconBasketCatFood', action: 'feed', stocks: 'catFood', feeds: ['cat'] },
+  // Kibble feeds the cat AND the dog (#202 rework; #347 added the dog) — scooped from
+  // the one Kibble Sack in the yard into a basket, then poured into whichever pet's
+  // FOOD BOWL you're standing at (fillPetBowl; `_petBowlFor` picks the nearest matching
+  // bowl, the same way plain water already served both pets' water sides). One sack for
+  // both pets rather than a second near-identical source prop. It is NOT dropped as a
+  // ground pile: `stocks: 'catFood'` marks it as a bowl-fill content (see useDispatch),
+  // so Use near a bowl fills it and there's no drop-on-ground fallback (no `ground`
+  // texture). `feeds` names both pets so the basket auto-gathers one serving each
+  // (#136) and the demand maths stay data-driven. (The key stays `catFood` — renaming a
+  // persisted content key would break saved carriers/pantry stock for no gain.)
+  catFood: { label: 'Kibble', icon: 'iconBasketCatFood', action: 'feed', stocks: 'catFood', feeds: ['cat', 'dog'] },
   egg:    { label: 'Eggs',    icon: 'iconBasketEgg',    action: 'egg' },
   // Brown eggs (#276): laid by brown & gold hens (see species/chicken/eggColor.js).
   // A separate content type so colour rides the existing basket → farm-stand → sell

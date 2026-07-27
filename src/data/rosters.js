@@ -107,9 +107,10 @@ function defaultSheepRoster() {
   };
 }
 
-// One dog for now, keyed `dog` (matches its texture/sprite key). Identity-only like
-// the cat — no survival needs, so no offline decay — but persisted so its customizer
-// look + happiness survive reloads. A real "dog job" is the follow-up #186.
+// One dog for now, keyed `dog` (matches its texture/sprite key). Persisted so its
+// customizer look + stats survive reloads. As of #347 it has real hunger/thirst (fed
+// at its own bowl) — but, like the cat, it does NOT decay offline, so a dog is never
+// found starving after a break.
 function defaultDogRoster() {
   return {
     dog: { id: 'dog-1', name: 'Scout', breed: 'Farm Dog', coat: 0, age: 3, sex: 'male' },
@@ -230,7 +231,7 @@ export const ROSTERS = {
     registryKey: 'allDogs',
     Model: Dog,
     defaultRoster: defaultDogRoster,
-    offlineDecay: false, // identity-only (no survival needs) — don't decay offline
+    offlineDecay: false, // has needs (#347) but stays forgiving — like the cat, no offline decay
     legacy: null,
   },
   bunny: {

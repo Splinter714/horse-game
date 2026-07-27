@@ -24,7 +24,7 @@ export const SHOP_STOCK = [
   { key: 'buyApple',   content: 'apple',   carrier: 'basket', price: 6,  label: 'Apples',   icon: 'iconBasketApple',   desc: 'A treat horses, cows & pigs love' },
   { key: 'buyCarrot',  content: 'carrot',  carrier: 'basket', price: 5,  label: 'Carrots',  icon: 'iconBasketCarrot',  desc: 'Crunchy feed for horses, cows & pigs' },
   { key: 'buySeed',    content: 'seed',    carrier: 'basket', price: 2,  label: 'Chicken Feed', icon: 'iconBasketSeed', desc: 'Seed for the flock' },
-  { key: 'buyCatFood', content: 'catFood', carrier: 'basket', price: 4,  label: 'Cat Food', icon: 'iconBasketCatFood', desc: 'A tin for the barn cat' },
+  { key: 'buyCatFood', content: 'catFood', carrier: 'basket', price: 4,  label: 'Kibble',   icon: 'iconBasketCatFood', desc: 'A tin for the cat and the dog' },
   // Raw sugar (#227): a pantry staple, not gathered on the farm — bought here so
   // there's a way to stock it for the stove's sugar-cube recipe (data/cooking.js).
   // Priced above its farm-stand sell price (rawSugar STAND_DEFS, paddock/constants.js)

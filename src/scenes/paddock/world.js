@@ -192,11 +192,12 @@ export const WithWorld = (Base) => class extends Base {
     // Gathering sources (#63) — static, infinite props the player fills carriers at.
     this.buildSources();
 
-    // Pet food + water bowls (#202/#283/#311) — fillable dishes the pet eats/drinks
-    // from directly (not gather sources). The player keeps them stocked.
+    // Pet food + water bowls (#202/#283/#311/#347) — fillable dishes the pet eats/
+    // drinks from directly (not gather sources). The player keeps them stocked.
     this.buildCatBowls();
     this.buildBunnyBowl();
     this.buildDoghouse(); // #237 decorative yard prop; sets this.doghouseObstacles
+    this.buildDogBowl();  // #347 — the dog's bowl, placed relative to the doghouse
     this.buildBirdEcosystem(); // #219/#240/#226/#239 bird-ecosystem props; paddock/birdEcosystem.js
     // Scenery stream cutting across the top-right corner of the world.
     this.buildStream();

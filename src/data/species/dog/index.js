@@ -1,7 +1,12 @@
-// Dog species definition. Identity-only for now (no survival needs/decay, like the
-// cat) — a friendly farm dog that trots around the world and can be petted (#185).
-// A real "dog job" (companion-follow, herding strays through the gate) is the bigger
-// follow-up #186; this first pass just brings the existing art into the world.
+// Dog species definition. A friendly farm dog that trots around the world, can be
+// petted (#185), tags along as a companion (#186) — and, as of #347, actually needs
+// FEEDING and WATERING like the cat and bunny: it has real hunger/thirst needs and
+// its own combined food+water bowl by the doghouse (worldObjects.js buildDogBowl,
+// the shared `_addPetBowl` plumbing from #311/#283). A hungry or thirsty dog trots
+// to its stocked bowl and eats/drinks straight from it (seekDogFood/seekDogWater,
+// ./behaviors.js). Its kibble is the SAME `catFood` content the cat eats, scooped
+// from the one Kibble Sack in the yard — one sack feeds both pets (#347 unification),
+// so there's no extra source prop to hunt for.
 // Everything dog lives in this folder; the procedural art is in src/art/dogArt.js.
 
 export const DOG = {
@@ -10,14 +15,25 @@ export const DOG = {
     id: () => `dog-${Math.random().toString(36).slice(2, 9)}`,
     name: 'Scout', breed: 'Farm Dog', coat: 0, age: 3, sex: 'male',
   },
-  // No survival needs yet, but a love/happiness stat so petting lands on something
-  // and completes (#104). With no needs to average, happiness eases toward `baseline`
-  // and petting tops it up; a slow `driftRate` keeps a pet rewarding (#105).
-  needs: {},
+  // Hunger + thirst (#347), both restored at the dog's own combined food+water bowl
+  // via the shared pet-bowl AI (seekDogFood/seekDogWater, ./behaviors.js) — exactly
+  // the cat's shape. Gentle decay (kid-friendly, matching the cat/bunny rather than
+  // the horse's steeper curve) and no offline decay (rosters.js) so a dog is never
+  // neglected into misery while you're away. With needs present, happiness eases
+  // toward how fed+watered the dog is (Animal.recomputeHappiness); petting still tops
+  // happiness up and fades (#105), so the dog is loved AND cared for.
+  needs: {
+    hunger: { decay: 0.05,  default: 78, label: 'Food',  color: 0x63a31d },
+    thirst: { decay: 0.045, default: 78, label: 'Water', color: 0x378add },
+  },
   happiness: { default: 72, baseline: 58, driftRate: 0.005, label: 'Happy', color: 0x1d9e75 },
-  // A waggy, affectionate dog — a generous bump per pet.
+  // A waggy, affectionate dog — a generous bump per pet. `feed`/`water` (#347) are
+  // applied when the dog reaches a stocked side of its bowl and eats/drinks a serving
+  // from it (petEatFromBowl) — same shape/sounds/icons as the cat's and bunny's.
   actions: {
-    pet: { stat: 'happiness', amount: 14, care: 'loved', label: 'Love', sound: 'chime', icon: 'iconHeart' },
+    pet:   { stat: 'happiness', amount: 14, care: 'loved',   label: 'Love',  sound: 'chime', icon: 'iconHeart' },
+    feed:  { stat: 'hunger',    amount: 35, care: 'fed',     label: 'Feed',  sound: 'eat',   icon: 'iconFeed'  },
+    water: { stat: 'thirst',    amount: 40, care: 'watered', label: 'Water', sound: 'drink', icon: 'iconWater' },
   },
   dailyCare: { track: ['loved'], requiredForContentment: [] },
   mood: [
@@ -62,18 +78,24 @@ export const DOG = {
   spawn: {
     inWorld: true,
     superSampled: true, // drawn on the ART_SCALE grid — display at S/ART_SCALE
-    shadowScale: 0.5, walkFps: 6, tweenRate: 8, bodyR: 11,
+    // `eatFps` registers the head-down eat/drink anim the bowl primitive plays
+    // (#347). Dog art has no dedicated eat frames, so creatures.js aliases it to the
+    // idle pose automatically — no missing-anim warning, no new art needed.
+    shadowScale: 0.5, walkFps: 6, tweenRate: 8, eatFps: 4, bodyR: 11,
     roam: 'world',
     placements: [{ x: 520, y: 760 }],
   },
 
   // Info-panel presentation: animated portrait (idle frames), an italic personality
-  // line, no stat bars or action buttons (identity-only) — same shape as the cat.
+  // line, and Food + Water + Love bars (#347 — rendered generically from `needs`).
+  // No action buttons — care happens in-world (stock the bowl + the Interact pet).
   panel: { portrait: 'animated', traitLine: 'personality', fixedAttrs: false },
 
-  // AI priority list (#187/#231). Herding takes priority when sheep are in range;
-  // otherwise an occasional, off-cooldown swim in the stream (swimStream, generic —
+  // AI priority list (#187/#231/#347). Survival first: a hungry or thirsty dog trots
+  // to its stocked bowl and eats/drinks from it (seekDogFood/seekDogWater — the same
+  // priority the cat/bunny give their bowls). Then herding when sheep are in range,
+  // then an occasional, off-cooldown swim in the stream (swimStream, generic —
   // ./../swim.js; dispatched via BEHAVIORS.dog in ../index.js). Otherwise it falls
   // through to its brisk wander.
-  behaviors: ['dogHerdSheep', 'swimStream'],
+  behaviors: ['seekDogFood', 'seekDogWater', 'dogHerdSheep', 'swimStream'],
 };

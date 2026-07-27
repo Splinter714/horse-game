@@ -65,6 +65,13 @@ export default defineConfig(({ command }) => ({
         // at runtime, not fetched files. Precaching the built JS/HTML/icon shell is
         // enough for the whole game to boot and run with no connection.
         globPatterns: ['**/*.{js,css,html,png,ico,svg}'],
+        // The single game bundle crossed Workbox's default 2 MiB precache ceiling
+        // (#347 tipped it over by a few hundred bytes — the build FAILS, it isn't a
+        // warning). The bundle is one file by design and gzips to ~500 KB, and it
+        // must be precached or offline play breaks entirely, so lift the ceiling
+        // rather than dropping the game out of the service worker. 8 MiB leaves
+        // plenty of headroom before this needs revisiting.
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
       },
     }),
   ],

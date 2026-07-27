@@ -57,10 +57,11 @@ describe('content definitions', () => {
     expect(CONTENT_DEFS.egg.action).toBe('egg');
     // Seed feeds the chickens — and the goat, who eats everything (#267).
     expect(CONTENT_DEFS.seed.feeds).toEqual(['chicken', 'goat']);
-    // Cat food (#202 rework): scooped into a basket, poured into the cat's FOOD BOWL
-    // (`stocks: 'catFood'` marks it as a bowl-fill content), never dropped on the
-    // ground — so it has no `ground` texture. Still feeds only the cat.
-    expect(CONTENT_DEFS.catFood.feeds).toEqual(['cat']);
+    // Kibble (#202 rework; #347 added the dog): scooped into a basket at the one Kibble
+    // Sack, poured into whichever pet's FOOD BOWL you're at (`stocks: 'catFood'` marks
+    // it as a bowl-fill content), never dropped on the ground — so it has no `ground`
+    // texture. Feeds the cat AND the dog now (one sack, two pets).
+    expect(CONTENT_DEFS.catFood.feeds).toEqual(['cat', 'dog']);
     expect(CONTENT_DEFS.catFood.stocks).toBe('catFood');
     expect(CONTENT_DEFS.catFood.ground).toBeUndefined();
     // catWater was removed with the #202 rework — the water bowl fills from plain water.

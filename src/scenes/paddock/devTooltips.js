@@ -77,9 +77,13 @@ export const USAGE_TIPS = {
     + 'trough and Use to pour it in. Repeat to top it right up — thirsty horses '
     + 'drink from it on their own.',
   catBowl:
-    'Cat Bowl: scoop cat food into a BASKET at the kibble sack, or fill a BUCKET '
+    'Cat Bowl: scoop kibble into a BASKET at the kibble sack, or fill a BUCKET '
     + 'with water, then Use here to stock that side of the bowl. The cat eats and '
     + 'drinks from it by itself.',
+  dogBowl:
+    'Dog Bowl (#347): the same kibble the cat eats — scoop it into a BASKET at the '
+    + 'kibble sack (or water into a BUCKET) and Use here to stock a side. The dog '
+    + 'trots over from the doghouse and feeds itself.',
   bunnyBowl:
     'Bunny Bowl: gather bunny food into a BASKET at the bunny hutch (or water into '
     + 'a BUCKET) and Use here to fill it. Keeping it stocked also lures more wild '

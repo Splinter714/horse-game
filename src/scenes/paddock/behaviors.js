@@ -148,7 +148,13 @@ export const WithBehaviors = (Base) => class extends Base {
     };
   }
 
-  // Context for the dog's charm behaviors (#187/#231). dogHerdSheep needs how close
+  // Context for the dog's behaviors (#187/#231/#347). #347 added the survival half:
+  // its hunger/thirst plus the distance to its own combined FOOD/WATER BOWL — but only
+  // when that side is actually STOCKED (level > 0); an empty side reads as Infinity
+  // (_catBowlDist), so a hungry dog with nothing in the dish just carries on herding /
+  // wandering rather than pacing an empty bowl. Same shape as _catContext/_bunnyContext.
+  //
+  // The charm half is unchanged: dogHerdSheep needs how close
   // the nearest sheep is (Infinity when none are within herding range) plus a per-dog
   // cooldown; swimStream (species-generic, ./swim.js) needs the distance to the
   // nearest reachable stream point plus its own cooldown+chance. The dog roams the
@@ -166,8 +172,14 @@ export const WithBehaviors = (Base) => class extends Base {
     const streamDist = water
       ? Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, water.x, water.y)
       : Infinity;
+    const dog = a.model;
     return {
       isNight: !!this.isNight,
+      // Survival (#347) — read by seekDogFood/seekDogWater.
+      hunger: dog?.stats?.hunger ?? 100,
+      thirst: dog?.stats?.thirst ?? 100,
+      nearestFoodDist:  this._catBowlDist(a, this.props.dogBowl, 'food'),
+      nearestWaterDist: this._catBowlDist(a, this.props.dogBowl, 'water'),
       nearestSheepDist,
       now: this.time.now,
       lastHerd: a._lastHerd ?? null,
