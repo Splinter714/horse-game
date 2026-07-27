@@ -7,6 +7,8 @@ import { BIRD_TYPES } from '../data/wildlife.js';
 import { SPECIES } from '../data/species/index.js';
 import { ROSTERS } from '../data/rosters.js';
 import { buildChickTextures } from '../art/chickArt.js';
+import { BARN_W, BARN_H, WALL_Y0, FRONT_EAVE, BACK_WALL_H, BACK_ROOF_H } from '../data/barn.js';
+import { S } from './paddock/constants.js';
 
 // ── Art preview (dev tool) ───────────────────────────────────────────────────
 // A standalone gallery for art-directing the creatures (and, since #369, the static
@@ -128,7 +130,7 @@ function buildFamilies() {
 // after its EXACT texture key (the point is being able to reference it precisely).
 const WORLD_OBJECT_KEYS = [
   'house', 'houseInterior',
-  'barnFront', 'barnBack', 'barnRoofMid', 'barnInterior',
+  'barnFront', 'barnBack', 'barnRoofMid', 'barnInterior', 'barnAssembled',
   'coop', 'doghouse', 'bunnyHutch', 'foxDen',
   'birdBath', 'birdhouse', 'beehive', 'beehiveReady',
   'seedFeeder', 'seedFeederEmpty', 'nectarFeeder', 'nectarFeederEmpty', 'duckFeeder',
@@ -139,6 +141,58 @@ const WORLD_OBJECT_KEYS = [
   'fence', 'gateClosed', 'gateOpen', 'trough',
   'trashCan', 'trashCanOpen',
 ];
+
+// Mirrors buildBarn()'s FRONT_OVERLAP (src/scenes/paddock/barn.js) — the deliberate
+// overlap between barnRoofMid and the front eave that hides rounding at the seam.
+// Not exported there (a barn.js-local literal), so it's duplicated here rather than
+// threading a new export through data/barn.js for one dev-tool consumer.
+const BARN_FRONT_OVERLAP = 24;
+
+// Bake the barn's 4 separately-textured parts (barnInterior/barnBack/barnRoofMid/
+// barnFront) into ONE static "assembled" preview texture, at the exact same relative
+// offsets/scale/stretch/draw-order buildBarn() (src/scenes/paddock/barn.js) uses to
+// place them in the world — so this gallery entry reads as "the barn as it actually
+// looks", not its parts shown side by side (#369 follow-up). Runs once; a no-op on
+// later calls (the baked texture persists) or if the source textures aren't built yet.
+function buildBarnAssembledTexture(scene) {
+  const KEY = 'barnAssembled';
+  if (scene.textures.exists(KEY)) return;
+  const need = ['barnInterior', 'barnBack', 'barnRoofMid', 'barnFront'];
+  if (!need.every((k) => scene.textures.exists(k))) return; // builder didn't run — skip
+
+  // Local anchor (ax, ay) stands in for buildBarn()'s doorway anchor (ax, ay) — same
+  // math, just placed inside a small margin-padded canvas instead of world space.
+  // Total vertical span (topmost pixel — barnBack's own top edge — down to the front/
+  // interior's bottom edge at the doorway) reduces to (2·BARN_H − WALL_Y0)·S; see the
+  // derivation in the #369 follow-up work — it matches buildBarn()'s geometry exactly.
+  const MARGIN = 20;
+  const totalH = (2 * BARN_H - WALL_Y0) * S;
+  const w = BARN_W * S + MARGIN * 2;
+  const h = totalH + MARGIN * 2;
+  const ax = MARGIN + (BARN_W * S) / 2;
+  const ay = MARGIN + totalH;
+
+  const backY = ay - (BARN_H - WALL_Y0) * S;
+  const frontEaveY = ay - (BARN_H - FRONT_EAVE) * S;
+  const backPeakY = backY - (BACK_WALL_H + BACK_ROOF_H) * S;
+  const roofMidY = frontEaveY + BARN_FRONT_OVERLAP;
+  const roofMidH = Math.max(4, (frontEaveY - backPeakY) + BARN_FRONT_OVERLAP);
+
+  // Same bottom-to-top draw order buildBarn() relies on for correct depth-sorting:
+  // interior floor, back wall/roof, mid roof connector, front façade on top.
+  const interior = scene.add.image(ax, ay, 'barnInterior').setScale(S).setOrigin(0.5, 1);
+  const back = scene.add.image(ax, backY, 'barnBack').setScale(S).setOrigin(0.5, 1);
+  const roofMid = scene.add.image(ax, roofMidY, 'barnRoofMid')
+    .setDisplaySize(BARN_W * S, roofMidH).setOrigin(0.5, 1);
+  const front = scene.add.image(ax, ay, 'barnFront').setScale(S).setOrigin(0.5, 1);
+
+  const rt = scene.add.renderTexture(0, 0, w, h).setOrigin(0, 0).setVisible(false);
+  rt.draw([interior, back, roofMid, front]);
+  rt.saveTexture(KEY);
+
+  interior.destroy(); back.destroy(); roofMid.destroy(); front.destroy();
+  rt.destroy();
+}
 
 // The first family in this list carries `sectionTitle`, which forces a row break and
 // draws a header above it in the gallery (see create()/layout()/_applyScroll() below).
@@ -176,6 +230,10 @@ export default class ArtPreviewScene extends Phaser.Scene {
     if (!this.textures.exists(`${PREVIEW_CHICK_KEY}_idle_0`)) {
       buildChickTextures(this, PREVIEW_CHICK_KEY, 0);
     }
+
+    // Bake the "assembled barn" composite (#369 follow-up) before families are built
+    // below, so its texture exists in time for _frameKeysFor('barnAssembled') to find it.
+    buildBarnAssembledTexture(this);
 
     this._bg = this.add.graphics().setDepth(0);
 
