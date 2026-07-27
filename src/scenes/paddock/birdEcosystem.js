@@ -14,6 +14,7 @@ import { S } from './constants.js';
 import { FEEDER_CAP, fillFeederLevel, drainFeederLevel, feederHasSeed } from '../../data/feeder.js';
 import { HONEY_CAP, ripenHoney, honeyReady, harvestHoney } from '../../data/hive.js';
 import { playSplash, playGather } from '../../audio/sounds.js';
+import { loadHummingbirdHouseState, saveHummingbirdHouseState } from '../../data/save.js';
 
 export const WithBirdEcosystem = (Base) => class extends Base {
   // One entry point buildWorld calls after the yard props are down. Accumulates the
@@ -25,6 +26,7 @@ export const WithBirdEcosystem = (Base) => class extends Base {
     this.buildNectarFeeder(); // #226
     this.buildBeehive();      // #239
     this.buildBirdhouse();    // #218
+    this.buildHummingbirdHouse(); // #364
   }
 
   // ─── Bird bath (#219) ────────────────────────────────────────────────────────
@@ -242,6 +244,84 @@ export const WithBirdEcosystem = (Base) => class extends Base {
     // Sprite 26×58 at S (origin 0.5,1); the solid part is the slim post foot → a
     // narrow ~22×16 footprint at the base so the player can walk right up to it.
     this.birdEcosystemObstacles.push({ x: x - 11, y: y - 16, w: 22, h: 14, own: this.props.birdhouse });
+  }
+
+  // ─── Hummingbird house + tie-rope (#364) ─────────────────────────────────────
+  // A small house with a hinged lid, propped open by a rope tied off at a nearby
+  // post — mirrors the lead-rope-to-fence tie mechanic (#317, interactables.js/
+  // riding.js) but for a fixed world object rather than a horse. A MANUAL toggle
+  // (paddock/interactables.js `hummingbirdPost` descriptor → toggleHummingbirdHouse
+  // below), not automatic: tying props the lid open (hummingbirds may then visit/
+  // go inside, birdEcosystemVisits.js `_hummerTargets`), untying lets it swing
+  // closed. Sits ALONGSIDE the existing nectar jug/feeder (#226) — its own separate
+  // attraction, not a replacement.
+  //
+  // Placement (760,300 house / 804,312 post): a clear yard pocket east of the
+  // nectar jug (691,236) / feeder (629,234), north-west of the chicken coop's
+  // footprint (868–992, 350–450), and well clear of the kibble sack/fox den/duck
+  // feeder/bunny hutch row (x815–1293, y107–150) and the worn path (buildPath's
+  // fromHouse route runs south of y≈320 out here) — no obstacle overlap.
+  buildHummingbirdHouse() {
+    const saved = loadHummingbirdHouseState();
+    const hx = 760, hy = 300;
+    const px = 804, py = 312;
+
+    const houseSprite = this.add.image(hx, hy, saved.open ? 'hummingbirdHouseOpen' : 'hummingbirdHouse')
+      .setScale(S).setDepth(hy).setOrigin(0.5, 1);
+    // `sprite` kept so the dev drag tool (#330) can move the visible house, not
+    // just this record's numbers.
+    this.props.hummingbirdHouse = { x: hx, y: hy, sprite: houseSprite, open: !!saved.open };
+    // Sprite 26×54 at S (origin 0.5,1); box+post footprint ≈ 20×16 at the base.
+    this.birdEcosystemObstacles.push({ x: hx - 10, y: hy - 18, w: 20, h: 16, own: this.props.hummingbirdHouse });
+
+    const postSprite = this.add.image(px, py, 'hummingbirdTiePost').setScale(S).setDepth(py).setOrigin(0.5, 1);
+    this.props.hummingbirdPost = { x: px, y: py, sprite: postSprite };
+    // Sprite 10×30 at S; a slim stake footprint.
+    this.birdEcosystemObstacles.push({ x: px - 6, y: py - 10, w: 12, h: 8, own: this.props.hummingbirdPost });
+
+    this.hummingbirdRope = this.add.graphics().setDepth(Math.max(hy, py) + 1);
+    this._drawHummingbirdRope();
+  }
+
+  // Toggle the tie — mirrors toggleGate's plain boolean-flip pattern: swap the lid
+  // sprite, redraw the rope taut/slack, and persist so the lid stays exactly as
+  // left across a reload (own tiny save key, like the tractor's paint color).
+  toggleHummingbirdHouse() {
+    const h = this.props.hummingbirdHouse;
+    if (!h) return;
+    h.open = !h.open;
+    h.sprite.setTexture(h.open ? 'hummingbirdHouseOpen' : 'hummingbirdHouse');
+    this._drawHummingbirdRope();
+    saveHummingbirdHouseState({ open: h.open });
+  }
+
+  // The rope from the lid's fixed attach point down to the post's tie hook — a
+  // straight taut line when tied/open (the pull that props the lid), a drooping
+  // sag when untied/closed. Both endpoints are fixed world points (texture offset
+  // × S, mirroring the bird-visit landing-spot math in birdEcosystemVisits.js) so
+  // only the line's shape changes between states — the rope never needs to know
+  // the lid art shifted. Mirrors the tied-horse rope drawn in riding.js.
+  _drawHummingbirdRope() {
+    const h = this.props.hummingbirdHouse, p = this.props.hummingbirdPost;
+    if (!h || !p || !this.hummingbirdRope) return;
+    // Lid attach point: the ring near the box's front-top edge (texture x23,y14
+    // on the 26×54 house art → offset from centre/base × S).
+    const ax = h.x + (23 - 13) * S, ay = h.y - (54 - 14) * S;
+    // Post hook: near the top of the stake (texture x5,y2 on the 10×30 post art).
+    const px = p.x, py = p.y - (30 - 2) * S;
+    const rope = this.hummingbirdRope;
+    rope.clear();
+    rope.lineStyle(2, 0xc8a040, 0.9);
+    rope.beginPath();
+    rope.moveTo(ax, ay);
+    if (h.open) {
+      rope.lineTo(px, py); // taut
+    } else {
+      const midX = (ax + px) / 2, midY = Math.max(ay, py) + 10 * S; // slack sag
+      rope.lineTo(midX, midY);
+      rope.lineTo(px, py);
+    }
+    rope.strokePath();
   }
 
 };

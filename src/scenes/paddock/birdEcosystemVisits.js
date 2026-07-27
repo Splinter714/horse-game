@@ -321,6 +321,11 @@ export const WithBirdEcosystemVisits = (Base) => class extends Base {
     const pts = (this.props.flowers ?? []).map((fl) => ({ x: fl.x, y: fl.y - 6, feeder: false }));
     const nf = this.props.nectarFeeder;
     if (nf?.filled) pts.push({ x: nf.x, y: nf.y - 38, feeder: true }); // hover at the ports
+    // Hummingbird house (#364) — only a valid stop while the lid is propped open
+    // (the tie-post toggle). Hovers near the entrance hole, same as the birdhouse
+    // perch dowel above, but this one may duck inside for a beat (_hummerVisitHouse).
+    const hh = this.props.hummingbirdHouse;
+    if (hh?.open) pts.push({ x: hh.x, y: hh.y - 34 * S, house: true });
     return pts;
   }
 
@@ -365,7 +370,31 @@ export const WithBirdEcosystemVisits = (Base) => class extends Base {
       onComplete: () => {
         if (!sprite.active) return;
         if (target.feeder) this.drainNectarFeeder?.(); // a sip lowers the feeder
+        if (target.house) { this._hummerVisitHouse(c, n, target); return; } // #364
         this._hummerHover(c, n, target);
+      },
+    });
+  }
+
+  // ── Hummingbird house visit (#364) ── while the lid is propped open, a darting
+  // hummingbird may duck inside for a beat (fade out, pause, fade back in) instead
+  // of just hovering in place — a small ambient payoff for tying the rope. Reuses
+  // the same dart/hover scheduling as every other stop (flowers, nectar feeder);
+  // only this "go inside" beat is new, no separate scheduling infrastructure.
+  _hummerVisitHouse(c, n, target) {
+    if (!c.sprite.active) return;
+    const sprite = c.sprite;
+    c.tween = this.tweens.add({
+      targets: sprite, alpha: 0, duration: 220, ease: 'Sine.easeIn',
+      onComplete: () => {
+        if (!sprite.active) { this._despawnCritter(c); return; }
+        this.time.delayedCall(Phaser.Math.Between(500, 1100), () => {
+          if (!sprite.active) { this._despawnCritter(c); return; }
+          c.tween = this.tweens.add({
+            targets: sprite, alpha: 1, duration: 220, ease: 'Sine.easeOut',
+            onComplete: () => this._hummerHover(c, n, target),
+          });
+        });
       },
     });
   }

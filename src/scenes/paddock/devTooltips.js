@@ -93,6 +93,13 @@ export const USAGE_TIPS = {
   nectarFeeder:
     'Hummingbird Feeder (#226): fill a BUCKET at the nectar jug by the house, then '
     + 'Use here to top it up. Hummingbirds sip from it and drain it over time.',
+  hummingbirdHouse:
+    'Hummingbird House (#364): its lid opens only when the rope at the nearby '
+    + 'post is tied. While propped open, hummingbirds may visit and duck inside.',
+  hummingbirdPost:
+    'Tie-Post (#364): interact bare-handed to tie the rope and prop the '
+    + 'hummingbird house\'s lid open, or interact again to untie it and let the '
+    + 'lid swing closed.',
 
   // ── Harvest / gather ──────────────────────────────────────────────────────
   beehive:
