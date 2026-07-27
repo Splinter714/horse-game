@@ -266,6 +266,11 @@ export const STAND_DEFS = {
   vegetableStew: { price: 16, tex: 'iconStew',       scale: 0.9, emoji: '🍲', floatIcon: 'iconStew' },
   berryPie:      { price: 26, tex: 'iconBerryPie',   scale: 0.9, emoji: '🥧', floatIcon: 'iconBerryPie' },
   honeyBread:    { price: 27, tex: 'iconHoneyBread', scale: 0.9, emoji: '🍞', floatIcon: 'iconHoneyBread' },
+  // Trail trinket (#36 playtest follow-up, 2026-07-26): the trailside collectible,
+  // now sold at the stand like any other gathered good instead of an instant cash
+  // pickup. Priced comparably to the other low-tier sellables above (carrot 3,
+  // potato 3, orange 5, egg 5) — a first-pass balance lever to tune at playtest.
+  trinket: { price: 6, tex: 'iconTrinket', scale: 0.9, emoji: '✨', floatIcon: 'iconTrinket' },
 };
 export const STAND_TYPES = Object.keys(STAND_DEFS);
 

@@ -940,27 +940,41 @@ try {
     // world-x trail terrain. Drive the player there directly (bypassing the long
     // walk) and assert: same scene stays active throughout, the camera follows
     // past x=0, and the trail's collectible interactable is reachable.
+    //
+    // Sellable-goods follow-up (2026-07-26 playtest): the trinket is no longer an
+    // instant-cash pickup — like eggs/honey it requires an equipped basket and
+    // lands in the basket's count, to be sold at the farm stand. Equip a basket
+    // for this probe (mirrors the pantry/kitchen-counter probes above).
     let ridingTrail = 'ok';
     try {
+      const hot = g.scene.getScene('HotbarScene');
       const savedX = paddock.player.sprite.x, savedY = paddock.player.sprite.y;
+      const savedSlot = hot.activeSlot;
       const scenesBefore = g.scene.scenes.filter((s) => s.scene.isActive()).map((s) => s.scene.key);
       // Walk (teleport, for a deterministic probe) well into the trail.
       paddock.player.sprite.setPosition(-500, 500);
       paddock.cameras.main.setScroll(-9999, -9999); // force a fresh follow-recompute
+      hot.activeSlot = hot.hotbar.indexOf('basketGroup');
+      // Ensure the active basket member starts empty — an earlier probe (beehive)
+      // may have left honey in it, which would block the trinket fill (strict
+      // no-mixing rule, like every other content).
+      const basketKey = hot._resolveKey ? hot._resolveKey('basketGroup') : hot.activeCarrier?.basket;
+      hot.carriers[basketKey] = { content: null, count: 0 };
       paddock.checkProximity(); // rebuild proximity/prompt state at the new spot
       const stillSameScene = g.scene.isActive('PaddockScene')
         && scenesBefore.every((k) => g.scene.isActive(k));
       const playerInTrail = paddock.player.sprite.x < 0;
       const hasTrailProps = !!paddock.props.trailCollectible && !!paddock.props.trailEntrance;
-      // The collectible interactable resolves at close range and is pickable.
+      // The collectible interactable resolves at close range and is pickable
+      // (with a basket equipped).
       const c = paddock.props.trailCollectible;
       paddock.player.sprite.setPosition(c.x, c.y + 20);
-      const inst = paddock._nearestInteractable(paddock.player.sprite.x, paddock.player.sprite.y, null, 'reachDist', paddock.interactWorld);
+      const inst = paddock._nearestInteractable(paddock.player.sprite.x, paddock.player.sprite.y, hot.getActiveItem(), 'reachDist', paddock.interactWorld);
       const collectibleReachable = !!inst && inst.label === 'Pick Up Trinket';
-      const moneyBefore = paddock.money;
       paddock._collectTrailTrinket();
-      const collected = c.found === true && paddock.money === moneyBefore + 10;
+      const collected = c.found === true && hot.getActiveItem()?.content === 'trinket' && hot.getActiveItem()?.count === 1;
       paddock.player.sprite.setPosition(savedX, savedY);
+      hot.activeSlot = savedSlot;
       ridingTrail = (stillSameScene && playerInTrail && hasTrailProps && collectibleReachable && collected)
         ? 'continuous-and-collectible'
         : `stillSameScene=${stillSameScene},playerInTrail=${playerInTrail},hasTrailProps=${hasTrailProps},collectibleReachable=${collectibleReachable},collected=${collected}`;
