@@ -102,6 +102,15 @@ export const GATE_GAP_X1 = 1020;
 // Global sprite scale.
 export const S = 2;
 
+// The 'fence' texture (worldArt.js) is one repeating unit of "post (near the
+// left edge, x2-6) + rail spanning the FULL tile width to connect to the NEXT
+// post" — so N posts in a row only need N-1 full tiles between them, plus an
+// END-CAP tile for the last post that shows the post but crops off the
+// trailing rail (there's nothing further right for it to connect to). #372.
+export const FENCE_TEX_W = 48;   // native texture px (96 world px at S)
+export const FENCE_TEX_H = 24;
+export const FENCE_POST_CROP_W = 8; // native px: just enough to keep the post, drop the rail
+
 // ── Animal droppings (#232) ─────────────────────────────────────────────────
 // The most droppings allowed lying in the pasture at once. Cosmetic clutter the
 // player scoops up with the scooper — capped so an ignored pasture never carpets

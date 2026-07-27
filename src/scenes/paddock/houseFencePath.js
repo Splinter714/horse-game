@@ -44,7 +44,7 @@
 // a follow-up would look completely different from this file, closer to
 // resampling `buildPath`'s stamp positions along a spline.
 
-import { S } from './constants.js';
+import { S, FENCE_TEX_H, FENCE_POST_CROP_W } from './constants.js';
 
 const SPACING      = 96;      // world px between posts — matches the fence's original fixed spacing
 const ENDPOINT_R   = 26;      // world px: how close a tap must be to grab an endpoint handle
@@ -118,10 +118,22 @@ export const WithHouseFencePath = (Base) => class extends Base {
     const posts = this._fencePosts();
     if (!posts.length) return;
     const specs = respaceHouseFence(start, end, SPACING);
+    // #372: rotate each post to match the run's direction — the whole run is one
+    // straight line between `start`/`end` (respaceHouseFence interpolates along
+    // it), so a single angle for the entire run is correct, not a per-segment
+    // angle. The rail's origin is (0, 0.5) (pivot at its left edge) and its
+    // rendered length (48 * S = 96, see constants.js) equals SPACING exactly, so
+    // a rotated rail still reaches exactly from one post to the next with no gap
+    // or overlap, at any angle.
+    const angle = Math.atan2(end.y - start.y, end.x - start.x);
     for (const p of posts) p.sprite?.destroy();
     posts.length = 0;
     specs.forEach((p, i) => {
-      const sprite = this.add.image(p.x, p.y, 'fence').setScale(S).setDepth(p.y).setOrigin(0, 0.5);
+      const sprite = this.add.image(p.x, p.y, 'fence').setScale(S).setDepth(p.y).setOrigin(0, 0.5).setRotation(angle);
+      // #372: the LAST post is an end cap — crop off the tile's trailing rail
+      // (there's no next post for it to connect to) so the run doesn't show a
+      // dangling rail one segment-length past its actual end.
+      if (i === specs.length - 1) sprite.setCrop(0, 0, FENCE_POST_CROP_W, FENCE_TEX_H);
       posts.push({ x: p.x, y: p.y, sprite, label: `Fence Post ${i + 1}` });
     });
     this.refitHouseFence?.();

@@ -2,10 +2,11 @@
 // collision helpers. Applied as a functional mixin so `this` is the scene.
 
 import Phaser from 'phaser';
-import { WORLD_W, WORLD_H, PASTURE_BOUNDS, GATE_GAP_X0, GATE_GAP_X1, S } from './constants.js';
+import { WORLD_W, WORLD_H, PASTURE_BOUNDS, GATE_GAP_X0, GATE_GAP_X1, S, FENCE_TEX_H, FENCE_POST_CROP_W } from './constants.js';
 import { SPECIES } from '../../data/species/index.js';
 import { bakeStaticGraphics } from './bakeGraphics.js';
 import { houseFenceRect } from './houseFence.js';
+import { respaceHouseFence } from './houseFencePath.js';
 
 // Collision band thickness for the house fence line (#344) — the solid slice of the
 // 48px-tall rail sprite, matching the height the old hardcoded rect used.
@@ -120,12 +121,23 @@ export const WithWorld = (Base) => class extends Base {
     // Anchor (-136, 57) — the owner grouped all 6 posts with the #337 multi-select
     // tool and dragged the whole run up-left in one go (#330 export, baked in by
     // #343). Spacing is unchanged at 96px, so only the base x/y move.
+    // #372: built from start/end + `respaceHouseFence` (same maths the #370 drag
+    // tool uses) rather than a flat i*96 loop, so a future bake-in of a diagonal
+    // run (dragging an endpoint, then exporting via the dev drag tool) can just
+    // replace `fenceStart`/`fenceEnd` here and the rotation/end-cap logic below
+    // keeps working — it isn't hardcoded to a horizontal run.
+    const fenceStart = { x: -136, y: 57 };
+    const fenceEnd   = { x: -136 + 5 * 96, y: 57 }; // 6 posts, 96px spacing
+    const fenceAngle = Math.atan2(fenceEnd.y - fenceStart.y, fenceEnd.x - fenceStart.x);
+    const fenceSpecs = respaceHouseFence(fenceStart, fenceEnd, 96);
     this.props.houseFence = [];
-    for (let i = 0; i < 6; i++) {
-      const x = -136 + i * 96, y = 57;
-      const sprite = this.add.image(x, y, 'fence').setScale(S).setDepth(y).setOrigin(0, 0.5);
+    fenceSpecs.forEach(({ x, y }, i) => {
+      const sprite = this.add.image(x, y, 'fence').setScale(S).setDepth(y).setOrigin(0, 0.5).setRotation(fenceAngle);
+      // End cap: the last post's tile would otherwise draw a rail one segment
+      // past the actual end of the run with nothing there to connect to (#372).
+      if (i === fenceSpecs.length - 1) sprite.setCrop(0, 0, FENCE_POST_CROP_W, FENCE_TEX_H);
       this.props.houseFence.push({ x, y, sprite, label: `Fence Post ${i + 1}` });
-    }
+    });
 
     // Chicken coop, right of the fence line (fence ends ~x=876). Roost geometry
     // (pop-door + ramp foot; coop is 64×52, origin 0.5,1) is what chickens file
