@@ -68,7 +68,7 @@ export const WithWorld = (Base) => class extends Base {
       [60, 540], [420, 560], [640, 520], [190, 290], [860, 560],
       [1100, 450], [1200, 620], [1340, 390], [1460, 570], [1580, 430],
       [1700, 600], [1480, 720], [1860, 520], [1050, 800], [1180, 950],
-      [1380, 850], [1520, 980], [1650, 780], [1780, 900], [280, 880],
+      [1380, 850], [807, 1284], [1650, 780], [1780, 900], [280, 880], // idx 26 moved by the owner's drag tool (#330, baked in by #342)
       [420, 1020], [560, 900], [700, 1040], [850, 820], [980, 1020],
       [120, 750], [240, 1100], [360, 980], [500, 800], [630, 1100],
     ].forEach(([x, y], i) => {
@@ -133,7 +133,8 @@ export const WithWorld = (Base) => class extends Base {
     // it sits below the well and the player can top it up by reaching over the
     // fence from the well side without entering the pasture, while horses drink
     // from the inside (#106). (Fence band ≈ y892–912; pasture starts at y910.)
-    const tx = 1130, ty = 992;
+    // Position (1415, 1064) — the owner's own placement (#330 drag tool, baked in by #342).
+    const tx = 1415, ty = 1064;
     const troughSprite = this.add.image(tx, ty, 'trough')
       .setScale(S).setDepth(ty).setOrigin(0.5, 0.5);
     // level = numeric water (0..TROUGH_CAP); `filled` mirrors level>0 (kept in sync by _setTroughLevel, #103).
@@ -200,13 +201,13 @@ export const WithWorld = (Base) => class extends Base {
   // (centered on x, bottom at y) so you can't walk through it — registered in buildObstacles.
   buildSources() {
     const defs = [
-      { x: 1367, y: 1105, content: 'hay',    tex: 'haystack',     label: 'Hay Pile',      reach: 100, ob: { w: 84,  h: 36 } },
+      { x: 1487, y: 1196, content: 'hay',    tex: 'haystack',     label: 'Hay Pile',      reach: 100, ob: { w: 84,  h: 36 } }, // position: owner's drag-tool placement (#330, baked in by #342)
       { x: 1234, y: 425, content: 'carrot', tex: 'carrotGarden', label: 'Carrot Garden', reach: 100, ob: { w: 104, h: 42 } },
       { x: 1660, y: 512, content: 'apple',  tex: 'appleTree',    label: 'Apple Tree',    reach: 90,  ob: { w: 44,  h: 26 } },
       { x: 1802, y: 497, content: 'orange', tex: 'orangeTree', label: 'Orange Tree', reach: 90, ob: { w: 44, h: 26 } }, // #228 tree, mirrors apple
       { x: 1736, y: 546, content: 'berry',  tex: 'berryBush',  label: 'Berry Bush',  reach: 85, ob: { w: 40, h: 18 } }, // #228 bush, same mechanic, no trunk
       { x: 818,  y: 402, content: 'seed',   tex: 'grainBin',     label: 'Grain Bin',     reach: 95,  ob: { w: 66,  h: 40 } },
-      { x: 1311, y: 1016, content: 'water',  tex: 'well',         label: 'Well',          reach: 95,  ob: { w: 52,  h: 22 } },
+      { x: 1413, y: 960, content: 'water',  tex: 'well',         label: 'Well',          reach: 95,  ob: { w: 52,  h: 22 } }, // position: owner's drag-tool placement (#330, baked in by #342)
       // Kibble sack (#202 rework) — the cat-food SOURCE, by the house. The player
       // scoops cat food into a basket here (like the grain bin for seed), then pours
       // it into the food bowl. The bowls themselves are no longer gather sources —
