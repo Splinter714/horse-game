@@ -26,10 +26,11 @@ export const WithBarn = (Base) => class extends Base {
   buildBarn() {
     // South-doorway anchor (origin 0.5,1). Sits on the open farm band between the
     // house and the pasture gate, same neighbourhood as the old placeholder.
-    const ax = 520, ay = 800;
+    // Position (1573, 1151) - the owner's own placement (#330 drag tool, baked in by #335).
+    const ax = 1573, ay = 1151;
     // Sprite → world helpers (origin 0.5,1, scale S). left/top corners in world px.
-    const left = ax - (BARN_DW / 2) * S;   // 360
-    const top  = ay - BARN_DH * S;         // 536
+    const left = ax - (BARN_DW / 2) * S;   // 1413
+    const top  = ay - BARN_DH * S;         // 887
     const dx = (d) => left + d * S;        // design-x → world-x
     const dy = (d) => top + d * S;         // design-y → world-y
 

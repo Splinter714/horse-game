@@ -40,10 +40,11 @@ describe('#241 barn/house are distinct world objects', () => {
   });
 
   it('the barn is a separate structure, not at the house position', () => {
-    // House sits at the NW home-base corner (240,280); the barn is placed elsewhere
-    // (its own anchor in barn.js), a distinct building per #241/#35.
-    expect(world).toMatch(/this\.add\.image\(240,\s*280,\s*'house'\)/);
-    expect(barn).not.toMatch(/240,\s*280/);
+    // House sits at the NW home-base corner (219,283 after the #335 reposition); the
+    // barn is placed elsewhere (its own anchor in barn.js), a distinct building per
+    // #241/#35.
+    expect(world).toMatch(/this\.add\.image\(219,\s*283,\s*'house'\)/);
+    expect(barn).not.toMatch(/219,\s*283/);
   });
 });
 

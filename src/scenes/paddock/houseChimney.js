@@ -9,12 +9,12 @@ import Phaser from 'phaser';
 import { S } from './constants.js';
 
 export const WithHouseChimney = (Base) => class extends Base {
-  // The house texture is 84×66 (origin 0.5,1, placed at 240,280, scale S) with its
+  // The house texture is 84×66 (origin 0.5,1, placed at 219,283, scale S) with its
   // chimney drawn at design coords x=57..68, y=3..19 (worldArt.js `house`, layer
   // 'chimney') — this converts that rect to world px. Called once from buildWorld().
   _buildChimneySmoke() {
-    const houseTopLeftX = 240 - (84 * S) / 2;
-    const houseTopLeftY = 280 - 66 * S;
+    const houseTopLeftX = 219 - (84 * S) / 2;
+    const houseTopLeftY = 283 - 66 * S;
     this._chimneyTop = { x: houseTopLeftX + 62.5 * S, y: houseTopLeftY + 3 * S };
     this._scheduleChimneySmoke(Phaser.Math.Between(1000, 3000));
   }

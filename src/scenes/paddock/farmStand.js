@@ -149,7 +149,8 @@ export const WithFarmStand = (Base) => class extends Base {
   // (unlike the spinning wheel's single fixed craft) lists every from→to conversion
   // the counter knows; useDispatch/interactables pick whichever matches the held basket.
   buildKitchenCounter() {
-    const kcx = 1420, kcy = 620;
+    // Position (109, 279) - the owner's own placement (#330 drag tool, baked in by #335).
+    const kcx = 109, kcy = 279;
     const kitchenSprite = this.add.image(kcx, kcy, 'kitchenCounter')
       .setScale(S).setDepth(kcy).setOrigin(0.5, 1);
     this.props.kitchenCounter = {
@@ -198,7 +199,8 @@ export const WithFarmStand = (Base) => class extends Base {
   // tagged `junk: true` is accepted here automatically — a wide "leftovers" bucket,
   // not a curated list — mirroring the kitchen counter's recipes shape.
   buildSlopMaker() {
-    const smx = 150, smy = 520;
+    // Position (1476, 1174) - the owner's own placement (#330 drag tool, baked in by #335).
+    const smx = 1476, smy = 1174;
     const sprite = this.add.image(smx, smy, 'slopMaker')
       .setScale(S).setDepth(smy).setOrigin(0.5, 1);
     this.props.slopMaker = {

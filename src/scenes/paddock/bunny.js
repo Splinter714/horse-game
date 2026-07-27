@@ -25,7 +25,8 @@ export const WithBunny = (Base) => class extends Base {
   // lives on refilling the bowl rather than dropping a pile on the ground.
   buildBunnyBowl() {
     this._addPetBowl({
-      x: 565, y: 340, tex: 'bunnyBowl', foodContent: 'bunnyFood', waterContent: 'water',
+      // Position (189, 476) - the owner's own placement (#330 drag tool, baked in by #335).
+      x: 189, y: 476, tex: 'bunnyBowl', foodContent: 'bunnyFood', waterContent: 'water',
       propKey: 'bunnyBowl', onFillFood: (bowl) => this.attractBunny(bowl.x, bowl.y),
     });
   }
