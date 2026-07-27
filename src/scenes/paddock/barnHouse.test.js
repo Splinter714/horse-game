@@ -26,17 +26,22 @@ describe('#241 barn/house are distinct world objects', () => {
     expect(barn).toMatch(/this\.props\.barn\s*=/);
   });
 
-  it('renders a house texture (world.js) and barn textures (barn mixin, #35)', () => {
+  it('renders a house texture (world.js) and barn textures (barn mixin, #35/#362)', () => {
     expect(world).toMatch(/'house'/);
     // The walk-in barn (#35) is two stacked textures: interior + fading front façade.
     expect(barn).toMatch(/'barnInterior'/);
     expect(barn).toMatch(/'barnFront'/);
+    // #362: an always-opaque back wall + a fading middle roof connector.
+    expect(barn).toMatch(/'barnBack'/);
+    expect(barn).toMatch(/'barnRoofMid'/);
   });
 
-  it('worldArt.js generates the house texture and BOTH barn textures (#35)', () => {
+  it("worldArt.js generates the house texture and ALL FOUR barn textures (#35/#362)", () => {
     expect(worldArt).toMatch(/gen\(scene,\s*'house'/);
     expect(worldArt).toMatch(/gen\(scene,\s*'barnInterior'/);
     expect(worldArt).toMatch(/gen\(scene,\s*'barnFront'/);
+    expect(worldArt).toMatch(/gen\(scene,\s*'barnBack'/);
+    expect(worldArt).toMatch(/gen\(scene,\s*'barnRoofMid'/);
   });
 
   it('the barn façade covers its whole footprint (no see-through, #35)', () => {
@@ -49,6 +54,16 @@ describe('#241 barn/house are distinct world objects', () => {
     // roof/wall proportions were rebalanced) so the invariant scales with the footprint.
     expect(worldArt).toMatch(/fillRect\(8, EAVE, BARN_W - 16, BARN_H - EAVE\)/); // wall to the base
     expect(worldArt).toMatch(/fillRect\(DOOR_X0, EAVE \+ 8, DOOR_X1 - DOOR_X0, BARN_H - \(EAVE \+ 8\)\)/); // doorway to the base
+  });
+
+  it('the NEW back wall (#362) also covers its whole (shorter) footprint, no see-through', () => {
+    // Same invariant as barnFront above, extended to barnBack: it's the ONLY thing
+    // that keeps the barn's north side opaque once barnFront fades for the cutaway,
+    // so its own wall band must run unbroken from its eave to its own base (the
+    // canvas bottom / anchor line), across the full width, with no gap a slanted
+    // roof corner could leave open.
+    expect(worldArt).toMatch(/gen\(scene,\s*'barnBack',\s*BARN_W,\s*BARN_H/);
+    expect(worldArt).toMatch(/fillRect\(8, EAVE, BARN_W - 16, BASE - EAVE\)/); // silhouette + wall, full width, eave to base
   });
 
   it('the barn is a separate structure, not at the house position', () => {

@@ -13,6 +13,9 @@ import {
   BARN_DOOR_APRON,
   loadBarnState,
   saveBarnState,
+  isBehindWall,
+  wallTargetAlpha,
+  WALL_SEE_THROUGH_ALPHA,
 } from './barn.js';
 
 function makeLocalStorageStub() {
@@ -152,5 +155,34 @@ describe('#35 barn cutaway inside-check', () => {
   it('is safe before the barn is built', () => {
     expect(isInsideBarn(null, null, 0, 0)).toBe(false);
     expect(isInsideBarn(interior, null, 1573, 1145)).toBe(false);
+  });
+});
+
+describe('#362 generic behind-wall check (reusable by any walled building)', () => {
+  // A wall's face: its world-x span and the world-y line of its south (interior-
+  // facing) side — mirrors the barn's own back wall at the baked anchor.
+  const wall = { x0: 1441, x1: 1705, y: 962 };
+
+  it('is behind the wall when north of its face, within its x-span', () => {
+    expect(isBehindWall(wall, 1573, 900)).toBe(true);
+  });
+
+  it('is NOT behind the wall when south of its face (in front of/inside)', () => {
+    expect(isBehindWall(wall, 1573, 1000)).toBe(false);
+  });
+
+  it('is NOT behind the wall when north of it but outside its x-span', () => {
+    expect(isBehindWall(wall, 1400, 900)).toBe(false);
+    expect(isBehindWall(wall, 1750, 900)).toBe(false);
+  });
+
+  it('is safe with no wall', () => {
+    expect(isBehindWall(null, 0, 0)).toBe(false);
+  });
+
+  it('target alpha: a light see-through dip when behind, fully opaque otherwise', () => {
+    expect(wallTargetAlpha(true)).toBe(WALL_SEE_THROUGH_ALPHA);
+    expect(wallTargetAlpha(false)).toBe(1);
+    expect(wallTargetAlpha(true)).toBeGreaterThan(0.12); // distinct from the deeper cutaway fade
   });
 });
