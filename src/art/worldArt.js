@@ -16,7 +16,7 @@ import { TROUGH_CAP } from '../scenes/paddock/constants.js';
 import {
   BARN_W, BARN_H, NUM_STALLS, STALL_X0, STALL_STEP, STALL_TOP, STALL_SIGN_Y,
   STALL_HAY_Y, stallCenterX, DOOR_X0, DOOR_X1, BACK_WALL_H, BACK_ROOF_H, ROOF_MID_H,
-  FRONT_EAVE,
+  FRONT_EAVE, ROOF_PEAK,
 } from '../data/barn.js';
 
 // Water-trough texture size (#336). Rotated 90° from the original 100×26 so the
@@ -472,39 +472,64 @@ export function buildWorldTextures(scene) {
   // BARN_W×BARN_H footprint) since it's just a connecting ridge, no walls/windows.
   gen(scene, 'barnRoofMid', BARN_W, ROOF_MID_H, (g) => {
     const MID = BARN_W / 2;
-    // The connector runs FULL WIDTH for nearly its whole depth (matching how far
-    // the roof plane actually extends along the barn's side walls) — only the very
-    // top notches inward to a point, matching the back roof's own peak. (A first
-    // pass tapered the whole height to a point, which read fine at the apex but
-    // left the sides barely covered along most of the depth — that's the bug this
-    // fixes.)
-    const PEAK_TAPER_H = ROOF_MID_H * 0.33;
-    // x-inset matches barnFront's OWN eave inset exactly (its wall/roof silhouette
-    // is x=8..BARN_W-8 at the eave line — see the `fillRect(8, EAVE, BARN_W - 16, ...)`
-    // wall/`fillPoints` lower-slope calls above), so the connector's front edge
-    // starts at precisely the same shape as the top of the front wall/roof instead
-    // of a slightly different 4px inset leaving a seam (2026-07-27 owner feedback).
+    // Full wall width, matching barnFront's/barnBack's own eave inset exactly (their
+    // wall/roof silhouette is x=8..BARN_W-8 at the eave line).
     const X0 = 8, X1 = BARN_W - 8;
-    const HALF = BARN_W / 2 - X0;
-    // topY(x): the y at which this silhouette reaches x — 0 (the very peak) exactly
-    // at MID, rising to PEAK_TAPER_H (full height available) by the side edges. (Had
-    // this backwards on the first pass — every slat's clip was inverted from the
-    // notch actually drawn, which is what read as "off" here.)
-    const topY = (x) => PEAK_TAPER_H * Math.min(1, Math.abs(x - MID) / HALF);
+    // Cap/shoulder width — matches barnFront's/barnBack's own upper-cap base exactly
+    // (their `fillPoints([{x:64,y:60},{x:MID,y:6},{x:BARN_W-64,y:60}])` triangle).
+    const SX0 = 64, SX1 = BARN_W - 64;
+    // 2026-07-27 owner feedback: BOTH ends of the connector should align with the
+    // very top (the roof CAP) of barnFront/barnBack, not just a plain triangle from
+    // the full wall width — the bottom was flat and the top's proportions didn't
+    // match the real cap. Each end now mirrors front/back's own eave-to-peak profile
+    // (a shallower lower-slope taper from full width down to the cap's shoulder
+    // width, THEN the cap's own steeper taper to a point), scaled to fit a portion
+    // of this texture's height, with a full-width band left in the middle so the
+    // roof still reads as covering the barn's full side-wall length (an earlier
+    // pass that tapered the WHOLE height left the sides barely covered — kept that
+    // fix; this only reshapes the two end notches to match the real cap).
+    const END_H = ROOF_MID_H * 0.4;
+    // front/back's own shoulder sits at design y=60: lower-slope runs EAVE(130)->60
+    // = 70 units, cap runs 60->PEAK(6) = 54 units, out of a 124-unit total span.
+    const REAL_SPAN = FRONT_EAVE - ROOF_PEAK;
+    const LOWER_H = END_H * ((FRONT_EAVE - 60) / REAL_SPAN);
+    const CAP_H = END_H - LOWER_H;
+    const shoulderHalf = MID - SX0;
+    const wallHalf = MID - X0;
+    // notchY(x): how deep (in y, measured from the wide/full-width base of whichever
+    // end this is applied to) the silhouette's boundary sits at this x — 0 at the
+    // wall edges (full width available right at the base), growing through the
+    // lower-slope band to LOWER_H at the shoulder, then through the cap band to
+    // END_H at dead centre (the peak point).
+    const notchY = (x) => {
+      const d = Math.abs(x - MID);
+      if (d >= wallHalf) return 0;
+      if (d > shoulderHalf) return ((wallHalf - d) / (wallHalf - shoulderHalf)) * LOWER_H;
+      return LOWER_H + ((shoulderHalf - d) / shoulderHalf) * CAP_H;
+    };
+    const topY    = (x) => notchY(x);                  // back-end notch, measured down from y=0
+    const bottomY = (x) => ROOF_MID_H - notchY(x);      // front-end notch, measured up from y=ROOF_MID_H
     g.layer('roof');
     g.fillStyle(0x9a3826, 1);
-    g.fillPoints([
-      { x: X0, y: PEAK_TAPER_H }, { x: MID, y: 0 }, { x: X1, y: PEAK_TAPER_H },
-      { x: X1, y: ROOF_MID_H }, { x: X0, y: ROOF_MID_H },
+    // Full-width middle band…
+    g.fillRect(X0, END_H, X1 - X0, ROOF_MID_H - 2 * END_H);
+    // …plus the two end notches, each built from the same lower-slope + cap points
+    // front/back's own roof uses, just mirrored top/bottom.
+    g.fillPoints([ // top (back) notch
+      { x: X0, y: END_H }, { x: SX0, y: LOWER_H }, { x: MID, y: 0 },
+      { x: SX1, y: LOWER_H }, { x: X1, y: END_H },
+    ]);
+    g.fillPoints([ // bottom (front) notch
+      { x: X0, y: ROOF_MID_H - END_H }, { x: SX0, y: ROOF_MID_H - LOWER_H }, { x: MID, y: ROOF_MID_H },
+      { x: SX1, y: ROOF_MID_H - LOWER_H }, { x: X1, y: ROOF_MID_H - END_H },
     ]);
     // Vertical rafter slats running the depth of the roof (front-to-back), clipped
-    // to the tapered silhouette above, so this stretched-to-fit plane reads as
-    // following the roof's slope/ridge line instead of flat horizontal courses
-    // running across a rectangle.
+    // to the silhouette above, so this stretched-to-fit plane reads as following
+    // the roof's slope/ridge line instead of flat courses running across it.
     g.fillStyle(0x7a2a1c, 1);
-    for (let x = X0 + 4; x < X1; x += 18) { const ty = topY(x); g.fillRect(x, ty, 2, ROOF_MID_H - ty); }
+    for (let x = X0 + 4; x < X1; x += 18) { const ty = topY(x), by = bottomY(x); g.fillRect(x, ty, 2, by - ty); }
     g.fillStyle(0xa8462e, 1);
-    for (let x = X0 + 6; x < X1; x += 18) { const ty = topY(x); g.fillRect(x, ty, 1, ROOF_MID_H - ty); } // slat highlight
+    for (let x = X0 + 6; x < X1; x += 18) { const ty = topY(x), by = bottomY(x); g.fillRect(x, ty, 1, by - ty); } // slat highlight
     g.fillStyle(0xb6432e, 1); g.fillRect(MID - 3, 0, 6, ROOF_MID_H); // ridge cap, running the full depth
     g.fillStyle(0x6a2418, 1); g.fillRect(X0, ROOF_MID_H - 3, X1 - X0, 3);   // south edge shadow
   });
