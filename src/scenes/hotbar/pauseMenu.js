@@ -115,7 +115,7 @@ export const WithPauseMenu = (Base) => class extends Base {
       ['Ambient', 'ambient'],
       ['Effects', 'effects'],
     ];
-    const devH   = 38 + rowH * 10; // TEMP dev-tools: heading + hint + dev rows
+    const devH   = 38 + rowH * 11; // TEMP dev-tools: heading + hint + dev rows
     // 3 action/toggle rows: mute, control-prompts, Customize Character.
     const panelH = 56 + rowH * 3 + sliders.length * sliderH + 8 + devH;
     const px = Math.round((sw - panelW) / 2);
@@ -214,37 +214,32 @@ export const WithPauseMenu = (Base) => class extends Base {
       this._toggleDevEvents();
     });
     dy += rowH;
-    // FPS counter overlay (#325) — bottom-left readout. Persisted and live
-    // (no reload needed), and deliberately available in production builds so
-    // frame-rate can be checked on the deployed game where it's actually felt.
-    const fpsLbl = this._addToggleRow(rowX, dy, rowW, rowH,
-      `📈 FPS Counter: ${loadDevSettings().showFps ? 'ON' : 'Off'}`,
-      () => {
-        this._toggleFpsCounter();
-        fpsLbl.setText(`📈 FPS Counter: ${loadDevSettings().showFps ? 'ON' : 'Off'}`);
-      });
-    dy += rowH;
-    // World-object labels + coordinate grid (#329) — names every placed prop with
-    // its (x, y) and lays a faint 100px grid over the world, so placement can be
-    // discussed in absolute coordinates. Persisted, live, default OFF.
-    const gridLbl = this._addToggleRow(rowX, dy, rowW, rowH,
-      `📐 Object Labels + Grid: ${loadDevSettings().showDevLabels ? 'ON' : 'Off'}`,
-      () => {
-        saveDevSettings({ showDevLabels: !loadDevSettings().showDevLabels });
-        this.scene.get('PaddockScene')?.refreshDevOverlay();
-        gridLbl.setText(`📐 Object Labels + Grid: ${loadDevSettings().showDevLabels ? 'ON' : 'Off'}`);
-      });
-    dy += rowH;
-    // Drag world objects (#330) — session-only positioning aid: drag a prop, then
-    // hit "Export positions" in-world to read the new coordinates back out.
-    const dragLbl = this._addToggleRow(rowX, dy, rowW, rowH,
-      `✋ Drag Objects: ${loadDevSettings().dragObjects ? 'ON' : 'Off'}`,
-      () => {
-        saveDevSettings({ dragObjects: !loadDevSettings().dragObjects });
-        this.scene.get('PaddockScene')?.refreshDevDrag();
-        dragLbl.setText(`✋ Drag Objects: ${loadDevSettings().dragObjects ? 'ON' : 'Off'}`);
-      });
-    dy += rowH;
+    // The persisted ON/Off dev overlays, as one table instead of four
+    // copy-pasted rows. All are live (no reload) and deliberately available in
+    // production builds, because the owner looks at the DEPLOYED game on his iPad
+    // — which is exactly where a frame-rate, placement or "how does this work?"
+    // question gets asked.
+    //   #325 FPS readout · #329 object labels + grid · #330 drag-to-reposition ·
+    //   #332 usage tooltips.
+    // The FPS row flips + persists its own flag inside _toggleFpsCounter (the
+    // overlay lives on this scene); the rest save here and poke PaddockScene.
+    const paddock = () => this.scene.get('PaddockScene');
+    const flip = (key, apply) => () => {
+      saveDevSettings({ [key]: !loadDevSettings()[key] });
+      apply();
+    };
+    const devToggles = [
+      ['📈 FPS Counter',          'showFps',       () => this._toggleFpsCounter()],
+      ['📐 Object Labels + Grid', 'showDevLabels', flip('showDevLabels', () => paddock()?.refreshDevOverlay())],
+      ['✋ Drag Objects',         'dragObjects',   flip('dragObjects',   () => paddock()?.refreshDevDrag())],
+      ['💡 Usage Tooltips',       'usageTips',     flip('usageTips',     () => paddock()?.refreshDevTooltips())],
+    ];
+    for (const [label, key, onTap] of devToggles) {
+      const text = () => `${label}: ${loadDevSettings()[key] ? 'ON' : 'Off'}`;
+      const row = this._addToggleRow(rowX, dy, rowW, rowH, text(),
+        () => { onTap(); row.setText(text()); });
+      dy += rowH;
+    }
     const freezeDecayLbl = this._addToggleRow(rowX, dy, rowW, rowH,
       `❄️ Freeze Decay: ${window.__devFreezeDecay ? 'ON' : 'Off'}`,
       () => {

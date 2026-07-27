@@ -58,6 +58,7 @@ import { WithInteraction } from './paddock/interaction.js';
 import { WithInput } from './paddock/input.js';
 import { WithDevLabels } from './paddock/devLabels.js';
 import { WithDevDrag } from './paddock/devDrag.js';
+import { WithDevTooltips } from './paddock/devTooltips.js';
 import { applyDpr } from './uiUtils.js';
 
 // The concern mixins, listed outermost-first (same order the old deeply-nested
@@ -82,7 +83,7 @@ const PADDOCK_MIXINS = [
   WithPlayerBuff,
   WithEffects, WithPersistence, WithRendering, WithWorldObjects, WithCareActions,
   WithInteraction, WithInput, WithPlayerMovement, WithCoop, WithPrompts, WithInteractables, WithUseDispatch,
-  WithDevLabels, WithDevDrag,
+  WithDevLabels, WithDevDrag, WithDevTooltips,
 ];
 const PaddockBase = PADDOCK_MIXINS.reduceRight((Base, Mixin) => Mixin(Base), Phaser.Scene);
 
@@ -147,6 +148,7 @@ export default class PaddockScene extends PaddockBase {
     this.startAmbientEvents(); // unified data-driven ambient rotation (#253)
     this.buildDevLabels(); // dev overlay (#329): object labels + coordinate grid, default off
     this.buildDevDrag();   // dev tool (#330): drag objects + export positions, default off
+    this.buildDevTooltips(); // dev overlay (#332): "how do I use this?" tooltips, default off
 
     // Periodic AI tick: direct idle horses to food/water
     this.time.addEvent({ delay: 3000, loop: true, callback: this.horseTick, callbackScope: this });
@@ -278,6 +280,7 @@ export default class PaddockScene extends PaddockBase {
     this.updateWildlife();
     this.tickRegrowth();      // regrow shorn fleece once its timer completes (#233)
     this.updateDevOverlay(); // #329 dev overlay — no-op unless toggled on
+    this.updateDevTooltips(); // #332 usage tooltips — no-op unless toggled on
     this.tickDecay(delta);
     this.tickAutosave(delta);
     this.updatePlayerBuffHud(); // #277: count down the meal buff's "well fed" readout

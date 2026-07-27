@@ -603,7 +603,7 @@ export function saveIncubations(list) {
 // release.
 const DEV_KEY = 'horse-game-dev-v1';
 
-const DEFAULT_DEV = { startPhase: null, startEditor: null, startLocation: null, showFps: true, showDevLabels: false, dragObjects: false };
+const DEFAULT_DEV = { startPhase: null, startEditor: null, startLocation: null, showFps: true, showDevLabels: false, dragObjects: false, usageTips: false };
 
 export function loadDevSettings() {
   try {
@@ -620,6 +620,8 @@ export function loadDevSettings() {
       showDevLabels: typeof data.showDevLabels === 'boolean' ? data.showDevLabels : DEFAULT_DEV.showDevLabels,
       // Drag-world-objects positioning aid (#330) — session-only drags, default OFF.
       dragObjects:   typeof data.dragObjects   === 'boolean' ? data.dragObjects   : DEFAULT_DEV.dragObjects,
+      // "How do I use this?" usage tooltips on world objects (#332) — dev aid, default OFF.
+      usageTips:     typeof data.usageTips     === 'boolean' ? data.usageTips     : DEFAULT_DEV.usageTips,
     };
   } catch {
     return { ...DEFAULT_DEV };
