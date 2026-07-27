@@ -6,8 +6,9 @@
 //
 //   1. A small floating label above every placed world object, naming it and
 //      showing its (x, y) world coordinates.
-//   2. A faint 100px coordinate grid across the visible world, with x/y readouts
-//      along the top and left edges of the camera view.
+//   2. A faint coordinate grid across the visible world, with small integer
+//      CELL indices (column/row, not raw pixels) along the top and left edges
+//      of the camera view.
 //
 // Why a pause-menu dev setting rather than `import.meta.env.DEV`: same reasoning
 // as the FPS counter (#325) — the owner looks at the game on his iPad, on the
@@ -28,11 +29,22 @@
 // the player moves. The grid half is deliberately NOT proximity-gated — it
 // already only draws the visible camera view, which is what "what's around you"
 // means for a grid.
+//
+// Grid coarsened + relabelled to cell indices (2026-07-26 follow-up): a 100px grid
+// with raw-pixel axis readouts ("1000", "1200") was too fine and too fiddly to talk
+// about ("the beehive is around column 5, row 2" beats a 4-digit pixel number).
+// GRID_STEP=300 was picked by checking actual placed-object coordinates via
+// `_devLabelTargets()` — most standalone objects (buildings, gathering sources,
+// stations) sit 300-600+ world px apart, so a 300px cell puts most of them alone
+// in their own cell. Genuinely tight clusters (the 3 coop nests ~24px apart, the
+// bird-feeder cluster, the pet bowls) will still share a cell at any sane step —
+// that's an accurate reflection of real-world clustering, not a labeling bug, and
+// the existing anti-overlap nudge on the object labels already handles it.
 
 import { loadDevSettings } from '../../data/save.js';
 import { dprOf } from '../uiUtils.js';
 
-const GRID_STEP    = 100;   // world px between gridlines
+const GRID_STEP    = 300;   // world px per grid cell (coarsened from 100 — #329 follow-up)
 const GRID_DEPTH   = 9500;  // above world sprites (depth == y, max ~1600), below prompts
 const LBL_DEPTH    = 9501;
 const LABEL_RADIUS = 80;   // world px — only objects this close to the player get a visible label
@@ -145,8 +157,13 @@ export const WithDevLabels = (Base) => class extends Base {
     const placed = [];
 
     for (const t of targets) {
+      // Precise pixel coords stay (useful for the #330 drag/export tool); the
+      // trailing "cN,rN" is the coarse grid-cell index, so a label can be read
+      // off either against the axis ("beehive is around column 3, row 1") or
+      // pasted precisely.
+      const col = Math.floor(t.x / GRID_STEP), row = Math.floor(t.y / GRID_STEP);
       const lbl = this.add.text(Math.round(t.x), Math.round(t.y) - 8,
-        `${t.name} (${Math.round(t.x)}, ${Math.round(t.y)})`, {
+        `${t.name} (${Math.round(t.x)}, ${Math.round(t.y)}) c${col},r${row}`, {
           fontFamily: 'ui-monospace, Menlo, monospace',
           fontSize: '9px',
           color: '#ffe9a8',
@@ -195,10 +212,12 @@ export const WithDevLabels = (Base) => class extends Base {
   // ─── Coordinate grid ───────────────────────────────────────────────────────
 
   // Faint gridlines every GRID_STEP world px across the visible camera view, with
-  // the x value printed along the top edge and the y value along the left edge.
-  // Only the visible span is drawn (a full-world grid would be ~600 lines and
-  // hundreds of Text objects); the axis labels are a reused pool, so panning the
-  // camera repositions them instead of churning new ones.
+  // the small integer CELL INDEX (column along the top edge, row along the left
+  // edge — `Math.floor(worldCoord / GRID_STEP)`) rather than raw pixel values, so
+  // a position reads as "column 5, row 2" instead of a 4-digit pixel number. Only
+  // the visible span is drawn (a full-world grid would be ~600 lines and hundreds
+  // of Text objects); the axis labels are a reused pool, so panning the camera
+  // repositions them instead of churning new ones.
   _drawDevGrid() {
     const g = this._devGrid;
     if (!g) return;
@@ -210,15 +229,18 @@ export const WithDevLabels = (Base) => class extends Base {
     g.clear();
     let n = 0;
     for (let x = x0; x <= x1; x += GRID_STEP) {
-      // Every 500px reads a touch stronger, so it's easy to count across.
-      g.lineStyle(1, 0xffffff, x % 500 === 0 ? 0.30 : 0.14);
+      // Every 3rd line (every 900px at GRID_STEP=300) reads a touch stronger, so
+      // it's easy to count across without every single line looking the same.
+      const col = Math.round(x / GRID_STEP);
+      g.lineStyle(1, 0xffffff, col % 3 === 0 ? 0.30 : 0.14);
       g.lineBetween(x, view.y, x, y1);
-      this._devAxisLabel(n++, `${x}`, x + 3, view.y + 2, 0, 0);
+      this._devAxisLabel(n++, `${col}`, x + 3, view.y + 2, 0, 0);
     }
     for (let y = y0; y <= y1; y += GRID_STEP) {
-      g.lineStyle(1, 0xffffff, y % 500 === 0 ? 0.30 : 0.14);
+      const row = Math.round(y / GRID_STEP);
+      g.lineStyle(1, 0xffffff, row % 3 === 0 ? 0.30 : 0.14);
       g.lineBetween(view.x, y, x1, y);
-      this._devAxisLabel(n++, `${y}`, view.x + 2, y + 2, 0, 0);
+      this._devAxisLabel(n++, `${row}`, view.x + 2, y + 2, 0, 0);
     }
     // Park any pooled labels the current view doesn't need.
     for (let i = n; i < this._devAxisLabels.length; i++) this._devAxisLabels[i].setVisible(false);
