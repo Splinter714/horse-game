@@ -151,13 +151,8 @@ export const WithWorld = (Base) => class extends Base {
     // it sits below the well and the player can top it up by reaching over the
     // fence from the well side without entering the pasture, while horses drink
     // from the inside (#106). (Fence band ≈ y892–912; pasture starts at y910.)
-    // Position (1049, 1204) was the owner's own placement (#330 drag tool, baked in by
-    // #349-followup), but it sat only ~3-4px clear of the barn's relocated west wall
-    // (x 1075-1091) — nearly sealed, and the well (also flush against that wall) left
-    // just a ~20px vertical notch between them. Horses converging on the trough had
-    // nowhere to actually stand, bunching up in that sliver (2026-07-27 playtest).
-    // Shifted west, off the wall, opening real clearance; y unchanged.
-    const tx = 959, ty = 1204;
+    // Position (1049, 1204) — the owner's own placement (#330 drag tool, baked in by #349-followup).
+    const tx = 1049, ty = 1204;
     const troughSprite = this.add.image(tx, ty, 'trough')
       .setScale(S).setDepth(ty).setOrigin(0.5, 0.5);
     // level = numeric water (0..TROUGH_CAP); `filled` mirrors level>0 (kept in sync by _setTroughLevel, #103).
@@ -234,9 +229,7 @@ export const WithWorld = (Base) => class extends Base {
       { x: 1802, y: 497, content: 'orange', tex: 'orangeTree', label: 'Orange Tree', reach: 90, ob: { w: 44, h: 26 } }, // #228 tree, mirrors apple
       { x: 1736, y: 546, content: 'berry',  tex: 'berryBush',  label: 'Berry Bush',  reach: 85, ob: { w: 40, h: 18 } }, // #228 bush, same mechanic, no trunk
       { x: 818,  y: 402, content: 'seed',   tex: 'grainBin',     label: 'Grain Bin',     reach: 95,  ob: { w: 66,  h: 40 } },
-      // Shifted west alongside the trough (2026-07-27) — was flush against the barn's
-      // relocated west wall, squeezing horses into a tiny gap between the two.
-      { x: 956, y: 1085, content: 'water',  tex: 'well',         label: 'Well',          reach: 95,  ob: { w: 52,  h: 22 } },
+      { x: 1046, y: 1085, content: 'water',  tex: 'well',         label: 'Well',          reach: 95,  ob: { w: 52,  h: 22 } },
       // Kibble sack (#202 rework) — the cat-food SOURCE, by the house. The player
       // scoops cat food into a basket here (like the grain bin for seed), then pours
       // it into the shared pet bowl. The bowl itself is no longer a gather source —
