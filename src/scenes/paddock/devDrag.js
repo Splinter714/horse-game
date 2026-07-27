@@ -223,16 +223,20 @@ export const WithDevDrag = (Base) => class extends Base {
 
     const w = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
 
-    // House-fence PATH endpoints (#370) get first refusal on the world-space pick,
-    // ahead of the ordinary per-post grab, so tapping right on the end of the run
-    // always means "respace the whole thing" rather than "move this one post".
-    const endpoint = this._houseFencePathTap?.(w);
-    if (endpoint) {
-      this._fenceEndpointHeld = endpoint;
+    // House-fence PATH posts (#370, reworked into joints by #375) get first
+    // refusal on the world-space pick, ahead of the ordinary per-post grab, so
+    // tapping any post on the fence always means "reshape the fence" rather
+    // than "move this one sprite". `jointPick` is a PENDING descriptor — the
+    // actual joint (existing or newly-promoted) is resolved lazily, the first
+    // move tick past TAP_SLOP below, so a plain tap that never drags can't
+    // silently promote an interior post into a permanent joint.
+    const jointPick = this._houseFencePathTap?.(w);
+    if (jointPick) {
+      this._fenceJointHeld = jointPick;
       this._dragMoved  = false;
       this._dragPressX = w.x;
       this._dragPressY = w.y;
-      this._dragHud?.setText(`House fence: ${this._fencePosts().length} posts — drag to respace`);
+      this._dragHud?.setText(`House fence: ${this._fencePosts().length} posts — drag to reshape`);
       return true;
     }
 
@@ -275,15 +279,19 @@ export const WithDevDrag = (Base) => class extends Base {
   // still a candidate tap. Past it, every entry in the moving set gets the SAME
   // delta (a rigid translation), so a group keeps its shape.
   _devDragMove(pointer) {
-    if (this._fenceEndpointHeld) {
+    if (this._fenceJointHeld) {
       if (!pointer.isDown) return;
       const w = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
       if (!this._dragMoved) {
         if (Math.hypot(w.x - this._dragPressX, w.y - this._dragPressY) < TAP_SLOP) return;
         this._dragMoved = true;
+        // Resolve NOW, the moment this press actually becomes a drag — an
+        // auto-fill post gets promoted into a real joint here (#375), an
+        // existing joint just resolves to its own index.
+        this._fenceJointHeld = this._houseFenceResolveJoint(this._fenceJointHeld);
       }
-      this._houseFencePathMove(this._fenceEndpointHeld, w);
-      this._drawFenceEndpoints();
+      this._houseFencePathMove(this._fenceJointHeld.index, w);
+      this._drawFenceJoints();
       this._drawDevDragMarks();
       return;
     }
@@ -313,11 +321,11 @@ export const WithDevDrag = (Base) => class extends Base {
   // A press that never became a drag is a tap: toggle the object (and its group)
   // in or out of the selection.
   _devDragDrop() {
-    if (this._fenceEndpointHeld) {
-      this._fenceEndpointHeld = null;
+    if (this._fenceJointHeld) {
+      this._fenceJointHeld = null;
       this._dragMoved = false;
       this._devDragHud(null);
-      this._drawFenceEndpoints();
+      this._drawFenceJoints();
       return;
     }
     if (this._splineHeld) {
@@ -556,11 +564,11 @@ export const WithDevDrag = (Base) => class extends Base {
     // needs), so the panel names the groups separately — otherwise six moved fence
     // posts look like six coincidences.
     const groups = (this._dragGroups ?? []).map(g => `⛓ ${g.name}: ${g.members.join(', ')}`);
-    // House-fence PATH config (#370) — the {start,end,count} to paste into
-    // world.js's houseFence build loop, shown as its own line since it isn't a
-    // per-object delta like the ones above.
+    // House-fence PATH config (#370, joints since #375) — the full joint list
+    // to paste into world.js's houseFence build, shown as its own line since
+    // it isn't a per-object delta like the ones above.
     const fenceLines = fence
-      ? [`houseFence: { start: {x:${fence.start.x}, y:${fence.start.y}}, end: {x:${fence.end.x}, y:${fence.end.y}}, count: ${fence.count} }`]
+      ? [`houseFence: { joints: ${JSON.stringify(fence.joints)}, count: ${fence.count} }`]
       : [];
     // Worn-path / stream control points (#373) — one line per reshaped spline,
     // the array ready to paste over its source (world.js's route consts /

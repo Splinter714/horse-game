@@ -127,6 +127,15 @@ export const FENCE_RAIL_THICKNESS     = 6;  // screen px (native rail band heigh
 export const FENCE_RAIL_TOP_COLOR     = 0xc8924c;
 export const FENCE_RAIL_BOTTOM_COLOR  = 0xbc8442;
 
+// #375 z-order split: the native 'fence' texture row where the post crosses
+// the TOP rail's centerline (mirrors FENCE_RAIL_TOP_OFFSET, converted back
+// from screen px/post-center-relative to native texture-top-relative). Each
+// post sprite is split in two at this row so its cap (above) can render IN
+// FRONT of the rail Graphics while the rest of the post (crossing both rails)
+// renders BEHIND it — owner ask, 2026-07-27: "the highest left/right stick-
+// out part and above" should sit above the top rail, "the rest below".
+export const FENCE_POST_TOP_SPLIT_Y = FENCE_TEX_H / 2 + FENCE_RAIL_TOP_OFFSET / S; // native px, = 7.5
+
 // ── Animal droppings (#232) ─────────────────────────────────────────────────
 // The most droppings allowed lying in the pasture at once. Cosmetic clutter the
 // player scoops up with the scooper — capped so an ignored pasture never carpets
