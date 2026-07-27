@@ -723,13 +723,16 @@ export function buildWorldTextures(scene) {
     g.fillStyle(rim, 1);     g.fillEllipse(17, 13, 30, 11);  // rim lip
     g.fillStyle(stoneHi, 1); g.fillEllipse(17, 12, 30, 9);   // lit inner rim
 
-    // Water surface in the basin — a flat waterline (2026-07-27 owner feedback: no
-    // curve to the top), not an ellipse.
+    // Water surface in the basin — flat waterline on TOP, kept rounded on the
+    // bottom (2026-07-27 owner feedback: the bottom rounding was good, only the
+    // top shouldn't curve). Each layer is the original ellipse (for the rounded
+    // underside) with a rect filling in its upper half up to the ellipse's own
+    // top extent, squaring off just the top edge.
     g.layer('water');
-    g.fillStyle(waterLo, 1); g.fillRect(5, 9, 24, 8);
-    g.fillStyle(water, 1);   g.fillRect(5, 9, 24, 6);
+    g.fillStyle(waterLo, 1); g.fillRect(5, 9, 24, 4); g.fillEllipse(17, 13, 24, 8);
+    g.fillStyle(water, 1);   g.fillRect(5, 8, 24, 4); g.fillEllipse(17, 12, 24, 7);
     g.fillStyle(waterHi, 0.85);
-    g.fillRect(9, 10, 6, 2);                                 // sun glint
+    g.fillEllipse(12, 11, 6, 2);                             // sun glint
     g.fillRect(20, 13, 5, 1); g.fillRect(15, 14, 4, 1);      // little ripple lines
     g.layer('rim');
     g.fillStyle(stoneHi, 1); g.fillEllipse(17, 10, 30, 3);   // front rim highlight

@@ -613,11 +613,13 @@ export function buildPropTextures(scene) {
     if (!waterFilled) { g.fillStyle(waterDishLo, 0.6); g.fillEllipse(39, 8, 15, 4); } // hollow shadow
     g.fillStyle(waterDishHi, 1); g.fillEllipse(39, 7, 18, 5); // rim highlight
     if (waterFilled) {
-      // A flat waterline (2026-07-27 owner feedback: no curve to the top), not an ellipse.
+      // Flat waterline on TOP, kept rounded on the bottom (2026-07-27 owner
+      // feedback) — the original ellipse (for the rounded underside) with a rect
+      // filling its upper half up to the ellipse's own top extent.
       const w = 0x3f7fb5, wHi = 0x9ae0f8;
-      g.fillStyle(w, 1); g.fillRect(32, 4, 14, 5);
-      g.fillStyle(wHi, 0.85); g.fillRect(34, 4, 5, 2); // sunlit ripple
-      g.fillStyle(wHi, 0.6); g.fillRect(41, 5, 3, 1);
+      g.fillStyle(w, 1); g.fillRect(32, 4, 14, 3); g.fillEllipse(39, 6, 14, 5);
+      g.fillStyle(wHi, 0.85); g.fillEllipse(36, 5, 5, 1.6); // sunlit ripple
+      g.fillStyle(wHi, 0.6); g.fillEllipse(42, 6, 3, 1);
     }
   };
   // The one shared pet bowl texture (#361 — cat/dog/bunny used to each get their own
