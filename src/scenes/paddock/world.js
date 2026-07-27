@@ -217,7 +217,13 @@ export const WithWorld = (Base) => class extends Base {
       // Nectar station (#226) — sugar-water jug by the house; fill a bucket, pour into the hummingbird feeder (its OWN resource vs seed #240).
       { x: 190,  y: 360, content: 'nectar',   tex: 'nectarStation', label: 'Nectar Jug',  reach: 90,  ob: { w: 24, h: 24 } },
       // Fox den (#266) / duck feeder (#275) — SOURCEs for their food; fill a basket, DROP piles to befriend each.
-      { x: 300,  y: 320, content: 'foxFood',  tex: 'foxDen',        label: 'Fox Den',     reach: 100, ob: { w: 40, h: 26 } },
+      // Fox den moved off (300,320) — that was the exact spot of the first house-fence
+      // post (the fence loop below places posts at 300 + i*96, 320, so i=0 stacked
+      // directly on the den, #333). Relocated to a clear, otherwise-empty pocket in the
+      // open NE grass — well clear of the house/fence/coop cluster, the berry bush
+      // (1020,250), grain bin (1120,470), duck feeder (1580,300), and the stream band
+      // (which starts around x=1430 at this latitude).
+      { x: 1300, y: 150, content: 'foxFood',  tex: 'foxDen',        label: 'Fox Den',     reach: 100, ob: { w: 40, h: 26 } },
       { x: 1580, y: 300, content: 'duckFood', tex: 'duckFeeder',    label: 'Duck Feeder', reach: 100, ob: { w: 30, h: 24 } },
     ];
     for (const d of defs) {
