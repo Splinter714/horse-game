@@ -311,7 +311,10 @@ function renderPreview() {
   const tex = globalThis.__game?.textures?.get(frameKey);
   const img = tex?.getSourceImage?.();
   if (!img) return;
-  const PREVIEW_SCALE = 4;
+  // Fit to the dock width like the per-part panels below do (a fixed 4x scale
+  // clipped wide sprites, e.g. the duck, since the dock itself is only DOCK_W wide).
+  const maxW = DOCK_W - 12;
+  const PREVIEW_SCALE = Math.max(1, Math.min(4, maxW / img.width));
   previewCv.width = img.width * PREVIEW_SCALE;
   previewCv.height = img.height * PREVIEW_SCALE;
   previewCtx.imageSmoothingEnabled = false;
