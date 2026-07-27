@@ -20,13 +20,22 @@
 // live on their own scene field, like the farm stand and garden), never a
 // hand-written list. A new prop with x/y gets labelled for free — this feature
 // should not need touching again when the world grows.
+//
+// Object labels are PROXIMITY-GATED (2026-07-26 playtest follow-up): the map has
+// enough placed objects that showing every label at once was overwhelming. All
+// labels are still built once (cheap: static world-space Text), but only ones
+// within LABEL_RADIUS of the player are made visible, re-checked every frame as
+// the player moves. The grid half is deliberately NOT proximity-gated — it
+// already only draws the visible camera view, which is what "what's around you"
+// means for a grid.
 
 import { loadDevSettings } from '../../data/save.js';
 import { dprOf } from '../uiUtils.js';
 
-const GRID_STEP  = 100;   // world px between gridlines
-const GRID_DEPTH = 9500;  // above world sprites (depth == y, max ~1600), below prompts
-const LBL_DEPTH  = 9501;
+const GRID_STEP    = 100;   // world px between gridlines
+const GRID_DEPTH   = 9500;  // above world sprites (depth == y, max ~1600), below prompts
+const LBL_DEPTH    = 9501;
+const LABEL_RADIUS = 600;   // world px — only objects this close to the player get a visible label
 
 // `this.props` buckets that are TRANSIENT clutter rather than placed structures —
 // food piles the player drops and droppings that get scooped. They come and go
@@ -42,6 +51,7 @@ export const WithDevLabels = (Base) => class extends Base {
     this._devAxisLabels = [];
     this._devObjLabels  = [];
     this._devGridAt     = null; // last camera scroll the grid was drawn for
+    this._devLabelsAt   = null; // last player position bucket labels were gated for
     if (loadDevSettings().showDevLabels) this._mountDevOverlay();
   }
 
@@ -61,24 +71,29 @@ export const WithDevLabels = (Base) => class extends Base {
     this._devAxisLabels = [];
     this._devObjLabels  = [];
     this._devGridAt     = null;
+    this._devLabelsAt   = null;
   }
 
   _mountDevOverlay() {
     this._devGrid = this.add.graphics().setDepth(GRID_DEPTH);
     this._buildDevObjectLabels();
+    this._updateDevLabelVisibility(); // apply immediately — matches the grid, works while paused
     this._drawDevGrid();
   }
 
   // Called every frame from PaddockScene.update(). Cheap no-op when off; when on,
-  // it only redraws the grid once the camera has actually moved (the object
-  // labels are static world-space Text and need no per-frame work at all).
+  // it redraws the grid once the camera has actually moved, and refreshes which
+  // object labels are visible once the player has actually moved (both throttled
+  // to "moved more than a few px", not truly every frame).
   updateDevOverlay() {
     if (!this._devGrid) return;
     const cam = this.cameras.main;
     const at = `${Math.round(cam.scrollX / 4)},${Math.round(cam.scrollY / 4)},${Math.round(cam.worldView.width)}`;
-    if (at === this._devGridAt) return;
-    this._devGridAt = at;
-    this._drawDevGrid();
+    if (at !== this._devGridAt) {
+      this._devGridAt = at;
+      this._drawDevGrid();
+    }
+    this._updateDevLabelVisibility();
   }
 
   // ─── Object labels ─────────────────────────────────────────────────────────
@@ -141,7 +156,29 @@ export const WithDevLabels = (Base) => class extends Base {
       }
       lbl.setY(y);
       placed.push({ x: lbl.x, y, w, h });
+      // Stash the object's true anchor (pre-nudge) for the proximity check below —
+      // the label's own (x, y) can be nudged 40-60px up in a cluster.
+      lbl.setData('at', { x: t.x, y: t.y });
       this._devObjLabels.push(lbl);
+    }
+    this._devLabelsAt = null; // force a fresh visibility pass against the new set
+  }
+
+  // Show only the object labels within LABEL_RADIUS of the player; re-run as the
+  // player moves (throttled to "moved more than a few px" so this isn't a real
+  // per-frame cost). Nothing to do while the overlay is off or there's no player
+  // yet (e.g. very first frames of create()).
+  _updateDevLabelVisibility() {
+    const p = this.player?.sprite;
+    if (!p) return;
+    const at = `${Math.round(p.x / 8)},${Math.round(p.y / 8)}`;
+    if (at === this._devLabelsAt) return;
+    this._devLabelsAt = at;
+    const r2 = LABEL_RADIUS * LABEL_RADIUS;
+    for (const lbl of this._devObjLabels) {
+      const src = lbl.getData('at');
+      const dx = src.x - p.x, dy = src.y - p.y;
+      lbl.setVisible(dx * dx + dy * dy <= r2);
     }
   }
 
