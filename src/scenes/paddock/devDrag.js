@@ -89,8 +89,9 @@ export const WithDevDrag = (Base) => class extends Base {
       this.input.off('pointerup',        this._devDragDrop, this);
       this.input.off('pointerupoutside', this._devDragDrop, this);
     }
-    this._clearHouseFencePath?.(); // #370
-    this._clearSplineDrag?.();     // #373 (paths + stream control points)
+    this._clearHouseFencePath?.();   // #370
+    this._clearPastureFencePath?.(); // #376
+    this._clearSplineDrag?.();       // #373 (paths + stream control points)
     this._dragMarks?.destroy();
     this._dragHud?.destroy();
     this._dragPanel?.destroy();
@@ -145,6 +146,10 @@ export const WithDevDrag = (Base) => class extends Base {
     // the fence run, on top of the ordinary per-post handles above. Same
     // toggle, same lifecycle; see houseFencePath.js.
     this._mountHouseFencePath?.();
+
+    // Pasture-fence PATH editing (#376) — same joint-drag/promote mechanism,
+    // blue handles, on the pasture perimeter; see pastureFencePath.js.
+    this._mountPastureFencePath?.();
 
     // Worn-path + stream control-point editing (#373) — orange/cyan handles on
     // every route/spline control point. Same toggle, same lifecycle; see
@@ -240,6 +245,18 @@ export const WithDevDrag = (Base) => class extends Base {
       return true;
     }
 
+    // Pasture-fence PATH posts (#376) — same "first refusal ahead of the
+    // generic per-post pick" priority as the house fence above.
+    const pasturePick = this._pastureFencePathTap?.(w);
+    if (pasturePick) {
+      this._pastureJointHeld = pasturePick;
+      this._dragMoved  = false;
+      this._dragPressX = w.x;
+      this._dragPressY = w.y;
+      this._dragHud?.setText(`Pasture fence: ${this._pasturePosts().length} posts — drag to reshape`);
+      return true;
+    }
+
     // Worn-path / stream control points (#373) — same "first refusal ahead of
     // the generic per-post pick" priority as the fence endpoints above, so
     // grabbing a route point always reshapes the spline rather than moving
@@ -295,6 +312,19 @@ export const WithDevDrag = (Base) => class extends Base {
       this._drawDevDragMarks();
       return;
     }
+    if (this._pastureJointHeld) {
+      if (!pointer.isDown) return;
+      const w = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      if (!this._dragMoved) {
+        if (Math.hypot(w.x - this._dragPressX, w.y - this._dragPressY) < TAP_SLOP) return;
+        this._dragMoved = true;
+        this._pastureJointHeld = this._pastureFenceResolveJoint(this._pastureJointHeld);
+      }
+      this._pastureFencePathMove(this._pastureJointHeld.index, w);
+      this._drawPastureFenceJoints();
+      this._drawDevDragMarks();
+      return;
+    }
     if (this._splineHeld) {
       if (!pointer.isDown) return;
       const w = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
@@ -326,6 +356,13 @@ export const WithDevDrag = (Base) => class extends Base {
       this._dragMoved = false;
       this._devDragHud(null);
       this._drawFenceJoints();
+      return;
+    }
+    if (this._pastureJointHeld) {
+      this._pastureJointHeld = null;
+      this._dragMoved = false;
+      this._devDragHud(null);
+      this._drawPastureFenceJoints();
       return;
     }
     if (this._splineHeld) {
@@ -388,6 +425,11 @@ export const WithDevDrag = (Base) => class extends Base {
     const done = new Set();
     for (const o of [e.obj, ...e.also]) this._devDragShift(o, dx, dy, done);
     this._devDragShiftObstacles(e, dx, dy);
+    // #376: the pasture fence's two end joints are LINKED to the gate — if the
+    // gate itself is what's being dragged (individually, in a group, or via
+    // reset-to-source), re-derive those joints from the gate's new position and
+    // respace/redraw the fence so it stays attached instead of leaving a gap.
+    if (e.obj === this.props.gate) this._respacePastureFenceFromJoints?.();
   }
 
   // Move the dragged object's COLLISION with its art (#330 follow-up).
@@ -402,8 +444,14 @@ export const WithDevDrag = (Base) => class extends Base {
   // Instead each rect carries `own` — the prop record its geometry came from (see
   // buildObstacles) — and this shifts every rect owned by the entry being dragged
   // (including the same-spot duplicates in `also`) by the identical delta. Rects with
-  // no owner (the pasture perimeter fence, the stream) belong to no draggable object
-  // and are left alone. Everything else in the world that's tied to a prop's position
+  // no owner (the stream) belong to no draggable object and are left alone. The pasture
+  // perimeter fence's segment rects DO carry `ownGroup` now (#376, mirroring the house
+  // fence below) but neither fence's posts are themselves entries in `_dragEntries` —
+  // their joints are grabbed via the dedicated `_houseFencePathTap`/`_pastureFencePathTap`
+  // first-refusal instead, which re-derives/refits their collision directly — so this
+  // generic `ownGroup` branch below only ever fires for the house/pasture fence when a
+  // linked GATE (or, for the house fence's own posts, nothing) is what's actually being
+  // dragged as a normal entry. Everything else in the world that's tied to a prop's position
   // — the interactable reach/tap zones — already reads `this.props.<name>.x/y` fresh
   // on every call (interactables.js descriptors are closures over `this`, not over
   // coordinates), so it tracks a drag on its own with nothing to sync here.
@@ -512,17 +560,26 @@ export const WithDevDrag = (Base) => class extends Base {
     // moved single object's {x,y} is. Included whenever the fence exists, not
     // only after an endpoint drag — the owner may just want the CURRENT config.
     const fence = this._houseFenceExport?.();
+    // Pasture-fence PATH config (#376) — same idea as the house fence's,
+    // included whenever the fence exists so the CURRENT joint list (gate links
+    // included) can be baked into world.js's `buildPastureFence`.
+    const pastureFence = this._pastureFenceExport?.();
     // Worn-path / stream control points (#373) — only the splines that were
     // actually reshaped, keyed by id (`path:<name>` — the forest/trail loop is
     // just another named route, `path:forestLoop` — / `stream`), each an array
     // of [x,y] pairs ready to paste over world.js's route consts / stream.js's
     // `ctrl` array.
     const splines = this._splineExport?.();
-    const out = { ...moved, ...(fence ? { houseFence: fence } : {}), ...(splines ? { splines } : {}) };
+    const out = {
+      ...moved,
+      ...(fence ? { houseFence: fence } : {}),
+      ...(pastureFence ? { pastureFence } : {}),
+      ...(splines ? { splines } : {}),
+    };
     const n = Object.keys(moved).length;
     const json = JSON.stringify(out, null, 2);
     // eslint-disable-next-line no-console
-    console.log('[dev-positions]', (n || fence || splines) ? json : '(nothing moved)');
+    console.log('[dev-positions]', (n || fence || pastureFence || splines) ? json : '(nothing moved)');
     // Clipboard access is best-effort — it needs a secure context and a user
     // gesture, and rejects ASYNCHRONOUSLY when denied, so the promise is caught
     // too (an unhandled rejection would show up as a console error in the smoke test).
@@ -531,7 +588,7 @@ export const WithDevDrag = (Base) => class extends Base {
       const p = navigator.clipboard?.writeText(json);
       if (p) { copied = true; p.catch(() => {}); }
     } catch { /* clipboard not available — the panel and the log still have it */ }
-    if (!quiet) this._showDevDragPanel(moved, copied, undefined, fence, splines);
+    if (!quiet) this._showDevDragPanel(moved, copied, undefined, fence, splines, pastureFence);
     return out;
   }
 
@@ -550,7 +607,7 @@ export const WithDevDrag = (Base) => class extends Base {
     this._showDevDragPanel({}, false, 'Reset — everything back to its source position. (Selection and groups are kept.)');
   }
 
-  _showDevDragPanel(moved, copied, note, fence, splines) {
+  _showDevDragPanel(moved, copied, note, fence, splines, pastureFence) {
     this._dragPanel?.destroy();
     const names = Object.keys(moved);
     const lines = names.length
@@ -570,6 +627,11 @@ export const WithDevDrag = (Base) => class extends Base {
     const fenceLines = fence
       ? [`houseFence: { joints: ${JSON.stringify(fence.joints)}, count: ${fence.count} }`]
       : [];
+    // Pasture-fence PATH config (#376) — same idea, its own line (includes any
+    // `gateLink` tag on the two end joints).
+    const pastureFenceLines = pastureFence
+      ? [`pastureFence: { joints: ${JSON.stringify(pastureFence.joints)}, count: ${pastureFence.count} }`]
+      : [];
     // Worn-path / stream control points (#373) — one line per reshaped spline,
     // the array ready to paste over its source (world.js's route consts /
     // stream.js's `ctrl`).
@@ -581,6 +643,7 @@ export const WithDevDrag = (Base) => class extends Base {
     this._dragPanel = this.add.text(BTN_X + o.x, BTN_Y + (BTN_H + 6) * 4 + 10 + o.y,
       [...head, '', ...lines,
        ...(fenceLines.length ? ['', ...fenceLines] : []),
+       ...(pastureFenceLines.length ? ['', ...pastureFenceLines] : []),
        ...(splineLines.length ? ['', ...splineLines] : []),
        ...(groups.length ? ['', ...groups] : [])].join('\n'), {
         fontFamily: 'ui-monospace, Menlo, monospace',

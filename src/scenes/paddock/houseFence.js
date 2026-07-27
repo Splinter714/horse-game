@@ -39,3 +39,27 @@ export function houseFenceSegmentRects(posts, band) {
   }
   return rects;
 }
+
+// #376: the pasture-perimeter fence reuses this same "one AABB per post-to-post
+// span" approach, but — unlike the house fence — its segments are NOT always
+// near-horizontal (the left/right perimeter walls are pure vertical runs, and a
+// promoted/dragged joint could make any segment diagonal). `houseFenceSegmentRect`
+// above only pads in Y (fine for a near-horizontal run; a pure-vertical one would
+// collapse to zero width), so this pads by `band/2` on BOTH axes instead. That
+// costs a touch more corner over-coverage on a horizontal span than the
+// house-fence version, which is why this is a separate function rather than a
+// change to the tuned one above.
+export function perimeterFenceSegmentRect(a, b, band) {
+  const x = Math.min(a.x, b.x) - band / 2, y = Math.min(a.y, b.y) - band / 2;
+  return { x, y, w: Math.max(a.x, b.x) - x + band / 2, h: Math.max(a.y, b.y) - y + band / 2 };
+}
+
+/** @param {{x:number,y:number}[]} posts */
+export function perimeterFenceSegmentRects(posts, band) {
+  if (!posts || posts.length < 2) return [];
+  const rects = [];
+  for (let i = 0; i < posts.length - 1; i++) {
+    rects.push(perimeterFenceSegmentRect(posts[i], posts[i + 1], band));
+  }
+  return rects;
+}
