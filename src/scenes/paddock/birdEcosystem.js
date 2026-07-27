@@ -37,7 +37,9 @@ export const WithBirdEcosystem = (Base) => class extends Base {
   // preview if a different yard corner reads better. Registers a small solid
   // pedestal footprint so the player and grazers path around it.
   buildBirdBath() {
-    const x = 620, y = 470;
+    // Position (456, 236) — the owner's own placement, dragged live via the #330
+    // drag-and-export dev tool and baked in by #335.
+    const x = 456, y = 236;
     this.add.image(x, y, 'birdBath').setScale(S).setDepth(y).setOrigin(0.5, 1);
     this.props.birdBath = { x, y };
     // Sprite 34×40 at S (origin 0.5,1); the solid part is the pedestal foot ≈ 20px
@@ -61,7 +63,8 @@ export const WithBirdEcosystem = (Base) => class extends Base {
   // the path (~65px), the fence, the fox den, and the doghouse/nectar-feeder
   // cluster, while staying in the same "east of the house" yard pocket.
   buildSeedFeeder() {
-    const x = 394, y = 374;
+    // Position (385, 238) — the owner's own placement (#330 drag tool, baked in by #335).
+    const x = 385, y = 238;
     const sprite = this.add.image(x, y, 'seedFeederEmpty')
       .setScale(S).setDepth(y).setOrigin(0.5, 1);
     this.props.seedFeeder = { x, y, sprite, level: 0, filled: false, fillContent: 'seed' };
@@ -164,7 +167,8 @@ export const WithBirdEcosystem = (Base) => class extends Base {
   // sells at the farm stand and is a future cooking ingredient. FIRST-PASS spot (760, 300)
   // near the flowers/carrot garden the bees also visit.
   buildBeehive() {
-    const x = 760, y = 300;
+    // Position (1344, 162) — the owner's own placement (#330 drag tool, baked in by #335).
+    const x = 1344, y = 162;
     const sprite = this.add.image(x, y, 'beehive').setScale(S).setDepth(y).setOrigin(0.5, 1);
     this.props.beehive = { x, y, sprite, honey: 0, ready: false };
     // Sprite 30×44 at S (origin 0.5,1); solid box body ≈ 26 wide, lower ~30px → footprint.
@@ -226,7 +230,8 @@ export const WithBirdEcosystem = (Base) => class extends Base {
   // it reads as its own distinct feature. Flagged for the owner to redirect in the
   // live preview if a different yard corner reads better.
   buildBirdhouse() {
-    const x = 500, y = 260;
+    // Position (515, 231) — the owner's own placement (#330 drag tool, baked in by #335).
+    const x = 515, y = 231;
     this.add.image(x, y, 'birdhouse').setScale(S).setDepth(y).setOrigin(0.5, 1);
     this.props.birdhouse = { x, y };
     // Sprite 26×58 at S (origin 0.5,1); the solid part is the slim post foot → a

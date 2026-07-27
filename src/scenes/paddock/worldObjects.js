@@ -290,7 +290,8 @@ export const WithWorldObjects = (Base) => class extends Base {
   // (165/205, 420), with >90px clearance from every path segment and no overlap
   // with the house wall or fence obstacles.
   buildDoghouse() {
-    const x = 260, y = 460;
+    // Position (160, 682) - the owner's own placement (#330 drag tool, baked in by #335).
+    const x = 160, y = 682;
     this.props.doghouse = { x, y };
     this.add.image(x, y, 'doghouse').setScale(S).setDepth(y).setOrigin(0.5, 1);
     // Sprite 48×42 at S (origin 0.5,1); solid kennel body ≈ local x8–38, y18–40 →

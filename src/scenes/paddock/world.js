@@ -80,8 +80,10 @@ export const WithWorld = (Base) => class extends Base {
     // sleep until morning. This is the old "barn" object rebranded (#241 split);
     // home-base semantics (cat home, night huddle, sleep, player spawn) all anchor
     // here. Its interior is built in #56.
-    this.add.image(240, 280, 'house').setScale(S).setDepth(279).setOrigin(0.5, 1);
-    this.props.house = { x: 240, y: 250 };
+    // Position (219, 253) — the owner's own placement (#330 drag tool, baked in by #335).
+    // The sprite sits 30px below the prop anchor; the whole cluster moved by (-21, +3).
+    this.add.image(219, 283, 'house').setScale(S).setDepth(282).setOrigin(0.5, 1);
+    this.props.house = { x: 219, y: 253 };
     this._buildChimneySmoke(); // matches the indoor fireplace (#230) — a wisp above the chimney
     this.buildSlopMaker(); // slop-maker (#225) — house-exterior leftovers sink; paddock/farmStand.js
 
@@ -139,7 +141,8 @@ export const WithWorld = (Base) => class extends Base {
     // Spinning wheel (#233) — the crafting station that spins a basket of raw wool into
     // yarn (worth more at the stand). In a crafting nook east of the BARN. `craft` names
     // the conversion the useDispatch spin action reads (wool → yarn), so it's data-driven.
-    const swx = 700, swy = 700;
+    // Position (1673, 1177) — the owner's own placement (#330 drag tool, baked in by #335).
+    const swx = 1673, swy = 1177;
     const spinSprite = this.add.image(swx, swy, 'spinningWheel')
       .setScale(S).setDepth(swy).setOrigin(0.5, 1);
     // Spoked-disc overlay centred on the wheel hub, spun during a craft (#233). The
@@ -159,7 +162,8 @@ export const WithWorld = (Base) => class extends Base {
     // the shopkeeper NPC moved to the unified store in town (paddock/town.js's
     // buildTown → buildGeneralStore), so this stall is unstaffed. West of the farm
     // stand (SELL station, 1600,780) so the two economy halves read as distinct.
-    const shopX = 1240, shopY = 800;
+    // Position (2156, 523) — the owner's own placement (#330 drag tool, baked in by #335).
+    const shopX = 2156, shopY = 523;
     const shopSprite = this.add.image(shopX, shopY, 'shopStall')
       .setScale(S).setDepth(shopY).setOrigin(0.5, 1);
     this.props.shop = { x: shopX, y: shopY, sprite: shopSprite };
@@ -186,13 +190,13 @@ export const WithWorld = (Base) => class extends Base {
   // (centered on x, bottom at y) so you can't walk through it — registered in buildObstacles.
   buildSources() {
     const defs = [
-      { x: 820,  y: 850, content: 'hay',    tex: 'haystack',     label: 'Hay Pile',      reach: 100, ob: { w: 84,  h: 36 } },
-      { x: 760,  y: 560, content: 'carrot', tex: 'carrotGarden', label: 'Carrot Garden', reach: 100, ob: { w: 104, h: 42 } },
-      { x: 1660, y: 560, content: 'apple',  tex: 'appleTree',    label: 'Apple Tree',    reach: 90,  ob: { w: 44,  h: 26 } },
-      { x: 1850, y: 480, content: 'orange', tex: 'orangeTree', label: 'Orange Tree', reach: 90, ob: { w: 44, h: 26 } }, // #228 tree, mirrors apple
-      { x: 1020, y: 250, content: 'berry',  tex: 'berryBush',  label: 'Berry Bush',  reach: 85, ob: { w: 40, h: 18 } }, // #228 bush, same mechanic, no trunk
-      { x: 1120, y: 470, content: 'seed',   tex: 'grainBin',     label: 'Grain Bin',     reach: 95,  ob: { w: 66,  h: 40 } },
-      { x: 1100, y: 850, content: 'water',  tex: 'well',         label: 'Well',          reach: 95,  ob: { w: 52,  h: 22 } },
+      { x: 1367, y: 1105, content: 'hay',    tex: 'haystack',     label: 'Hay Pile',      reach: 100, ob: { w: 84,  h: 36 } },
+      { x: 1234, y: 425, content: 'carrot', tex: 'carrotGarden', label: 'Carrot Garden', reach: 100, ob: { w: 104, h: 42 } },
+      { x: 1660, y: 512, content: 'apple',  tex: 'appleTree',    label: 'Apple Tree',    reach: 90,  ob: { w: 44,  h: 26 } },
+      { x: 1802, y: 497, content: 'orange', tex: 'orangeTree', label: 'Orange Tree', reach: 90, ob: { w: 44, h: 26 } }, // #228 tree, mirrors apple
+      { x: 1736, y: 546, content: 'berry',  tex: 'berryBush',  label: 'Berry Bush',  reach: 85, ob: { w: 40, h: 18 } }, // #228 bush, same mechanic, no trunk
+      { x: 818,  y: 402, content: 'seed',   tex: 'grainBin',     label: 'Grain Bin',     reach: 95,  ob: { w: 66,  h: 40 } },
+      { x: 1311, y: 1016, content: 'water',  tex: 'well',         label: 'Well',          reach: 95,  ob: { w: 52,  h: 22 } },
       // Kibble sack (#202 rework) — the cat-food SOURCE, by the house. The player
       // scoops cat food into a basket here (like the grain bin for seed), then pours
       // it into the food bowl. The bowls themselves are no longer gather sources —
@@ -202,12 +206,12 @@ export const WithWorld = (Base) => class extends Base {
       // basket then poured into the bunny FOOD BOWL (buildBunnyBowl), which bunnies eat
       // from directly; stocking it also lures a wild bunny in (capped at 4). No ground
       // pile (items.js `stocks`). Water bowl fills from a plain bucket, like the cat's.
-      { x: 560,  y: 300, content: 'bunnyFood',  tex: 'bunnyHutch',    label: 'Bunny Hutch', reach: 100, ob: { w: 44, h: 30 } },
+      { x: 1293, y: 107, content: 'bunnyFood',  tex: 'bunnyHutch',    label: 'Bunny Hutch', reach: 100, ob: { w: 44, h: 30 } },
       // Nectar station (#226) — sugar-water jug by the house; fill a bucket, pour into the hummingbird feeder (its OWN resource vs seed #240).
       { x: 190,  y: 360, content: 'nectar',   tex: 'nectarStation', label: 'Nectar Jug',  reach: 90,  ob: { w: 24, h: 24 } },
       // Fox den (#266) / duck feeder (#275) — SOURCEs for their food; fill a basket, DROP piles to befriend each.
-      { x: 300,  y: 320, content: 'foxFood',  tex: 'foxDen',        label: 'Fox Den',     reach: 100, ob: { w: 40, h: 26 } },
-      { x: 1580, y: 300, content: 'duckFood', tex: 'duckFeeder',    label: 'Duck Feeder', reach: 100, ob: { w: 30, h: 24 } },
+      { x: 1141, y: 150, content: 'foxFood',  tex: 'foxDen',        label: 'Fox Den',     reach: 100, ob: { w: 40, h: 26 } },
+      { x: 1234, y: 143, content: 'duckFood', tex: 'duckFeeder',    label: 'Duck Feeder', reach: 100, ob: { w: 30, h: 24 } },
     ];
     for (const d of defs) {
       const sprite = this.add.image(d.x, d.y, d.tex)
@@ -270,8 +274,8 @@ export const WithWorld = (Base) => class extends Base {
     // Rects in world space {x, y, w, h} — top-left origin.
     // Sized to the solid/wall area of each prop (not full sprite bounds).
     this.obstacles = [
-      // House walls (#241) (origin 0.5,1 at 240,280; sprite 84×66 at S=2 → 168×132; walls ~lower 90px)
-      { x: 162, y: 192, w: 156, h: 88 },
+      // House walls (#241) (origin 0.5,1 at 219,283; sprite 84×66 at S=2 → 168×132; walls ~lower 90px)
+      { x: 141, y: 195, w: 156, h: 88 },
       // Barn walls (#35) — the walk-in barn's perimeter with a south doorway gap.
       // Registered as this.barnObstacles by buildBarn (paddock/barn.js); spread in here.
       ...(this.barnObstacles || []), ...(this.doghouseObstacles || []), // + doghouse #237

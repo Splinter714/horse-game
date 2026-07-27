@@ -25,7 +25,8 @@ import { playGather, playSplash } from '../../audio/sounds.js';
 // Where the garden bed sits (bottom-centre origin), and how its 6 slots are laid out —
 // a 3-wide × 2-deep grid of planting spots over the tilled bed. Farm-yard, north of the
 // pasture fence, on open ground near the other stations.
-const PLOT = { x: 1500, y: 560 };
+// Position (1310, 378) - the owner's own placement (#330 drag tool, baked in by #335).
+const PLOT = { x: 1310, y: 378 };
 const SLOT_COLS = 3;
 const SLOT_DX = 52;   // horizontal gap between slot centres (world px)
 const SLOT_DY = 40;   // vertical gap between the two rows
