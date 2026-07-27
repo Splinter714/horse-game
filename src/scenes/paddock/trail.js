@@ -27,16 +27,18 @@
 // that seam, the owner's call was to drop per-region ground tinting
 // entirely — the trail's ground is now plain grass, same as the farm.
 
-import { S, TRAIL_X0, TRAIL_W, TRAIL_Y0, TRAIL_Y1 } from './constants.js';
+import { S, TRAIL_X0, TRAIL_W, TRAIL_Y0, TRAIL_Y1, PLAYER_BOUNDS } from './constants.js';
 import { playGather } from '../../audio/sounds.js';
 
 export const WithTrail = (Base) => class extends Base {
   buildTrail() {
-    const top = TRAIL_Y0 - 40, bandH = (TRAIL_Y1 - TRAIL_Y0) + 80;
-
     // Trail ground — plain grass, same texture/tiling as the farm (no tint
     // layer; see file header). Reuses the existing grass texture tiled
-    // across the extension band.
+    // across the extension band. Spans the full PLAYER_BOUNDS Y-range (not
+    // just TRAIL_Y0/Y1, which only bound where the trail's CONTENT sits) so
+    // there's no textureless gap north/south of the trail where the player
+    // can still walk.
+    const top = PLAYER_BOUNDS.minY, bandH = PLAYER_BOUNDS.maxY - PLAYER_BOUNDS.minY;
     this.add.tileSprite(TRAIL_X0, top, TRAIL_W, bandH, 'grass')
       .setOrigin(0, 0).setTileScale(S, S).setDepth(-100);
 

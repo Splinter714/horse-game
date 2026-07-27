@@ -21,7 +21,7 @@
 // the 500-line budget) so this doesn't collide with other agents editing the
 // farm's world.js in parallel — mirrors exactly how trail.js avoided that collision.
 
-import { S, TOWN_X0, TOWN_W, TOWN_Y0, TOWN_Y1 } from './constants.js';
+import { S, TOWN_X0, TOWN_W, TOWN_Y0, TOWN_Y1, PLAYER_BOUNDS } from './constants.js';
 
 // #381: town used to carry its own warm ground tint (originally a flat
 // .setTint(), then a gradient-overlay blend added by #371 to soften the
@@ -33,8 +33,10 @@ export const WithTown = (Base) => class extends Base {
   buildTown() {
     // Town ground — plain grass, same texture/tiling as the farm (no tint
     // layer; see file header). Reuses the existing grass texture tiled
-    // across the extension band.
-    const top = TOWN_Y0 - 40, bandH = (TOWN_Y1 - TOWN_Y0) + 80;
+    // across the extension band. Spans the full PLAYER_BOUNDS Y-range (not
+    // just TOWN_Y0/Y1, which only bound where town's CONTENT sits) so there's
+    // no textureless gap north/south of town where the player can still walk.
+    const top = PLAYER_BOUNDS.minY, bandH = PLAYER_BOUNDS.maxY - PLAYER_BOUNDS.minY;
     this.add.tileSprite(TOWN_X0, top, TOWN_W, bandH, 'grass')
       .setOrigin(0, 0).setTileScale(S, S).setDepth(-100);
 
