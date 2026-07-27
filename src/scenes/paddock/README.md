@@ -43,6 +43,7 @@ core orchestrator.
 | Riding | `paddock/riding.js` (`WithRiding`) | riding, saddle, leading |
 | Player core | `paddock/player.js` (`WithPlayer`) | `buildPlayer` (sprite/camera/input bindings), `handleTap`, `_isDoubleTap` |
 | Player movement | `paddock/playerMovement.js` (`WithPlayerMovement`) | `movePlayer`, hold-to-move, tap-to-move + A* (`_findPath`), `_stepNav` |
+| Local co-op (player 2) | `paddock/coop.js` (`WithCoop`) | local two-player on one device (#302): `buildCoop` (join affordance), `_coopJoin`/`_coopLeave` (P key hands the ARROW keys to player 2 and leaves player 1 on WASD; Start on a SECOND gamepad joins that pad instead), `_coopMove`/`_coopAnimate` (a second body reusing the player art, walk anims and `_collides` sliding), `_coopPet`/`_coopUse` (pet the animal nearest to PLAYER 2 via the shared `_petTarget`; Use runs `useActiveTool` with player 2's body temporarily standing in as `this.player`), plus the shared-camera midpoint focus and the soft leash. Pure maths (move vector, facing, tether pull, camera focus, nearest-in-range) lives in `data/coop.js`. Session-only — nothing about player 2 is persisted |
 | Control prompts | `paddock/prompts.js` (`WithPrompts`) | hint panel, touch action-button labels, `checkToolProximity` |
 | Interactables | `paddock/interactables.js` (`WithInteractables`) | gate/house/trough/sources/nests/stand descriptors |
 | Use dispatch | `paddock/useDispatch.js` (`WithUseDispatch`) | `useActiveTool`, cow-use resolution, `gatherFrom`, `getActiveItem` |

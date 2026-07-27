@@ -44,6 +44,7 @@ import { WithRiding } from './paddock/riding.js';
 import { WithTractor } from './paddock/tractor.js';
 import { WithPlayer } from './paddock/player.js';
 import { WithPlayerMovement } from './paddock/playerMovement.js';
+import { WithCoop } from './paddock/coop.js';
 import { WithPrompts } from './paddock/prompts.js';
 import { WithInteractables } from './paddock/interactables.js';
 import { WithUseDispatch } from './paddock/useDispatch.js';
@@ -76,7 +77,7 @@ const PADDOCK_MIXINS = [
   WithGeneralStore,
   WithGarden, WithDayNight, WithWeather, WithHorseAI, WithBehaviors, WithRiding, WithTractor, WithPlayer,
   WithEffects, WithPersistence, WithRendering, WithWorldObjects, WithCareActions,
-  WithInteraction, WithInput, WithPlayerMovement, WithPrompts, WithInteractables, WithUseDispatch,
+  WithInteraction, WithInput, WithPlayerMovement, WithCoop, WithPrompts, WithInteractables, WithUseDispatch,
 ];
 const PaddockBase = PADDOCK_MIXINS.reduceRight((Base, Mixin) => Mixin(Base), Phaser.Scene);
 
@@ -126,6 +127,7 @@ export default class PaddockScene extends PaddockBase {
     this.buildAnimals();
     this.buildIncubation(); // baby chicks (#274): restore any in-flight incubations
     this.buildPlayer();
+    this.buildCoop(); // local two-player co-op (#302) — join affordance for player 2
     this.buildFarmStand();
     this.buildNeighbor(); // neighbor NPC (#294): restore relationship score + schedule first visit
     this.buildGarden(); // crop garden plot (#242) — before interactables (they read it)
@@ -259,6 +261,7 @@ export default class PaddockScene extends PaddockBase {
     this.updateDogCompanion(delta); // dog trots alongside the player, sits when idle (#186)
     this.checkProximity();
     this.checkToolProximity();
+    this.updateCoop(delta); // #302: player 2's body, actions and the shared camera focus
     this._renderPrompts();
     this._syncActionButtons();
     this.separateHorses();

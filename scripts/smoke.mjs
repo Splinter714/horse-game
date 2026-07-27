@@ -99,6 +99,9 @@ try {
       'openPortrait', 'openChickenInfo', 'openCreatureInfo', '_openInfoPanel',
       // input: gamepad poll, pause overlay, input-mode + prompt toggles.
       '_pollRawPad', '_togglePause', '_syncInputMode', '_onPromptsChanged',
+      // local two-player co-op (#302): second body join/leave, movement, actions.
+      'buildCoop', 'updateCoop', '_coopJoin', '_coopLeave', '_coopMove',
+      '_coopPet', '_coopUse', '_coopNearestPettable', '_coopPad',
       // player split (#167 A2): movement, prompts, interactables, use-dispatch.
       '_stepNav', 'tapMoveTo', '_renderPrompts', 'checkToolProximity',
       'buildInteractables', '_proximityInteractable', 'useActiveTool', '_nearestToolHorse',

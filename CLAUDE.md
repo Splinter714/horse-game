@@ -70,6 +70,16 @@ the nearest horse, feed drops at your feet (or stocks the farm stand when you're
 carriers gather/fill/sell at the matching world spot. Contextual prompts for both interact
 and Use are shown near the target (toggleable in the pause menu).
 
+### Local two-player co-op (#302)
+A second player can join the SAME world on the SAME device — no networking, no
+server, no split-screen, no second save. Press **P** (player 2 takes the arrow keys;
+player 1 keeps WASD) or **Start on a second gamepad**. Player 2 walks, pets animals
+(Enter / pad A) and uses player 1's armed hotbar tool (`/` / pad X). Player 1 stays
+the host: hotbar, inventory, info panels, riding, driving and tap-to-move are all
+player 1's. One shared camera follows the midpoint of the pair, and a soft leash
+drags player 2 along so nobody is left off-screen. Session-only — nothing about
+player 2 is persisted. Code: `scenes/paddock/coop.js` (+ pure maths in `data/coop.js`).
+
 ## The data-driven entity model (`src/data/`) — the key generalization
 
 Animals are **one generic model driven by data**, so adding an animal type is mostly
