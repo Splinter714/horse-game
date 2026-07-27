@@ -28,7 +28,7 @@ export const WithGeneralStore = (Base) => class extends Base {
 
     // Solid building footprint (sprite 72×50 at S=2 → 144×100), bottom at STORE_Y.
     this.generalStoreObstacles = [
-      { x: STORE_X - 72, y: STORE_Y - 100, w: 144, h: 100, isGeneralStore: true },
+      { x: STORE_X - 72, y: STORE_Y - 100, w: 144, h: 100, isGeneralStore: true, own: this.props.generalStore },
     ];
 
     this.buildShopkeeper(this.props.generalStore); // shopkeeper NPC (#244); paddock/shop.js

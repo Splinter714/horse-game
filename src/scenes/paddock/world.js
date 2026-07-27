@@ -288,34 +288,43 @@ export const WithWorld = (Base) => class extends Base {
 
     // Rects in world space {x, y, w, h} — top-left origin.
     // Sized to the solid/wall area of each prop (not full sprite bounds).
+    //
+    // `own` (#330): the prop record this rect's geometry was derived from. Inert in
+    // normal play — nothing reads it — but the dev DRAG tool uses it to shift a
+    // dragged object's collision by the same delta as its art, so what you bump into
+    // matches what you see while you're positioning things. Obstacles are built ONCE
+    // at create() from the props' live x/y, so without this tag a drag leaves the
+    // collision rect behind at the source position. Rects with no owning prop (the
+    // pasture perimeter fence, the stream) are deliberately untagged — they aren't
+    // draggable objects.
     this.obstacles = [
       // House walls (#241) (origin 0.5,1 at 219,283; sprite 84×66 at S=2 → 168×132; walls ~lower 90px)
-      { x: 141, y: 195, w: 156, h: 88 },
+      { x: 141, y: 195, w: 156, h: 88, own: this.props.house },
       // Barn walls (#35) — the walk-in barn's perimeter with a south doorway gap.
       // Registered as this.barnObstacles by buildBarn (paddock/barn.js); spread in here.
       ...(this.barnObstacles || []), ...(this.doghouseObstacles || []), // + doghouse #237
       // Coop (origin 0.5,1 at 930,400; 64×52 at S=2 → 128×104). home:'flock' →
       // excluded from a flock bird's own obstacle list (#269, see _obstaclesFor).
-      { x: 868, y: 300, w: 124, h: 100, home: 'flock' },
+      { x: 868, y: 300, w: 124, h: 100, home: 'flock', own: this.props.coop },
       // Trough — tied to the live trough (origin 0.5,0.5; 200×52 sprite, inset to
       // its body) so the collision moves with it when repositioned (#110/#106).
-      ...centredBox(this.props.trough, 176, 44, { isTrough: true }),
+      ...centredBox(this.props.trough, 176, 44, { isTrough: true, own: this.props.trough }),
       // Fence line (6 segments at y=320, origin 0,0.5; 96×48 each → x=300..876). isFence (#317): any rail is tie-able.
       { x: 300, y: 300, w: 576, h: 40, isFence: true },
       // Spinning wheel (#233) — solid ~52×20 footprint at swx,swy.
-      ...(this.props.spinningWheel ? [{ x: this.props.spinningWheel.x - 26, y: this.props.spinningWheel.y - 20, w: 52, h: 20 }] : []),
+      ...(this.props.spinningWheel ? [{ x: this.props.spinningWheel.x - 26, y: this.props.spinningWheel.y - 20, w: 52, h: 20, own: this.props.spinningWheel }] : []),
       // Kitchen counter (#40) — solid ~56×16 counter-top footprint at S=2.
-      ...(this.props.kitchenCounter ? [{ x: this.props.kitchenCounter.x - 28, y: this.props.kitchenCounter.y - 16, w: 56, h: 16 }] : []),
+      ...(this.props.kitchenCounter ? [{ x: this.props.kitchenCounter.x - 28, y: this.props.kitchenCounter.y - 16, w: 56, h: 16, own: this.props.kitchenCounter }] : []),
       // Slop-maker (#225) — solid ~48×20 barrel footprint at S=2, house exterior.
-      ...(this.props.slopMaker ? [{ x: this.props.slopMaker.x - 24, y: this.props.slopMaker.y - 20, w: 48, h: 20 }] : []),
+      ...(this.props.slopMaker ? [{ x: this.props.slopMaker.x - 24, y: this.props.slopMaker.y - 20, w: 48, h: 20, own: this.props.slopMaker }] : []),
       // Shop stall (#29) — solid ~128×48 counter footprint at S=2. Mirrors the farm stand.
-      ...(this.props.shop ? [{ x: this.props.shop.x - 64, y: this.props.shop.y - 48, w: 128, h: 48, isShop: true }] : []),
+      ...(this.props.shop ? [{ x: this.props.shop.x - 64, y: this.props.shop.y - 48, w: 128, h: 48, isShop: true, own: this.props.shop }] : []),
       // The unified store (#215/#217/#222/#312) building footprint — registered by
       // its own concern mixin (buildGeneralStore, now built from buildTown), spread
       // in here like the barn/doghouse.
       ...(this.generalStoreObstacles || []),
       // Compost bin (#232) — solid ~80×40 footprint at S=2.
-      ...(this.props.compostBin ? [{ x: this.props.compostBin.x - 40, y: this.props.compostBin.y - 40, w: 80, h: 40 }] : []),
+      ...(this.props.compostBin ? [{ x: this.props.compostBin.x - 40, y: this.props.compostBin.y - 40, w: 80, h: 40, own: this.props.compostBin }] : []),
       ...(this.birdEcosystemObstacles || []), ...this._petBowlObstacles(), // #202 fix; see worldObjects.js
     ];
 
@@ -335,7 +344,7 @@ export const WithWorld = (Base) => class extends Base {
 
     // Gate obstacle — fills the fence gap; matches the fence's own vertical band
     // (topY ± T/2) instead of a taller offset rect, which felt snaggy (#117).
-    this.gateObstacle = { x: 960 - 56, y: topY - T / 2, w: 112, h: T, isGate: true };
+    this.gateObstacle = { x: 960 - 56, y: topY - T / 2, w: 112, h: T, isGate: true, own: this.props.gate };
     if (this.props.gate && !this.props.gate.open) {
       this.obstacles.push(this.gateObstacle);
     }
@@ -345,20 +354,20 @@ export const WithWorld = (Base) => class extends Base {
     // home:'flock' → like the coop, excluded from a flock bird's own obstacle
     // list so a hen can walk onto a nest to lay. Other creatures treat it as solid.
     for (const n of this.props.nests) {
-      this.obstacles.push({ x: n.x - 18, y: n.y - 12, w: 36, h: 24, isNest: true, home: 'flock' });
+      this.obstacles.push({ x: n.x - 18, y: n.y - 12, w: 36, h: 24, isNest: true, home: 'flock', own: n });
     }
 
     // Trash can (#191) — solid drum footprint. Sprite 32×46 at S=2 (origin 0.5,1);
     // the drum body is the lower ~38px of the art → ~48×56 solid, bottom at y.
     if (this.props.trashCan) {
       const t = this.props.trashCan;
-      this.obstacles.push({ x: t.x - 24, y: t.y - 56, w: 48, h: 56, isTrashCan: true });
+      this.obstacles.push({ x: t.x - 24, y: t.y - 56, w: 48, h: 56, isTrashCan: true, own: t });
     }
 
     // Gathering source obstacles — solid base centered on x, bottom at y.
     for (const s of this.props.sources) {
       if (!s.ob) continue;
-      this.obstacles.push({ x: s.x - s.ob.w / 2, y: s.y - s.ob.h, w: s.ob.w, h: s.ob.h, isSource: true });
+      this.obstacles.push({ x: s.x - s.ob.w / 2, y: s.y - s.ob.h, w: s.ob.w, h: s.ob.h, isSource: true, own: s });
     }
 
     // Stream collision (built in buildStream) — keep everyone out of the water.

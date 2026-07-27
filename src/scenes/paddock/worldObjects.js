@@ -271,7 +271,7 @@ export const WithWorldObjects = (Base) => class extends Base {
   // reaching its own bowl to eat/drink. Read by buildObstacles (world.js).
   _petBowlObstacles() {
     return (this.props.petBowls || []).map(b =>
-      ({ x: b.x - 22, y: b.y - 28, w: 44, h: 24, isPetBowl: true }));
+      ({ x: b.x - 22, y: b.y - 28, w: 44, h: 24, isPetBowl: true, own: b }));
   }
 
   // ─── Doghouse (#237) ─────────────────────────────────────────────────────
@@ -298,7 +298,7 @@ export const WithWorldObjects = (Base) => class extends Base {
     this.props.doghouse = { x, y, sprite };
     // Sprite 48×42 at S (origin 0.5,1); solid kennel body ≈ local x8–38, y18–40 →
     // inset a touch so the player can brush right up to it.
-    this.doghouseObstacles = [{ x: x - 30 + 2, y: y - 48 + 2, w: 60 - 4, h: 44 - 4 }];
+    this.doghouseObstacles = [{ x: x - 30 + 2, y: y - 48 + 2, w: 60 - 4, h: 44 - 4, own: this.props.doghouse }];
   }
 
   // ─── Covered shelter (#319) ─────────────────────────────────────────────

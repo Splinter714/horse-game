@@ -190,6 +190,40 @@ export const WithDevDrag = (Base) => class extends Base {
     if (!dx && !dy) return;
     const done = new Set();
     for (const o of [e.obj, ...e.also]) this._devDragShift(o, dx, dy, done);
+    this._devDragShiftObstacles(e, dx, dy);
+  }
+
+  // Move the dragged object's COLLISION with its art (#330 follow-up).
+  //
+  // `this.obstacles` is built ONCE in create() (buildObstacles, world.js) from the
+  // props' live coordinates, so a drag used to leave the rect behind at the source
+  // position — the barn's art moved, but you still bumped into where it used to be.
+  // Rebuilding the whole list isn't an option here: several concerns PUSH their rect
+  // into this.obstacles at their own build time (the farm stand, the garden bed), so
+  // re-running buildObstacles would silently drop them.
+  //
+  // Instead each rect carries `own` — the prop record its geometry came from (see
+  // buildObstacles) — and this shifts every rect owned by the entry being dragged
+  // (including the same-spot duplicates in `also`) by the identical delta. Rects with
+  // no owner (the pasture perimeter fence, the stream) belong to no draggable object
+  // and are left alone. Everything else in the world that's tied to a prop's position
+  // — the interactable reach/tap zones — already reads `this.props.<name>.x/y` fresh
+  // on every call (interactables.js descriptors are closures over `this`, not over
+  // coordinates), so it tracks a drag on its own with nothing to sync here.
+  _devDragShiftObstacles(e, dx, dy) {
+    if (!dx && !dy) return;
+    const owners = new Set([e.obj, ...e.also]);
+    const done = new Set();
+    // The gate rect is only IN this.obstacles while the gate is shut, but it still
+    // has to follow a dragged gate so closing it later blocks the right gap.
+    const lists = [this.obstacles ?? [], this.gateObstacle ? [this.gateObstacle] : []];
+    for (const list of lists) {
+      for (const o of list) {
+        if (done.has(o) || !o.own || !owners.has(o.own)) continue;
+        done.add(o);
+        o.x += dx; o.y += dy;
+      }
+    }
   }
 
   _devDragShift(o, dx, dy, done) {
