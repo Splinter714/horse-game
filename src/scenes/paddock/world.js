@@ -63,16 +63,18 @@ export const WithWorld = (Base) => class extends Base {
 
     const flowers = ['flowerRed', 'flowerYellow', 'flowerWhite'];
     [
-      [80, 400], [140, 600], [260, 360], [340, 620], [460, 410],
-      [580, 580], [700, 370], [800, 610], [920, 450], [1000, 350],
-      [60, 540], [420, 560], [640, 520], [190, 290], [860, 560],
-      [1100, 450], [1200, 620], [1340, 390], [1460, 570], [1580, 430],
-      [1700, 600], [1480, 720], [1860, 520], [1050, 800], [1180, 950],
-      // Indices 26, 27, 33, 34, 38 are the owner's own placements (#330 drag tool,
-      // baked in by #338, #341, and #342).
+      // Indices 0, 1, 3-8, 10-16, 21, 26, 27, 33, 34, 38 are the owner's own
+      // placements (#330 drag tool, baked in by #338, #341, #342, and #343).
+      // The #343 batch is the tight flower cluster the owner arranged around the
+      // bird bath (roughly x 395-520, y 225-275).
+      [464, 251], [443, 256], [260, 360], [436, 274], [402, 247],
+      [479, 260], [425, 229], [492, 438], [489, 226], [1000, 350],
+      [496, 266], [415, 271], [490, 246], [460, 272], [422, 248],
+      [516, 264], [509, 241], [1340, 390], [1460, 570], [1580, 430],
+      [1700, 600], [395, 264], [1860, 520], [1050, 800], [1180, 950],
       [1380, 850], [807, 1284], [1473, 795], [1780, 900], [280, 880],
       [420, 1020], [560, 900], [700, 1040], [1344, 695], [954, 1157],
-      [120, 750], [240, 1100], [360, 980], [499, 718], [630, 1100],
+      [120, 750], [240, 1100], [360, 980], [404, 225], [630, 1100],
     ].forEach(([x, y], i) => {
       const sprite = this.add.image(x, y, flowers[i % flowers.length]).setScale(S).setDepth(y);
       // `sprite` kept so the dev drag tool (#330) can move the actual flower, not
@@ -104,9 +106,12 @@ export const WithWorld = (Base) => class extends Base {
     // object-label/drag tools (#329/#330) can see and reposition each post —
     // distinct from the pasture fence's perimeter, which is built (and could be
     // tracked) separately in buildPastureFence below.
+    // Anchor (-136, 57) — the owner grouped all 6 posts with the #337 multi-select
+    // tool and dragged the whole run up-left in one go (#330 export, baked in by
+    // #343). Spacing is unchanged at 96px, so only the base x/y move.
     this.props.houseFence = [];
     for (let i = 0; i < 6; i++) {
-      const x = 300 + i * 96, y = 320;
+      const x = -136 + i * 96, y = 57;
       const sprite = this.add.image(x, y, 'fence').setScale(S).setDepth(y).setOrigin(0, 0.5);
       this.props.houseFence.push({ x, y, sprite, label: `Fence Post ${i + 1}` });
     }

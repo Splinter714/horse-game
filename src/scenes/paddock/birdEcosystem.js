@@ -37,9 +37,9 @@ export const WithBirdEcosystem = (Base) => class extends Base {
   // preview if a different yard corner reads better. Registers a small solid
   // pedestal footprint so the player and grazers path around it.
   buildBirdBath() {
-    // Position (456, 236) — the owner's own placement, dragged live via the #330
-    // drag-and-export dev tool and baked in by #335.
-    const x = 456, y = 236;
+    // Position (455, 244) — the owner's own placement, dragged live via the #330
+    // drag-and-export dev tool (baked in by #335, nudged again by #343).
+    const x = 455, y = 244;
     const sprite = this.add.image(x, y, 'birdBath').setScale(S).setDepth(y).setOrigin(0.5, 1);
     // `sprite` kept so the dev drag tool (#330) can move the visible bath, not
     // just this record's numbers.
