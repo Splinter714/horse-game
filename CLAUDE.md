@@ -13,9 +13,6 @@ GitHub Pages under base `/horse-game/`.
 ## Commands
 
 - `npm run dev` — dev server at http://localhost:5173/horse-game/
-- `npm test` — Vitest unit tests for the pure logic (`src/data/*.test.js`)
-- `npm run smoke` — **headless-browser smoke test** (boots the real game, asserts
-  runtime state). Requires the dev server running. See "Verification" below.
 - `npm run build` — production build (also the fastest check that all modules resolve)
 - `npm run sprites <key> [key…]` — **art preview**: renders a creature's runtime-generated
   sprite frames side-by-side to a PNG (`/tmp/sprite-preview.png`) so you can eyeball the
@@ -23,8 +20,12 @@ GitHub Pages under base `/horse-game/`.
   live textures and auto-detects frames/sizes. E.g. `npm run sprites cat horse chicken0 foal1`.
   Override with `SPRITE_SCALE` / `SPRITE_OUT`.
 
-**Always run `npm test` and `npm run smoke` after changes** — they're the safety
-net that lets us ship without the owner manually playing.
+**No automated test suite (2026-07-27).** This project used to run Vitest unit tests
+(`npm test`) plus a Playwright headless-browser smoke test (`npm run smoke`) as a merge
+gate; the owner decided to drop both (mirroring the same call on the mech-game project)
+because he found the actual playtesting loop more valuable than maintaining test coverage.
+**Verification is now: `npm run build` stays clean, and the owner plays it live.** Don't
+propose reintroducing a test suite; don't write new test files.
 
 ## Architecture
 
@@ -204,27 +205,18 @@ keeps only `constructor`/`create`/`update`, `buildHorses`, `checkProximity`, sle
 
 To extract another concern, follow the same pattern: move whole methods into a
 `WithX` mixin, import any constants/audio it uses, add it to the class chain, update
-the README, and confirm `npm run build` + `npm test` + `npm run smoke` stay green.
-**Don't hardcode a species** in a shared file (save/boot/care) — that belongs in the
-species' `data/species/<name>/` def; the seam guards in `modularity.test.js` enforce it.
+the README, and confirm `npm run build` stays green. **Don't hardcode a species** in
+a shared file (save/boot/care) — that belongs in the species' `data/species/<name>/`
+def. (The seam/modularity guards that used to enforce this mechanically were part of
+the test suite removed 2026-07-27 — this is now a code-review discipline, not an
+automated check.)
 
 ## Verification
 
-Two layers, both must pass:
-1. **`npm test`** (Vitest, `node` env) — pure logic in `src/data`: decay, save/migration/
-   offline-decay, items, chicken persistence. localStorage is stubbed in-test. Also the
-   **modularity guards** (`src/scenes/modularity.test.js`, issue #167): no two mixins in a
-   composition group define the same method name, and no scene file exceeds the line budget.
-   These are static source checks (Phaser doesn't load in `node`).
-2. **`npm run smoke`** (`scripts/smoke.mjs`, Playwright headless Chromium) — boots the
-   real game, asserts: no JS/console errors, scenes active, 7 horses + 5 chickens
-   loaded, all PaddockScene mixin methods resolve on the prototype, and a single feed
-   applies exactly +35 (guards the care-action double-apply regression). Saves a
-   screenshot to `/tmp/horsegame-smoke.png`.
-
-Headless Chromium lacks WebGL framebuffers, so the smoke test loads `?canvas` (a
-dev-only `Phaser.CANVAS` override in `main.js`). The game logic verified there is
-renderer-agnostic.
+No automated test suite (removed 2026-07-27 — see "Commands" above). Verify changes
+by running `npm run build` (catches module-resolution/syntax errors) and by actually
+playing the change in the dev server / live preview. The owner does his own playtesting
+pass regardless, so don't claim something works without having run the build at minimum.
 
 ## Gotchas
 
@@ -236,15 +228,15 @@ renderer-agnostic.
   sleep disabled (lid-open or `caffeinate`). A hung/0%-CPU build usually means the Mac slept,
   not a real build failure — retry once awake.
 - Use `EVENTS.*` constants, not bare event strings.
-- The owner can't verify code — lean on `npm test` + `npm run smoke` (extend them when
-  you add behavior).
+- The owner can't verify code by reading it — run `npm run build` and, where feasible,
+  exercise the change in the dev server/live preview yourself before reporting done.
 - **Commit per logical unit** (e.g. per issue) so any single change can be rolled back
   independently, rather than one large commit spanning several fixes.
 - **Don't start a second `npm run dev`** in a worktree the Claude Code preview already
   owns — the preview launches and tracks its own dev server per worktree (via
   `.claude/launch.json`'s `autoPort`); a second server bumps the preview to a phantom
-  port and the panes diverge. `scripts/dev-server-url.mjs` (used by `smoke.mjs` and
-  `sprite-preview.mjs`) finds the already-running server instead of hardcoding a port —
+  port and the panes diverge. `scripts/dev-server-url.mjs` (used by `sprite-preview.mjs`)
+  finds the already-running server instead of hardcoding a port —
   reuse it rather than spawning a new one. Only start one manually if none is detected
   for that worktree.
 - **Know which approvals are durable vs per-instance.** Some are standing (e.g. "keep
@@ -300,7 +292,7 @@ a repeatable routine:
    (local + remote) instead of deleting it, so the name itself signals a dead end.
 
 Deploy is separate, manual, and explicit — only when the owner says "deploy." Run
-`npm test` + `npm run smoke` before pushing code changes.
+`npm run build` before pushing code changes.
 
 ## Roadmap (planned, not yet done)
 

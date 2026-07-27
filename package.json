@@ -7,9 +7,6 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "smoke": "node scripts/smoke.mjs",
     "sprites": "node scripts/sprite-preview.mjs",
     "dissect": "node scripts/dissect.mjs",
     "deploy": "npm run build && gh-pages -d dist -b gh-pages"
@@ -19,9 +16,7 @@
   },
   "devDependencies": {
     "gh-pages": "^6.3.0",
-    "playwright": "^1.61.0",
     "vite": "^5.4.0",
-    "vite-plugin-pwa": "^1.3.0",
-    "vitest": "^4.1.9"
+    "vite-plugin-pwa": "^1.3.0"
   }
 }
