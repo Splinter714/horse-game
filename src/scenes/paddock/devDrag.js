@@ -89,6 +89,7 @@ export const WithDevDrag = (Base) => class extends Base {
       this.input.off('pointerup',        this._devDragDrop, this);
       this.input.off('pointerupoutside', this._devDragDrop, this);
     }
+    this._clearHouseFencePath?.(); // #370
     this._dragMarks?.destroy();
     this._dragHud?.destroy();
     this._dragPanel?.destroy();
@@ -132,6 +133,11 @@ export const WithDevDrag = (Base) => class extends Base {
     this.input.on('pointermove',      this._devDragMove, this);
     this.input.on('pointerup',        this._devDragDrop, this);
     this.input.on('pointerupoutside', this._devDragDrop, this);
+
+    // House-fence PATH editing (#370) — two extra magenta endpoint handles on
+    // the fence run, on top of the ordinary per-post handles above. Same
+    // toggle, same lifecycle; see houseFencePath.js.
+    this._mountHouseFencePath?.();
   }
 
   // Screen-fixed button. Hit-testing is done by hand in _devDragTap (against the
@@ -193,6 +199,20 @@ export const WithDevDrag = (Base) => class extends Base {
     if (this._dragPanel) { this._dragPanel.destroy(); this._dragPanel = null; }
 
     const w = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+
+    // House-fence PATH endpoints (#370) get first refusal on the world-space pick,
+    // ahead of the ordinary per-post grab, so tapping right on the end of the run
+    // always means "respace the whole thing" rather than "move this one post".
+    const endpoint = this._houseFencePathTap?.(w);
+    if (endpoint) {
+      this._fenceEndpointHeld = endpoint;
+      this._dragMoved  = false;
+      this._dragPressX = w.x;
+      this._dragPressY = w.y;
+      this._dragHud?.setText(`House fence: ${this._fencePosts().length} posts — drag to respace`);
+      return true;
+    }
+
     let best = null, bestD = PICK_R;
     for (const e of this._dragEntries) {
       const d = Math.hypot(e.obj.x - w.x, e.obj.y - w.y);
@@ -218,6 +238,18 @@ export const WithDevDrag = (Base) => class extends Base {
   // still a candidate tap. Past it, every entry in the moving set gets the SAME
   // delta (a rigid translation), so a group keeps its shape.
   _devDragMove(pointer) {
+    if (this._fenceEndpointHeld) {
+      if (!pointer.isDown) return;
+      const w = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      if (!this._dragMoved) {
+        if (Math.hypot(w.x - this._dragPressX, w.y - this._dragPressY) < TAP_SLOP) return;
+        this._dragMoved = true;
+      }
+      this._houseFencePathMove(this._fenceEndpointHeld, w);
+      this._drawFenceEndpoints();
+      this._drawDevDragMarks();
+      return;
+    }
     const e = this._dragHeld;
     if (!e || !pointer.isDown) return;
     const w = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
@@ -234,6 +266,13 @@ export const WithDevDrag = (Base) => class extends Base {
   // A press that never became a drag is a tap: toggle the object (and its group)
   // in or out of the selection.
   _devDragDrop() {
+    if (this._fenceEndpointHeld) {
+      this._fenceEndpointHeld = null;
+      this._dragMoved = false;
+      this._devDragHud(null);
+      this._drawFenceEndpoints();
+      return;
+    }
     const e = this._dragHeld;
     if (!e) return;
     if (!this._dragMoved) this._devSelToggle(e);
@@ -407,10 +446,16 @@ export const WithDevDrag = (Base) => class extends Base {
   // be torn down anyway.
   exportDevPositions({ quiet = false } = {}) {
     const moved = this._devMovedPositions();
+    // House-fence PATH config (#370) — the run's current start/end/count, so it
+    // can be baked into world.js's `this.props.houseFence` loop the same way a
+    // moved single object's {x,y} is. Included whenever the fence exists, not
+    // only after an endpoint drag — the owner may just want the CURRENT config.
+    const fence = this._houseFenceExport?.();
+    const out = fence ? { ...moved, houseFence: fence } : moved;
     const n = Object.keys(moved).length;
-    const json = JSON.stringify(moved, null, 2);
+    const json = JSON.stringify(out, null, 2);
     // eslint-disable-next-line no-console
-    console.log('[dev-positions]', n ? json : '(nothing moved)');
+    console.log('[dev-positions]', (n || fence) ? json : '(nothing moved)');
     // Clipboard access is best-effort — it needs a secure context and a user
     // gesture, and rejects ASYNCHRONOUSLY when denied, so the promise is caught
     // too (an unhandled rejection would show up as a console error in the smoke test).
@@ -419,8 +464,8 @@ export const WithDevDrag = (Base) => class extends Base {
       const p = navigator.clipboard?.writeText(json);
       if (p) { copied = true; p.catch(() => {}); }
     } catch { /* clipboard not available — the panel and the log still have it */ }
-    if (!quiet) this._showDevDragPanel(moved, copied);
-    return moved;
+    if (!quiet) this._showDevDragPanel(moved, copied, undefined, fence);
+    return out;
   }
 
   // Put every object back where the source code put it. Session-only means a
@@ -437,7 +482,7 @@ export const WithDevDrag = (Base) => class extends Base {
     this._showDevDragPanel({}, false, 'Reset — everything back to its source position. (Selection and groups are kept.)');
   }
 
-  _showDevDragPanel(moved, copied, note) {
+  _showDevDragPanel(moved, copied, note, fence) {
     this._dragPanel?.destroy();
     const names = Object.keys(moved);
     const lines = names.length
@@ -451,10 +496,16 @@ export const WithDevDrag = (Base) => class extends Base {
     // needs), so the panel names the groups separately — otherwise six moved fence
     // posts look like six coincidences.
     const groups = (this._dragGroups ?? []).map(g => `⛓ ${g.name}: ${g.members.join(', ')}`);
+    // House-fence PATH config (#370) — the {start,end,count} to paste into
+    // world.js's houseFence build loop, shown as its own line since it isn't a
+    // per-object delta like the ones above.
+    const fenceLines = fence
+      ? [`houseFence: { start: {x:${fence.start.x}, y:${fence.start.y}}, end: {x:${fence.end.x}, y:${fence.end.y}}, count: ${fence.count} }`]
+      : [];
 
     const o = worldUiOffset(this);
     this._dragPanel = this.add.text(BTN_X + o.x, BTN_Y + (BTN_H + 6) * 4 + 10 + o.y,
-      [...head, '', ...lines, ...(groups.length ? ['', ...groups] : [])].join('\n'), {
+      [...head, '', ...lines, ...(fenceLines.length ? ['', ...fenceLines] : []), ...(groups.length ? ['', ...groups] : [])].join('\n'), {
         fontFamily: 'ui-monospace, Menlo, monospace',
         fontSize: '11px', color: '#ffffff', backgroundColor: '#0d1020f2',
         padding: { x: 8, y: 6 }, lineSpacing: 3,

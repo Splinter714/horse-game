@@ -333,6 +333,19 @@ export const WithWorld = (Base) => class extends Base {
     return rect;
   }
 
+  // Re-derive the house-fence collision band after the POST ARRAY ITSELF changed
+  // shape (posts added/removed), not just moved — the #370 path-editing tool
+  // respaces the whole run by destroying/recreating posts, so the ordinary #330
+  // per-post delta-shift (_devDragShiftObstacles) doesn't apply. Finds the one
+  // obstacle rect whose `ownGroup` is this live array (set once in
+  // _houseFenceObstacles) and re-fits it — a no-op if obstacles haven't been
+  // built yet or the rect isn't there for some reason.
+  refitHouseFence() {
+    for (const o of this.obstacles ?? []) {
+      if (o.ownGroup === this.props.houseFence) o.refit?.();
+    }
+  }
+
   buildObstacles() {
     // Collision footprint for a centred prop (origin 0.5,0.5) from its live
     // position — so a movable prop's collision follows it instead of being pinned
