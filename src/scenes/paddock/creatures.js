@@ -303,7 +303,10 @@ export const WithCreatures = (Base) => class extends Base {
         const gy = a.sprite.y < line ? line - 40 : line + 40; // wait on our own side
         path = this._findPath(a.sprite.x, a.sprite.y, gx, gy, { R, obstacles });
       }
-      if (!path || !path.length) { onArrive?.(); return; } // nowhere reachable — stay put
+      // Nowhere to go: hand back reached=false so a goal-directed caller (eat/drink)
+      // abandons instead of applying its effect where it stands — that's how a horse
+      // drank from the trough through the barn wall (#346). Wander callbacks ignore it.
+      if (!path || !path.length) { onArrive?.(false); return; } // nowhere reachable — stay put
     }
     this._runPath(a, path, onArrive);
   }
