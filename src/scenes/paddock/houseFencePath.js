@@ -17,10 +17,11 @@
 // `for (let i = 0; i < 6; i++) { x = -136 + i*96 }` — and evenly spaces them.
 // `_respaceHouseFenceTo` then destroys/recreates the post sprites and mutates
 // `this.props.houseFence` IN PLACE (same array object, not a new one) so:
-//   - the collision band (`_houseFenceObstacles`/`houseFenceRect`, houseFence.js)
-//     keeps following it — its `ownGroup` was captured once against this array
-//     reference (world.js), so `refitHouseFence()` (also world.js) still finds it
-//     after the post count changes, not just after a post moves.
+//   - the collision segments (`_houseFenceObstacles`/`houseFenceSegmentRects`,
+//     houseFence.js) keep following it — each rect's `ownGroup` was captured
+//     against this array reference (world.js), so `refitHouseFence()` (also
+//     world.js) still finds and rebuilds them after the post count changes, not
+//     just after a post moves.
 //   - `_devLabelTargets()` (devLabels.js, which devDrag.js's object list is
 //     derived from) still enumerates the run correctly next time drag mode is
 //     remounted.

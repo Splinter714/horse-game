@@ -10,7 +10,7 @@ import {
 } from './constants.js';
 import { SPECIES } from '../../data/species/index.js';
 import { bakeStaticGraphics } from './bakeGraphics.js';
-import { houseFenceRect } from './houseFence.js';
+import { houseFenceSegmentRects } from './houseFence.js';
 import { respaceHouseFence } from './houseFencePath.js';
 
 // Collision band thickness for the house fence line (#344) — the solid slice of the
@@ -344,25 +344,29 @@ export const WithWorld = (Base) => class extends Base {
     }
   }
 
-  // House-fence rail lines (#372 rework). Draws the two rails as continuous line
-  // segments from `start` to `end` — offset perpendicular to the run direction so
-  // they read correctly at any angle, not just horizontal — instead of stitching
-  // them from N rotated per-tile rail sprites. Destroys/recreates its own single
-  // Graphics object each call (stashed on `this._houseFenceRailGfx`) so the #370
-  // drag tool's `_respaceHouseFenceTo` (houseFencePath.js) can just call this
-  // again after every respace, same as the initial build here.
+  // House-fence rail lines (#372 rework, then #372 playtest fix). Draws the two
+  // rails as continuous line segments from `start` to `end`, each offset by a
+  // FIXED vertical amount from the post's own y — matching the post sprites,
+  // which are always drawn un-rotated (plain vertical post art) regardless of
+  // the run's angle. An earlier version offset the rails perpendicular to the
+  // run's ANGLE instead, which lined up with the post art only when the run was
+  // horizontal — at any other angle the perpendicular offset visibly drifted off
+  // the (un-rotated) post sprites, worse the steeper the angle (2026-07-27
+  // playtest). Since `respaceHouseFence` places every post exactly on the
+  // straight line between `start` and `end`, a pure vertical translation of that
+  // line still passes through every intermediate post's own (x, y+offset) point
+  // — collinearity is preserved under a (0, dy) translation — so one line per
+  // rail still reaches every post correctly, just anchored to the post art
+  // instead of rotated to the run. Destroys/recreates its own single Graphics
+  // object each call (stashed on `this._houseFenceRailGfx`) so the #370 drag
+  // tool's `_respaceHouseFenceTo` (houseFencePath.js) can just call this again
+  // after every respace, same as the initial build here.
   _buildHouseFenceRails(start, end) {
     this._houseFenceRailGfx?.destroy();
-    const angle = Math.atan2(end.y - start.y, end.x - start.x);
-    // Unit vector perpendicular to the run, used to offset each rail off the
-    // start↔end centerline (rather than a plain vertical offset, so a diagonal
-    // run's rails stay parallel to the posts instead of just shifting in y).
-    const px = -Math.sin(angle), py = Math.cos(angle);
     const g = this.add.graphics().setDepth((start.y + end.y) / 2);
     const drawRail = (offset, color) => {
-      const ox = px * offset, oy = py * offset;
       g.lineStyle(FENCE_RAIL_THICKNESS, color, 1);
-      g.lineBetween(start.x + ox, start.y + oy, end.x + ox, end.y + oy);
+      g.lineBetween(start.x, start.y + offset, end.x, end.y + offset);
     };
     drawRail(FENCE_RAIL_TOP_OFFSET, FENCE_RAIL_TOP_COLOR);
     drawRail(FENCE_RAIL_BOTTOM_OFFSET, FENCE_RAIL_BOTTOM_COLOR);
@@ -372,45 +376,84 @@ export const WithWorld = (Base) => class extends Base {
 
   // ─── Obstacles & collision ───────────────────────────────────────────────
 
-  // Collision for the house fence line (#344). This used to be a literal
-  // `{ x: 300, y: 300, w: 576, h: 40 }` typed to match the posts' ORIGINAL spot, so
-  // once the run was dragged elsewhere (#330/#337, baked in by #343) you still bumped
-  // into an invisible fence back at the old position. It's now a bounding band over
-  // `this.props.houseFence`'s live post coordinates, so it lands wherever the posts do.
+  // Collision for the house fence line (#344, reworked #372). This used to be a
+  // literal `{ x: 300, y: 300, w: 576, h: 40 }` typed to match the posts' ORIGINAL
+  // spot, so once the run was dragged elsewhere (#330/#337, baked in by #343) you
+  // still bumped into an invisible fence back at the old position; later it became
+  // a single bounding box over `this.props.houseFence`'s live post coordinates.
   //
-  // Unlike every other rect, this one belongs to SIX prop records rather than one, so
-  // the #330 `own:` delta-shift can't describe it (dragging a single post changes the
-  // band's width, not just its position). It carries `ownGroup` + `refit()` instead —
-  // the drag tool calls refit() whenever any member of the group moves.
-  // `isFence` (#317) marks it tie-able, same as before.
+  // #372 playtest follow-up: that single box over-covered near the ends/corners of
+  // a diagonal run (its corners stick out past the actual thin, angled line). This
+  // returns one tight rect per POST-TO-POST SPAN instead — a "thick line" hugging
+  // each segment rather than one box over the whole run (see houseFence.js for the
+  // full reasoning re: AABB segments vs. a true rotated rect).
+  //
+  // Unlike most rects, these belong to the whole post-record array rather than one
+  // prop, so the #330 `own:` delta-shift can't describe them (dragging a single
+  // post only needs ITS OWN two adjacent segments to move, and the #370 path tool
+  // can change the array's LENGTH, not just positions). Each carries `ownGroup` +
+  // `refit()` (`_fitHouseFenceSegment`, capturing its post-pair index) for the
+  // ordinary translate case; `refitHouseFence()` below handles the count-changing
+  // case by rebuilding the whole list. `isFence` (#317) marks them tie-able, same
+  // as before.
   _houseFenceObstacles() {
-    if (!this.props.houseFence?.length) return [];
-    const rect = { x: 0, y: 0, w: 0, h: 0, isFence: true, ownGroup: this.props.houseFence };
-    rect.refit = () => this._fitHouseFenceRect(rect);
-    rect.refit();
-    return [rect];
+    return this._buildHouseFenceSegmentRects();
   }
 
-  // Fit `rect` to the current post positions. The 'fence' texture is 48×24 at S
-  // (→ 96×48 on screen); HOUSE_FENCE_BAND is the solid slice of that height the old
-  // hardcoded rect used. Maths in houseFence.js so it's testable without Phaser.
-  _fitHouseFenceRect(rect) {
-    const box = houseFenceRect(this.props.houseFence, 48 * S, HOUSE_FENCE_BAND);
+  _buildHouseFenceSegmentRects() {
+    const posts = this.props.houseFence;
+    if (!posts?.length) return [];
+    const rects = [];
+    for (let i = 0; i < posts.length - 1; i++) {
+      const rect = { x: 0, y: 0, w: 0, h: 0, isFence: true, ownGroup: posts };
+      rect.refit = () => this._fitHouseFenceSegment(rect, i);
+      rect.refit();
+      rects.push(rect);
+    }
+    return rects;
+  }
+
+  // Fit `rect` to post pair (i, i+1)'s CURRENT positions. HOUSE_FENCE_BAND is the
+  // solid slice of the fence texture's height the old hardcoded rect used. Maths
+  // in houseFence.js so it's testable without Phaser. Guards against the post at
+  // this index no longer existing (a respace shrank the run) by collapsing to a
+  // zero-size rect instead of throwing — `refitHouseFence()` immediately rebuilds
+  // the whole list in that case anyway, so this is just a safety net.
+  _fitHouseFenceSegment(rect, i) {
+    const posts = this.props.houseFence;
+    const a = posts?.[i], b = posts?.[i + 1];
+    if (!a || !b) { rect.x = rect.y = rect.w = rect.h = 0; return rect; }
+    const [box] = houseFenceSegmentRects([a, b], HOUSE_FENCE_BAND);
     if (box) Object.assign(rect, box);
     return rect;
   }
 
-  // Re-derive the house-fence collision band after the POST ARRAY ITSELF changed
-  // shape (posts added/removed), not just moved — the #370 path-editing tool
-  // respaces the whole run by destroying/recreating posts, so the ordinary #330
-  // per-post delta-shift (_devDragShiftObstacles) doesn't apply. Finds the one
-  // obstacle rect whose `ownGroup` is this live array (set once in
-  // _houseFenceObstacles) and re-fits it — a no-op if obstacles haven't been
-  // built yet or the rect isn't there for some reason.
+  // Re-derive the house-fence collision segments after the POST ARRAY changed —
+  // either individual posts moving (ordinary #330 drag) or, since #370, the run
+  // being RESPACED to a different post COUNT entirely (dragging a run endpoint).
+  // A fixed set of per-index `refit()` closures (built once in
+  // _buildHouseFenceSegmentRects) can follow posts moving, but can't describe a
+  // different number of segments — so when the live post count no longer matches
+  // the number of segment rects already in `this.obstacles`, this rebuilds the
+  // whole list from scratch instead of refitting in place. (Safe to splice/push
+  // here because this method is only ever called directly — from
+  // `_respaceHouseFenceTo`, houseFencePath.js — never from inside another loop
+  // over `this.obstacles`, unlike the ordinary per-post drag path in devDrag.js's
+  // `_devDragShiftObstacles`, which stays a plain in-place `o.refit?.()` and never
+  // needs to resize the array.)
   refitHouseFence() {
-    for (const o of this.obstacles ?? []) {
-      if (o.ownGroup === this.props.houseFence) o.refit?.();
+    const posts = this.props.houseFence;
+    if (!this.obstacles || !posts) return;
+    const existing = this.obstacles.filter((o) => o.ownGroup === posts);
+    const wantCount = Math.max(0, posts.length - 1);
+    if (existing.length !== wantCount) {
+      for (let i = this.obstacles.length - 1; i >= 0; i--) {
+        if (this.obstacles[i].ownGroup === posts) this.obstacles.splice(i, 1);
+      }
+      this.obstacles.push(...this._buildHouseFenceSegmentRects());
+      return;
     }
+    for (const o of existing) o.refit?.();
   }
 
   buildObstacles() {
