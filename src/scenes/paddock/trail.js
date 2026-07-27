@@ -116,11 +116,13 @@ export const WithTrail = (Base) => class extends Base {
     // textures) so it still feels like the same world's palette. Deterministic
     // layout (not random) so the smoke test / dissect tool see a stable scene.
     const trees = [
-      [-140, 260], [-260, 460], [-420, 320], [-560, 560], [-700, 380],
-      [-820, 620], [-120, 900], [-340, 1020], [-540, 980], [-700, 1080],
+      // Several entries are the owner's own placements (#330 drag tool, baked in
+      // by #335/#338) rather than the original deterministic scatter.
+      [-322, 243], [-260, 460], [-420, 320], [-560, 560], [-700, 380],
+      [-820, 620], [-293, 799], [-352, 1029], [-545, 941], [-700, 1072],
       [-860, 260], [-180, 480],
       [-960, 340], [-1100, 560], [-1240, 380], [-1080, 900], [-1220, 1040],
-      [-1400, 500], [-1500, 760], [-1420, 260], [-1560, 950], [-980, 1080],
+      [-1400, 500], [-1409, 753], [-1420, 260], [-862, 824], [-960, 1060],
     ];
     // Tracked in props (#329 follow-up) so the dev object-label/drag tools
     // (#329/#330) can see and reposition each tree/rock — previously these were
@@ -132,8 +134,8 @@ export const WithTrail = (Base) => class extends Base {
     }
 
     const rocks = [
-      [-252, 309], [-300, 620], [-480, 240], [-620, 700], [-780, 480], [-200, 1000],
-      [-1000, 460], [-1160, 700], [-1340, 460], [-1460, 900], [-1040, 1000],
+      [-252, 309], [-300, 620], [-480, 240], [-616, 751], [-780, 480], [-205, 914],
+      [-1000, 460], [-1160, 700], [-1340, 460], [-1320, 879], [-1040, 1000],
     ];
     (this.props.rocks ??= []);
     for (const [i, [x, y]] of rocks.entries()) {
@@ -157,8 +159,9 @@ export const WithTrail = (Base) => class extends Base {
     // of scope for v1; this is just enough to prove the "something to find out
     // here" beat. Moved further out into the loop now that the trail is bigger.
     this.props.trailCollectible = {
-      x: -1240, y: 780, found: false,
-      sprite: this.add.image(-1240, 780, 'trailTrinket').setScale(S).setDepth(780),
+      // Position (-1174, 673) — the owner's own placement (#330 drag tool, baked in by #338).
+      x: -1174, y: 673, found: false,
+      sprite: this.add.image(-1174, 673, 'trailTrinket').setScale(S).setDepth(673),
     };
 
     // A simple marker at the trail's mouth (the farm side) so the entrance reads

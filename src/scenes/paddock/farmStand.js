@@ -11,7 +11,8 @@ export const WithFarmStand = (Base) => class extends Base {
   // ─── Farm Stand ──────────────────────────────────────────────────────────
 
   buildFarmStand() {
-    const sx = 1600, sy = 780;
+    // Position (1628, 753) — the owner's own placement (#330 drag tool, baked in by #338).
+    const sx = 1628, sy = 753;
     const sprite = this.add.image(sx, sy, 'farmStand')
       .setScale(S).setDepth(sy).setOrigin(0.5, 1);
     const stock = Object.fromEntries(STAND_TYPES.map(t => [t, 0]));
