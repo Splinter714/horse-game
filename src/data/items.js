@@ -12,7 +12,7 @@ export const CARRIER_DEFS = {
   // animal that eats it, #136), so the basket's cap is just a safety ceiling, not a
   // limit you should hit. Kept finite (not Infinity) so it never trips serialization
   // or UI maths — but high enough that the demand always fits (and you can hoard eggs).
-  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey', 'jam', 'flour', 'pigFeed', 'blueberry', 'potato', 'orange', 'berry', 'vegetableStew', 'berryPie', 'honeyBread', 'trinket'] },
+  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey', 'jam', 'flour', 'pigFeed', 'blueberry', 'potato', 'orange', 'berry', 'vegetableStew', 'berryPie', 'honeyBread', 'trinket', 'rawSugar', 'sugarCube'] },
   bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'milk', 'nectar'] },
 };
 
@@ -151,6 +151,12 @@ export const CONTENT_DEFS = {
   // future cooking ingredient (#41). No `feeds`/`ground` — nobody eats it, it doesn't
   // drop as a pile; it's an in-world produce source alongside eggs/milk/wool.
   honey:      { label: 'Honey',        icon: 'iconBasketHoney',      action: 'sell' },
+  // Raw sugar (#227): a pantry staple, bought at the general store's food counter
+  // (data/shop.js SHOP_STOCK → generalStore.js's `food` counter) rather than grown
+  // or gathered — the cooking ingredient for sugar cubes below. Sellable at the
+  // stand like the other cooking ingredients (action 'sell'); no `feeds`/`ground`
+  // — nobody eats raw sugar directly, it's only consumed as a recipe input.
+  rawSugar:   { label: 'Raw Sugar',    icon: 'iconBasketRawSugar',   action: 'sell' },
   // Cooking (#41): dishes combine two raw ingredients at the house's stove (#213),
   // not a single-crop grind like jam/flour/pig feed above. Each sells for more than
   // its combined raw ingredients (see data/cooking.js rawIngredientValue/isProfitable
@@ -167,6 +173,12 @@ export const CONTENT_DEFS = {
   // and STAND_DEFS.trinket for the price). No `feeds`/`ground` — it's a found keepsake,
   // not food, and it isn't dropped as a pile.
   trinket:    { label: 'Trinket',      icon: 'iconBasketTrinket',    action: 'sell' },
+  // Sugar cubes (#227): a horse treat cooked from raw sugar + water, moistened and
+  // pressed at the stove (mirrors the other dishes' 2-ingredient shape). Its
+  // feedEffect (data/cooking.js) is a bigger happiness bump than the other dishes'
+  // treats (berry pie/honey bread) — the classic "special treat" horses love,
+  // decided at build time per #227 (not tied to the hummingbird feeder, #226).
+  sugarCube:     { label: 'Sugar Cubes',    icon: 'iconBasketSugarCube', action: 'sell' },
 };
 
 // How many of a food to gather in one fill-up (#136): one unit per live animal that

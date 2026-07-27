@@ -267,6 +267,15 @@ export const STAND_DEFS = {
   // pickup. Priced comparably to the other low-tier sellables above (carrot 3,
   // potato 3, orange 5, egg 5) — a first-pass balance lever to tune at playtest.
   trinket: { price: 6, tex: 'iconTrinket', scale: 0.9, emoji: '✨', floatIcon: 'iconTrinket' },
+  // Sugar cubes (#227): raw sugar is a bought-in pantry staple (data/shop.js
+  // SHOP_STOCK), priced a touch above hay/carrot since it's a store-bought good,
+  // not gathered. Sugar cubes (the cooked dish) reuse the existing 'iconTreat'
+  // texture (art/iconArt.js) — a sugar-cube-with-sparkle icon that was already
+  // drawn but unused before this issue. Priced above its raw sugar + water
+  // ingredient cost (data/cooking.js isProfitableToCook), same payoff pattern as
+  // the other dishes.
+  rawSugar:      { price: 4,  tex: 'iconRawSugar',   scale: 0.9, emoji: '🧂', floatIcon: 'iconRawSugar' },
+  sugarCube:     { price: 20, tex: 'iconTreat',       scale: 0.9, emoji: '🍬', floatIcon: 'iconTreat' },
 };
 export const STAND_TYPES = Object.keys(STAND_DEFS);
 

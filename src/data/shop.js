@@ -25,6 +25,11 @@ export const SHOP_STOCK = [
   { key: 'buyCarrot',  content: 'carrot',  carrier: 'basket', price: 5,  label: 'Carrots',  icon: 'iconBasketCarrot',  desc: 'Crunchy feed for horses, cows & pigs' },
   { key: 'buySeed',    content: 'seed',    carrier: 'basket', price: 2,  label: 'Chicken Feed', icon: 'iconBasketSeed', desc: 'Seed for the flock' },
   { key: 'buyCatFood', content: 'catFood', carrier: 'basket', price: 4,  label: 'Cat Food', icon: 'iconBasketCatFood', desc: 'A tin for the barn cat' },
+  // Raw sugar (#227): a pantry staple, not gathered on the farm — bought here so
+  // there's a way to stock it for the stove's sugar-cube recipe (data/cooking.js).
+  // Priced above its farm-stand sell price (rawSugar STAND_DEFS, paddock/constants.js)
+  // like every other buyable, so buying-to-resell isn't free money.
+  { key: 'buyRawSugar', content: 'rawSugar', carrier: 'basket', price: 6, label: 'Raw Sugar', icon: 'iconBasketRawSugar', desc: 'Pantry staple for baking' },
 ];
 
 // Look up a stock row by its key.
