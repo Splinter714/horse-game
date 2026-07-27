@@ -27,7 +27,6 @@
 
 import Phaser from 'phaser';
 import { S, TRAIL_X0, TRAIL_W, TRAIL_Y0, TRAIL_Y1 } from './constants.js';
-import { bakeStaticGraphics } from './bakeGraphics.js';
 import { playGather } from '../../audio/sounds.js';
 
 const TRAIL_TINT = 0xbfe0c0;
@@ -110,47 +109,31 @@ export const WithTrail = (Base) => class extends Base {
     // LOOP — out along the top of the band, curling around the far-west end,
     // back along the bottom, and closing back at the entrance — so there's a
     // long circuit to explore rather than a short there-and-back stretch.
-    const g = this.add.graphics().setDepth(-95);
     const midY = (TRAIL_Y0 + TRAIL_Y1) / 2;
     const topY = TRAIL_Y0 + 90, botY = TRAIL_Y1 - 90;
     const farX = TRAIL_X0 + 140;
-    const loopWaypoints = [
-      [20, midY],
+    // Added as one more named entry in `this._pathRoutes` (#373 follow-up),
+    // NOT a separate system — it goes through world.js's `buildPath`-owned
+    // `_pathRoutes` / `_bakePathGraphics()`, the exact same code the farm
+    // paths use, so the dev spline-drag tool (splineDrag.js) treats it as
+    // just another draggable route with no special-casing. The loop is
+    // CLOSED — the first and last waypoints are the literal SAME array
+    // reference (not just equal values), so dragging that shared point moves
+    // both ends together automatically (it's one logical point, not two).
+    const start = [20, midY];
+    this._pathRoutes.forestLoop = [
+      start,
       [-180, topY + 30], [-520, topY - 20], [-900, topY + 40], [-1280, topY + 20],
       [farX, midY],
       [-1280, botY - 20], [-900, botY - 40], [-520, botY + 20], [-180, botY - 30],
-      [20, midY],
+      start,
     ];
-    const pts = [];
-    for (let i = 0; i < loopWaypoints.length - 1; i++) {
-      const [x0, y0] = loopWaypoints[i], [x1, y1] = loopWaypoints[i + 1];
-      const dist = Math.hypot(x1 - x0, y1 - y0);
-      const steps = Math.max(1, Math.ceil(dist / 30));
-      for (let s = 0; s < steps; s++) {
-        const t = s / steps;
-        const wobble = 10 * Math.sin((x0 + (x1 - x0) * t) / 140);
-        pts.push([x0 + (x1 - x0) * t, y0 + (y1 - y0) * t + wobble]);
-      }
-    }
-    pts.push(loopWaypoints[loopWaypoints.length - 1]);
-    const stamp = (radius, color, alpha) => {
-      g.fillStyle(color, alpha);
-      for (let i = 0; i < pts.length - 1; i++) {
-        const [x0, y0] = pts[i], [x1, y1] = pts[i + 1];
-        const dist = Math.hypot(x1 - x0, y1 - y0);
-        const steps = Math.max(1, Math.ceil(dist / (radius * 0.5)));
-        for (let s = 0; s <= steps; s++) {
-          const t = s / steps;
-          g.fillCircle(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, radius);
-        }
-      }
-    };
-    stamp(24, 0x977f52, 0.85);
-    stamp(16, 0xc3a87b, 0.9);
-
-    // Static once stamped — bake the loop into a texture (#325). It was the
-    // single largest command buffer in the world (~13.5k fillCircles).
-    bakeStaticGraphics(this, g, pts, 28, -95);
+    // A simple marker at the trail's mouth (the farm side) so the entrance
+    // reads clearly from the paddock, and so the minimap has a landmark to
+    // show. Set before the rebake so `_bakePathGraphics()` can keep it in
+    // sync with `forestLoop`'s shared start/end point on future reshapes.
+    this.props.trailEntrance = { x: start[0], y: start[1] };
+    this._bakePathGraphics();
 
     // Scenery: trees and mossy rocks scattered through the (now much bigger)
     // trail band, plus a scattering of wildflowers (reusing the existing flower
@@ -205,9 +188,6 @@ export const WithTrail = (Base) => class extends Base {
       sprite: this.add.image(-1174, 673, 'trailTrinket').setScale(S).setDepth(673),
     };
 
-    // A simple marker at the trail's mouth (the farm side) so the entrance reads
-    // clearly from the paddock, and so the minimap has a landmark to show.
-    this.props.trailEntrance = { x: 20, y: midY };
   }
 
   // Interactable descriptor for the trailside collectible. Sellable-goods follow-up

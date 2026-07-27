@@ -505,7 +505,8 @@ export const WithDevDrag = (Base) => class extends Base {
     // only after an endpoint drag — the owner may just want the CURRENT config.
     const fence = this._houseFenceExport?.();
     // Worn-path / stream control points (#373) — only the splines that were
-    // actually reshaped, keyed by id (`path:<name>` / `stream`), each an array
+    // actually reshaped, keyed by id (`path:<name>` — the forest/trail loop is
+    // just another named route, `path:forestLoop` — / `stream`), each an array
     // of [x,y] pairs ready to paste over world.js's route consts / stream.js's
     // `ctrl` array.
     const splines = this._splineExport?.();
