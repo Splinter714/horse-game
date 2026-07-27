@@ -8,7 +8,28 @@
 import { gen, scaledGraphics, ART_SCALE } from './_frames.js';
 
 // Slightly taller canvas than the hen (22) to fit the tall comb + arched tail plumes.
-export const ROOSTER_W = 18, ROOSTER_H = 26;
+// +5 over the original 26 (2026-07-27 owner feedback: comb was getting clipped at
+// the top in-game) — the comb's topmost point goes NEGATIVE in a few poses (as low
+// as y=-4 in the full-crow frame), off the top of the old canvas. Rather than
+// hand-shift every one of the ~60 coordinates across draw/eat/crow, `offsetY`
+// below shifts the whole drawing down by the same amount so the lowest point
+// lands just inside y=0, and the canvas grew by that same amount to keep the
+// bottom-anchor (origin 0.5,1) distance to the feet unchanged.
+export const ROOSTER_W = 18, ROOSTER_H = 31;
+const Y_SHIFT = 5;
+
+// Wraps scaledGraphics to shift every design-grid y-coordinate down by `dy` before
+// scaling, so existing draw code doesn't need touching coordinate-by-coordinate.
+function offsetY(g, dy) {
+  return {
+    layer: g.layer,
+    fillStyle: g.fillStyle,
+    fillRect: (x, y, w, h) => g.fillRect(x, y + dy, w, h),
+    fillCircle: (x, y, r) => g.fillCircle(x, y + dy, r),
+    fillEllipse: (x, y, w, h) => g.fillEllipse(x, y + dy, w, h),
+    fillTriangle: (a, b, c, d, e, f) => g.fillTriangle(a, b + dy, c, d + dy, e, f + dy),
+  };
+}
 
 // Five feather coat variants — richer/darker than the hen coats, and every rooster gets
 // a golden-green iridescent sickle tail. `saddle` is the golden neck/back hackle sheen.
@@ -212,14 +233,14 @@ export function buildRoosterTextures(scene, key, coat) {
   const names  = ['idle_0','idle_1','walk_0','walk_1','walk_2','walk_3'];
   const W = ROOSTER_W * ART_SCALE, H = ROOSTER_H * ART_SCALE;
   names.forEach((name, i) => {
-    gen(scene, `${key}_${name}`, W, H, g0 => drawRooster(scaledGraphics(g0), bobs[i], phases[i], coat));
+    gen(scene, `${key}_${name}`, W, H, g0 => drawRooster(offsetY(scaledGraphics(g0), Y_SHIFT), bobs[i], phases[i], coat));
   });
   // Eat (peck) frames: beak at ground / beak lifted
-  gen(scene, `${key}_eat_0`, W, H, g0 => drawRoosterEat(scaledGraphics(g0), 2, coat));
-  gen(scene, `${key}_eat_1`, W, H, g0 => drawRoosterEat(scaledGraphics(g0), 0, coat));
+  gen(scene, `${key}_eat_0`, W, H, g0 => drawRoosterEat(offsetY(scaledGraphics(g0), Y_SHIFT), 2, coat));
+  gen(scene, `${key}_eat_1`, W, H, g0 => drawRoosterEat(offsetY(scaledGraphics(g0), Y_SHIFT), 0, coat));
   // Crow frames (#269): head rearing back / full cock-a-doodle-doo. Played by the
   // dawn-crow behavior; aliased to `crow_<key>` in creatures.js if lay-style gating
   // registers it (see rooster spawn wiring).
-  gen(scene, `${key}_crow_0`, W, H, g0 => drawRoosterCrow(scaledGraphics(g0), 0, coat));
-  gen(scene, `${key}_crow_1`, W, H, g0 => drawRoosterCrow(scaledGraphics(g0), 1, coat));
+  gen(scene, `${key}_crow_0`, W, H, g0 => drawRoosterCrow(offsetY(scaledGraphics(g0), Y_SHIFT), 0, coat));
+  gen(scene, `${key}_crow_1`, W, H, g0 => drawRoosterCrow(offsetY(scaledGraphics(g0), Y_SHIFT), 1, coat));
 }
