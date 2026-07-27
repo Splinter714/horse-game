@@ -72,8 +72,7 @@ export const WithTrail = (Base) => class extends Base {
     this._bakePathGraphics();
 
     // Scenery: trees and mossy rocks scattered through the (now much bigger)
-    // trail band, plus a scattering of wildflowers (reusing the existing flower
-    // textures) so it still feels like the same world's palette. Deterministic
+    // trail band so it still feels like the same world's palette. Deterministic
     // layout (not random) so the smoke test / dissect tool see a stable scene.
     const trees = [
       // Several entries are the owner's own placements (#330 drag tool, baked in
@@ -102,17 +101,6 @@ export const WithTrail = (Base) => class extends Base {
       const sprite = this.add.image(x, y, 'trailRock').setScale(S).setDepth(y).setOrigin(0.5, 1);
       this.props.rocks.push({ x, y, sprite, label: `Rock ${i + 1}` });
     }
-
-    const flowers = ['flowerRed', 'flowerYellow', 'flowerWhite'];
-    const flowerSpots = [
-      [-60, 340], [-160, 560], [-240, 700], [-380, 420], [-460, 640],
-      [-560, 300], [-640, 500], [-740, 700], [-800, 380], [-880, 560],
-      [-960, 700], [-1060, 340], [-1180, 560], [-1300, 700], [-1420, 420],
-      [-1500, 640], [-1560, 300], [-1120, 950], [-1300, 980], [-980, 950],
-    ];
-    flowerSpots.forEach(([x, y], i) => {
-      this.add.image(x, y, flowers[i % flowers.length]).setScale(S).setDepth(y);
-    });
 
     // One trailside collectible (#36 v1, made sellable per the 2026-07-26 playtest
     // follow-up): a lost trinket that disappears once picked up. Respawns are out

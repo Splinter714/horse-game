@@ -22,7 +22,6 @@
 // farm's world.js in parallel — mirrors exactly how trail.js avoided that collision.
 
 import { S, TOWN_X0, TOWN_W, TOWN_Y0, TOWN_Y1 } from './constants.js';
-import { bakeStaticGraphics } from './bakeGraphics.js';
 
 // #381: town used to carry its own warm ground tint (originally a flat
 // .setTint(), then a gradient-overlay blend added by #371 to soften the
@@ -39,35 +38,10 @@ export const WithTown = (Base) => class extends Base {
     this.add.tileSprite(TOWN_X0, top, TOWN_W, bandH, 'grass')
       .setOrigin(0, 0).setTileScale(S, S).setDepth(-100);
 
-    // A worn path leading off the farm's east edge into town, so the transition
-    // reads as "the street continues from here" (mirrors the trail's dirt path).
-    const g = this.add.graphics().setDepth(-95);
     const midY = (TOWN_Y0 + TOWN_Y1) / 2;
-    const pts = [];
-    for (let x = TOWN_X0 - 60; x <= TOWN_X0 + TOWN_W - 40; x += 40) {
-      const wobble = 18 * Math.sin(x / 150);
-      pts.push([x, midY + wobble]);
-    }
-    const stamp = (radius, color, alpha) => {
-      g.fillStyle(color, alpha);
-      for (let i = 0; i < pts.length - 1; i++) {
-        const [x0, y0] = pts[i], [x1, y1] = pts[i + 1];
-        const dist = Math.hypot(x1 - x0, y1 - y0);
-        const steps = Math.max(1, Math.ceil(dist / (radius * 0.5)));
-        for (let s = 0; s <= steps; s++) {
-          const t = s / steps;
-          g.fillCircle(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, radius);
-        }
-      }
-    };
-    stamp(26, 0x9a8a5c, 0.85);
-    stamp(18, 0xc9bb86, 0.9);
 
-    // Static once stamped — bake the street into a texture (#325).
-    bakeStaticGraphics(this, g, pts, 30, -95);
-
-    // Scenery: a scattering of trees + flowers along the street so it still feels
-    // like the same world's palette (reusing the trail's tree/flower textures).
+    // Scenery: a scattering of trees along the street so it still feels
+    // like the same world's palette (reusing the trail's tree texture).
     const trees = [
       [TOWN_X0 + 620, 260], [TOWN_X0 + 760, 460], [TOWN_X0 + 120, 320], [TOWN_X0 + 40, 900],
       [TOWN_X0 + 820, 780], [TOWN_X0 + 480, 900], [TOWN_X0 + 700, 900], [TOWN_X0 + 860, 300],
@@ -81,15 +55,6 @@ export const WithTown = (Base) => class extends Base {
       const sprite = this.add.image(x, y, 'trailTree').setScale(S).setDepth(y).setOrigin(0.5, 1);
       this.props.trees.push({ x, y, sprite, label: `Town Tree ${i + 1}` });
     }
-
-    const flowers = ['flowerRed', 'flowerYellow', 'flowerWhite'];
-    const flowerSpots = [
-      [TOWN_X0 + 100, 560], [TOWN_X0 + 220, 780], [TOWN_X0 + 380, 340], [TOWN_X0 + 560, 620],
-      [TOWN_X0 + 640, 800], [TOWN_X0 + 780, 600], [TOWN_X0 + 860, 460],
-    ];
-    flowerSpots.forEach(([x, y], i) => {
-      this.add.image(x, y, flowers[i % flowers.length]).setScale(S).setDepth(y);
-    });
 
     // A simple marker at the town's mouth (the farm side) so the entrance reads
     // clearly from the paddock, mirroring the trail's entrance marker.
