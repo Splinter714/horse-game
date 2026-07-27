@@ -11,8 +11,9 @@
 // display size. Kicked off from buildWildlife via startBirdEcosystemVisits.
 
 import Phaser from 'phaser';
-import { S, WORLD_W } from './constants.js';
+import { S } from './constants.js';
 import { WILD_SCALE } from './wildlife.js';
+import { offscreenX, exitX } from './offscreen.js';
 
 // ── Landing spots on the props (#340) ─────────────────────────────────────────
 // Each prop texture is authored at 1× (worldArt.js `gen(scene, key, W, H, …)`) with
@@ -62,7 +63,7 @@ export const WithBirdEcosystemVisits = (Base) => class extends Base {
     const rimY = bath.y - BATH_PERCH_UP;
     const dir = Math.random() < 0.5 ? 1 : -1;
     const b = this._pickBird();
-    const sprite = this.add.sprite(dir === 1 ? -40 : WORLD_W + 40, rimY - 200, b.tex)
+    const sprite = this.add.sprite(offscreenX(this, dir === 1, 40, rimX), rimY - 200, b.tex)
       .setOrigin(0.5, 1).setScale(WILD_SCALE).setDepth(bath.y + 1)
       .setFlipX(dir === -1).play(b.flyAnim);
     const c = { sprite, kind: 'bird', ground: false, state: 'descending',
@@ -134,7 +135,7 @@ export const WithBirdEcosystemVisits = (Base) => class extends Base {
     const py = bh.y - BIRDHOUSE_PERCH_UP;
     const dir = Math.random() < 0.5 ? 1 : -1;
     const b = this._pickBird();
-    const sprite = this.add.sprite(dir === 1 ? -40 : WORLD_W + 40, py - 200, b.tex)
+    const sprite = this.add.sprite(offscreenX(this, dir === 1, 40, px), py - 200, b.tex)
       .setOrigin(0.5, 1).setScale(WILD_SCALE).setDepth(bh.y + 1)
       .setFlipX(dir === -1).play(b.flyAnim);
     const c = { sprite, kind: 'bird', ground: false, state: 'descending',
@@ -191,7 +192,7 @@ export const WithBirdEcosystemVisits = (Base) => class extends Base {
     const ty = f.y - FEEDER_PERCH_UP;
     const dir = Math.random() < 0.5 ? 1 : -1;
     const b = this._pickBird();
-    const sprite = this.add.sprite(dir === 1 ? -40 : WORLD_W + 40, ty - 200, b.tex)
+    const sprite = this.add.sprite(offscreenX(this, dir === 1, 40, tx), ty - 200, b.tex)
       .setOrigin(0.5, 1).setScale(WILD_SCALE).setDepth(f.y + 1)
       .setFlipX(dir === -1).play(b.flyAnim);
     const c = { sprite, kind: 'bird', ground: false, state: 'descending',
@@ -262,8 +263,10 @@ export const WithBirdEcosystemVisits = (Base) => class extends Base {
   _spawnHummingbird() {
     const targets = this._hummerTargets();
     const first = targets[Phaser.Math.Between(0, targets.length - 1)];
-    const dir = first.x < WORLD_W / 2 ? 1 : -1; // enter from the nearer side
-    const sprite = this.add.sprite(dir === 1 ? -30 : WORLD_W + 30, first.y - 40, 'hummer_0')
+    // Enter from whichever side of the CURRENT view is nearer the first target (#354)
+    // — a fixed farm-edge x now lands mid-map, so the hummer would just pop into view.
+    const dir = exitX(this, first.x, 30).toLeft ? 1 : -1;
+    const sprite = this.add.sprite(offscreenX(this, dir === 1, 30, first.x), first.y - 40, 'hummer_0')
       .setOrigin(0.5, 0.5).setScale(WILD_SCALE).setDepth(100000).setFlipX(dir === -1)
       .play('hummer_buzz');
     const c = { sprite, kind: 'hummer', ground: false, state: 'arriving', tween: null };
@@ -309,10 +312,10 @@ export const WithBirdEcosystemVisits = (Base) => class extends Base {
   _hummerLeave(c) {
     if (!c.sprite.active) { this._despawnCritter(c); return; }
     const sprite = c.sprite;
-    const toLeft = sprite.x < WORLD_W / 2;
-    sprite.setFlipX(toLeft);
+    const exit = exitX(this, sprite.x, 40); // just past the current view (#354)
+    sprite.setFlipX(exit.toLeft);
     c.tween = this.tweens.add({
-      targets: sprite, x: toLeft ? -40 : WORLD_W + 40, y: Phaser.Math.Between(60, 180),
+      targets: sprite, x: exit.x, y: sprite.y - Phaser.Math.Between(80, 200),
       duration: Phaser.Math.Between(700, 1200), ease: 'Sine.easeIn',
       onComplete: () => this._despawnCritter(c),
     });

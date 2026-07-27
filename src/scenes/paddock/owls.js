@@ -15,7 +15,8 @@
 // tighter window than the raccoon's dusk+night "nocturnal".
 
 import Phaser from 'phaser';
-import { WORLD_W, BOUNDS, S } from './constants.js';
+import { BOUNDS, S } from './constants.js';
+import { offscreenX, exitX } from './offscreen.js';
 import { ART_SCALE } from '../../art/_frames.js';
 import { playOwlHoot } from '../../audio/sounds.js';
 import { shouldOwlAppear, owlVisitDelay } from '../../data/owls.js';
@@ -65,8 +66,10 @@ export const WithOwls = (Base) => class extends Base {
     const px = Phaser.Math.Between(BOUNDS.minX + 120, BOUNDS.maxX - 120);
     const py = Phaser.Math.Between(80, 200);
 
-    const fromLeft = px < WORLD_W / 2;
-    const startX = fromLeft ? -40 : WORLD_W + 40;
+    // Glide in from just past whichever side of the CURRENT view is nearer the perch
+    // (#354): the old fixed farm-edge x now sits mid-map, so the owl popped into view.
+    const fromLeft = exitX(this, px, 40).toLeft;
+    const startX = offscreenX(this, fromLeft, 40, px);
     const startY = py - Phaser.Math.Between(40, 90);
 
     const sprite = this.add.sprite(startX, startY, owlTexKey('glide', 0))
@@ -112,12 +115,12 @@ export const WithOwls = (Base) => class extends Base {
     c.state = 'leaving';
     const sprite = c.sprite;
     sprite.play(owlAnimKey('glide'));
-    const toLeft = sprite.x < WORLD_W / 2;
-    sprite.setFlipX(toLeft);
+    const exit = exitX(this, sprite.x); // leave past the current view edge (#354)
+    sprite.setFlipX(exit.toLeft);
     if (c.tween) { c.tween.stop(); c.tween = null; }
     c.tween = this.tweens.add({
       targets: sprite,
-      x: toLeft ? -60 : WORLD_W + 60, y: Phaser.Math.Between(60, 160),
+      x: exit.x, y: sprite.y - Phaser.Math.Between(40, 120),
       duration: Phaser.Math.Between(1600, 2600), ease: 'Sine.easeIn',
       onComplete: () => this._despawnOwl(c),
     });
