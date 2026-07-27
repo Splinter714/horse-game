@@ -21,6 +21,11 @@ export const WithRendering = (Base) => class extends Base {
     if (!anim.endsWith(h.key)) return;                   // (defensive) our own idle key
     const horse = this.registry.get('allHorses')?.[h.key];
     if (!horse) return;
+    // A still-a-baby foal (#15) wears the smaller foal art, which has NO posture-idle
+    // frames — it must keep its plain foal idle in every state (#339). Belt-and-braces
+    // next to the art builder's isFoal branch: if an adult posture texture ever exists
+    // under a foal's key again, the idle pose still refuses to become an adult one.
+    if (horse.isFoal) return;
     const id = horsePosture({ neglected: horse.neglected, happiness: horse.stats?.happiness });
     const want = id ? `idle_${id}_${h.key}` : `idle_${h.key}`;
     if (anim !== want && this.anims.exists(want)) h.sprite.play(want, true);

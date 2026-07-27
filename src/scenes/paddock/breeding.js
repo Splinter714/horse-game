@@ -411,9 +411,10 @@ export const WithBreeding = (Base) => class extends Base {
     const already = new Set(this.horses.map((h) => h.key));
     for (const [key, model] of Object.entries(all)) {
       if (already.has(key)) continue;      // one of the seven default herd
-      // A still-a-baby foal needs its smaller foal frames rebuilt (the boot art
-      // builder makes full horse frames for every key); a grown former foal already
-      // has the right horse frames from boot.
+      // The boot art builder already picks foal-vs-horse frames per key from `isFoal`
+      // (#339), so this is belt-and-braces for a foal spawned outside that path — a
+      // cheap redraw of the same frames, and it guarantees a still-a-baby foal never
+      // spawns wearing adult art.
       if (model.isFoal) buildFoalTextures(this, key, composeCoat(model.coat, model.markings));
       const at = this._birthSpot(key);
       this.spawnHorse(at.x, at.y, key, Phaser.Math.Between(1000, 3000));
