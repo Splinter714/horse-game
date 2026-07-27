@@ -5,6 +5,7 @@ import Phaser from 'phaser';
 import { EVENTS } from '../../data/events.js';
 import { playEat, playDrink } from '../../audio/sounds.js';
 import { CONTENT_DEFS } from '../../data/items.js';
+import { reachedGoal } from '../../data/reach.js';
 import { PLAYER_BOUNDS, PASTURE_BOUNDS, GATE_X, GATE_GAP_X0, GATE_GAP_X1, BEG } from './constants.js';
 
 // Hunger restored per grazing mouthful (#86). Deliberately light — grazing keeps a
@@ -126,7 +127,7 @@ export const WithHorseAI = (Base) => class extends Base {
     const line = PASTURE_BOUNDS.minY;
     const step = (i) => {
       if (!a.sprite.active) return;
-      if (i >= points.length) { a.wanderTween = null; onArrive?.(); return; }
+      if (i >= points.length) { a.wanderTween = null; onArrive?.(true); return; }
       const { x: tx, y: ty } = points[i];
       if ((a.sprite.y - line) * (ty - line) < 0 && !this.props.gate?.open) {
         a.wanderTween = null;
@@ -154,6 +155,28 @@ export const WithHorseAI = (Base) => class extends Base {
       });
     };
     step(0);
+  }
+
+  // Did this creature actually get to (tx,ty)? `reached` is the flag moveCreatureTo
+  // passes the arrival callback — false when it found no route at all — and the
+  // distance check catches the trips that ended somewhere else (a goal cell snapped
+  // to the nearest free one, a trip parked at a shut gate). Goal-directed callbacks
+  // that apply a care action gate on this so nothing is eaten or drunk through a
+  // wall (#346).
+  _creatureArrived(a, tx, ty, reached) {
+    if (reached === false) return false;
+    return a.sprite.active && reachedGoal(a.sprite.x, a.sprite.y, tx, ty);
+  }
+
+  // Give up on a goal-directed trip without applying its effect: drop back to idle
+  // and let the normal wander chain pick the creature up shortly (#346).
+  _abandonTrip(a) {
+    a._eatPile = null;
+    if (a.eatTimer) { this.time.removeEvent(a.eatTimer); a.eatTimer = null; }
+    if (!a.sprite.active) return;
+    a.sprite.play(`idle_${a.key}`, true);
+    a.state = 'idle';
+    this.scheduleCreatureWander(a, Phaser.Math.Between(1200, 2600));
   }
 
   // Place a creature just clear of the gate on its home side (horses inside the
@@ -203,8 +226,11 @@ export const WithHorseAI = (Base) => class extends Base {
     const action = CONTENT_DEFS[pile.content]?.action ?? 'feed';
 
     // Pathfind to the hay, around obstacles and through the gate if it's outside.
-    this.moveCreatureTo(h, tx, ty, () => {
+    this.moveCreatureTo(h, tx, ty, (reached) => {
       if (h.state !== 'eating') return;
+      // Only eat if we actually walked up to the pile (#346) — a trip with no route,
+      // or one that ended parked at a shut gate, must not feed the horse from afar.
+      if (!this._creatureArrived(h, tx, ty, reached)) { this._abandonTrip(h); return; }
       h.sprite.setFlipX(!facingRight);
       h.sprite.play(`eat_${h.key}`, true);
 
@@ -255,8 +281,13 @@ export const WithHorseAI = (Base) => class extends Base {
     const ty = trough.y;
 
     // Pathfind to the trough, around obstacles and through the gate if outside.
-    this.moveCreatureTo(h, tx, ty, () => {
+    this.moveCreatureTo(h, tx, ty, (reached) => {
         if (h.state !== 'drinking') return;
+        // The whole point of #346: a horse only drinks if it is STANDING AT the
+        // trough end. Without this, a horse the pathfinder can't route (e.g. one
+        // inside the barn) got the arrival callback anyway and drank through the
+        // barn wall — thirst restored, trough level dropped, never having moved.
+        if (!this._creatureArrived(h, tx, ty, reached)) { this._abandonTrip(h); return; }
         if (!trough.filled) { h.state = 'idle'; this.scheduleWander(h, 500); return; }
         h.sprite.setFlipX(!facingRight);
         h.sprite.play(`eat_${h.key}`, true);
@@ -308,8 +339,11 @@ export const WithHorseAI = (Base) => class extends Base {
     h._streamSpot = { x: tx, y: ty }; // reserve this anchor while heading there / drinking
     const faceLeft = nx > 0;
 
-    this.moveCreatureTo(h, tx, ty, () => {
+    this.moveCreatureTo(h, tx, ty, (reached) => {
       if (h.state !== 'drinking') return;
+      // Same arrival guard as the trough (#346) — no lapping at a bank you never
+      // reached (the stream is fenced off from most of the farm by its own rects).
+      if (!this._creatureArrived(h, tx, ty, reached)) { h._streamSpot = null; this._abandonTrip(h); return; }
       h.sprite.setFlipX(faceLeft);
       h.sprite.play(`eat_${h.key}`, true); // head-down drinking pose
       playDrink();
