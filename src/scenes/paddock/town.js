@@ -65,8 +65,14 @@ export const WithTown = (Base) => class extends Base {
       [TOWN_X0 + 620, 260], [TOWN_X0 + 760, 460], [TOWN_X0 + 120, 320], [TOWN_X0 + 40, 900],
       [TOWN_X0 + 820, 780], [TOWN_X0 + 480, 900], [TOWN_X0 + 700, 900], [TOWN_X0 + 860, 300],
     ];
-    for (const [x, y] of trees) {
-      this.add.image(x, y, 'trailTree').setScale(S).setDepth(y).setOrigin(0.5, 1);
+    // Tracked in props (#329 follow-up) so the dev object-label/drag tools
+    // (#329/#330) can see and reposition each tree — mirrors the same fix in
+    // trail.js's buildTrail. Shares the `trees` bucket with the trail's trees;
+    // each carries its own distinguishing label so the two sets don't collide.
+    (this.props.trees ??= []);
+    for (const [i, [x, y]] of trees.entries()) {
+      const sprite = this.add.image(x, y, 'trailTree').setScale(S).setDepth(y).setOrigin(0.5, 1);
+      this.props.trees.push({ x, y, sprite, label: `Town Tree ${i + 1}` });
     }
 
     const flowers = ['flowerRed', 'flowerYellow', 'flowerWhite'];
