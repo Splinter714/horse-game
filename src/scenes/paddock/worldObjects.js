@@ -233,6 +233,20 @@ export const WithWorldObjects = (Base) => class extends Base {
     this._addPetBowl({ x: 891, y: 140, tex: 'catBowl', foodContent: 'catFood', waterContent: 'water', propKey: 'catBowl' });
   }
 
+  // The dog's combined food + water bowl (#347). Same primitive, same design as the
+  // cat's and bunny's — the third pet bowl, so all three now read as one family of
+  // object. Sits in the open yard just south of the doghouse (94, 281), clear of the
+  // kennel's collision box (y ends ≈277), the house wall (x starts 141) and the
+  // house→junction worn path (which begins at ≈(235, 322)).
+  //
+  // Its food side takes `catFood` — the same KIBBLE the cat eats, scooped at the one
+  // Kibble Sack in the yard. One sack feeds both pets rather than each pet needing its
+  // own source prop; `_petBowlFor` already resolves the now-ambiguous fill to whichever
+  // bowl the player is standing nearest (the same rule plain water has always used).
+  buildDogBowl() {
+    this._addPetBowl({ x: 100, y: 356, tex: 'dogBowl', foodContent: 'catFood', waterContent: 'water', propKey: 'dogBowl' });
+  }
+
   // The registered { bowl, sideKey } a given carrier content fills, or null. Shared
   // by the fill action and every pet's seek behaviors so both agree on where/what a
   // bowl is. Species-neutral: keyed purely on the content, so cat food → the cat

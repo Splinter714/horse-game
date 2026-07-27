@@ -100,8 +100,8 @@ export const WithInteractables = (Base) => class extends Base {
       }];
     };
 
-    // Pet bowls (#202 cat rework, #283 generalized, #311 combined into one prop) —
-    // refill targets, NOT gather sources. The pet (cat, bunny) eats/drinks from them
+    // Pet bowls (#202 cat rework, #283 generalized, #311 combined into one prop,
+    // #347 dog) — refill targets, NOT gather sources. The pet eats/drinks from them
     // directly; the player keeps them stocked. One object now serves both sides: offer
     // "Fill Food Bowl" when holding the matching food carrier, "Fill Water Bowl" when
     // holding a bucket of water — until that side is brim-full — mirroring the
@@ -125,6 +125,7 @@ export const WithInteractables = (Base) => class extends Base {
     };
     const catBowl   = petBowl('catBowl',   { food: 'Food Bowl',  water: 'Water Bowl' });
     const bunnyBowl = petBowl('bunnyBowl', { food: 'Bunny Bowl', water: 'Bunny Water' });
+    const dogBowl   = petBowl('dogBowl',   { food: 'Dog Bowl',   water: 'Dog Water' });
 
     // Seed bird feeder (#240) — a refill target near the house, NOT a gather source.
     // Offer "Fill Feeder" while holding a basket of seed, until it's brim-full —
@@ -437,7 +438,7 @@ export const WithInteractables = (Base) => class extends Base {
     // already driving (see tractor.js `_tractorInteractables`).
     const tractor = () => this._tractorInteractables?.() ?? [];
 
-    this.interactables = [gate, house, shop, generalStore, barn, gardenPlant, trailCollectible, tractor, trough, catBowl, bunnyBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, slopMaker, compostBin, trashCan, gardenWater, gardenHarvest, neighborGift, neighborTrade];
+    this.interactables = [gate, house, shop, generalStore, barn, gardenPlant, trailCollectible, tractor, trough, catBowl, bunnyBowl, dogBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, slopMaker, compostBin, trashCan, gardenWater, gardenHarvest, neighborGift, neighborTrade];
     // Split by input: gate/house/shop/generalStore/barn/garden-plant/
     // trail-collectible/tractor are bare-hand "interact" targets (tap/click/E); the
     // rest require a carried tool/carrier and are triggered by Use (the on-screen
@@ -447,7 +448,7 @@ export const WithInteractables = (Base) => class extends Base {
     // interaction at the same spot) does require a held carrier, and only one of
     // the two ever applies at a time (see neighborGift/neighborTrade above).
     this.interactWorld = [gate, house, shop, generalStore, barn, gardenPlant, trailCollectible, tractor];
-    this.toolWorld     = [trough, catBowl, bunnyBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, slopMaker, compostBin, trashCan, gardenWater, gardenHarvest, neighborGift, neighborTrade];
+    this.toolWorld     = [trough, catBowl, bunnyBowl, dogBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, slopMaker, compostBin, trashCan, gardenWater, gardenHarvest, neighborGift, neighborTrade];
   }
 
   // Nearest activatable instance to (x, y) within each instance's own radius
