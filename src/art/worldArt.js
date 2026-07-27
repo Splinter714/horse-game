@@ -472,24 +472,22 @@ export function buildWorldTextures(scene) {
   // BARN_W×BARN_H footprint) since it's just a connecting ridge, no walls/windows.
   gen(scene, 'barnRoofMid', BARN_W, ROOF_MID_H, (g) => {
     const MID = BARN_W / 2;
-    // The connector's own top/bottom boundary now follows the SAME two-segment
-    // gambrel taper (a shallow lower slope, then a steeper cap narrowing to a
-    // point) that the front/back roof art uses, instead of a flat rectangle —
-    // its bottom (y=ROOF_MID_H) is full width, meeting the front eave, and its
-    // top narrows to a single point at (MID, 0), meeting the back roof's peak.
-    const SHOULDER_Y = ROOF_MID_H * 0.44;
-    const SHOULDER_X0 = 64, SHOULDER_X1 = BARN_W - 64;
-    // topY(x): the y at which this silhouette reaches x, mirroring the taper above.
-    const topY = (x) => {
-      if (x <= SHOULDER_X0) return ROOF_MID_H - (x / SHOULDER_X0) * (ROOF_MID_H - SHOULDER_Y);
-      if (x >= SHOULDER_X1) return ROOF_MID_H - ((BARN_W - x) / SHOULDER_X0) * (ROOF_MID_H - SHOULDER_Y);
-      return SHOULDER_Y * (Math.abs(x - MID) / (MID - SHOULDER_X0));
-    };
+    // The connector runs FULL WIDTH for nearly its whole depth (matching how far
+    // the roof plane actually extends along the barn's side walls) — only the very
+    // top notches inward to a point, matching the back roof's own peak. (A first
+    // pass tapered the whole height to a point, which read fine at the apex but
+    // left the sides barely covered along most of the depth — that's the bug this
+    // fixes.)
+    const PEAK_TAPER_H = ROOF_MID_H * 0.33;
+    const HALF = BARN_W / 2 - 4;
+    // topY(x): the y at which this silhouette reaches x — full width (y = PEAK_TAPER_H)
+    // everywhere except right near the centre, which rises to the peak point (y = 0).
+    const topY = (x) => PEAK_TAPER_H * (1 - Math.min(1, Math.abs(x - MID) / HALF));
     g.layer('roof');
     g.fillStyle(0x9a3826, 1);
     g.fillPoints([
-      { x: 4, y: ROOF_MID_H }, { x: SHOULDER_X0, y: SHOULDER_Y }, { x: MID, y: 0 },
-      { x: SHOULDER_X1, y: SHOULDER_Y }, { x: BARN_W - 4, y: ROOF_MID_H },
+      { x: 4, y: PEAK_TAPER_H }, { x: MID, y: 0 }, { x: BARN_W - 4, y: PEAK_TAPER_H },
+      { x: BARN_W - 4, y: ROOF_MID_H }, { x: 4, y: ROOF_MID_H },
     ]);
     // Vertical rafter slats running the depth of the roof (front-to-back), clipped
     // to the tapered silhouette above, so this stretched-to-fit plane reads as

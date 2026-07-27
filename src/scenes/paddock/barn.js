@@ -166,7 +166,7 @@ export const WithBarn = (Base) => class extends Base {
     if (!p) return;
     const { rect, door } = this._barnLiveRects();
     const inside = isInsideBarn(rect, door, p.x, p.y);
-    const target = inside ? 0.12 : 1; // keep a faint ghost so the barn's outline stays readable
+    const target = inside ? 0 : 1; // fully invisible while inside — the barn now has a real back wall/roof, so there's no longer a need for a ghost outline
     const step = CUTAWAY_FADE * delta;
     if (this.barnFrontAlpha < target) this.barnFrontAlpha = Math.min(target, this.barnFrontAlpha + step);
     else if (this.barnFrontAlpha > target) this.barnFrontAlpha = Math.max(target, this.barnFrontAlpha - step);
