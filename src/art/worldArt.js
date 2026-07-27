@@ -258,41 +258,64 @@ export function buildWorldTextures(scene) {
   // FRONT FAÇADE — the front wall, big doorway, gambrel roof, cupola & hayloft. This
   // is drawn OVER the interior + occupants (high depth) and is what fades out for the
   // cutaway. Kept visually consistent with the old #241 barn so it still reads as a barn.
+  //
+  // The wall MUST reach the sprite's base (y = BARN_H) across the full width, because
+  // this texture is the only thing hiding `barnInterior` from a player standing
+  // outside. The first pass drew the wall band as y 34..68 of a 132-tall footprint,
+  // so the bottom half of the interior (floor, plank seams, straw, stall bottoms) was
+  // permanently visible from anywhere on the map — the "front wall is see-through
+  // even when standing outside" playtest bug (#35, 2026-07-06 / 2026-07-26). Anything
+  // added here that leaves a gap above y = BARN_H reintroduces it.
   gen(scene, 'barnFront', BARN_W, BARN_H, (g) => {
+    g.layer('silhouette');
+    // Opaque base covering exactly the interior texture's extent (x 8..152,
+    // y 18..128 — see barnInterior above), so no sliver of floor/back wall can peek
+    // out past the roof's slanted corners. Everything below paints over this.
+    g.fillStyle(0x7a2a1c, 1); g.fillRect(8, 18, 144, BARN_H - 18);
     g.layer('roof');
     // Gambrel (barn) roof spanning the wide front.
-    g.fillStyle(0x7a2a1c, 1); g.fillTriangle(4, 34, 80, 4, 156, 34);   // underside/shadow
+    g.fillStyle(0x7a2a1c, 1); g.fillTriangle(4, 40, 80, 4, 156, 40);   // underside/shadow
     g.fillStyle(0x9a3826, 1);
-    g.fillPoints([{ x: 8, y: 34 }, { x: 34, y: 18 }, { x: 126, y: 18 }, { x: 152, y: 34 }]); // lower slopes
+    g.fillPoints([{ x: 8, y: 40 }, { x: 34, y: 20 }, { x: 126, y: 20 }, { x: 152, y: 40 }]); // lower slopes
     g.fillStyle(0xb6432e, 1);
-    g.fillPoints([{ x: 34, y: 18 }, { x: 80, y: 4 }, { x: 126, y: 18 }]); // upper cap
-    g.fillStyle(0xc8543c, 1); g.fillRect(8, 33, 144, 2);                // eave highlight
+    g.fillPoints([{ x: 34, y: 20 }, { x: 80, y: 4 }, { x: 126, y: 20 }]); // upper cap
+    g.fillStyle(0xc8543c, 1); g.fillRect(8, 39, 144, 2);                // eave highlight
     g.layer('cupola');
     g.fillStyle(0x9a3826, 1); g.fillRect(74, 0, 12, 8);
     g.fillStyle(0x5a2418, 1); g.fillTriangle(71, 2, 80, -4, 89, 2);
     g.fillStyle(0xf0d890, 1); g.fillRect(77, 3, 6, 4);
     g.layer('wall');
-    g.fillStyle(0xb6432e, 1); g.fillRect(8, 34, 144, 34);              // front wall band
-    g.fillStyle(0xc8543c, 1); g.fillRect(8, 34, 144, 5);             // top-lit band
-    g.fillStyle(0x7a2a1c, 1); g.fillRect(8, 34, 3, 34); g.fillRect(149, 34, 3, 34); // corner posts
+    // Front wall, eave down to the ground line — full-height, full-width cover.
+    g.fillStyle(0xb6432e, 1); g.fillRect(8, 40, 144, BARN_H - 40);     // front wall
+    g.fillStyle(0xc8543c, 1); g.fillRect(8, 40, 144, 5);              // top-lit band
+    g.fillStyle(0xa63a28, 1);                                          // board seams
+    for (let y = 52; y < BARN_H - 8; y += 10) g.fillRect(11, y, 138, 1);
+    g.fillStyle(0x8e3421, 1); g.fillRect(8, BARN_H - 8, 144, 8);      // ground shadow at the base
+    g.fillStyle(0x7a2a1c, 1);                                          // corner posts
+    g.fillRect(8, 40, 3, BARN_H - 40); g.fillRect(149, 40, 3, BARN_H - 40);
     g.layer('loft');
-    g.fillStyle(0x5a2418, 1); g.fillRect(72, 22, 16, 12);            // hayloft door
-    g.fillStyle(0xd8b060, 1); g.fillRect(75, 24, 10, 8);           // straw glow
-    g.fillStyle(0x3a1810, 1); g.fillRect(79, 15, 2, 8); g.fillCircle(80, 15, 2); // pulley
+    g.fillStyle(0x5a2418, 1); g.fillRect(72, 24, 16, 12);            // hayloft door
+    g.fillStyle(0xd8b060, 1); g.fillRect(75, 26, 10, 8);           // straw glow
+    g.fillStyle(0x3a1810, 1); g.fillRect(79, 17, 2, 8); g.fillCircle(80, 17, 2); // pulley
     g.layer('doorway');
-    // A big open central doorway (the dark interior shows through). Framed jambs +
-    // a header, with the two doors swung open flat against the wall to either side.
-    g.fillStyle(0x2a1c10, 1); g.fillRect(60, 40, 40, 92);           // dark doorway opening
-    g.fillStyle(0x6a4420, 1); g.fillRect(56, 38, 4, 94); g.fillRect(100, 38, 4, 94); // jambs
-    g.fillStyle(0x6a4420, 1); g.fillRect(56, 38, 48, 4);           // header
-    g.fillStyle(0x8a5a2e, 1);                                       // open doors flat on the wall
-    g.fillRect(40, 40, 16, 28); g.fillRect(104, 40, 16, 28);
-    g.fillStyle(0xe8dcc0, 1);                                       // white braces on the doors
-    g.fillTriangle(41, 41, 55, 67, 56, 67); g.fillTriangle(105, 41, 119, 67, 120, 67);
+    // A big central doorway reading as a dark opening at ground level, lining up with
+    // the collision gap in the south wall (design x 58..102, see scenes/paddock/barn.js).
+    // Framed jambs + a header, with the two doors swung open flat against the wall.
+    g.fillStyle(0x2a1c10, 1); g.fillRect(60, 62, 40, BARN_H - 62);   // dark doorway opening
+    g.fillStyle(0x1e140b, 1); g.fillRect(60, 62, 40, 6);             // depth shadow under the header
+    g.fillStyle(0x6a4420, 1);                                        // jambs
+    g.fillRect(56, 58, 4, BARN_H - 58); g.fillRect(100, 58, 4, BARN_H - 58);
+    g.fillStyle(0x6a4420, 1); g.fillRect(56, 58, 48, 4);            // header
+    g.fillStyle(0x8a5a2e, 1);                                        // open doors flat on the wall
+    g.fillRect(38, 62, 18, 52); g.fillRect(104, 62, 18, 52);
+    g.fillStyle(0x6a4420, 1);                                        // door edge shadow
+    g.fillRect(38, 62, 18, 3); g.fillRect(104, 62, 18, 3);
+    g.fillStyle(0xe8dcc0, 1);                                        // white braces on the doors
+    g.fillTriangle(39, 64, 54, 112, 55, 112); g.fillTriangle(105, 64, 120, 112, 121, 112);
     g.layer('window');
-    for (const wx of [22, 124]) {
-      g.fillStyle(0xf0d890, 1); g.fillRect(wx, 44, 12, 12);
-      g.fillStyle(0x7a2a1c, 1); g.fillRect(wx + 5, 44, 2, 12); g.fillRect(wx, 49, 12, 2);
+    for (const wx of [20, 126]) {
+      g.fillStyle(0xf0d890, 1); g.fillRect(wx, 50, 14, 14);
+      g.fillStyle(0x7a2a1c, 1); g.fillRect(wx + 6, 50, 2, 14); g.fillRect(wx, 56, 14, 2);
     }
   });
 
