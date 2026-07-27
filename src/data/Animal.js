@@ -162,11 +162,14 @@ export class Animal {
 
   // Perform a care action by key (feed/water/brush/pet/…). Reads the species
   // `actions` table: which stat to bump, by how much, and which care flag to set.
+  // `mult` (default 1, no-op) scales the amount — the player's meal buff (#277)
+  // passes a modest boost through here while it's active, so pet/brush restore a
+  // little more without any species needing its own "buffed" branch.
   // Returns true if the action exists for this species.
-  applyAction(key) {
+  applyAction(key, mult = 1) {
     const a = this._spec.actions[key];
     if (!a) return false;
-    this.stats[a.stat] = clamp(this.stats[a.stat] + a.amount);
+    this.stats[a.stat] = clamp(this.stats[a.stat] + a.amount * mult);
     this._tended(a.care);
     return true;
   }

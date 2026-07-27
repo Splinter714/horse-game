@@ -41,7 +41,7 @@ export const WithInteraction = (Base) => class extends Base {
     // 'loved' for today. Works for any species with a `pet` action now — horses,
     // chickens, and the cat (#104). A model without one just gets the heart.
     if (model?.actionDef?.('pet')) {
-      model.applyAction('pet');
+      model.applyAction('pet', this._buffChoreMult()); // #277: meal buff bumps the gain
       this._saveAnimal(model);
       this.game.events.emit(EVENTS.STATS_CHANGED);
     }

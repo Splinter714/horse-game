@@ -43,6 +43,7 @@ import { WithBehaviors } from './paddock/behaviors.js';
 import { WithRiding } from './paddock/riding.js';
 import { WithTractor } from './paddock/tractor.js';
 import { WithPlayer } from './paddock/player.js';
+import { WithPlayerBuff } from './paddock/playerBuff.js';
 import { WithPlayerMovement } from './paddock/playerMovement.js';
 import { WithPrompts } from './paddock/prompts.js';
 import { WithInteractables } from './paddock/interactables.js';
@@ -75,6 +76,7 @@ const PADDOCK_MIXINS = [
   WithCompanion, WithCharm, WithCreatures, WithFlock, WithHerd, WithFarmStand, WithNeighbor, WithShop,
   WithGeneralStore,
   WithGarden, WithDayNight, WithWeather, WithHorseAI, WithBehaviors, WithRiding, WithTractor, WithPlayer,
+  WithPlayerBuff,
   WithEffects, WithPersistence, WithRendering, WithWorldObjects, WithCareActions,
   WithInteraction, WithInput, WithPlayerMovement, WithPrompts, WithInteractables, WithUseDispatch,
 ];
@@ -126,6 +128,7 @@ export default class PaddockScene extends PaddockBase {
     this.buildAnimals();
     this.buildIncubation(); // baby chicks (#274): restore any in-flight incubations
     this.buildPlayer();
+    this.buildPlayerBuffHud(); // #277: "well fed" status readout while a meal buff is active
     this.buildFarmStand();
     this.buildNeighbor(); // neighbor NPC (#294): restore relationship score + schedule first visit
     this.buildGarden(); // crop garden plot (#242) — before interactables (they read it)
@@ -268,6 +271,7 @@ export default class PaddockScene extends PaddockBase {
     this.tickRegrowth();      // regrow shorn fleece once its timer completes (#233)
     this.tickDecay(delta);
     this.tickAutosave(delta);
+    this.updatePlayerBuffHud(); // #277: count down the meal buff's "well fed" readout
   }
 
   // Sleep: freeze the world, hand off to DayNightScene for the fade-to-black /

@@ -66,7 +66,7 @@ export const WithPlayerMovement = (Base) => class extends Base {
 
     if (moving) {
       if (vx !== 0 && vy !== 0) { vx *= 0.707; vy *= 0.707; }
-      const step = PLAYER_SPEED * (delta / 1000);
+      const step = PLAYER_SPEED * this._buffSpeedMult() * (delta / 1000);
       const nx = Phaser.Math.Clamp(player.sprite.x + vx * step, PLAYER_BOUNDS.minX, PLAYER_BOUNDS.maxX);
       const ny = Phaser.Math.Clamp(player.sprite.y + vy * step, PLAYER_BOUNDS.minY, PLAYER_BOUNDS.maxY);
       // Slide: try each axis independently so player can slide along walls
@@ -344,7 +344,7 @@ export const WithPlayerMovement = (Base) => class extends Base {
 
     const dx = wp.x - sprite.x, dy = wp.y - sprite.y;
     const dist = Math.hypot(dx, dy) || 1;
-    const step = PLAYER_SPEED * (delta / 1000);
+    const step = PLAYER_SPEED * this._buffSpeedMult() * (delta / 1000);
     const nx = Phaser.Math.Clamp(sprite.x + (dx / dist) * step, PLAYER_BOUNDS.minX, PLAYER_BOUNDS.maxX);
     const ny = Phaser.Math.Clamp(sprite.y + (dy / dist) * step, PLAYER_BOUNDS.minY, PLAYER_BOUNDS.maxY);
 

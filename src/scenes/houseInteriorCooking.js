@@ -20,7 +20,8 @@
 import { savePantry, ROSTER_SPECIES } from '../data/save.js';
 import { addToPantry } from '../data/pantry.js';
 import { CONTENT_DEFS } from '../data/items.js';
-import { RECIPE_LIST, canCookRecipe } from '../data/cooking.js';
+import { RECIPE_LIST, DISH_CONTENTS, canCookRecipe } from '../data/cooking.js';
+import { startMealBuff } from '../data/playerBuff.js';
 import { EVENTS } from '../data/events.js';
 
 export const WithHouseInteriorCooking = (Base) => class extends Base {
@@ -132,5 +133,24 @@ export const WithHouseInteriorCooking = (Base) => class extends Base {
     this._flashPromptMessage(fed > 0
       ? `Fed ${CONTENT_DEFS[dishContent].label} to the ${species}s  •  +${amount} ${stat}`
       : `Fed ${CONTENT_DEFS[dishContent].label}  •  no ${species}s here to enjoy it`);
+  }
+
+  // ── Player eats a meal (#277) ──────────────────────────────────────────────
+  // The pantry's "nothing to stock" moment (HouseInteriorScene._usePantry, when the
+  // active carrier has nothing storable) becomes "something to eat" whenever the
+  // pantry itself is holding a cooked dish — reuses the same single interact button,
+  // mirroring the stove's own "cook, then feed" two-step. Eating takes one dish and
+  // grants a short move-speed + chore-energy buff (single slot, no stacking — eating
+  // again just refreshes it); PaddockScene's playerBuff.js mixin reads it back off
+  // the shared registry for the live multipliers + HUD.
+  _eatMealFromPantry() {
+    const dish = DISH_CONTENTS.find((content) => this.pantryCount(content) > 0);
+    if (!dish) {
+      this._flashPromptMessage('Nothing to stock');
+      return;
+    }
+    this.takePantryIngredient(dish, 1);
+    this.registry.set('playerBuff', startMealBuff(Date.now()));
+    this._flashPromptMessage(`Ate ${CONTENT_DEFS[dish].label}!  •  feeling fast & energized`);
   }
 };
