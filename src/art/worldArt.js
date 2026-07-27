@@ -1009,16 +1009,18 @@ export function buildWorldTextures(scene) {
   // A small house whose peaked-roof lid hinges at the back (left, x≈3) and props
   // open at the front (right, x≈23) when the rope tied off at the nearby post
   // pulls it up — mirrors the birdhouse above but the lid is a moving part, not
-  // fixed scenery. Two variants: `hummingbirdHouse` (lid resting flush/closed) and
-  // `hummingbirdHouseOpen` (lid propped open on its hinge, revealing the dark
-  // interior slit + a little brass ring at the tip where the rope attaches).
-  // Origin (0.5,1) at the foot of the post so it depth-sorts on its base.
-  // Dissect-tagged (post/box/hole/lid/hinge).
+  // fixed scenery. NO front entrance hole (2026-07-27 owner feedback: it read as
+  // just another birdhouse-with-a-hole) — the ONLY way in is the top, through the
+  // gap the lifted lid reveals. Two variants: `hummingbirdHouse` (lid resting
+  // flush/closed, fully sealed box) and `hummingbirdHouseOpen` (lid propped open
+  // on its hinge, revealing the dark interior gap at the top + a little brass ring
+  // at the tip where the rope attaches). Origin (0.5,1) at the foot of the post so
+  // it depth-sorts on its base. Dissect-tagged (post/box/lid/hinge).
   const drawHummingbirdHouse = (g, open) => {
     const post = 0x8a5a2e, postHi = 0xa9743c, postLo = 0x6a4420;
     const wood = 0xcf9a5c, woodHi = 0xe6b878, woodLo = 0xa8763e;
     const roofD = 0x7a3f22, roofM = 0xa8582c, roofH = 0xcf7f48, roofU = 0x5a2c18; // roofU = lid underside (shaded)
-    const hole = 0x2a1c10, hinge = 0x4a4a4a, ring = 0xe0b840;
+    const hinge = 0x4a4a4a, ring = 0xe0b840;
 
     // Post
     g.layer('post');
@@ -1027,15 +1029,11 @@ export function buildWorldTextures(scene) {
     g.fillStyle(postHi, 1); g.fillRect(11, 36, 1, 18);
     g.fillStyle(postLo, 1); g.fillRect(14, 36, 1, 18);
 
-    // House box
+    // House box — a sealed shell, no hole. The lid (below) is the only opening.
     g.layer('box');
     g.fillStyle(wood, 1);   g.fillRect(3, 20, 20, 16);
     g.fillStyle(woodHi, 1); g.fillRect(3, 20, 20, 2);
     g.fillStyle(woodLo, 1); g.fillRect(3, 34, 20, 2);
-
-    // Entrance hole
-    g.layer('hole');
-    g.fillStyle(hole, 1); g.fillCircle(13, 28, 3);
 
     // Hinge (back-left edge, x≈3) — a small dark pin, visible in both states
     g.layer('hinge');
