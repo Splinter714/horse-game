@@ -58,6 +58,7 @@ import { WithInteraction } from './paddock/interaction.js';
 import { WithInput } from './paddock/input.js';
 import { WithDevLabels } from './paddock/devLabels.js';
 import { WithDevDrag } from './paddock/devDrag.js';
+import { WithDevGroups } from './paddock/devGroups.js';
 import { WithDevTooltips } from './paddock/devTooltips.js';
 import { applyDpr } from './uiUtils.js';
 
@@ -83,7 +84,7 @@ const PADDOCK_MIXINS = [
   WithPlayerBuff,
   WithEffects, WithPersistence, WithRendering, WithWorldObjects, WithCareActions,
   WithInteraction, WithInput, WithPlayerMovement, WithCoop, WithPrompts, WithInteractables, WithUseDispatch,
-  WithDevLabels, WithDevDrag, WithDevTooltips,
+  WithDevLabels, WithDevDrag, WithDevGroups, WithDevTooltips,
 ];
 const PaddockBase = PADDOCK_MIXINS.reduceRight((Base, Mixin) => Mixin(Base), Phaser.Scene);
 

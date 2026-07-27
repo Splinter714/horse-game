@@ -22,11 +22,29 @@
 // Because the iPad has no devtools console, the export is shown THREE ways: an
 // on-screen readable panel (the one that matters on a tablet), a clipboard copy
 // when the browser allows it, and a `[dev-positions]` console.log for desktop.
+//
+// MULTI-SELECT + GROUPS (#337). One gesture does both jobs, so nothing needs a
+// modifier key (there isn't one to press on an iPad):
+//
+//   • TAP an object (press and release without moving past TAP_SLOP) → toggles it
+//     into/out of the selection. Selected objects get a cyan ring.
+//   • DRAG an object (press and move) → moves it. If it belongs to a GROUP, the
+//     whole group moves; otherwise if it's part of the current selection, the whole
+//     selection moves; otherwise just it. Everything moves by the same delta, so
+//     relative positions are preserved.
+//
+// The selection can then be saved as a named GROUP (the ⛓ button), after which any
+// member is a handle for the whole run — the house fence's six posts stop being six
+// separate drags. Selection is session-only; groups persist (see devGroups.js for
+// why that isn't a violation of constraint 1 — a group is tool config, not a
+// position). All the selection/group state and maths lives in devGroups.js; this
+// file is the gesture and the drawing.
 
 import { loadDevSettings } from '../../data/save.js';
 import { dprOf, logicalW, logicalH, worldUiOffset } from '../uiUtils.js';
 
 const PICK_R     = 90;    // world px: how close a tap must be to grab an object
+const TAP_SLOP   = 6;     // world px of travel before a press counts as a drag, not a tap
 const MARK_DEPTH = 9502;  // above the #329 labels
 const UI_DEPTH   = 9600;  // screen-fixed buttons/readout, below the pause overlay
 const BTN_X      = 8;     // logical screen px, top-left stack
@@ -44,6 +62,10 @@ export const WithDevDrag = (Base) => class extends Base {
   buildDevDrag() {
     this._dragEntries = null;  // [{ name, obj, also, ox, oy }] snapshot, mount-time
     this._dragHeld    = null;  // the entry currently under the finger
+    this._dragMove    = null;  // every entry this press moves (group / selection / just one)
+    this._dragMoved   = false; // has this press travelled far enough to be a drag, not a tap?
+    this._dragSel     = null;  // Set of selected entries (#337, session-only)
+    this._dragGroups  = null;  // [{ name, members: [objectName] }] (#337, persisted)
     this._dragMarks   = null;  // Graphics: a grab marker per object
     this._dragBtns    = [];    // screen-fixed Text buttons + their hit rects
     this._dragHud     = null;  // "what am I holding" readout
@@ -73,6 +95,9 @@ export const WithDevDrag = (Base) => class extends Base {
     for (const b of this._dragBtns) b.txt.destroy();
     this._dragEntries = null;
     this._dragHeld    = null;
+    this._dragMove    = null;
+    this._dragMoved   = false;
+    this._dragSel     = null;
     this._dragMarks   = null;
     this._dragHud     = null;
     this._dragPanel   = null;
@@ -85,20 +110,24 @@ export const WithDevDrag = (Base) => class extends Base {
     this._dragEntries = this._devLabelTargets().map(t => ({
       name: t.name, obj: t.obj, also: t.also ?? [], ox: t.x, oy: t.y,
     })).filter(e => e.obj);
+    this.initDevSelection(); // #337 selection set + persisted groups
 
     this._dragMarks = this.add.graphics().setDepth(MARK_DEPTH);
     this._drawDevDragMarks();
 
     const o = worldUiOffset(this);
     this._dragHud = this.add.text(BTN_X + o.x, BTN_Y - 18 + o.y,
-      'Drag mode: drag any marked object', {
+      'Drag mode: tap to select, drag to move', {
         fontFamily: 'ui-monospace, Menlo, monospace',
         fontSize: '11px', color: '#bfe4ff', backgroundColor: '#0d1020cc',
         padding: { x: 4, y: 2 },
       }).setOrigin(0, 1).setScrollFactor(0).setDepth(UI_DEPTH).setResolution(dprOf(this));
 
     this._addDevDragBtn('export', '📋 Export positions', BTN_Y);
-    this._addDevDragBtn('reset',  '↺ Reset to source',   BTN_Y + BTN_H + 6);
+    this._addDevDragBtn('reset',  '↺ Reset to source',   BTN_Y + (BTN_H + 6));
+    this._addDevDragBtn('group',  '⛓ Group',             BTN_Y + (BTN_H + 6) * 2);
+    this._addDevDragBtn('clear',  '✖ Clear selection',   BTN_Y + (BTN_H + 6) * 3);
+    this._devDragSyncBtns();
 
     this.input.on('pointermove',      this._devDragMove, this);
     this.input.on('pointerup',        this._devDragDrop, this);
@@ -116,6 +145,24 @@ export const WithDevDrag = (Base) => class extends Base {
       padding: { x: 8, y: 6 },
     }).setOrigin(0, 0).setScrollFactor(0).setDepth(UI_DEPTH).setResolution(dprOf(this));
     this._dragBtns.push({ id, txt, x: BTN_X, y, w: txt.width, h: txt.height });
+  }
+
+  // The two selection buttons re-label themselves from the current selection, so
+  // one button covers both "make a group of these" and "dissolve this group"
+  // (the second only offered when the selection IS exactly an existing group —
+  // otherwise it would be ambiguous what's being dissolved).
+  _devDragSyncBtns() {
+    const n   = this._dragSel?.size ?? 0;
+    const grp = this._devSelGroup?.() ?? null;
+    for (const b of this._dragBtns) {
+      const label =
+        b.id === 'group' ? (grp ? `✂ Ungroup ${grp.name}` : n >= 2 ? `⛓ Group these ${n}` : '⛓ Group (select 2+)')
+        : b.id === 'clear' ? (n ? `✖ Clear selection (${n})` : '✖ Clear selection')
+        : null;
+      if (label === null || b.txt.text === label) continue;
+      b.txt.setText(label);
+      b.w = b.txt.width; b.h = b.txt.height;
+    }
   }
 
   _devDragHitBtn(lpx, lpy) {
@@ -141,6 +188,8 @@ export const WithDevDrag = (Base) => class extends Base {
     const btn = this._devDragHitBtn(lpx, lpy);
     if (btn === 'export') { this.exportDevPositions(); return true; }
     if (btn === 'reset')  { this.resetDevPositions();  return true; }
+    if (btn === 'group')  { this.toggleDevGroup();     return true; }
+    if (btn === 'clear')  { this.clearDevSelection();  return true; }
     if (this._dragPanel) { this._dragPanel.destroy(); this._dragPanel = null; }
 
     const w = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
@@ -151,34 +200,82 @@ export const WithDevDrag = (Base) => class extends Base {
     }
     if (!best) return false;
 
-    // Remember the grab offset so the object doesn't jump its centre to the finger.
-    this._dragHeld = best;
+    // Remember the grab offset so the object doesn't jump its centre to the finger,
+    // and the press point, so a press that never travels can be read as a TAP
+    // (= toggle selection) instead of a drag.
+    this._dragHeld   = best;
+    this._dragMove   = this._devDragSet(best);
+    this._dragMoved  = false;
+    this._dragPressX = w.x;
+    this._dragPressY = w.y;
     best.gx = w.x - best.obj.x;
     best.gy = w.y - best.obj.y;
     this._devDragHud(best);
     return true;
   }
 
+  // Nothing actually moves until the press has travelled TAP_SLOP — below that it's
+  // still a candidate tap. Past it, every entry in the moving set gets the SAME
+  // delta (a rigid translation), so a group keeps its shape.
   _devDragMove(pointer) {
     const e = this._dragHeld;
     if (!e || !pointer.isDown) return;
     const w = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-    this._devDragShiftEntry(e, (w.x - e.gx) - e.obj.x, (w.y - e.gy) - e.obj.y);
+    if (!this._dragMoved) {
+      if (Math.hypot(w.x - this._dragPressX, w.y - this._dragPressY) < TAP_SLOP) return;
+      this._dragMoved = true;
+    }
+    const dx = (w.x - e.gx) - e.obj.x, dy = (w.y - e.gy) - e.obj.y;
+    for (const m of this._dragMove ?? [e]) this._devDragShiftEntry(m, dx, dy);
     this._devDragHud(e);
     this._drawDevDragMarks();
   }
 
+  // A press that never became a drag is a tap: toggle the object (and its group)
+  // in or out of the selection.
   _devDragDrop() {
-    if (!this._dragHeld) return;
-    this._devDragHud(this._dragHeld);
-    this._dragHeld = null;
+    const e = this._dragHeld;
+    if (!e) return;
+    if (!this._dragMoved) this._devSelToggle(e);
+    this._dragHeld  = null;
+    this._dragMove  = null;
+    this._dragMoved = false;
+    this._devDragHud(e);
+    this._devDragSyncBtns();
     this._drawDevDragMarks();
   }
 
   _devDragHud(e) {
+    const sel = this._devSelSummary?.() ?? '';
     this._dragHud?.setText(e
-      ? `${e.name}  (${Math.round(e.obj.x)}, ${Math.round(e.obj.y)})`
-      : 'Drag mode: drag any marked object');
+      ? `${e.name}  (${Math.round(e.obj.x)}, ${Math.round(e.obj.y)})${sel}`
+      : `Drag mode: tap to select, drag to move${sel}`);
+  }
+
+  // The ⛓ button. Groups the current selection, or dissolves the group when the
+  // selection is exactly one. Persisted either way (devGroups.js).
+  toggleDevGroup() {
+    const existing = this._devSelGroup();
+    if (existing) {
+      this._devUngroupSelection();
+      this._devDragSyncBtns();
+      this._drawDevDragMarks();
+      this._showDevDragPanel({}, false, `Ungrouped ${existing.name} — its ${existing.members.length} objects move separately again.`);
+      return;
+    }
+    const made = this._devGroupSelection();
+    this._devDragSyncBtns();
+    this._drawDevDragMarks();
+    this._showDevDragPanel({}, false, made
+      ? `Grouped ${made.members.length} objects as "${made.name}" — dragging any one now moves them all. Groups are remembered across reloads.`
+      : 'Select at least 2 objects first (tap each one), then tap ⛓ Group.');
+  }
+
+  clearDevSelection() {
+    this._devSelClear();
+    this._devDragSyncBtns();
+    this._devDragHud(null);
+    this._drawDevDragMarks();
   }
 
   // Move one entry (and anything stacked at the same spot) by a delta. Props are
@@ -247,11 +344,28 @@ export const WithDevDrag = (Base) => class extends Base {
 
   // A small hollow marker per grabbable object — amber for untouched, green once
   // moved, so at a glance you can see what this session has actually changed.
+  // On top of that (#337): a cyan chain line through the members of every group
+  // (so a fence run reads as one linked thing) and a cyan ring around anything
+  // currently selected. Three colours, three different questions: amber/green =
+  // "has this moved?", cyan ring = "will this move with the next drag?", chain =
+  // "these are permanently one handle".
   _drawDevDragMarks() {
     const g = this._dragMarks;
     if (!g) return;
     g.clear();
+    for (const grp of this._dragGroups ?? []) {
+      const members = this._devEntriesNamed(grp.members);
+      if (members.length < 2) continue;
+      g.lineStyle(1, 0x6fd3ff, 0.35);
+      for (let i = 1; i < members.length; i++) {
+        g.lineBetween(members[i - 1].obj.x, members[i - 1].obj.y, members[i].obj.x, members[i].obj.y);
+      }
+    }
     for (const e of this._dragEntries ?? []) {
+      if (this._dragSel?.has(e)) {
+        g.lineStyle(1, 0x6fd3ff, 0.95);
+        g.strokeRect(Math.round(e.obj.x) - 10, Math.round(e.obj.y) - 10, 20, 20);
+      }
       const moved = Math.round(e.obj.x) !== Math.round(e.ox) || Math.round(e.obj.y) !== Math.round(e.oy);
       g.lineStyle(1, moved ? 0x7fe08a : 0xffc857, e === this._dragHeld ? 1 : 0.65);
       g.strokeRect(Math.round(e.obj.x) - 5, Math.round(e.obj.y) - 5, 10, 10);
@@ -304,9 +418,10 @@ export const WithDevDrag = (Base) => class extends Base {
       this._devDragShiftEntry(e, e.ox - e.obj.x, e.oy - e.obj.y);
     }
     this._dragHeld = null;
+    this._dragMove = null;
     this._devDragHud(null);
     this._drawDevDragMarks();
-    this._showDevDragPanel({}, false, 'Reset — everything back to its source position.');
+    this._showDevDragPanel({}, false, 'Reset — everything back to its source position. (Selection and groups are kept.)');
   }
 
   _showDevDragPanel(moved, copied, note) {
@@ -314,15 +429,19 @@ export const WithDevDrag = (Base) => class extends Base {
     const names = Object.keys(moved);
     const lines = names.length
       ? names.map(k => `${k}: { x: ${moved[k].x}, y: ${moved[k].y} }   (was ${moved[k].from.x}, ${moved[k].from.y})`)
-      : ['Nothing has been moved yet.'];
+      : note ? [] : ['Nothing has been moved yet.'];
     const head = note
       ? [note]
       : [`${names.length} moved${copied ? ' — copied to clipboard' : ''}`,
          'Also logged to the console as [dev-positions]. Tap to dismiss.'];
+    // Grouped runs export as their individual members (that's what a source edit
+    // needs), so the panel names the groups separately — otherwise six moved fence
+    // posts look like six coincidences.
+    const groups = (this._dragGroups ?? []).map(g => `⛓ ${g.name}: ${g.members.join(', ')}`);
 
     const o = worldUiOffset(this);
-    this._dragPanel = this.add.text(BTN_X + o.x, BTN_Y + BTN_H * 2 + 16 + o.y,
-      [...head, '', ...lines].join('\n'), {
+    this._dragPanel = this.add.text(BTN_X + o.x, BTN_Y + (BTN_H + 6) * 4 + 10 + o.y,
+      [...head, '', ...lines, ...(groups.length ? ['', ...groups] : [])].join('\n'), {
         fontFamily: 'ui-monospace, Menlo, monospace',
         fontSize: '11px', color: '#ffffff', backgroundColor: '#0d1020f2',
         padding: { x: 8, y: 6 }, lineSpacing: 3,
