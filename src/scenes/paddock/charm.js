@@ -137,6 +137,10 @@ export const WithCharm = (Base) => class extends Base {
   // for the pig, so the "flop" reads as a cozy squash + drifting Zzz.
   _maybePigNap(a) {
     if (this.isNight || a.state !== 'idle') return;
+    // No sun to bathe in on the barn floor (#350) — same onSettle-hook exception as
+    // the horse roll (herd.js): not a behavior-registry entry, so it reaches for the
+    // shared isAgentIndoors() check directly.
+    if (this.isAgentIndoors?.(a)) return;
     if (Math.random() > CHARM.PIG_NAP_CHANCE) return;
     a.state = 'napping';
     if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }

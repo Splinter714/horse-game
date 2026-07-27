@@ -10,6 +10,21 @@
 // trail.js / town.js — so it becomes its own concern mixin rather than growing
 // the shared world file that parallel worktrees all touch. Pure move: no logic
 // changed beyond the static-graphics bake noted inside.
+//
+// DEV SPLINE DRAG (#373, paddock/splineDrag.js): `ctrl` — the 6 control points the
+// centerline spline is smoothed through — is kept on `this._streamCtrl` instead of
+// a local const, so the dev tool can hand back a live, draggable array. Unlike the
+// worn paths (buildPath, purely cosmetic), the stream's control points feed FOUR
+// derived things that all have to be re-synced on every drag, not just the
+// picture: `streamObstacles` (pushed into the shared `this.obstacles` list once at
+// boot, so a rebuild has to pull the OLD entries back out before pushing new
+// ones), `streamPath` (read fresh each use by the fish/cat, so simple reassignment
+// is safe), and the bank gather points appended into `this.props.sources` (same
+// pull-old/push-new problem as the obstacles, keyed on `label === 'Stream'`). See
+// `_rebuildStream()` — it's the same "array of control points → re-bake" shape as
+// `world.js`'s `_bakePathGraphics()`, but this extra bookkeeping is exactly the
+// "extra downstream consumers" #373 called out, so it stays its own method rather
+// than being forced through the paths' simpler helper.
 
 import { bakeStaticGraphics } from './bakeGraphics.js';
 
@@ -19,10 +34,20 @@ export const WithStream = (Base) => class extends Base {
   // Graphics (banks, water, ripples, stones, reeds) and backed by collision
   // rects so creatures path around it. Water is gathered at the well instead.
   buildStream() {
-    const g = this.add.graphics().setDepth(-96);
     // control points that sweep a smooth arc through the corner; both ends run
-    // past the world edge (off the top, off the right).
-    const ctrl = [[1430, -60], [1560, 150], [1680, 320], [1860, 380], [2020, 330], [2140, 230]];
+    // past the world edge (off the top, off the right). Kept as a scene field
+    // (not a local const) so the dev drag tool can mutate it in place (#373).
+    this._streamCtrl = [[1430, -60], [1560, 150], [1680, 320], [1860, 380], [2020, 330], [2140, 230]];
+    this._rebuildStream();
+  }
+
+  // Re-derive EVERYTHING from `this._streamCtrl`'s current points: the spline,
+  // the baked visual, the collision rects, `streamPath`, and the bank gather
+  // points. Called once from `buildStream()` and again on every dev spline-drag
+  // move (#373).
+  _rebuildStream() {
+    const ctrl = this._streamCtrl;
+    const g = this.add.graphics().setDepth(-96);
     // smooth the control points with a Catmull-Rom spline
     const cr = (p0, p1, p2, p3, t) => {
       const t2 = t * t, t3 = t2 * t;
@@ -91,20 +116,36 @@ export const WithStream = (Base) => class extends Base {
 
     // The water/banks/stones/reeds are all drawn now and never change — bake the
     // whole lot into one texture (#325). Pad covers the widest bank layer (r=60)
-    // and the reed tufts, which sit 50px out along the flow normal.
-    bakeStaticGraphics(this, g, path, 70, -96);
+    // and the reed tufts, which sit 50px out along the flow normal. On a rebuild
+    // the OLD bake is torn down first so drags don't pile up textures.
+    this._streamBake?.destroy();
+    this._streamBake = bakeStaticGraphics(this, g, path, 70, -96);
 
-    // collision rects for the in-play portion (skip the off-screen top tail)
+    // collision rects for the in-play portion (skip the off-screen top tail).
+    // On a rebuild, pull the OLD entries back out of the shared `this.obstacles`
+    // list first (they were pushed in once by `buildObstacles`, world.js) — the
+    // list itself isn't rebuilt from scratch elsewhere, so stale rects would
+    // otherwise sit behind at the pre-drag shape forever.
+    if (this.obstacles) {
+      this.obstacles = this.obstacles.filter((o) => !o.isStream);
+    }
     this.streamObstacles = [];
     for (let i = 0; i < path.length; i += 6) {
       const [x, y] = path[i];
       if (y < 40) continue;
       this.streamObstacles.push({ x: x - 42, y: y - 30, w: 84, h: 60, isStream: true });
     }
+    if (this.obstacles) {
+      for (const o of this.streamObstacles) this.obstacles.push(o);
+    }
+    // (On the very first build, `this.obstacles` doesn't exist yet — buildStream
+    // runs from buildWorld, before buildObstacles — so `this.streamObstacles` is
+    // just left for buildObstacles to fold in, same as before this refactor.)
 
     // Sampled centerline of the *visible* water (skip the off-screen top/right tails),
     // each point carrying the unit flow tangent. Ambient stream life reads this: fish
-    // dart along it (#183) and the cat fishes at the nearest bank (#163).
+    // dart along it (#183) and the cat fishes at the nearest bank (#163). Read fresh
+    // on every use (never cached across ticks), so plain reassignment is safe here.
     this.streamPath = [];
     for (let i = 0; i < path.length; i += 4) {
       const [x, y] = path[i];
@@ -120,6 +161,11 @@ export const WithStream = (Base) => class extends Base {
     // is spriteless/obstacle-less — the river graphics is the visual and its
     // rects do the blocking; _nearestInteractable just picks the closest one.
     // Points sit ~12px past the bank rim on open grass so approaches stay clear.
+    // On a rebuild, the OLD 'Stream' entries are pulled back out of the shared
+    // `this.props.sources` list first, same reasoning as the obstacles above.
+    if (this.props.sources) {
+      this.props.sources = this.props.sources.filter((s) => s.label !== 'Stream');
+    }
     for (let i = 0; i < path.length; i += 5) {
       const [x, y] = path[i];
       if (y < 40 || x > 1900) continue; // skip the off-screen top/right tails

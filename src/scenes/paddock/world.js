@@ -24,12 +24,30 @@ export const WithWorld = (Base) => class extends Base {
   //  • a DISCONNECTED path the customers take in from off the east edge to the
   //    farm stand (not joined to the farm's paths).
   buildPath() {
+    // Route waypoints, kept on `this` (not local consts) so the dev spline-drag
+    // tool (#373, paddock/splineDrag.js) can hand back a live, mutable array per
+    // route — dragging a waypoint mutates these IN PLACE and calls
+    // `_bakePathGraphics()` to re-stamp + re-bake. Each route is independent: the
+    // `fromHouse`/`toGate`/`toStream` routes happen to share a literal junction
+    // coordinate (900, 700) but are NOT the same array reference, so dragging one
+    // route's end doesn't drag the others' matching point — see splineDrag.js.
+    this._pathRoutes = {
+      fromHouse: [[235, 322], [470, 500], [700, 610], [900, 700]],   // house → junction
+      toGate:    [[900, 700], [935, 800], [960, 895]],               // junction → pasture gate
+      toStream:  [[900, 700], [1180, 560], [1420, 440], [1610, 372]], // junction → stream bank
+      toStand:   [[1955, 742], [1800, 772], [1640, 794], [1560, 802]], // off east edge → farm stand
+    };
+    this._bakePathGraphics();
+  }
+
+  // Re-stamp + re-bake the worn-path ground layer from `this._pathRoutes`'
+  // CURRENT points. Called once from `buildPath()` and again on every dev
+  // spline-drag move (#373) — purely cosmetic (no collision), so a rebuild here
+  // is just "throw away the old texture, draw a new one".
+  _bakePathGraphics() {
+    this._pathBake?.destroy();
     const g = this.add.graphics().setDepth(-95);
-    const fromHouse = [[235, 322], [470, 500], [700, 610], [900, 700]];   // house → junction
-    const toGate   = [[900, 700], [935, 800], [960, 895]];               // junction → pasture gate
-    const toStream = [[900, 700], [1180, 560], [1420, 440], [1610, 372]]; // junction → stream bank
-    const toStand  = [[1955, 742], [1800, 772], [1640, 794], [1560, 802]]; // off east edge → farm stand
-    const routes = [fromHouse, toGate, toStream, toStand];
+    const routes = Object.values(this._pathRoutes);
     const stamp = (radius, color, alpha) => {
       g.fillStyle(color, alpha);
       for (const pts of routes) {
@@ -49,7 +67,7 @@ export const WithWorld = (Base) => class extends Base {
 
     // Static from here on — bake it so those hundreds of fillCircles aren't
     // re-tessellated every frame (#325). Pad = the largest stamp radius.
-    bakeStaticGraphics(this, g, routes.flat(), 30, -95);
+    this._pathBake = bakeStaticGraphics(this, g, routes.flat(), 30, -95);
   }
 
   buildWorld() {
