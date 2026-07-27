@@ -37,10 +37,24 @@ import { lookFromKeys } from '../data/customize.js';
 export const SPECIES_TEXTURES = {
   horse(scene) {
     // One set of side-view frames per horse, driven by that horse's own coat data.
+    //
+    // A still-a-baby FOAL (#15, isFoal:true — the "stay a baby forever" toggle keeps
+    // it that way) gets the smaller foal frames instead of the full horse frames, the
+    // same way a baby chick does below. This MUST branch here rather than being
+    // patched up later (#339): buildHorseTextures also emits the posture-idle
+    // (`idle_content_*`/`idle_neglected_*`), swish and roll frames, which the foal art
+    // has no equivalent of. Building the adult set first and then overwriting only the
+    // shared idle/walk/eat/sleep keys with foal art left those extra ADULT-sized
+    // frames behind under the foal's key — spawnHorse gates the posture/swish/roll
+    // anims on those textures existing, so a reloaded foal grew an adult posture-idle
+    // animation and rendered full-size while standing still (but foal-size while
+    // walking, which uses the overwritten `walk_*` frames).
     const allHorses = scene.registry.get('allHorses');
     for (const key of Object.keys(allHorses)) {
-      const coat = composeCoat(allHorses[key].coat, allHorses[key].markings);
-      buildHorseTextures(scene, key, coat);
+      const h = allHorses[key];
+      const coat = composeCoat(h.coat, h.markings);
+      if (h.isFoal) buildFoalTextures(scene, key, coat);
+      else buildHorseTextures(scene, key, coat);
     }
     // Demo foal textures, from the shared DEMO_FOALS spec (data/demoFoals.js) so the
     // art-preview customizer can seed editable models from the same coats. Fixed, not
