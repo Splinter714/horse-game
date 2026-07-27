@@ -9,12 +9,13 @@ import { ROSTERS } from '../data/rosters.js';
 import { buildChickTextures } from '../art/chickArt.js';
 
 // ── Art preview (dev tool) ───────────────────────────────────────────────────
-// A standalone gallery for art-directing the creatures. Boots straight into a
-// grass-green stage that lays every animal out side by side, each playing its
-// walk cycle at a comfortable, normalized size with its key + native frame
-// dimensions labelled. Purely a viewer — no gameplay — so we can eyeball every
-// creature's art (and the not-yet-wired barnyard animals) and work through
-// changes one at a time.
+// A standalone gallery for art-directing the creatures (and, since #369, the static
+// buildings/props). Boots straight into a grass-green stage that lays every animal out
+// side by side, each playing its walk cycle at a comfortable, normalized size with its
+// key + native frame dimensions labelled, followed by a "Buildings & Props" section of
+// single-image world-object textures (barn, coop, feeders, …) labelled the same way.
+// Purely a viewer — no gameplay — so we can eyeball every creature's art (and the
+// not-yet-wired barnyard animals) and work through changes one at a time.
 //
 // Reached via the pause-menu dev knob "Start screen → Art preview", which makes
 // BootScene build the textures (including the disabled cow/sheep/pig/dog) and
@@ -113,7 +114,38 @@ function buildFamilies() {
     { label: 'Bird (old 1×)',     members: [{ key: 'birdOld' }] },
     { label: 'Fish (new 4×)',     members: [{ key: 'fish' }] },
     { label: 'Fish (old 1×)',     members: [{ key: 'fishOld' }] },
+    ...buildWorldObjectFamilies(),
   ];
+}
+
+// STATIC WORLD-OBJECTS (buildings/props, #369). These are single static images —
+// `gen(scene, key, w, h, drawFn)` in art/worldArt.js / art/propArt.js snapshots one
+// texture under the exact key with no walk/idle frame suffixes, and (unlike animals)
+// there's no SPECIES/ROSTERS-style registry enumerating them: `gen(...)` calls are just
+// scattered through those two files with nothing central to iterate. So — per the issue
+// — this is a hand-curated fallback list rather than an auto-derived one; extend it by
+// hand as new structures are added. Each entry becomes its own one-member family named
+// after its EXACT texture key (the point is being able to reference it precisely).
+const WORLD_OBJECT_KEYS = [
+  'house', 'houseInterior',
+  'barnFront', 'barnBack', 'barnRoofMid', 'barnInterior',
+  'coop', 'doghouse', 'bunnyHutch', 'foxDen',
+  'birdBath', 'birdhouse', 'beehive', 'beehiveReady',
+  'seedFeeder', 'seedFeederEmpty', 'nectarFeeder', 'nectarFeederEmpty', 'duckFeeder',
+  'farmStand', 'shopStall', 'generalStore', 'petStore',
+  'well', 'grainBin', 'compostBin', 'haystack',
+  'fence', 'gateClosed', 'gateOpen', 'trough',
+  'trashCan', 'trashCanOpen',
+];
+
+// The first family in this list carries `sectionTitle`, which forces a row break and
+// draws a header above it in the gallery (see create()/layout()/_applyScroll() below).
+function buildWorldObjectFamilies() {
+  return WORLD_OBJECT_KEYS.map((key, i) => ({
+    label: key,           // exact texture key — shown verbatim under the sprite
+    members: [{ key }],
+    sectionTitle: i === 0 ? 'Buildings & Props' : undefined,
+  }));
 }
 
 const TARGET_H = 200;       // tallest family member's on-screen height (logical px)
@@ -207,10 +239,18 @@ export default class ArtPreviewScene extends Phaser.Scene {
       });
 
       const famW = members.reduce((s, x) => s + x.dispW, 0) + INNER_GAP * (members.length - 1);
-      this._families.push({ members, famW });
+      // A `sectionTitle` (currently just "Buildings & Props", #369) forces a row break
+      // and gets its own header text above that row — see layout()/_applyScroll().
+      const sectionText = fam.sectionTitle
+        ? this.add.text(0, 0, fam.sectionTitle, {
+            fontFamily: 'system-ui, sans-serif', fontSize: '15px',
+            color: '#0d220d', fontStyle: 'bold',
+          }).setOrigin(0.5, 0).setDepth(2)
+        : null;
+      this._families.push({ members, famW, sectionTitle: fam.sectionTitle, sectionText });
     }
 
-    this._title = this.add.text(0, 0, '🎨 Art Preview — tap an animal to dissect', {
+    this._title = this.add.text(0, 0, '🎨 Art Preview — tap an animal or object to dissect', {
       fontFamily: 'system-ui, sans-serif', fontSize: '16px', color: '#143', fontStyle: 'bold',
     }).setOrigin(0, 0).setDepth(3);
 
@@ -331,6 +371,10 @@ export default class ArtPreviewScene extends Phaser.Scene {
   // animal visibly sits shorter than its adult.
   _applyScroll() {
     for (const f of this._families) {
+      if (f.sectionText) {
+        f.sectionText.x = f.sectionTextCx;
+        f.sectionText.y = f.sectionTextTopY - this._scrollY;
+      }
       const baseline = f.baseY + TARGET_H - this._scrollY;   // shared feet line
       for (const m of f.members) {
         m.sprite.x = m.cx;
@@ -343,11 +387,16 @@ export default class ArtPreviewScene extends Phaser.Scene {
   }
 
   // Texture frame keys for one creature, in name order (idle_0, idle_1, walk_0…).
+  // Falls back to the bare key itself when nothing pose-suffixed exists — that's the
+  // static single-image case for world-object props (barnFront, doghouse, …), which
+  // `gen()` snapshots under the exact key with no frames at all (#369).
   _frameKeysFor(key) {
     const prefix = `${key}_`;
-    return this.textures.getTextureKeys()
+    const frames = this.textures.getTextureKeys()
       .filter((k) => k.startsWith(prefix))
       .sort();
+    if (frames.length) return frames;
+    return this.textures.exists(key) ? [key] : [];
   }
 
   // Flow the cards into a centred grid that wraps to the viewport width, and pin
@@ -366,23 +415,35 @@ export default class ArtPreviewScene extends Phaser.Scene {
 
     const cellW = Math.max(...this._families.map((f) => f.famW), 60) + PAD;
     const cellH = TARGET_H + 44;
+    const SECTION_HEADER_H = 30;   // header text + breathing room before its row
     const cols = Math.max(1, Math.floor((gw - PAD) / cellW));
     const gridW = cols * cellW;
     const x0 = Math.round((gw - gridW) / 2) + cellW / 2;   // first column centre
 
-    let bottom = TOP;
-    this._families.forEach((f, i) => {
-      const col = i % cols, row = Math.floor(i / cols);
+    // Walk families left→right, wrapping at `cols`, using a running y cursor rather than
+    // a fixed row-height formula — a `sectionTitle` family forces the current row to end
+    // early (so the new section always starts a fresh row) and reserves extra header
+    // space above it, which a uniform `row * cellH` formula can't express (#369).
+    let y = TOP, col = 0;
+    this._families.forEach((f) => {
+      if (f.sectionTitle && col !== 0) { y += cellH + PAD; col = 0; }
+      if (f.sectionText) {
+        f.sectionTextCx = x0 + (gridW - cellW) / 2;   // centred over the whole grid
+        f.sectionTextTopY = y;
+        y += SECTION_HEADER_H;
+      }
       const cx = x0 + col * cellW;
-      f.baseY = TOP + row * (cellH + PAD);      // top of the family's sprite box
+      f.baseY = y;      // top of the family's sprite box
       // Centre the member group in the cell, packed left→right with shared baseline.
       let mx = cx - f.famW / 2;
       for (const m of f.members) {
         m.cx = mx + m.dispW / 2;
         mx += m.dispW + INNER_GAP;
       }
-      bottom = f.baseY + cellH;
+      col += 1;
+      if (col >= cols) { y += cellH + PAD; col = 0; }
     });
+    const bottom = col === 0 ? y : y + cellH + PAD;   // close out a trailing partial row
 
     // How far the content overflows the viewport (leave a small bottom margin).
     this._maxScroll = Math.max(0, bottom + 12 - sh);
