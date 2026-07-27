@@ -8,6 +8,7 @@ import { CONTENT_DEFS } from '../data/items.js';
 import { WithHouseInteriorDecor } from './houseInteriorDecor.js';
 import { WithHouseInteriorCooking } from './houseInteriorCooking.js';
 import { WithHouseInteriorRecipeBook } from './houseInteriorRecipeBook.js';
+import { WithHouseInteriorInteract } from './houseInteriorInteract.js';
 
 // The enterable house interior (#56) — a small standalone room scene the player
 // walks INTO from the paddock's house door, does home-base things in, and walks
@@ -38,9 +39,8 @@ import { WithHouseInteriorRecipeBook } from './houseInteriorRecipeBook.js';
 // movement — match the outdoor pace exactly rather than an arbitrary indoor value.
 const PLAYER_SPEED = OUTDOOR_PLAYER_SPEED;
 const EXIT_COOLDOWN_MS = 400;        // ignore the doorway right after entering
-const PROMPT_REACH = 70;             // world px: how close to a station to prompt
 
-export default class HouseInteriorScene extends WithHouseInteriorRecipeBook(WithHouseInteriorCooking(WithHouseInteriorDecor(Phaser.Scene))) {
+export default class HouseInteriorScene extends WithHouseInteriorInteract(WithHouseInteriorRecipeBook(WithHouseInteriorCooking(WithHouseInteriorDecor(Phaser.Scene)))) {
   constructor() {
     super('HouseInteriorScene');
   }
@@ -77,7 +77,7 @@ export default class HouseInteriorScene extends WithHouseInteriorRecipeBook(With
     glow.fillRect(0, 0, this.roomW, 8 * sc);                      // top edge shade
     glow.fillRect(0, this.roomH - 6 * sc, this.roomW, 6 * sc);    // bottom edge shade
 
-    this._buildStations();
+    this._buildStations(HI);
     this._buildCollision();
     this._buildFishTank();
     this._buildFireplace();
@@ -107,19 +107,8 @@ export default class HouseInteriorScene extends WithHouseInteriorRecipeBook(With
     });
   }
 
-  // ── Stations (bed / dresser / kitchen), data-driven off HOUSE_INTERIOR ──────
-  _buildStations() {
-    const HI = HOUSE_INTERIOR;
-    this.stations = Object.entries(HI.stations).map(([id, s]) => ({
-      id,
-      x: this._d(s.x), y: this._d(s.y),
-      standX: this._d(s.standX), standY: this._d(s.standY),
-      label: s.label, action: s.action,
-      // Bed, dresser, pantry (#212), and the stove/oven (#213) are all actionable
-      // now — the stove still has no cooking system behind it (#41).
-      canAct: true,
-    }));
-  }
+  // Station targeting/activation (tap, [E]/[Space], pad A) lives in the
+  // WithHouseInteriorInteract mixin — see houseInteriorInteract.js (#334).
 
   // Solid furniture footprints (#210 playtest fix — player could walk on the bed).
   // DESIGN-GRID → room-world via the shared `_d` scale helper, like the stations.
@@ -178,40 +167,6 @@ export default class HouseInteriorScene extends WithHouseInteriorRecipeBook(With
     this.rKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R); // #214 recipe book
     // Tap-to-walk: tap a spot (or a station) to walk there; a station tap acts on arrival.
     this.input.on('pointerdown', this._onTap, this);
-  }
-
-  // Convert a raw pointer (physical/buffer px) to this scene's world coords.
-  _pointerWorld(pointer) {
-    return this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-  }
-
-  _onTap(pointer) {
-    if (this._customizing || this._exiting) return;
-    const w = this._pointerWorld(pointer);
-    // Tapping near a station walks to it and activates on arrival.
-    const st = this._nearestStation(w.x, w.y, 90);
-    if (st && st.canAct) {
-      this._walkTo(st.standX, st.standY, () => this._activate(st));
-      return;
-    }
-    this._walkTo(w.x, w.y, null);
-  }
-
-  _walkTo(x, y, onArrive) {
-    this._navTarget = {
-      x: Phaser.Math.Clamp(x, 12, this.roomW - 12),
-      y: Phaser.Math.Clamp(y, 24, this.roomH - 6),
-      onArrive,
-    };
-  }
-
-  _nearestStation(x, y, radius) {
-    let best = null, bestD = Infinity;
-    for (const st of this.stations) {
-      const d = Phaser.Math.Distance.Between(x, y, st.x, st.y);
-      if (d <= radius && d < bestD) { bestD = d; best = st; }
-    }
-    return best;
   }
 
   update(_time, delta) {
@@ -299,28 +254,6 @@ export default class HouseInteriorScene extends WithHouseInteriorRecipeBook(With
     if (Math.abs(p.x - ex) < halfW && p.y > this.roomH - this._d(6)) {
       this._exit();
     }
-  }
-
-  _checkStationPrompt() {
-    const p = this.player.sprite;
-    const st = this._nearestStation(p.x, p.y, PROMPT_REACH);
-    if (!st) { this.prompt.setVisible(false); this._proxStation = null; return; }
-    this._proxStation = st;
-    const key = st.canAct ? '[E] ' : '';
-    const label = st.action === 'kitchen' ? this._kitchenLabel() : st.label;
-    this.prompt.setText(`${key}${label}`).setVisible(true);
-    // Keyboard interact.
-    if (st.canAct && (Phaser.Input.Keyboard.JustDown(this.eKey) ||
-                      Phaser.Input.Keyboard.JustDown(this.spaceKey))) {
-      this._activate(st);
-    }
-  }
-
-  _activate(st) {
-    if (st.action === 'sleep') this._doSleep();
-    else if (st.action === 'customize') this._openCustomizer();
-    else if (st.action === 'pantry') this._usePantry();
-    else if (st.action === 'kitchen') this._useKitchen();
   }
 
   // ── Pantry (#212) ────────────────────────────────────────────────────────

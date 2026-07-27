@@ -291,7 +291,12 @@ export const HOUSE_INTERIOR = {
   // Furniture interaction zones, in DESIGN-GRID coords. `stand` is where the player
   // walks to use it; `label`/`action` drive the prompt + activation in the scene.
   stations: {
-    bed:     { x: 132, y: 42,  standX: 122, standY: 74, label: 'Sleep',             action: 'sleep' },
+    // Bed stand point (#334): it used to be (122,74), which the fireplace footprint
+    // added later — collision rect (112,60)-(158,106) — completely swallowed. The
+    // player physically could NOT reach it, so tap-to-walk never fired its arrival
+    // callback and sleeping stopped working entirely. Moved to the bed's LEFT side
+    // (108,42), clear of both the bed frame (x0=112) and the hearth.
+    bed:     { x: 132, y: 42,  standX: 108, standY: 42, label: 'Sleep',             action: 'sleep' },
     dresser: { x: 25,  y: 30,  standX: 25,  standY: 66, label: 'Customize Character', action: 'customize' },
     // Stove & oven (#213): the kitchen counter is now a real interactable object
     // (placement + prompt) — still no recipes/cooking system (#41 owns that).
