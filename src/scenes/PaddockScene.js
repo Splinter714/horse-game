@@ -56,6 +56,7 @@ import { WithWorldObjects } from './paddock/worldObjects.js';
 import { WithCareActions } from './paddock/careActions.js';
 import { WithInteraction } from './paddock/interaction.js';
 import { WithInput } from './paddock/input.js';
+import { WithDevLabels } from './paddock/devLabels.js';
 import { applyDpr } from './uiUtils.js';
 
 // The concern mixins, listed outermost-first (same order the old deeply-nested
@@ -80,6 +81,7 @@ const PADDOCK_MIXINS = [
   WithPlayerBuff,
   WithEffects, WithPersistence, WithRendering, WithWorldObjects, WithCareActions,
   WithInteraction, WithInput, WithPlayerMovement, WithCoop, WithPrompts, WithInteractables, WithUseDispatch,
+  WithDevLabels,
 ];
 const PaddockBase = PADDOCK_MIXINS.reduceRight((Base, Mixin) => Mixin(Base), Phaser.Scene);
 
@@ -142,6 +144,7 @@ export default class PaddockScene extends PaddockBase {
     this.buildDuck(); // duck taming (#275): wild-duck anims + restore taming counter
     this.buildBirdFriendship(); // bird befriending (#223): restore visit tallies + named regulars
     this.startAmbientEvents(); // unified data-driven ambient rotation (#253)
+    this.buildDevLabels(); // dev overlay (#329): object labels + coordinate grid, default off
 
     // Periodic AI tick: direct idle horses to food/water
     this.time.addEvent({ delay: 3000, loop: true, callback: this.horseTick, callbackScope: this });
@@ -272,6 +275,7 @@ export default class PaddockScene extends PaddockBase {
     this.updateBarnCutaway(delta); // fade the barn façade when the player steps inside (#35)
     this.updateWildlife();
     this.tickRegrowth();      // regrow shorn fleece once its timer completes (#233)
+    this.updateDevOverlay(); // #329 dev overlay — no-op unless toggled on
     this.tickDecay(delta);
     this.tickAutosave(delta);
     this.updatePlayerBuffHud(); // #277: count down the meal buff's "well fed" readout

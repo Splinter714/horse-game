@@ -55,6 +55,7 @@ core orchestrator.
 | Care actions | `paddock/careActions.js` (`WithCareActions`) | `useItemOnHorse`, cow `feedCow`/`waterCow`/`milkCow`, `doAction`, `SOUND_FNS` |
 | Pet/info interaction | `paddock/interaction.js` (`WithInteraction`) | pet-preference cluster + info-panel openers (`openPortrait`…) |
 | Input plumbing | `paddock/input.js` (`WithInput`) | `_pollRawPad`, `_togglePause`, `_syncInputMode`, `_onPromptsChanged` |
+| Dev overlay (#329) | `paddock/devLabels.js` (`WithDevLabels`) | `buildDevLabels`, `refreshDevOverlay`, `updateDevOverlay` — pause-menu-toggled (persisted, default OFF) labels naming every placed `this.props` object with its (x, y), plus a 100px coordinate grid with axis readouts. Purely diagnostic; enumerates `this.props` so new props are labelled for free |
 | Shared tuning | `paddock/constants.js` | layout/tuning constants (not a mixin) |
 | Static-graphics bake | `paddock/bakeGraphics.js` | `bakeStaticGraphics` — replays a finished, never-again-modified Graphics into a RenderTexture (not a mixin). Phaser re-tessellates a Graphics command buffer EVERY frame; the four ground layers held ~26k commands between them, which was the #1 frame cost found in #325. Use only for graphics that are never `clear()`ed or redrawn |
 
