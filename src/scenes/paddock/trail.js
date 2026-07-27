@@ -25,6 +25,7 @@
 // alternative decided yet" — is a genuine open design question, not a
 // concrete fix, so it's intentionally NOT touched here; see hotbar/minimap.js.)
 
+import Phaser from 'phaser';
 import { S, TRAIL_X0, TRAIL_W, TRAIL_Y0, TRAIL_Y1 } from './constants.js';
 import { bakeStaticGraphics } from './bakeGraphics.js';
 import { playGather } from '../../audio/sounds.js';
@@ -78,6 +79,18 @@ export const WithTrail = (Base) => class extends Base {
     // baked tint gets knocked down toward transparent — a real 2D falloff
     // (X gradient × Y gradient) rather than a single 1D gradient rect.
     const rt = this.add.renderTexture(TRAIL_X0, top, TRAIL_W, bandH).setOrigin(0, 0).setDepth(-99);
+    // #371 regression fix: the game boots with `pixelArt: true` (main.js), which makes
+    // every texture default to NEAREST filtering — correct for crisp sprite art, but it
+    // turns this baked-in gradient into a visibly stepped/blocky one. The gradient used
+    // to be a live Graphics fill, which WebGL renders as a per-vertex-interpolated shaded
+    // mesh (always smooth, independent of texture filtering); baking it into a
+    // RenderTexture made it a *sampled texture* for the first time, so it started
+    // inheriting the game's NEAREST default — and every camera-scroll subpixel offset
+    // shows up as a hard stair-step in what should be a smooth blend. That's what made
+    // the farm/trail seam look worse, not better, after this band's Y-fade was added.
+    // Force this one texture back to LINEAR so the gradient stays smooth; it doesn't
+    // affect any sprite's pixel-art filtering, which is set independently per texture.
+    rt.texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
     rt.draw(tintG, -TRAIL_X0, -top);
     tintG.destroy();
 
