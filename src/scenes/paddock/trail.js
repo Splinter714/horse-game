@@ -122,16 +122,23 @@ export const WithTrail = (Base) => class extends Base {
       [-960, 340], [-1100, 560], [-1240, 380], [-1080, 900], [-1220, 1040],
       [-1400, 500], [-1500, 760], [-1420, 260], [-1560, 950], [-980, 1080],
     ];
-    for (const [x, y] of trees) {
-      this.add.image(x, y, 'trailTree').setScale(S).setDepth(y).setOrigin(0.5, 1);
+    // Tracked in props (#329 follow-up) so the dev object-label/drag tools
+    // (#329/#330) can see and reposition each tree/rock — previously these were
+    // untracked loose `this.add.image` calls invisible to `_devLabelTargets()`.
+    (this.props.trees ??= []);
+    for (const [i, [x, y]] of trees.entries()) {
+      const sprite = this.add.image(x, y, 'trailTree').setScale(S).setDepth(y).setOrigin(0.5, 1);
+      this.props.trees.push({ x, y, sprite, label: `Trail Tree ${i + 1}` });
     }
 
     const rocks = [
       [-90, 420], [-300, 620], [-480, 240], [-620, 700], [-780, 480], [-200, 1000],
       [-1000, 460], [-1160, 700], [-1340, 460], [-1460, 900], [-1040, 1000],
     ];
-    for (const [x, y] of rocks) {
-      this.add.image(x, y, 'trailRock').setScale(S).setDepth(y).setOrigin(0.5, 1);
+    (this.props.rocks ??= []);
+    for (const [i, [x, y]] of rocks.entries()) {
+      const sprite = this.add.image(x, y, 'trailRock').setScale(S).setDepth(y).setOrigin(0.5, 1);
+      this.props.rocks.push({ x, y, sprite, label: `Rock ${i + 1}` });
     }
 
     const flowers = ['flowerRed', 'flowerYellow', 'flowerWhite'];

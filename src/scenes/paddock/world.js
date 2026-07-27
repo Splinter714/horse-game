@@ -91,9 +91,15 @@ export const WithWorld = (Base) => class extends Base {
     // here (those anchor on the HOUSE). `this.props.barn` is set there.
     this.buildBarn(); // origin at the south doorway; places props.barn
 
-    // Fence line near the house
+    // Fence line near the house. Tracked in props (#329 follow-up) so the dev
+    // object-label/drag tools (#329/#330) can see and reposition each post —
+    // distinct from the pasture fence's perimeter, which is built (and could be
+    // tracked) separately in buildPastureFence below.
+    this.props.houseFence = [];
     for (let i = 0; i < 6; i++) {
-      this.add.image(300 + i * 96, 320, 'fence').setScale(S).setDepth(320).setOrigin(0, 0.5);
+      const x = 300 + i * 96, y = 320;
+      const sprite = this.add.image(x, y, 'fence').setScale(S).setDepth(y).setOrigin(0, 0.5);
+      this.props.houseFence.push({ x, y, sprite, label: `Fence Post ${i + 1}` });
     }
 
     // Chicken coop, right of the fence line (fence ends ~x=876). Roost geometry
