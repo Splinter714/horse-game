@@ -35,6 +35,11 @@ const TRAIL_TINT = 0xbfe0c0;
 // so the color change reads as a gradual fade rather than a hard edge.
 const BLEND_IN = 120;   // still farm side: blend starts here, alpha 0
 const BLEND_OUT = -420; // trail side: blend finishes here, alpha at full
+// #371: the X-axis blend above only softens the farm/trail boundary — the
+// band's own top/bottom edges (TRAIL_Y0/TRAIL_Y1 ± the 40px pad below) still
+// cut the tint off hard against the surrounding grass. This is how far in
+// (px) the tint fades out near those edges, mirrored top and bottom.
+const BLEND_Y = 100;
 
 export const WithTrail = (Base) => class extends Base {
   buildTrail() {
@@ -53,7 +58,7 @@ export const WithTrail = (Base) => class extends Base {
     // farm side) to full alpha at BLEND_OUT (well into the trail), then a flat
     // full-alpha fill covers the rest of the trail out to its far edge. Reads
     // as a gradual color shift instead of a hard line at x=0.
-    const tintG = this.add.graphics().setDepth(-99);
+    const tintG = this.add.graphics();
     const FULL_ALPHA = 0.55;
     // Rect spans x ∈ [BLEND_OUT, BLEND_IN]: left edge (BLEND_OUT, deeper into
     // the trail) is full alpha, right edge (BLEND_IN, still on the farm side)
@@ -63,6 +68,29 @@ export const WithTrail = (Base) => class extends Base {
     tintG.fillRect(BLEND_OUT, top, BLEND_IN - BLEND_OUT, bandH);
     tintG.fillStyle(TRAIL_TINT, FULL_ALPHA);
     tintG.fillRect(TRAIL_X0, top, BLEND_OUT - TRAIL_X0, bandH);
+
+    // #371 fix 2: the gradient above only fades along X — the band's top/bottom
+    // edges still cut off hard. Bake the X-faded tint into a RenderTexture, then
+    // ERASE a second, Y-only alpha mask into it (two strips: full erase-alpha
+    // right at the top/bottom edge, fading to 0 by BLEND_Y px in) so the tint
+    // also fades out near those edges. RenderTexture's ERASE blend mode does
+    // `dest.alpha *= (1 - source.alpha)`, so wherever the mask is opaque the
+    // baked tint gets knocked down toward transparent — a real 2D falloff
+    // (X gradient × Y gradient) rather than a single 1D gradient rect.
+    const rt = this.add.renderTexture(TRAIL_X0, top, TRAIL_W, bandH).setOrigin(0, 0).setDepth(-99);
+    rt.draw(tintG, -TRAIL_X0, -top);
+    tintG.destroy();
+
+    const fadeG = this.add.graphics();
+    const white = 0xffffff;
+    // Top strip: alpha 1 right at the band's top edge, fading to 0 by BLEND_Y in.
+    fadeG.fillGradientStyle(white, white, white, white, 1, 1, 0, 0);
+    fadeG.fillRect(TRAIL_X0, top, TRAIL_W, BLEND_Y);
+    // Bottom strip: alpha 0 at BLEND_Y from the bottom edge, fading to 1 right at it.
+    fadeG.fillGradientStyle(white, white, white, white, 0, 0, 1, 1);
+    fadeG.fillRect(TRAIL_X0, top + bandH - BLEND_Y, TRAIL_W, BLEND_Y);
+    rt.erase(fadeG, -TRAIL_X0, -top);
+    fadeG.destroy();
 
     // A worn dirt path leading off the farm's west edge into the trail. Bigger
     // trail playtest fix #1: instead of one dead-end line, this is now a closed
