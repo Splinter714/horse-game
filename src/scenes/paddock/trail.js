@@ -26,8 +26,8 @@
 // concrete fix, so it's intentionally NOT touched here; see hotbar/minimap.js.)
 
 import { S, TRAIL_X0, TRAIL_W, TRAIL_Y0, TRAIL_Y1 } from './constants.js';
-import { EVENTS } from '../../data/events.js';
 import { bakeStaticGraphics } from './bakeGraphics.js';
+import { playGather } from '../../audio/sounds.js';
 
 const TRAIL_TINT = 0xbfe0c0;
 // How far the tint blend zone extends on either side of the farm/trail
@@ -145,10 +145,10 @@ export const WithTrail = (Base) => class extends Base {
       this.add.image(x, y, flowers[i % flowers.length]).setScale(S).setDepth(y);
     });
 
-    // One trailside collectible (#36 v1 — first-pass, flagged for playtest): a
-    // lost trinket that disappears once picked up. Respawns are out of scope for
-    // v1; this is just enough to prove the "something to find out here" beat.
-    // Moved further out into the loop now that the trail is bigger.
+    // One trailside collectible (#36 v1, made sellable per the 2026-07-26 playtest
+    // follow-up): a lost trinket that disappears once picked up. Respawns are out
+    // of scope for v1; this is just enough to prove the "something to find out
+    // here" beat. Moved further out into the loop now that the trail is bigger.
     this.props.trailCollectible = {
       x: -1240, y: 780, found: false,
       sprite: this.add.image(-1240, 780, 'trailTrinket').setScale(S).setDepth(780),
@@ -159,15 +159,19 @@ export const WithTrail = (Base) => class extends Base {
     this.props.trailEntrance = { x: 20, y: midY };
   }
 
-  // Interactable descriptor for the trailside collectible — bare-hand pickup,
-  // mirroring the gate/house pattern (no carried item needed).
+  // Interactable descriptor for the trailside collectible. Sellable-goods follow-up
+  // (#36, 2026-07-26 playtest): picking it up now requires an equipped basket, like
+  // the other gathered goods (eggs, honey) — it's carried home and sold at the farm
+  // stand instead of handing over a flat cash reward on the spot.
   _trailInteractables() {
-    const collectible = () => {
+    const collectible = (item) => {
       const c = this.props.trailCollectible;
       if (!c || c.found) return [];
+      const hasBasket = item?.carrier === 'basket';
       return [{
         x: c.x, y: c.y, tapRadius: 90, reachDist: 90, promptOffsetY: 40,
-        canAct: true, label: 'Pick Up Trinket',
+        canAct: hasBasket,
+        label: hasBasket ? 'Pick Up Trinket' : 'A trinket  •  equip a Basket to collect',
         approach: () => ({ x: c.x, y: c.y + 40 }),
         activate: () => this._collectTrailTrinket(),
       }];
@@ -178,12 +182,11 @@ export const WithTrail = (Base) => class extends Base {
   _collectTrailTrinket() {
     const c = this.props.trailCollectible;
     if (!c || c.found) return;
+    const added = this.scene.get('HotbarScene')?.fillActiveCarrier('trinket', 1) ?? 0;
+    if (added <= 0) return;
     c.found = true;
     c.sprite.destroy();
     this.showIcon?.('trailTrinket', this.player.sprite);
-    // A little pocket-change reward — a first-pass "something to find" beat
-    // (#36 v1), not a balance lever; tune at playtest.
-    this.money = (this.money ?? 0) + 10;
-    this.game.events.emit(EVENTS.MONEY_CHANGED, this.money);
+    playGather('egg'); // a soft glinting clink, mirroring the egg pickup
   }
 };

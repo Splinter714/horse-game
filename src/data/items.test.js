@@ -31,7 +31,7 @@ describe('carrier definitions', () => {
     // a gatherable bush (berry), both feeding into jam like strawberries.
     // vegetableStew/berryPie/honeyBread added with cooking (#41) — dishes combining
     // two raw ingredients at the house stove, sold like jam/flour.
-    expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey', 'jam', 'flour', 'pigFeed', 'blueberry', 'potato', 'orange', 'berry', 'vegetableStew', 'berryPie', 'honeyBread']);
+    expect(CARRIER_DEFS.basket.accepts).toEqual(['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey', 'jam', 'flour', 'pigFeed', 'blueberry', 'potato', 'orange', 'berry', 'vegetableStew', 'berryPie', 'honeyBread', 'trinket']);
     expect(CARRIER_DEFS.bucket.capacity).toBe(1);
     // milk added with the cow (#cow). catWater removed with the #202 rework, bunnyWater
     // removed with #283 — pet water bowls (cat's and the bunny's) both fill from a plain

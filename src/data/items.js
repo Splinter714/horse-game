@@ -12,7 +12,7 @@ export const CARRIER_DEFS = {
   // animal that eats it, #136), so the basket's cap is just a safety ceiling, not a
   // limit you should hit. Kept finite (not Infinity) so it never trips serialization
   // or UI maths — but high enough that the demand always fits (and you can hoard eggs).
-  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey', 'jam', 'flour', 'pigFeed', 'blueberry', 'potato', 'orange', 'berry', 'vegetableStew', 'berryPie', 'honeyBread'] },
+  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey', 'jam', 'flour', 'pigFeed', 'blueberry', 'potato', 'orange', 'berry', 'vegetableStew', 'berryPie', 'honeyBread', 'trinket'] },
   bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'milk', 'nectar'] },
 };
 
@@ -160,6 +160,13 @@ export const CONTENT_DEFS = {
   vegetableStew: { label: 'Vegetable Stew', icon: 'iconBasketStew',      action: 'sell' },
   berryPie:      { label: 'Berry Pie',      icon: 'iconBasketBerryPie', action: 'sell' },
   honeyBread:    { label: 'Honey Bread',    icon: 'iconBasketHoneyBread', action: 'sell' },
+  // Trail trinket (#36 playtest follow-up, 2026-07-26): the trailside collectible
+  // found out along the riding trail loop. It used to just hand over a flat $10 on
+  // pickup (a first-pass placeholder); now it's picked up into a basket like any
+  // other gathered good and sold at the farm stand (see trail.js `_collectTrailTrinket`
+  // and STAND_DEFS.trinket for the price). No `feeds`/`ground` — it's a found keepsake,
+  // not food, and it isn't dropped as a pile.
+  trinket:    { label: 'Trinket',      icon: 'iconBasketTrinket',    action: 'sell' },
 };
 
 // How many of a food to gather in one fill-up (#136): one unit per live animal that

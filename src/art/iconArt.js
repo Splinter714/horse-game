@@ -120,6 +120,14 @@ export function buildIconTextures(scene) {
     g.fillRect(5, 6, 10, 1);
     g.fillStyle(0x8a5f2c, 1); g.fillRect(15, 4, 1, 8); g.fillCircle(16, 12, 1.5); // dipper
   });
+  gen(scene, 'iconTrinket', 20, 20, (g) => { // trail trinket (#36) — sold at the stand
+    // A small glinting gold trinket, mirroring the world-collectible art in propArt.js.
+    g.fillStyle(0x000000, 0.15); g.fillEllipse(10, 17, 12, 3); // ground shadow
+    g.fillStyle(0xd9a72b, 1); g.fillCircle(10, 10, 6.5);
+    g.fillStyle(0xf0cf5a, 1); g.fillCircle(8, 8, 2.5);
+    g.fillStyle(0xfff3c0, 1); g.fillRect(7, 6, 1.5, 1.5);
+    g.lineStyle(1, 0xa87c1c, 1); g.strokeCircle(10, 10, 6.5);
+  });
   gen(scene, 'iconJam', 20, 20, (g) => { // jam jar (#40) — processed strawberries, sold at the stand
     g.fillStyle(0xc4283a, 1); g.fillRoundedRect(5, 7, 10, 11, 2); // jam body
     g.fillStyle(0xe8546a, 1); g.fillRect(6, 8, 3, 9);              // lit left face
@@ -355,6 +363,13 @@ export function buildIconTextures(scene) {
     };
     jar(4); jar(11);
     g.fillStyle(0xffe08a, 0.6); g.fillRect(5, 5, 1, 2); g.fillRect(12, 5, 1, 2); // glints
+  });
+  gen(scene, 'iconBasketTrinket', 20, 20, (g) => { // basket holding a found trinket (#36)
+    drawBasketBody(g);
+    g.fillStyle(0xd9a72b, 1); g.fillCircle(10, 7, 5);
+    g.fillStyle(0xf0cf5a, 1); g.fillCircle(8, 5, 2);
+    g.fillStyle(0xfff3c0, 1); g.fillRect(7, 4, 1, 1);
+    g.lineStyle(1, 0xa87c1c, 1); g.strokeCircle(10, 7, 5);
   });
   gen(scene, 'iconBasketSeed', 20, 20, (g) => {
     drawBasketBody(g);
