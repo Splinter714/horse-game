@@ -127,12 +127,30 @@ export const WithBarn = (Base) => class extends Base {
     // That's now handled generically by _findPath's SLIVER_MARGIN in
     // playerMovement.js, which treats any too-tight-to-really-walk-through gap as
     // blocked for route planning; no barn-specific collision padding needed here.)
+    //
+    // #346: horses were still visibly poking their heads through the LEFT (west)
+    // wall while heading for the trough, even after the reachability/arrival
+    // fixes above. Root cause isn't a hole in the wall's perimeter — it's a
+    // radius mismatch. Real-time collision only keeps a creature's CENTER a
+    // body radius (R≈16px) away from a wall's solid face, but the rendered
+    // horse sprite reaches much further than that from its own center (its
+    // frame is 128px wide at this scale), while the wall's own solid collision
+    // is only T=16px thick. So a horse legally hugging the wall at minimum
+    // clearance — which happens right at the SW corner, the tightest turn on
+    // the route to the west-side trough spots — can draw clean through that
+    // thin wall and appear on the interior side. Padding the west wall (and the
+    // south-wall segment left of the doorway, so the corner itself is sealed
+    // with no diagonal gap) OUTWARD — away from the interior, never touching the
+    // doorway or the walkable floor — pushes creatures' legal standoff from the
+    // wall's true face out past their own visual reach, without moving the
+    // trough, the barn, or its art at all.
+    const WALL_VISUAL_PAD = 40;
     this.barnObstacles = [
-      wall(bx0, by0, bx1, by0 + T),                  // back (north) wall — behind the stalls
-      wall(bx0, by0, bx0 + T, by1),                  // left wall
-      wall(bx1 - T, by0, bx1, by1),                  // right wall
-      wall(bx0, by1 - T, doorL, by1),               // south wall, left of doorway
-      wall(doorR, by1 - T, bx1, by1),               // south wall, right of doorway
+      wall(bx0, by0, bx1, by0 + T),                                    // back (north) wall — behind the stalls
+      wall(bx0 - WALL_VISUAL_PAD, by0, bx0 + T, by1),                  // left wall (padded west, see #346 above)
+      wall(bx1 - T, by0, bx1, by1),                                    // right wall
+      wall(bx0 - WALL_VISUAL_PAD, by1 - T, doorL, by1),               // south wall, left of doorway (padded west to seal the SW corner)
+      wall(doorR, by1 - T, bx1, by1),                                 // south wall, right of doorway
     ];
 
     // Persisted stall assignments { stallIndex: horseKey }.
