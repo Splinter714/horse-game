@@ -729,11 +729,14 @@ export function buildWorldTextures(scene) {
     g.fillStyle(rim, 1);     g.fillEllipse(17, 13, 30, 11);  // rim lip
     g.fillStyle(stoneHi, 1); g.fillEllipse(17, 12, 30, 9);   // lit inner rim
 
-    // Water surface — a plain oval, no glint/lip/rim highlight (2026-07-27 owner
-    // feedback), centred on the basin's own inner rim ellipse (17,12,30,9 above)
-    // and evenly inset from its edge so it sits cleanly inside the opening.
+    // Water surface — a plain oval (2026-07-27 owner feedback), centred on the
+    // basin's own inner rim ellipse (17,12,30,9 above) and evenly inset from its
+    // edge so it sits cleanly inside the opening, with a sun-glint reflection and
+    // a couple of faint ripple lines (re-added per owner request).
     g.layer('water');
     g.fillStyle(water, 1); g.fillEllipse(17, 12, 26, 6);
+    g.fillStyle(0x9ad2f0, 0.85); g.fillEllipse(12, 11, 6, 2); // sun glint
+    g.fillRect(20, 12, 5, 1); g.fillRect(15, 14, 4, 1);       // ripple lines
   });
 
   // --- seed bird feeder (28 × 56) — refillable songbird feeder on a post (#240) ---
