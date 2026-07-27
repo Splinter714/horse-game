@@ -29,7 +29,7 @@ export const WithFarmStand = (Base) => class extends Base {
     // Obstacle: the solid table/counter the player actually bumps into — NOT the
     // overhead canopy. The art's table body is texture x4–68, y22–44 (origin is
     // bottom-centre, scale S=2), i.e. ~128 wide, ~44 tall, with its base at sy.
-    this.obstacles.push({ x: sx - 64, y: sy - 44, w: 128, h: 44, isFarmStand: true });
+    this.obstacles.push({ x: sx - 64, y: sy - 44, w: 128, h: 44, isFarmStand: true, own: this.farmStand });
 
     this._refreshStand();
   }

@@ -59,7 +59,7 @@ export const WithGarden = (Base) => class extends Base {
 
     // The bed is a solid obstacle so animals/player walk around it (like the compost
     // bin / spinning wheel). Covers the tilled area, base at the bed's foot.
-    this.obstacles.push({ x: PLOT.x - 60, y: PLOT.y - 74, w: 120, h: 74 });
+    this.obstacles.push({ x: PLOT.x - 60, y: PLOT.y - 74, w: 120, h: 74, own: this.garden });
 
     this._renderGarden();
   }

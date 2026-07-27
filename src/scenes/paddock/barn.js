@@ -83,12 +83,16 @@ export const WithBarn = (Base) => class extends Base {
     // is the doorway; `interior` gives the walkable rect. `sprite`/`floor` are the
     // façade + interior-floor images, kept here (not just on scene fields) so the
     // dev drag tool (#330) can move the whole visible barn, not just this record's
-    // numbers — stalls/interior rect/collision walls stay where the source put
-    // them, same known limitation as every other dragged object's collision.
+    // numbers. The collision walls follow a drag too (they're tagged `own` below);
+    // the stalls and the interior rect still stay where the source put them.
     this.props.barn = {
       x: ax, y: ay, interior: this.barnInterior, stalls: this.barnStalls,
       sprite: this.barnFront, floor: this.barnInteriorSprite,
     };
+    // Tag the wall rects with the prop record they belong to (#330) so the dev drag
+    // tool moves the barn's collision along with its art. Done here rather than in
+    // the wall() literals above because props.barn doesn't exist yet at that point.
+    for (const w of this.barnObstacles) w.own = this.props.barn;
   }
 
   // ─── Cutaway ───────────────────────────────────────────────────────────────

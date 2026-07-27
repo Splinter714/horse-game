@@ -47,7 +47,7 @@ export const WithBirdEcosystem = (Base) => class extends Base {
     // Sprite 34×40 at S (origin 0.5,1); the solid part is the pedestal foot ≈ 20px
     // wide at the base → ~44×20 footprint, bottom a touch above y so a bird landing
     // on the near rim still reads as "on" the bath.
-    this.birdEcosystemObstacles.push({ x: x - 22, y: y - 20, w: 44, h: 18 });
+    this.birdEcosystemObstacles.push({ x: x - 22, y: y - 20, w: 44, h: 18, own: this.props.birdBath });
   }
 
   // ─── Seed bird feeder (#240) ─────────────────────────────────────────────────
@@ -72,7 +72,7 @@ export const WithBirdEcosystem = (Base) => class extends Base {
     this.props.seedFeeder = { x, y, sprite, level: 0, filled: false, fillContent: 'seed' };
     // Sprite 28×56 at S (origin 0.5,1); the solid part is the slim post foot → a
     // narrow ~24×16 footprint at the base so the player can walk right up to it.
-    this.birdEcosystemObstacles.push({ x: x - 12, y: y - 16, w: 24, h: 14 });
+    this.birdEcosystemObstacles.push({ x: x - 12, y: y - 16, w: 24, h: 14, own: this.props.seedFeeder });
   }
 
   // Set the feeder's seed level (clamped), keep `filled` in sync, and swap the sprite
@@ -130,7 +130,7 @@ export const WithBirdEcosystem = (Base) => class extends Base {
       .setScale(S).setDepth(y).setOrigin(0.5, 1);
     this.props.nectarFeeder = { x, y, sprite, level: 0, filled: false, fillContent: 'nectar' };
     // Sprite 24×52 at S (origin 0.5,1); it hangs, so only a small foot footprint.
-    this.birdEcosystemObstacles.push({ x: x - 10, y: y - 14, w: 20, h: 12 });
+    this.birdEcosystemObstacles.push({ x: x - 10, y: y - 14, w: 20, h: 12, own: this.props.nectarFeeder });
   }
 
   _setNectarFeederLevel(level) {
@@ -174,7 +174,7 @@ export const WithBirdEcosystem = (Base) => class extends Base {
     const sprite = this.add.image(x, y, 'beehive').setScale(S).setDepth(y).setOrigin(0.5, 1);
     this.props.beehive = { x, y, sprite, honey: 0, ready: false };
     // Sprite 30×44 at S (origin 0.5,1); solid box body ≈ 26 wide, lower ~30px → footprint.
-    this.birdEcosystemObstacles.push({ x: x - 13, y: y - 30, w: 26, h: 28 });
+    this.birdEcosystemObstacles.push({ x: x - 13, y: y - 30, w: 26, h: 28, own: this.props.beehive });
     // Honey ripens slowly (mirrors the egg-lay timer cadence). Kept generous so it's a
     // gentle passive income, not a chore — a balance lever to tune at playtest.
     this.time.addEvent({ delay: 60_000, loop: true, callback: this._ripenHoneyTick, callbackScope: this });
@@ -240,7 +240,7 @@ export const WithBirdEcosystem = (Base) => class extends Base {
     this.props.birdhouse = { x, y, sprite };
     // Sprite 26×58 at S (origin 0.5,1); the solid part is the slim post foot → a
     // narrow ~22×16 footprint at the base so the player can walk right up to it.
-    this.birdEcosystemObstacles.push({ x: x - 11, y: y - 16, w: 22, h: 14 });
+    this.birdEcosystemObstacles.push({ x: x - 11, y: y - 16, w: 22, h: 14, own: this.props.birdhouse });
   }
 
 };

@@ -59,6 +59,77 @@ describe('dev drag: moving a placed object (#330)', () => {
   });
 });
 
+// Collision has to follow the art (#330 follow-up). Obstacles are built once at
+// create() from the props' live coordinates, so each rect carries `own` — the prop
+// record it came from — and a drag shifts every rect owned by what's being dragged.
+describe('dev drag: collision follows the dragged object (#330)', () => {
+  it('shifts the dragged prop’s obstacle rect by the same delta', () => {
+    const s = new Scene();
+    const trough = { x: 600, y: 500, sprite: fakeSprite(600, 500) };
+    const rect = { x: 512, y: 478, w: 176, h: 44, isTrough: true, own: trough };
+    s.obstacles = [rect];
+
+    s._devDragShiftEntry({ obj: trough, also: [] }, 40, -20);
+    expect(trough).toMatchObject({ x: 640, y: 480 });
+    expect([rect.x, rect.y]).toEqual([552, 458]);
+    expect([rect.w, rect.h]).toEqual([176, 44]); // size untouched, only the position
+  });
+
+  it('moves every rect of a multi-rect object (the barn walls) together', () => {
+    const s = new Scene();
+    const barn = { x: 1000, y: 700, sprite: fakeSprite(1000, 700) };
+    const walls = [
+      { x: 900, y: 600, w: 200, h: 14, isBarn: true, own: barn },
+      { x: 900, y: 600, w: 14, h: 120, isBarn: true, own: barn },
+    ];
+    s.obstacles = [...walls];
+    s._devDragShiftEntry({ obj: barn, also: [] }, -50, 30);
+    for (const w of walls) expect([w.x, w.y]).toEqual([850, 630]);
+  });
+
+  it('leaves unowned rects (the pasture fence, the stream) alone', () => {
+    const s = new Scene();
+    const prop = { x: 300, y: 300 };
+    const fence = { x: 0, y: 0, w: 900, h: 20, isFence: true };
+    s.obstacles = [fence, { x: 280, y: 280, w: 40, h: 40, own: prop }];
+    s._devDragShiftEntry({ obj: prop, also: [] }, 100, 100);
+    expect([fence.x, fence.y]).toEqual([0, 0]);
+  });
+
+  it('shifts rects owned by same-spot duplicates (`also`) too', () => {
+    const s = new Scene();
+    const bowl = { x: 165, y: 420 };
+    const dupe = { x: 165, y: 420 }; // the same bowl reached via a generic list
+    const rect = { x: 143, y: 392, w: 44, h: 24, isPetBowl: true, own: dupe };
+    s.obstacles = [rect];
+    s._devDragShiftEntry({ obj: bowl, also: [dupe] }, 10, 10);
+    expect([rect.x, rect.y]).toEqual([153, 402]);
+  });
+
+  it('moves the gate rect even while it sits outside this.obstacles (gate open)', () => {
+    const s = new Scene();
+    const gate = { x: 960, y: 320, open: true, sprite: fakeSprite(960, 320) };
+    s.gateObstacle = { x: 904, y: 310, w: 112, h: 20, isGate: true, own: gate };
+    s.obstacles = []; // an open gate is spliced out of the list until it's shut again
+    s._devDragShiftEntry({ obj: gate, also: [] }, 0, 60);
+    expect([s.gateObstacle.x, s.gateObstacle.y]).toEqual([904, 370]);
+  });
+
+  it('puts collision back where it started when the drag is reset', () => {
+    const s = new Scene();
+    const prop = { x: 300, y: 1000 };
+    const rect = { x: 260, y: 960, w: 80, h: 40, own: prop };
+    s.obstacles = [rect];
+    s._dragEntries = [{ name: 'compostBin', obj: prop, also: [], ox: 300, oy: 1000 }];
+    s._devDragShiftEntry(s._dragEntries[0], 120, -75);
+    expect([rect.x, rect.y]).toEqual([380, 885]);
+
+    // resetDevPositions replays the inverse delta through the same path.
+    s._devDragShiftEntry(s._dragEntries[0], 300 - prop.x, 1000 - prop.y);
+    expect([rect.x, rect.y]).toEqual([260, 960]);
+  });
+});
+
 describe('dev drag: export (#330)', () => {
   it('reports only objects that actually moved, with where they came from', () => {
     const s = new Scene();
