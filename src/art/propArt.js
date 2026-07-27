@@ -594,13 +594,16 @@ export function buildPropTextures(scene) {
     const dish = 0xc85a3c, dishHi = 0xe07854, dishLo = 0x9c4228;
     const water = 0x8a97a0, waterDishHi = 0xaab5bc, waterDishLo = 0x6a747c;
     // shared ground shadow beneath both dishes
+    g.layer('shadow');
     g.fillStyle(0x000000, 0.12); g.fillEllipse(26, 15, 46, 5);
     // food dish (left, warm terracotta)
+    g.layer('foodDish');
     g.fillStyle(dishLo, 1); g.fillEllipse(13, 11, 24, 9);
     g.fillStyle(dish, 1); g.fillEllipse(13, 9, 22, 8);
     if (!foodFilled) { g.fillStyle(dishLo, 0.6); g.fillEllipse(13, 8, 15, 4); } // hollow shadow
     g.fillStyle(dishHi, 1); g.fillEllipse(13, 7, 18, 5); // rim highlight
     if (foodFilled) {
+      g.layer('food');
       g.fillStyle(foodColor, 1); g.fillEllipse(13, 6, 14, 5);
       g.fillStyle(foodHi, 1);
       g.fillCircle(9, 5, 1.4); g.fillCircle(13, 4, 1.4); g.fillCircle(17, 5, 1.4);
@@ -608,6 +611,7 @@ export function buildPropTextures(scene) {
       g.fillCircle(11, 6, 1.2); g.fillCircle(15, 6, 1.2);
     }
     // water dish (right, blue-grey)
+    g.layer('waterDish');
     g.fillStyle(waterDishLo, 1); g.fillEllipse(39, 11, 24, 9);
     g.fillStyle(water, 1); g.fillEllipse(39, 9, 22, 8);
     if (!waterFilled) { g.fillStyle(waterDishLo, 0.6); g.fillEllipse(39, 8, 15, 4); } // hollow shadow
@@ -616,6 +620,7 @@ export function buildPropTextures(scene) {
       // Flat waterline on TOP, kept rounded on the bottom (2026-07-27 owner
       // feedback) — the original ellipse (for the rounded underside) with a rect
       // filling its upper half up to the ellipse's own top extent.
+      g.layer('water');
       const w = 0x3f7fb5;
       g.fillStyle(w, 1); g.fillRect(32, 4, 14, 3); g.fillEllipse(39, 6, 14, 5);
     }
