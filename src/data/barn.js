@@ -57,19 +57,22 @@ export const DOOR_X0 = 130, DOOR_X1 = 210;
 // (worldArt.js draws `barnBack`/`barnRoofMid`) and the scene mixin (barn.js
 // positions + depths them):
 //
+// barnFront's own eave + peak lines (design-space y, in ITS canvas — where its roof
+// ends and its wall band begins, and the tip of its gambrel cap). Kept here too
+// (worldArt.js's barnFront still owns the literal art) so barn.js and barnBack can
+// compute against them without duplicating the magic numbers. NOT a re-tune — same
+// values (130 / 6) as before #362.
+export const FRONT_EAVE = 130;
+export const ROOF_PEAK = 6;
+
 // `barnBack` is anchored at the barn's own back (north) wall line (WALL_Y0), same
 // x/scale/origin convention as barnFront, and is ALWAYS opaque — it's the solid
-// backdrop the interior never had. Its own local "base" is the bottom of its
-// (same-sized) canvas, so its wall/roof band is BACK_WALL_H + BACK_ROOF_H design
-// units tall, capped there rather than spanning the whole BARN_H.
-export const BACK_WALL_H = 60;
-export const BACK_ROOF_H = 50;
-
-// barnFront's own eave line (design-space y, in ITS canvas — where its roof ends
-// and its wall band begins). Kept here too (worldArt.js's barnFront still owns the
-// literal art) so barn.js can compute where barnRoofMid needs to meet it without
-// duplicating the magic number. NOT a re-tune — same value (130) as before #362.
-export const FRONT_EAVE = 130;
+// backdrop the interior never had. 2026-07-27: given the EXACT SAME shape as
+// barnFront (same eave/peak/wall proportions, just without the doorway cutout —
+// the back isn't an entry point) so the two ends of the roof/wall silhouette
+// actually match instead of barnRoofMid bridging two differently-shaped gambrels.
+export const BACK_WALL_H = BARN_H - FRONT_EAVE;
+export const BACK_ROOF_H = FRONT_EAVE - ROOF_PEAK;
 
 // `barnRoofMid` is a plain continuous roof plane bridging the depth between
 // barnBack's own eave and barnFront's eave, so the silhouette reads as one

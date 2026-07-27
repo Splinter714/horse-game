@@ -426,32 +426,41 @@ export function buildWorldTextures(scene) {
   // building once barnFront fades out for the interior cutaway (#35) — it must
   // independently satisfy the same "opaque wall-to-base, no gap" invariant as
   // barnFront, just over its own (shorter) footprint instead of the whole BARN_H.
+  // 2026-07-27: EXACT SAME shape as barnFront (same eave/peak/wall/cupola/window
+  // geometry — BACK_WALL_H/BACK_ROOF_H are now derived from the same FRONT_EAVE/
+  // ROOF_PEAK constants front uses, see data/barn.js), so barnRoofMid bridges two
+  // matching gambrel silhouettes instead of two differently-proportioned ones. The
+  // only real difference is no doorway/hayloft cutout — the back isn't an entry
+  // point, so it's a solid wall band there instead.
   gen(scene, 'barnBack', BARN_W, BARN_H, (g) => {
     const MID = BARN_W / 2;
-    const BASE = BARN_H;                    // canvas bottom = the anchor (back wall line)
-    const EAVE = BASE - BACK_WALL_H;        // where the roof ends and the wall begins
-    const PEAK = EAVE - BACK_ROOF_H;        // roof peak row
+    const EAVE = FRONT_EAVE;
+    const PEAK = FRONT_EAVE - BACK_ROOF_H; // == ROOF_PEAK
     g.layer('silhouette');
-    // Opaque base covering the whole band, so no sliver of interior/grass can peek
-    // out past the roof's slanted corners (mirrors barnFront's silhouette layer).
-    g.fillStyle(0x7a2a1c, 1); g.fillRect(8, EAVE, BARN_W - 16, BASE - EAVE);
+    g.fillStyle(0x7a2a1c, 1); g.fillRect(8, EAVE, BARN_W - 16, BARN_H - EAVE);
     g.layer('roof');
     g.fillStyle(0x7a2a1c, 1); g.fillTriangle(4, EAVE, MID, PEAK, BARN_W - 4, EAVE);
     g.fillStyle(0x9a3826, 1);
-    g.fillPoints([{ x: 8, y: EAVE }, { x: 60, y: PEAK + 22 }, { x: BARN_W - 60, y: PEAK + 22 }, { x: BARN_W - 8, y: EAVE }]);
+    g.fillPoints([{ x: 8, y: EAVE }, { x: 64, y: 60 }, { x: BARN_W - 64, y: 60 }, { x: BARN_W - 8, y: EAVE }]);
     g.fillStyle(0xb6432e, 1);
-    g.fillPoints([{ x: 60, y: PEAK + 22 }, { x: MID, y: PEAK }, { x: BARN_W - 60, y: PEAK + 22 }]);
-    g.fillStyle(0x6a2418, 1); g.fillRect(8, EAVE - 2, BARN_W - 16, 3); // eave shadow strip
+    g.fillPoints([{ x: 64, y: 60 }, { x: MID, y: PEAK }, { x: BARN_W - 64, y: 60 }]);
+    g.fillStyle(0xc8543c, 1); g.fillRect(8, EAVE - 2, BARN_W - 16, 3);
+    g.layer('cupola');
+    g.fillStyle(0x9a3826, 1); g.fillRect(MID - 11, PEAK - 6, 22, 12);
+    g.fillStyle(0x5a2418, 1); g.fillTriangle(MID - 15, PEAK - 3, MID, PEAK - 13, MID + 15, PEAK - 3);
+    g.fillStyle(0xf0d890, 1); g.fillRect(MID - 5, PEAK - 3, 10, 6);
     g.layer('wall');
-    g.fillStyle(0xb6432e, 1); g.fillRect(8, EAVE, BARN_W - 16, BASE - EAVE);
+    g.fillStyle(0xb6432e, 1); g.fillRect(8, EAVE, BARN_W - 16, BARN_H - EAVE);
+    g.fillStyle(0xc8543c, 1); g.fillRect(8, EAVE, BARN_W - 16, 7);
     g.fillStyle(0xa03826, 1);
-    for (let y = EAVE + 10; y < BASE - 4; y += 10) g.fillRect(12, y, BARN_W - 24, 1); // board seams
-    g.fillStyle(0x7a2a1c, 1);                                                       // corner posts
-    g.fillRect(8, EAVE, 4, BASE - EAVE); g.fillRect(BARN_W - 12, EAVE, 4, BASE - EAVE);
+    for (let y = EAVE + 14; y < BARN_H - 8; y += 12) g.fillRect(12, y, BARN_W - 24, 1);
+    g.fillStyle(0x8e3421, 1); g.fillRect(8, BARN_H - 8, BARN_W - 16, 8);
+    g.fillStyle(0x7a2a1c, 1);
+    g.fillRect(8, EAVE, 4, BARN_H - EAVE); g.fillRect(BARN_W - 12, EAVE, 4, BARN_H - EAVE);
     g.layer('window');
-    for (const wx of [50, BARN_W - 68]) {
-      g.fillStyle(0xf0d890, 1); g.fillRect(wx, EAVE + 6, 16, 14);
-      g.fillStyle(0x7a2a1c, 1); g.fillRect(wx + 7, EAVE + 6, 2, 14); g.fillRect(wx, EAVE + 12, 16, 2);
+    for (const wx of [34, 76, BARN_W - 94, BARN_W - 52]) {
+      g.fillStyle(0xf0d890, 1); g.fillRect(wx, EAVE + 14, 18, 18);
+      g.fillStyle(0x7a2a1c, 1); g.fillRect(wx + 8, EAVE + 14, 2, 18); g.fillRect(wx, EAVE + 22, 18, 2);
     }
   });
 
