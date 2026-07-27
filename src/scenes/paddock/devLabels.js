@@ -35,7 +35,7 @@ import { dprOf } from '../uiUtils.js';
 const GRID_STEP    = 100;   // world px between gridlines
 const GRID_DEPTH   = 9500;  // above world sprites (depth == y, max ~1600), below prompts
 const LBL_DEPTH    = 9501;
-const LABEL_RADIUS = 600;   // world px — only objects this close to the player get a visible label
+const LABEL_RADIUS = 180;   // world px — only objects this close to the player get a visible label
 
 // `this.props` buckets that are TRANSIENT clutter rather than placed structures —
 // food piles the player drops and droppings that get scooped. They come and go
