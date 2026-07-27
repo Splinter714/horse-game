@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { CARRIER_DEFS, CONTENT_DEFS, CARRIER_GROUPS, CARRIER_MEMBERS, ALL_ITEMS, ITEM_MAP, ITEMS, foodDemand,
   SCOOPER, scoopAmount, scooperHasLoad, dumpScooper, emptyCarrier,
-  SHEARS, shearAmount, dumpShears,
+  SHEARS, shearAmount, dumpShears, craftShearsLoad,
   TOOL_UPGRADES, ALL_TOOL_UPGRADES, getToolUpgrade, upgradedStat } from './items.js';
 
 describe('carrier definitions', () => {
@@ -281,6 +281,36 @@ describe('shears + wool load (#254)', () => {
     // stand (STAND_DEFS.wool) and spins into yarn (craftsTo). No parallel content.
     expect(CONTENT_DEFS.wool.action).toBe('sell');
     expect(CONTENT_DEFS.wool.craftsTo).toBe('yarn');
+  });
+});
+
+// Spinning the shears' OWN load at the wheel (#358) — before this, wool sheared
+// straight onto the shears could only be dumped as raw wool: the wheel read baskets
+// only, and there's no way to move a tool load into a basket. craftShearsLoad is the
+// pure "spin it in place" contract, mirroring a basket's convertActiveCarrier.
+describe('craftShearsLoad (spin straight off the shears, #358)', () => {
+  it('converts the content in place and keeps the whole count (1:1 spin)', () => {
+    expect(craftShearsLoad({ load: 5, content: 'wool' }, 'wool', 'yarn'))
+      .toEqual({ load: 5, content: 'yarn' });
+    expect(craftShearsLoad({ load: SHEARS.capacity, content: 'wool' }, 'wool', 'yarn'))
+      .toEqual({ load: SHEARS.capacity, content: 'yarn' });
+  });
+
+  it('is a no-op on empty shears, or on a load that is not the input', () => {
+    expect(craftShearsLoad({ load: 0, content: 'wool' }, 'wool', 'yarn'))
+      .toEqual({ load: 0, content: 'wool' });
+    // already spun — spinning again does nothing (yarn is the end product)
+    expect(craftShearsLoad({ load: 4, content: 'yarn' }, 'wool', 'yarn'))
+      .toEqual({ load: 4, content: 'yarn' });
+  });
+
+  it('spun yarn dumps at the stand as yarn — worth more than the raw wool', () => {
+    // The whole point of the fix: shear → spin → dump lands YARN in the stand's
+    // stock, so the shears route is no longer a dead end at the raw-wool price.
+    const spun = craftShearsLoad({ load: 3, content: 'wool' }, 'wool', 'yarn');
+    expect(spun.content).toBe('yarn');
+    expect(dumpShears(spun.load, 0)).toEqual({ load: 0, stock: 3 });
+    expect(CONTENT_DEFS.yarn.action).toBe('sell');
   });
 });
 

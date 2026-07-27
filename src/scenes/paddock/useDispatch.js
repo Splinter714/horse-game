@@ -7,7 +7,7 @@
 // as its own concern (issue #167).
 
 import Phaser from 'phaser';
-import { CONTENT_DEFS, foodDemand } from '../../data/items.js';
+import { CONTENT_DEFS, SHEARS, foodDemand } from '../../data/items.js';
 import { getSpecies } from '../../data/species/index.js';
 import { ROSTER_SPECIES } from '../../data/save.js';
 import { CARE_DIST, USE_REACH } from './constants.js';
@@ -254,18 +254,27 @@ export const WithUseDispatch = (Base) => class extends Base {
 
     // Shears (#254): a MULTI-USE cut/clip tool. Priority in reach:
     //   1. SHEAR the nearest fleecy animal (sheep/llama) that's ready → wool into the
-    //      shears' own load (same produce path as basket-shearing #233).
-    //   2. else TRIM the nearest horse's coat → the brush grooming path (a tidy clip).
-    //   3. else fall through to world spots so the farm stand (dump wool) can win.
+    //      shears' own load (same produce path as basket-shearing #233). Only while
+    //      that load is still wool — shears holding spun yarn (#358) take no more.
+    //   2. else, while carrying a load, a world spot for it — spin at the wheel or
+    //      dump at the farm stand (#358). Ahead of the trim so a horse grazing past
+    //      the station can't swallow the Use you walked there to make.
+    //   3. else TRIM the nearest horse's coat → the brush grooming path (a tidy clip).
     if (item.action === 'shear') {
-      const fleecy = this._nearestShearAnimal();
-      if (fleecy && (item.load ?? 0) < (item.capacity ?? Infinity)) {
+      const load = item.load ?? 0;
+      const shearable = load === 0 || item.content === SHEARS.content;
+      const fleecy = shearable ? this._nearestShearAnimal() : null;
+      if (fleecy && load < (item.capacity ?? Infinity)) {
         this.shearWithTool(fleecy);
         return;
       }
+      if (load > 0) {
+        const spot = this._nearestUseSpot(item); // spinning wheel / farm stand
+        if (spot) { spot.activate(); return; }
+      }
       const horse = this._nearestTrimHorse();
       if (horse) { this.useItemOnHorse(item, horse); return; }
-      this._nearestUseSpot(item)?.activate(); // dump wool at the farm stand, if there
+      this._nearestUseSpot(item)?.activate();
       return;
     }
 

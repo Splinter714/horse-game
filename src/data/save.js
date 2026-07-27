@@ -11,7 +11,7 @@ import { ROSTERS } from './rosters.js';
 import { sanitizeGarden } from './garden.js';
 import { sanitizePantry } from './pantry.js';
 import { sanitizeRecipeBook } from './cooking.js';
-import { DEFAULT_SADDLE_TYPE, SADDLE_TYPES, ALL_TOOL_UPGRADES } from './items.js';
+import { DEFAULT_SADDLE_TYPE, SADDLE_TYPES, ALL_TOOL_UPGRADES, CONTENT_DEFS, SHEARS } from './items.js';
 
 // Build a { load, save } pair for one species' roster from its config. Collapses the
 // three formerly-duplicated loaders into one generic implementation:
@@ -172,12 +172,20 @@ function sanitizeToolUpgrades(v) {
   return [...new Set(v.filter((id) => typeof id === 'string' && known.has(id)))];
 }
 
+// Coerce the shears' carried content (#358) to a known content key — it starts as
+// raw wool and becomes yarn once spun at the wheel. Anything unrecognized (corrupt,
+// or a save written before the shears could hold anything but wool) falls back to
+// the shears' default content, so an old load is read as wool exactly as before.
+function sanitizeShearsContent(v) {
+  return typeof v === 'string' && v in CONTENT_DEFS ? v : SHEARS.content;
+}
+
 export function loadGameState() {
   const fresh = () => ({
     hotbar: [...DEFAULT_HOTBAR], inventory: defaultInventory(),
     carriers: defaultCarriers(), activeCarrier: defaultActiveCarrier(),
     money: DEFAULT_MONEY,
-    scooperLoad: 0, compost: 0, shearsLoad: 0,
+    scooperLoad: 0, compost: 0, shearsLoad: 0, shearsContent: SHEARS.content,
     activeSaddleType: DEFAULT_SADDLE_TYPE,
     toolUpgrades: [],
   });
@@ -212,8 +220,10 @@ export function loadGameState() {
       scooperLoad:   sanitizeCount(data.scooperLoad),
       compost:       sanitizeCount(data.compost),
       // Shears mechanic (#254): the shears' current wool load. Defaults to 0 for a
-      // save written before the feature existed.
+      // save written before the feature existed. `shearsContent` (#358) is what that
+      // load currently IS — raw wool as sheared, or yarn once spun at the wheel.
       shearsLoad:    sanitizeCount(data.shearsLoad),
+      shearsContent: sanitizeShearsContent(data.shearsContent),
       // Tack rack (#134 follow-up to #21): which saddle type is currently selected
       // at the rack — the type the saddle tool equips next. Defaults to western
       // for a save written before the feature existed.
@@ -227,13 +237,14 @@ export function loadGameState() {
   }
 }
 
-export function saveGameState({ hotbar, inventory, carriers, activeCarrier, money, scooperLoad, compost, shearsLoad, activeSaddleType, toolUpgrades }) {
+export function saveGameState({ hotbar, inventory, carriers, activeCarrier, money, scooperLoad, compost, shearsLoad, shearsContent, activeSaddleType, toolUpgrades }) {
   try {
     localStorage.setItem(GAME_STATE_KEY, JSON.stringify({
       hotbar, inventory, carriers, activeCarrier, money: sanitizeMoney(money),
       scooperLoad: sanitizeCount(scooperLoad), compost: sanitizeCount(compost),
       activeSaddleType: sanitizeSaddleType(activeSaddleType),
       shearsLoad: sanitizeCount(shearsLoad),
+      shearsContent: sanitizeShearsContent(shearsContent),
       toolUpgrades: sanitizeToolUpgrades(toolUpgrades),
     }));
   } catch {}

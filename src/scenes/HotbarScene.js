@@ -9,6 +9,7 @@ import { loadGameState, loadUiSettings, saveGameState } from '../data/save.js';
 import { EVENTS } from '../data/events.js';
 import { applyDpr } from './uiUtils.js';
 import { NUM_SLOTS } from './hotbar/constants.js';
+import { SHEARS } from '../data/items.js';
 import { WithHotbarSlots } from './hotbar/slots.js';
 import { WithCarriers } from './hotbar/carriers.js';
 import { WithInventory } from './hotbar/inventory.js';
@@ -42,8 +43,11 @@ export default class HotbarScene
     this._scooperLoad = saved.scooperLoad ?? 0;
     this._compost     = saved.compost ?? 0;
     // Shears mechanic (#254): the shears' current wool load (sheared, not yet dumped at
-    // the farm stand). HotbarScene owns it, like the scooper's load.
-    this._shearsLoad  = saved.shearsLoad ?? 0;
+    // the farm stand). HotbarScene owns it, like the scooper's load. Unlike the
+    // scooper's single-content compost, that load has a CONTENT (#358): raw wool as
+    // sheared, or yarn once it's been spun at the spinning wheel.
+    this._shearsLoad    = saved.shearsLoad ?? 0;
+    this._shearsContent = saved.shearsContent ?? SHEARS.content;
     // Tack rack (#134 follow-up to #21): which saddle type the rack has selected as
     // active — the type equipSaddle (riding.js) reaches for next.
     this._activeSaddleType = saved.activeSaddleType ?? 'western';

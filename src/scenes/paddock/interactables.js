@@ -221,21 +221,24 @@ export const WithInteractables = (Base) => class extends Base {
         }));
     };
 
-    // Spinning wheel (#233) — spin a basket of raw wool into yarn. Only offers the
-    // action when the held carrier actually holds the craftable input (wool); shows a
-    // passive hint otherwise so the station is discoverable. Data-driven off the
-    // prop's `craft` block (from → to), so it's not sheep- or wool-specific.
+    // Spinning wheel (#233) — spin raw wool into yarn. Only offers the action when
+    // what's held actually IS the craftable input (wool); shows a passive hint
+    // otherwise so the station is discoverable. Data-driven off the prop's `craft`
+    // block (from → to), so it's not sheep- or wool-specific. The input can ride in a
+    // basket OR in the shears' own load (#358) — both report content+amount alike.
     const spinningWheel = (item) => {
       const w = this.props.spinningWheel;
       if (!w) return [];
       const { from, to } = w.craft;
-      const holdingInput = item?.type === 'carrier' && item.content === from && item.count > 0;
+      const held = item?.content === from
+        ? (item.type === 'carrier' ? item.count : (item.load ?? 0)) : 0;
+      const where = item?.type === 'carrier' ? 'basket' : 'shears';
       return [{
         x: w.x, y: w.y, tapRadius: 130, reachDist: 110, promptOffsetY: 90,
-        canAct: holdingInput,
-        label: holdingInput
-          ? `Spin ${CONTENT_DEFS[from].label} → ${CONTENT_DEFS[to].label}  (basket: ${item.count})`
-          : `Spinning Wheel  •  bring a basket of ${CONTENT_DEFS[from].label} to spin`,
+        canAct: held > 0,
+        label: held > 0
+          ? `Spin ${CONTENT_DEFS[from].label} → ${CONTENT_DEFS[to].label}  (${where}: ${held})`
+          : `Spinning Wheel  •  bring ${CONTENT_DEFS[from].label} in a basket or on the shears`,
         approach: (world) => {
           const refX = world ? world.x : this.player.sprite.x;
           return { x: w.x + (refX < w.x ? -1 : 1) * 70, y: w.y + 10 };
@@ -365,7 +368,9 @@ export const WithInteractables = (Base) => class extends Base {
       return [{
         x: s.x, y: s.y, tapRadius: 160, reachDist: 120, promptOffsetY: 100,
         canAct: canDump,
-        label: canDump ? `Dump Wool at stand  (${load})`
+        // Names whatever the shears actually carry (#358) — wool as sheared, or yarn
+        // if it was spun at the wheel on the way over.
+        label: canDump ? `Dump ${CONTENT_DEFS[item.content]?.label ?? 'Wool'} at stand  (${load})`
                        : 'Farm Stand  •  shear a sheep or llama to fill the shears',
         approach: (world) => {
           const refX = world ? world.x : this.player.sprite.x;

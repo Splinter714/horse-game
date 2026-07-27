@@ -6,7 +6,7 @@
 
 import Phaser from 'phaser';
 import { EVENTS } from '../../data/events.js';
-import { CONTENT_DEFS } from '../../data/items.js';
+import { CONTENT_DEFS, SHEARS } from '../../data/items.js';
 import { USE_REACH } from './constants.js';
 import { logicalH, worldUiOffset } from '../uiUtils.js';
 
@@ -191,14 +191,23 @@ export const WithPrompts = (Base) => class extends Base {
     }
 
     // Shears (#254): mirror useActiveTool's dispatch so the Use prompt names what a Use
-    // would do — "Shear" a fleecy animal in reach, else "Trim" the nearest horse's coat,
-    // else fall through to the farm-stand wool-dump spot.
+    // would do — "Shear" a fleecy animal in reach, else (while loaded) the station spot
+    // for the load (spin at the wheel / dump at the stand, #358), else "Trim" the
+    // nearest horse's coat.
     if (item.action === 'shear') {
-      const fleecy = this._nearestShearAnimal();
-      if (fleecy && (item.load ?? 0) < (item.capacity ?? Infinity)) {
+      const load = item.load ?? 0;
+      const shearable = load === 0 || item.content === SHEARS.content;
+      const fleecy = shearable ? this._nearestShearAnimal() : null;
+      if (fleecy && load < (item.capacity ?? Infinity)) {
         const who = this._animalName(fleecy.key);
         useLabel = 'Shear';
         this._pushPrompt('use', who ? `Shear ${who}` : 'Shear');
+        return finish();
+      }
+      const loadedSpot = load > 0 ? this._nearestUseSpot(item) : null;
+      if (loadedSpot) {
+        useLabel = loadedSpot.label.replace(/\s*\(.*\)\s*$/, '');
+        this._pushPrompt('use', loadedSpot.label);
         return finish();
       }
       const horse = this._nearestTrimHorse();

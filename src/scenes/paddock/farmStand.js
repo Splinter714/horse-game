@@ -83,6 +83,9 @@ export const WithFarmStand = (Base) => class extends Base {
   stockStand() {
     const active = this.getActiveItem();
     const type = active?.content;
+    // Carriers only: a load-carrying TOOL also reports a `content` now (the shears'
+    // wool/yarn, #358), but it's emptied at the stand by dumpShearsWool, not here.
+    if (active?.type !== 'carrier') return;
     if (!STAND_DEFS[type] || active.count <= 0) return;
     const n = active.count;
     this.scene.get('HotbarScene')?.useActiveCarrier(n);
@@ -98,19 +101,21 @@ export const WithFarmStand = (Base) => class extends Base {
     });
   }
 
-  // Dump the shears' whole wool load into the farm stand's wool stock (#254), to be
-  // sold to passing customers — the shears' equivalent of the scooper dumping compost
-  // at the bin. Takes the load from the hotbar (which clears it), adds it to the stand,
-  // and floats a wool icon as feedback. No-op when the shears are empty.
+  // Dump the shears' whole load into the farm stand's stock (#254), to be sold to
+  // passing customers — the shears' equivalent of the scooper dumping compost at the
+  // bin. Takes the load from the hotbar (which clears it), adds it to the stand, and
+  // floats its icon as feedback. No-op when the shears are empty. Content-driven
+  // (#358): raw wool as sheared, or yarn if it was spun at the wheel on the way here —
+  // yarn stocks (and sells) as yarn, so spinning off the shears is worth the detour.
   dumpShearsWool() {
     const hot = this.scene.get('HotbarScene');
-    const n = hot?.takeShearsLoad?.() ?? 0;
-    if (n <= 0) return;
-    this.farmStand.stock.wool = (this.farmStand.stock.wool ?? 0) + n;
+    const { count: n, content } = hot?.takeShearsLoad?.() ?? { count: 0 };
+    if (n <= 0 || !STAND_DEFS[content]) return;
+    this.farmStand.stock[content] = (this.farmStand.stock[content] ?? 0) + n;
     this._refreshStand();
-    playGather('wool');
+    playGather(content);
 
-    const icon = this.add.image(this.farmStand.x, this.farmStand.y - 60, STAND_DEFS.wool.floatIcon)
+    const icon = this.add.image(this.farmStand.x, this.farmStand.y - 60, STAND_DEFS[content].floatIcon)
       .setScale(1.8).setDepth(10000);
     this.tweens.add({
       targets: icon, y: icon.y - 40, alpha: 0,
@@ -121,15 +126,27 @@ export const WithFarmStand = (Base) => class extends Base {
 
   // ─── Spinning wheel — crafting (#233) ──────────────────────────────────────
 
-  // Spin the active carrier's raw wool into yarn (1:1) at the spinning wheel. Reads
-  // the wheel prop's `craft` block (from → to) so it's data-driven, not wool-specific.
-  // No-op unless the carrier holds the craftable input. Floats the output icon as
-  // feedback, mirroring stockStand's stock-float.
+  // Convert whatever the player is HOLDING from one content to another in place —
+  // a basket of it, or a load-carrying tool's own load (#358: the shears' wool, which
+  // otherwise had no route to the wheel at all). Tries the carrier first, then the
+  // tool load; only one can apply, since only one thing is equipped. Returns how many
+  // units were converted (0 if the held thing isn't the input).
+  _craftHeldLoad(from, to) {
+    const hot = this.scene.get('HotbarScene');
+    return (hot?.convertActiveCarrier?.(from, to) ?? 0)
+        || (hot?.convertShearsLoad?.(from, to) ?? 0);
+  }
+
+  // Spin the held raw wool into yarn (1:1) at the spinning wheel — from a basket, or
+  // straight off the shears' own load (#358). Reads the wheel prop's `craft` block
+  // (from → to) so it's data-driven, not wool-specific. No-op unless what's held is
+  // the craftable input. Floats the output icon as feedback, mirroring stockStand's
+  // stock-float.
   spinWool() {
     const w = this.props.spinningWheel;
     if (!w) return;
     const { from, to } = w.craft;
-    const n = this.scene.get('HotbarScene')?.convertActiveCarrier(from, to) ?? 0;
+    const n = this._craftHeldLoad(from, to);
     if (n <= 0) return;
     playGather(to); // a soft whirr/click as the wheel turns
     this._spinWheelAnim(w);

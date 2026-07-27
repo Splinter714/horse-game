@@ -325,13 +325,23 @@ export function shearAmount(load, cap = SHEARS.capacity) {
   return load < cap ? 1 : 0;
 }
 
-// Dumping the shears at the farm stand: the whole wool load moves into the stand's
-// wool stock (to be sold to passing customers). Returns the new { load, stock } after
-// the dump (load → 0). A no-op (unchanged) when the shears are empty. Pure so the
-// dump contract is unit-tested without Phaser, like dumpScooper.
+// Dumping the shears at the farm stand: the whole load moves into the stand's stock
+// for that content (to be sold to passing customers). Returns the new { load, stock }
+// after the dump (load → 0). A no-op (unchanged) when the shears are empty. Pure so
+// the dump contract is unit-tested without Phaser, like dumpScooper.
 export function dumpShears(load, stock) {
   if (load <= 0) return { load, stock };
   return { load: 0, stock: stock + load };
+}
+
+// Crafting the shears' OWN load at a station (#358): the count is preserved and only
+// the content changes (wool → yarn at the spinning wheel), exactly like a basket
+// converted in place by convertActiveCarrier. Returns the new { load, content };
+// returns the state unchanged when the shears are empty or aren't holding `from`.
+// Pure so the "spin straight off the shears" contract is unit-tested without Phaser.
+export function craftShearsLoad({ load, content }, from, to) {
+  if (load <= 0 || content !== from) return { load, content };
+  return { load, content: to };
 }
 
 // Pure loop helpers (unit-tested). All take/return plain numbers so the scoop/dump

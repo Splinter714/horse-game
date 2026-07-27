@@ -57,9 +57,9 @@ export const USAGE_TIPS = {
     + 'pie or bread — and press Use to grind the whole basket into pig slop. Then '
     + 'carry the slop to the pig and Use again to feed it.',
   spinningWheel:
-    'Spinning Wheel (#233): shear a sheep or llama for wool, gather the wool into '
-    + 'a BASKET, then Use here to spin the basket of wool into yarn. Yarn sells for '
-    + 'more than raw wool at the farm stand.',
+    'Spinning Wheel (#233/#358): shear a sheep or llama for wool, then Use here to '
+    + 'spin the whole load into yarn — from a BASKET of wool, or straight off the '
+    + 'SHEARS you sheared it with. Yarn sells for more than raw wool at the stand.',
   kitchenCounter:
     'Kitchen Counter (#40): bring a BASKET of one raw crop — strawberries, wheat '
     + 'or carrots — and Use to process the lot into jam, flour or pig feed.',
@@ -147,8 +147,9 @@ export const USAGE_TIPS = {
   farmStand:
     'Farm Stand: bring a BASKET of anything sellable (eggs, produce, wool, yarn, '
     + 'honey, cooked dishes) and Use to stock it — customers buy it over time and '
-    + 'the money lands in your purse. Carrying the shears with a wool load? Use here '
-    + 'to dump the wool straight into the stand.',
+    + 'the money lands in your purse. Carrying a loaded pair of shears? Use here to '
+    + 'dump the load straight into the stand — as wool, or as yarn if you spun it '
+    + 'at the wheel on the way over (#358).',
   generalStore:
     'General Store (#215/#312): walk up and interact bare-handed to open the buy '
     + 'panel — seeds, animal feed, clothing and pet supplies, all in one shop.',

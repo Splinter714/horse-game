@@ -345,6 +345,30 @@ describe('shears wool-load persistence (#254)', () => {
     });
     expect(save.loadGameState().shearsLoad).toBe(0); // negative → 0
   });
+
+  // #358: the shears' load also has a CONTENT — raw wool as sheared, or yarn once
+  // it's been spun at the wheel — so a spun load survives a reload as yarn.
+  it('defaults the shears content to wool, including for a save predating #358', () => {
+    expect(save.loadGameState().shearsContent).toBe('wool');
+    globalThis.localStorage.setItem(GAME_STATE_KEY, JSON.stringify({
+      hotbar: [], inventory: {}, carriers: {}, money: 20, shearsLoad: 4,
+    }));
+    expect(save.loadGameState().shearsContent).toBe('wool');
+  });
+
+  it('round-trips a spun (yarn) shears load, sanitizing an unknown content', () => {
+    save.saveGameState({
+      hotbar: [], inventory: {}, carriers: {}, activeCarrier: {}, money: 0,
+      scooperLoad: 0, compost: 0, shearsLoad: 3, shearsContent: 'yarn',
+    });
+    expect(save.loadGameState().shearsContent).toBe('yarn');
+    expect(save.loadGameState().shearsLoad).toBe(3);
+    save.saveGameState({
+      hotbar: [], inventory: {}, carriers: {}, activeCarrier: {}, money: 0,
+      scooperLoad: 0, compost: 0, shearsLoad: 3, shearsContent: 'sawdust',
+    });
+    expect(save.loadGameState().shearsContent).toBe('wool'); // unknown → back to wool
+  });
 });
 
 describe('tool upgrades persistence (#295)', () => {

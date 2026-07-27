@@ -3,10 +3,15 @@
 // (#75) and their fly-out picker, and the getActiveItem public API the rest of the
 // game reads. Extracted from the monolithic HotbarScene (issue #167).
 
-import { ITEM_MAP, CARRIER_DEFS, CONTENT_DEFS, SCOOPER, SHEARS, dumpScooper, emptyCarrier, SADDLE_TYPE_ORDER, DEFAULT_SADDLE_TYPE, getToolUpgrade, upgradedStat } from '../../data/items.js';
+import { ITEM_MAP, CARRIER_DEFS, CONTENT_DEFS, SCOOPER, SHEARS, dumpScooper, craftShearsLoad, emptyCarrier, SADDLE_TYPE_ORDER, DEFAULT_SADDLE_TYPE, getToolUpgrade, upgradedStat } from '../../data/items.js';
 import { saveGameState } from '../../data/save.js';
 import { FLYOUT_CLOSE_MS } from './constants.js';
 import { renderBakedLayer, destroyBakedLayer } from './bakedLayer.js';
+
+// Hotbar icon for a LOADED pair of shears, per what the load currently is (#358):
+// the plain `iconShears` shows an empty pair, these show the load caught between the
+// blades. Keyed by content so a future shears-carried content is one entry here.
+const SHEARS_LOADED_ICONS = { wool: 'iconShearsWool', yarn: 'iconShearsYarn' };
 
 export const WithCarriers = (Base) => class extends Base {
   // Resolve how an item should render in a slot: icon, label, and count badge.
@@ -19,10 +24,16 @@ export const WithCarriers = (Base) => class extends Base {
     if (item.type !== 'carrier') {
       // The scooper (#232) / shears (#254) show their carried load as a count badge
       // (like a carrier), so you can see at a glance they're filling up and need dumping.
-      let count;
+      let count, icon = item.icon;
       if (item.action === 'scoop' && (this._scooperLoad ?? 0) > 0) count = this._scooperLoad;
-      else if (item.action === 'shear' && (this._shearsLoad ?? 0) > 0) count = this._shearsLoad;
-      return { icon: item.icon, label: item.label, count };
+      else if (item.action === 'shear' && (this._shearsLoad ?? 0) > 0) {
+        count = this._shearsLoad;
+        // Loaded shears swap to a variant icon with the load caught in the blades
+        // (#358) — a cream wool tuft, or a yarn ball once spun — so a full pair reads
+        // as "carrying something" at a glance, not just from the small count badge.
+        icon = SHEARS_LOADED_ICONS[this._shearsContent] ?? icon;
+      }
+      return { icon, label: item.label, count };
     }
     const st  = this.carriers[key] ?? { content: null, count: 0 };
     const def = CARRIER_DEFS[item.carrier];
@@ -49,6 +60,7 @@ export const WithCarriers = (Base) => class extends Base {
       scooperLoad: this._scooperLoad ?? 0,
       compost: this._compost ?? 0,
       shearsLoad: this._shearsLoad ?? 0,
+      shearsContent: this._shearsContent ?? SHEARS.content,
       activeSaddleType: this._activeSaddleType ?? DEFAULT_SADDLE_TYPE,
       toolUpgrades: [...(this._toolUpgrades ?? [])],
     });
@@ -140,28 +152,56 @@ export const WithCarriers = (Base) => class extends Base {
   // The shears carry a small wool load until dumped at the farm stand. Mirrors the
   // scooper's load accessors; the load persists so it survives a reload.
 
+  // What the shears are currently carrying: raw wool as sheared, or yarn once spun
+  // at the wheel (#358). Meaningless while the load is 0 — callers gate on the load.
+  shearsContent() {
+    return this._shearsContent ?? SHEARS.content;
+  }
+
   // Add sheared wool to the shears (returns how many were added — 0 when full).
+  // Shears already holding SPUN yarn (#358) take nothing — no mixing, mirroring a
+  // carrier's strict single-content rule; dump the yarn at the stand first.
   addShearsLoad(n = 1) {
     const cap = SHEARS.capacity;
-    const added = Math.min(cap - (this._shearsLoad ?? 0), Math.max(0, n));
+    const load = this._shearsLoad ?? 0;
+    if (load > 0 && this.shearsContent() !== SHEARS.content) return 0;
+    const added = Math.min(cap - load, Math.max(0, n));
     if (added <= 0) return 0;
-    this._shearsLoad = (this._shearsLoad ?? 0) + added;
+    this._shearsLoad = load + added;
+    this._shearsContent = SHEARS.content;
     this._persistGameState();
     this._buildHotbar();
     return added;
   }
 
-  // Take (and clear) the shears' whole wool load, for the paddock to deposit into the
-  // farm stand's wool stock. Returns the amount taken (0 when empty). Kept as a
-  // take-and-zero (not a self-contained dump) because the destination stock lives on
-  // the PaddockScene's farm stand, not here — the paddock's dumpShearsWool wires it.
-  takeShearsLoad() {
-    const load = this._shearsLoad ?? 0;
-    if (load <= 0) return 0;
-    this._shearsLoad = 0;
+  // Convert the shears' whole load from one content to another in place (#358: wool →
+  // yarn at the spinning wheel), so wool sheared straight onto the tool isn't a dead
+  // end for crafting. The count is preserved (1:1 spin) — it's the same load, just
+  // spun. Mirrors convertActiveCarrier for a basket. Returns how many units were
+  // converted (0 when empty or not holding `from`).
+  convertShearsLoad(from, to) {
+    const before = { load: this._shearsLoad ?? 0, content: this.shearsContent() };
+    const after = craftShearsLoad(before, from, to);
+    if (after.content === before.content) return 0;
+    this._shearsContent = after.content;
     this._persistGameState();
     this._buildHotbar();
-    return load;
+    return after.load;
+  }
+
+  // Take (and clear) the shears' whole load, for the paddock to deposit into the farm
+  // stand's stock for whatever it's carrying. Returns { count, content } (count 0 when
+  // empty). Kept as a take-and-zero (not a self-contained dump) because the destination
+  // stock lives on the PaddockScene's farm stand, not here — dumpShearsWool wires it.
+  takeShearsLoad() {
+    const content = this.shearsContent();
+    const load = this._shearsLoad ?? 0;
+    if (load <= 0) return { count: 0, content };
+    this._shearsLoad = 0;
+    this._shearsContent = SHEARS.content; // empty shears are back to shearing wool
+    this._persistGameState();
+    this._buildHotbar();
+    return { count: load, content };
   }
 
   // ── Carrier groups (#75) ───────────────────────────────────────────────────
@@ -378,9 +418,12 @@ export const WithCarriers = (Base) => class extends Base {
       return { ...item, load: this._scooperLoad ?? 0, capacity: this.scooperCapacity() };
     }
     // The shears (#254) likewise carry a wool load — surface it so the Use dispatch/
-    // prompt can tell "shear" (room left) from "full, go dump at the stand".
+    // prompt can tell "shear" (room left) from "full, go dump at the stand". `content`
+    // (#358) is what that load is (wool, or yarn once spun), null when empty — the same
+    // shape a carrier reports, so the spinning wheel/stand can read either one alike.
     if (item.action === 'shear') {
-      return { ...item, load: this._shearsLoad ?? 0, capacity: SHEARS.capacity };
+      const load = this._shearsLoad ?? 0;
+      return { ...item, load, capacity: SHEARS.capacity, content: load > 0 ? this.shearsContent() : null };
     }
     if (item.type !== 'carrier') return item;
 
