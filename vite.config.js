@@ -65,6 +65,12 @@ export default defineConfig(({ command }) => ({
         // at runtime, not fetched files. Precaching the built JS/HTML/icon shell is
         // enough for the whole game to boot and run with no connection.
         globPatterns: ['**/*.{js,css,html,png,ico,svg}'],
+        // The whole game (Phaser + all the procedural art) is one bundle, and it
+        // just crossed workbox's default 2 MiB precache ceiling — which FAILS the
+        // build outright, and would otherwise leave the game un-precached (i.e.
+        // no offline play, the one thing the PWA is for). 8 MiB gives real
+        // headroom; it only affects what the service worker stores locally.
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
       },
     }),
   ],
