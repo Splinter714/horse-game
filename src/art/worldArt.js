@@ -698,7 +698,7 @@ export function buildWorldTextures(scene) {
   // (g.layer) per logical part for the dev dissect tool.
   gen(scene, 'birdBath', 34, 40, (g) => {
     const stone = 0xb8b2a6, stoneHi = 0xd6d0c4, stoneLo = 0x8f897d, moss = 0x7a8a52;
-    const rim = 0xa8a294, water = 0x5aa6d6, waterHi = 0x9ad2f0, waterLo = 0x3f83b8;
+    const rim = 0xa8a294, water = 0x5aa6d6;
 
     // Wide base foot
     g.layer('base');
@@ -723,18 +723,11 @@ export function buildWorldTextures(scene) {
     g.fillStyle(rim, 1);     g.fillEllipse(17, 13, 30, 11);  // rim lip
     g.fillStyle(stoneHi, 1); g.fillEllipse(17, 12, 30, 9);   // lit inner rim
 
-    // Water surface in the basin — flat waterline on TOP, kept rounded on the
-    // bottom (2026-07-27 owner feedback: the bottom rounding was good, only the
-    // top shouldn't curve). Each layer is the original ellipse (for the rounded
-    // underside) with a rect filling in its upper half up to the ellipse's own
-    // top extent, squaring off just the top edge.
+    // Water surface — a plain oval, no glint/lip/rim highlight (2026-07-27 owner
+    // feedback), centred on the basin's own inner rim ellipse (17,12,30,9 above)
+    // and evenly inset from its edge so it sits cleanly inside the opening.
     g.layer('water');
-    g.fillStyle(waterLo, 1); g.fillRect(5, 9, 24, 4); g.fillEllipse(17, 13, 24, 8);
-    g.fillStyle(water, 1);   g.fillRect(5, 8, 24, 4); g.fillEllipse(17, 12, 24, 7);
-    g.fillStyle(waterHi, 0.85);
-    g.fillEllipse(12, 11, 6, 2);                             // sun glint
-    g.layer('rim');
-    g.fillStyle(stoneHi, 1); g.fillEllipse(17, 10, 30, 3);   // front rim highlight
+    g.fillStyle(water, 1); g.fillEllipse(17, 12, 26, 5);
   });
 
   // --- seed bird feeder (28 × 56) — refillable songbird feeder on a post (#240) ---
