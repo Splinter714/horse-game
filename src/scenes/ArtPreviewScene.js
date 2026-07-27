@@ -93,7 +93,9 @@ function autoRosterFamilies() {
 // roster species, so it stays hand-curated below the auto block.
 function buildFamilies() {
   return [
-    { label: 'Horse', members: [{ key: 'horse', label: 'Adult' }, { key: 'foal1', label: 'Foal' }] },
+    // The foal sample is a DEMO_FOALS key (`demoFoal1`), deliberately NOT a bare
+    // `foal1` — that's a real bred foal's roster/texture key (#352).
+    { label: 'Horse', members: [{ key: 'horse', label: 'Adult' }, { key: 'demoFoal1', label: 'Foal' }] },
     { label: 'Chicken', members: [{ key: 'chicken0', label: 'Adult' }, { key: PREVIEW_CHICK_KEY, label: 'Chick' }] },
     ...autoRosterFamilies(),
     // Ambient wildlife (#181/#182/#183) — shown here so its art can be eyeballed even

@@ -9,6 +9,7 @@ import {
   seedFoalLook, makeFoalData,
   isBonded, bondMateKey, canBond,
 } from './breeding.js';
+import { DEMO_FOALS } from './demoFoals.js';
 
 describe('gestation timing', () => {
   it('is not born-ready right after pairing', () => {
@@ -51,6 +52,22 @@ describe('nextFoalKey (roster growth)', () => {
   it('fills a gap in the foal keys', () => {
     // foal1 taken, foal2 free → foal2 (first free index)
     expect(nextFoalKey(['horse', 'foal1', 'foal3'])).toBe('foal2');
+  });
+
+  // #352: these are TEXTURE keys as well as roster keys. The art-preview's demo foals
+  // (data/demoFoals.js) build foal frames under their own keys at boot, so if a demo
+  // key ever equals a bred foal's key the demo art silently repaints the player's
+  // horse (baby art on idle/walk/eat/sleep, adult art left on the posture/swish/roll
+  // frames → a horse that walks as a foal and stands as an adult). Keep them disjoint.
+  it('never hands out a key used by the art-preview demo foals (#352)', () => {
+    const demo = Object.keys(DEMO_FOALS);
+    expect(demo.length).toBeGreaterThan(0);
+    const roster = ['horse', 'horse2', 'horse3', 'horse4', 'horse5', 'horse6', 'horse7'];
+    for (let i = 0; i < 20; i++) {
+      const key = nextFoalKey(roster);
+      expect(demo).not.toContain(key);
+      roster.push(key);
+    }
   });
 });
 
