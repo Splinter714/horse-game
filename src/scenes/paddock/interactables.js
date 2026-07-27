@@ -100,18 +100,17 @@ export const WithInteractables = (Base) => class extends Base {
       }];
     };
 
-    // Pet bowls (#202 cat rework, #283 generalized, #311 combined into one prop,
-    // #347 dog) — refill targets, NOT gather sources. The pet eats/drinks from them
-    // directly; the player keeps them stocked. One object now serves both sides: offer
-    // "Fill Food Bowl" when holding the matching food carrier, "Fill Water Bowl" when
-    // holding a bucket of water — until that side is brim-full — mirroring the
-    // trough's fill descriptor. Species-neutral: any bowl in props[propKey] whose
-    // food/water side content matches the held carrier gets a fill prompt (only one
-    // side can ever match a given carrier, so exactly one prompt shows at a time).
+    // Pet bowl (#202 cat rework, #283 generalized, #311 combined into one prop,
+    // #347 dog, #361 unified cat/dog/bunny into ONE shared bowl) — a refill target,
+    // NOT a gather source. The pet eats/drinks from it directly; the player keeps it
+    // stocked. One object serves both sides: offer "Fill Food Bowl" when holding a
+    // matching food carrier (kibble OR bunny food — the shared food side accepts
+    // either, `_contentMatches`), "Fill Water Bowl" when holding a bucket of water —
+    // until that side is brim-full — mirroring the trough's fill descriptor.
     const petBowl = (propKey, labels) => (item) => {
       const b = this.props[propKey];
       if (!b || !item || item.count <= 0) return [];
-      const sideKey = Object.keys(b.sides).find(k => b.sides[k].content === item.content && b.sides[k].level < BOWL_CAP);
+      const sideKey = Object.keys(b.sides).find(k => this._contentMatches(b.sides[k].content, item.content) && b.sides[k].level < BOWL_CAP);
       if (!sideKey) return [];
       return [{
         x: b.x, y: b.y, tapRadius: 120, reachDist: 100, promptOffsetY: 60,
@@ -123,9 +122,7 @@ export const WithInteractables = (Base) => class extends Base {
         activate: () => this.fillPetBowl(item.content),
       }];
     };
-    const catBowl   = petBowl('catBowl',   { food: 'Food Bowl',  water: 'Water Bowl' });
-    const bunnyBowl = petBowl('bunnyBowl', { food: 'Bunny Bowl', water: 'Bunny Water' });
-    const dogBowl   = petBowl('dogBowl',   { food: 'Dog Bowl',   water: 'Dog Water' });
+    const sharedPetBowl = petBowl('petBowl', { food: 'Food Bowl', water: 'Water Bowl' });
 
     // Seed bird feeder (#240) — a refill target near the house, NOT a gather source.
     // Offer "Fill Feeder" while holding a basket of seed, until it's brim-full —
@@ -443,7 +440,7 @@ export const WithInteractables = (Base) => class extends Base {
     // already driving (see tractor.js `_tractorInteractables`).
     const tractor = () => this._tractorInteractables?.() ?? [];
 
-    this.interactables = [gate, house, shop, generalStore, barn, gardenPlant, trailCollectible, tractor, trough, catBowl, bunnyBowl, dogBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, slopMaker, compostBin, trashCan, gardenWater, gardenHarvest, neighborGift, neighborTrade];
+    this.interactables = [gate, house, shop, generalStore, barn, gardenPlant, trailCollectible, tractor, trough, sharedPetBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, slopMaker, compostBin, trashCan, gardenWater, gardenHarvest, neighborGift, neighborTrade];
     // Split by input: gate/house/shop/generalStore/barn/garden-plant/
     // trail-collectible/tractor are bare-hand "interact" targets (tap/click/E); the
     // rest require a carried tool/carrier and are triggered by Use (the on-screen
@@ -453,7 +450,7 @@ export const WithInteractables = (Base) => class extends Base {
     // interaction at the same spot) does require a held carrier, and only one of
     // the two ever applies at a time (see neighborGift/neighborTrade above).
     this.interactWorld = [gate, house, shop, generalStore, barn, gardenPlant, trailCollectible, tractor];
-    this.toolWorld     = [trough, catBowl, bunnyBowl, dogBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, slopMaker, compostBin, trashCan, gardenWater, gardenHarvest, neighborGift, neighborTrade];
+    this.toolWorld     = [trough, sharedPetBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, slopMaker, compostBin, trashCan, gardenWater, gardenHarvest, neighborGift, neighborTrade];
   }
 
   // Nearest activatable instance to (x, y) within each instance's own radius

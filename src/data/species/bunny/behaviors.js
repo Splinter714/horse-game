@@ -8,9 +8,10 @@
 //                       whichever care action the bowl carries (food bowl → feed,
 //                       water bowl → water), lowering the bowl's level.
 //
-// #283 rework — the bunny eats and drinks DIRECTLY from its food + water bowls, which
-// the player keeps stocked (buildBunnyBowl). A hungry or thirsty bunny hops to its
-// stocked bowl before its ordinary hop-wander (the wander is the implicit fallback
+// #283 rework — the bunny eats and drinks DIRECTLY from a food + water bowl, which
+// the player keeps stocked (worldObjects.js buildPetBowl — the one shared bowl by the
+// house since #361, not a bunny-only dish by the hutch anymore). A hungry or thirsty
+// bunny hops to the stocked bowl before its ordinary hop-wander (the wander is the implicit fallback
 // when neither test fires). Directly mirrors the cat's seekFood/seekWater —
 // `nearestFoodDist`/`nearestWaterDist` are Infinity when the bowl is empty
 // (_catBowlDist), so an empty bowl reads as "nothing to seek" and the bunny just
@@ -26,7 +27,7 @@ const BOWL_RANGE  = 1200; // …and the (stocked) bowl is within this many px
 export const seekBunnyFood = {
   id: 'seekBunnyFood',
   test: (ctx) => ctx.hunger < HUNGER_SEEK && ctx.nearestFoodDist < BOWL_RANGE,
-  run: (scene, a) => scene.petEatFromBowl(a, scene.props.bunnyBowl, 'food'),
+  run: (scene, a) => scene.petEatFromBowl(a, scene.props.petBowl, 'food'),
 };
 
 // Thirsty → hop to the stocked bunny water bowl and drink a serving directly from it
@@ -35,5 +36,5 @@ export const seekBunnyFood = {
 export const seekBunnyWater = {
   id: 'seekBunnyWater',
   test: (ctx) => ctx.thirst < THIRST_SEEK && ctx.nearestWaterDist < BOWL_RANGE,
-  run: (scene, a) => scene.petEatFromBowl(a, scene.props.bunnyBowl, 'water'),
+  run: (scene, a) => scene.petEatFromBowl(a, scene.props.petBowl, 'water'),
 };

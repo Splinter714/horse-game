@@ -35,8 +35,8 @@ export const WithCatAI = (Base) => class extends Base {
     return {
       hunger: cat?.stats?.hunger ?? 100,
       thirst: cat?.stats?.thirst ?? 100,
-      nearestFoodDist:  this._catBowlDist(a, this.props.catBowl, 'food'),
-      nearestWaterDist: this._catBowlDist(a, this.props.catBowl, 'water'),
+      nearestFoodDist:  this._catBowlDist(a, this.props.petBowl, 'food'),
+      nearestWaterDist: this._catBowlDist(a, this.props.petBowl, 'water'),
       streamDist,
       isNight: !!this.isNight,
     };

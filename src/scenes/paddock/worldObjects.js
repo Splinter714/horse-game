@@ -192,23 +192,27 @@ export const WithWorldObjects = (Base) => class extends Base {
     });
   }
 
-  // ─── Pet bowls (generic — #202 cat rework, #283 generalized, #311 combined) ─
+  // ─── Pet bowls (generic — #202 cat rework, #283 generalized, #311 combined,
+  // #361 unified into one shared bowl) ─────────────────────────────────────
 
-  // A pet food/water bowl is a small two-sided dish a companion animal (the cat, a
-  // bunny…) walks up to and eats/drinks from DIRECTLY (its seek behaviors) — NOT a
-  // gather source you scoop into a carrier. The player's only job is to keep it
+  // A pet food/water bowl is a small two-sided dish a companion animal (the cat, the
+  // dog, a bunny…) walks up to and eats/drinks from DIRECTLY (its seek behaviors) —
+  // NOT a gather source you scoop into a carrier. The player's only job is to keep it
   // stocked: pour a matching carrier in and that side tops up to BOWL_CAP
   // (fillPetBowl). #311 merged the separate food + water dishes into ONE prop — one
   // sprite, one interactable — with two independent sides (`bowl.sides.food` /
   // `bowl.sides.water`), each carrying its own numeric `level` (0..BOWL_CAP
-  // servings), the content that fills it, and the care action it restores. The
-  // sprite (propArt.js `catBowl_${food}${water}`) swaps as either side's fill state
-  // crosses zero. Every combined bowl is a plain descriptor in `this.props.petBowls`,
-  // so a new pet just registers its one bowl.
+  // servings), the content(s) that fill it, and the care action it restores. The
+  // sprite (propArt.js `petBowl_${food}${water}`) swaps as either side's fill state
+  // crosses zero. Every combined bowl is a plain descriptor in `this.props.petBowls`.
   //
-  // The cat's bowl is the original set (#202), tucked just south of the house; #283
-  // added the bunny's by the hutch (buildBunnyBowl, paddock/bunny.js). Both are built
-  // here through the same primitive so there's one owner of bowl state.
+  // #361: cat, dog and bunny used to each have their OWN combined bowl (three props).
+  // Playtest feedback said that read as three separate feeding stations rather than
+  // one shared one — now there's exactly ONE pet bowl (buildPetBowl below) with a
+  // single shared stock/capacity per side, and all three species path to it.
+  // `foodContent` may be an array so the one food side accepts more than one carrier
+  // content (kibble for the cat/dog, bunny food for the bunny) while still being a
+  // single fill level — see `_contentMatches`.
   _addPetBowl({ x, y, tex, foodContent, waterContent, propKey, onFillFood }) {
     const sprite = this.add.image(x, y, `${tex}_00`).setScale(S).setDepth(y).setOrigin(0.5, 1);
     const bowl = {
@@ -226,45 +230,49 @@ export const WithWorldObjects = (Base) => class extends Base {
     return bowl;
   }
 
-  // The cat's combined food + water bowl (#202, #311). Starts empty on both sides so
-  // the first job is to fill them.
-  buildCatBowls() {
-    // Position (891, 140) - the owner's own placement (#330 drag tool, baked in by #341).
-    this._addPetBowl({ x: 891, y: 140, tex: 'catBowl', foodContent: 'catFood', waterContent: 'water', propKey: 'catBowl' });
+  // Does a bowl side's declared content accept this carrier's content? `content` is
+  // normally a single string (e.g. plain water); the shared bowl's food side (#361)
+  // declares an array since more than one carrier tops it up (kibble AND bunny food).
+  _contentMatches(sideContent, content) {
+    return Array.isArray(sideContent) ? sideContent.includes(content) : sideContent === content;
   }
 
-  // The dog's combined food + water bowl (#347). Same primitive, same design as the
-  // cat's and bunny's — the third pet bowl, so all three now read as one family of
-  // object. Sits in the open yard just south of the doghouse (94, 281), clear of the
-  // kennel's collision box (y ends ≈277), the house wall (x starts 141) and the
+  // The ONE shared food + water bowl (#202/#283/#311, unified by #361) — cat, dog and
+  // bunny all eat/drink from this single object instead of a bowl each. Placed in the
+  // yard pocket just south of the doghouse (94, 281) — i.e. right by the house, not
+  // out at the bunny hutch — reusing the exact spot the old dog-only bowl proved clear
+  // of the kennel's collision box (y ends ≈277), the house wall (x starts 141) and the
   // house→junction worn path (which begins at ≈(235, 322)).
   //
-  // Its food side takes `catFood` — the same KIBBLE the cat eats, scooped at the one
-  // Kibble Sack in the yard. One sack feeds both pets rather than each pet needing its
-  // own source prop; `_petBowlFor` already resolves the now-ambiguous fill to whichever
-  // bowl the player is standing nearest (the same rule plain water has always used).
-  buildDogBowl() {
-    this._addPetBowl({ x: 100, y: 356, tex: 'dogBowl', foodContent: 'catFood', waterContent: 'water', propKey: 'dogBowl' });
+  // The food side accepts EITHER `catFood` (kibble, scooped at the yard's Kibble Sack —
+  // the same tin the cat and dog already shared, #347) OR `bunnyFood` (scooped at the
+  // bunny hutch) — one shared fill level topped up by whichever the player pours in.
+  // Filling it still lures a wild bunny (onFillFood → attractBunny, moved here from the
+  // old bunny-only bowl in paddock/bunny.js) — now any food top-up can draw one in,
+  // which reads fine for one shared dish everyone notices getting restocked.
+  buildPetBowl() {
+    this._addPetBowl({
+      x: 100, y: 356, tex: 'petBowl', foodContent: ['catFood', 'bunnyFood'], waterContent: 'water',
+      propKey: 'petBowl', onFillFood: (bowl) => this.attractBunny(bowl.x, bowl.y),
+    });
   }
 
   // The registered { bowl, sideKey } a given carrier content fills, or null. Shared
   // by the fill action and every pet's seek behaviors so both agree on where/what a
-  // bowl is. Species-neutral: keyed purely on the content, so cat food → the cat
-  // bowl's food side, bunny food → the bunny bowl's food side, plain water →
-  // whichever bowl's water side is nearest the pouring player (so one bucket of
-  // water fills the cat's OR the bunny's dish).
+  // bowl is. Content-keyed via `_contentMatches` so a side can accept more than one
+  // carrier content (the shared bowl's food side takes kibble OR bunny food, #361).
   _petBowlFor(content) {
     const matches = [];
     for (const bowl of this.props.petBowls ?? []) {
       for (const sideKey of ['food', 'water']) {
-        if (bowl.sides[sideKey].content === content) matches.push({ bowl, sideKey });
+        if (this._contentMatches(bowl.sides[sideKey].content, content)) matches.push({ bowl, sideKey });
       }
     }
     if (!matches.length) return null;
     if (matches.length === 1) return matches[0];
-    // Ambiguous fill content (water fills more than one pet's bowl): pick the one
-    // nearest the player, so pouring at the cat dish tops the cat's and at the bunny
-    // dish the bunny's.
+    // Ambiguous fill content (more than one bowl/side would accept it): pick the one
+    // nearest the player. With #361's single shared bowl this only still matters if a
+    // future pet bowl is ever added alongside it.
     const px = this.player?.sprite?.x ?? 0, py = this.player?.sprite?.y ?? 0;
     return matches.reduce((best, m) =>
       Phaser.Math.Distance.Between(px, py, m.bowl.x, m.bowl.y) <

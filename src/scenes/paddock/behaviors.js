@@ -187,8 +187,8 @@ export const WithBehaviors = (Base) => class extends Base {
       // Survival (#347) — read by seekDogFood/seekDogWater.
       hunger: dog?.stats?.hunger ?? 100,
       thirst: dog?.stats?.thirst ?? 100,
-      nearestFoodDist:  this._catBowlDist(a, this.props.dogBowl, 'food'),
-      nearestWaterDist: this._catBowlDist(a, this.props.dogBowl, 'water'),
+      nearestFoodDist:  this._catBowlDist(a, this.props.petBowl, 'food'),
+      nearestWaterDist: this._catBowlDist(a, this.props.petBowl, 'water'),
       nearestSheepDist,
       now: this.time.now,
       lastHerd: a._lastHerd ?? null,
@@ -212,8 +212,8 @@ export const WithBehaviors = (Base) => class extends Base {
     return {
       hunger: bunny?.stats?.hunger ?? 100,
       thirst: bunny?.stats?.thirst ?? 100,
-      nearestFoodDist:  this._catBowlDist(a, this.props.bunnyBowl, 'food'),
-      nearestWaterDist: this._catBowlDist(a, this.props.bunnyBowl, 'water'),
+      nearestFoodDist:  this._catBowlDist(a, this.props.petBowl, 'food'),
+      nearestWaterDist: this._catBowlDist(a, this.props.petBowl, 'water'),
       isNight: !!this.isNight,
     };
   }

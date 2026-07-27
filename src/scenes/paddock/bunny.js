@@ -1,11 +1,14 @@
-// Bunny attraction (#224, reworked #283) — the scene-coupled half of "keep the bunny
-// bowl stocked, a bunny hops in and joins." The pure cap/coat logic lives in data
-// (data/species/bunny/index.js `nextBunny`, cap = one per coat colour); this mixin
-// builds the bunny's food + water bowls by the hutch and, when the FOOD BOWL is
-// refilled (the generic pet-bowl `onFill` hook), attracts a new Bunny if the roster
-// has room. #283 replaced the old gather-food-and-drop-a-pile-on-the-ground flow: the
-// player now pours bunny food into a bowl the bunnies eat from directly (like the cat
-// bowls, #202), and it's that refill — not a ground pile — that lures a wild bunny in.
+// Bunny attraction (#224, reworked #283, moved to the shared bowl by #361) — the
+// scene-coupled half of "keep the (now shared) pet bowl stocked, a bunny hops in and
+// joins." The pure cap/coat logic lives in data (data/species/bunny/index.js
+// `nextBunny`, cap = one per coat colour); this mixin attracts a new Bunny when the
+// shared FOOD BOWL is refilled (the generic pet-bowl `onFill` hook wired in
+// worldObjects.js buildPetBowl), if the roster has room. #283 replaced the old
+// gather-food-and-drop-a-pile-on-the-ground flow: the player pours food into the bowl
+// the bunnies eat from directly, and it's that refill — not a ground pile — that
+// lures a wild bunny in. #361 moved the bowl itself off by the hutch to the one
+// shared bowl near the house (buildPetBowl), so a newly-attracted bunny now spawns
+// and hops in near there instead.
 //
 // A returning player's already-attracted bunnies are restored from the persisted
 // roster on boot (buildAnimals walks the `allBunnies` registry the same as any other
@@ -17,21 +20,7 @@ import { nextBunny, BUNNY_CAP } from '../../data/species/bunny/index.js';
 import { Bunny } from '../../data/species/bunny/model.js';
 
 export const WithBunny = (Base) => class extends Base {
-  // Bunny food + water bowl (#283, combined into one prop #311) — the bunny's
-  // counterpart to the cat's dish, tucked by the hutch in the north yard. Built
-  // through the shared pet-bowl primitive (worldObjects.js _addPetBowl) so
-  // fill/consume are the same machinery as the cat's. The FOOD side carries an
-  // `onFill` hook: stocking it lures a wild bunny (attractBunny), so attraction
-  // lives on refilling the bowl rather than dropping a pile on the ground.
-  buildBunnyBowl() {
-    this._addPetBowl({
-      // Position (992, 141) - the owner's own placement (#330 drag tool, baked in by #341).
-      x: 992, y: 141, tex: 'bunnyBowl', foodContent: 'bunnyFood', waterContent: 'water',
-      propKey: 'bunnyBowl', onFillFood: (bowl) => this.attractBunny(bowl.x, bowl.y),
-    });
-  }
-
-  // The bunny food bowl was refilled near (x, y): if the roster isn't already full
+  // The shared pet bowl's food side was refilled near (x, y): if the roster isn't already full
   // (one bunny per coat colour, cap BUNNY_CAP), attract a new bunny. Its coat is chosen
   // randomly among the colours not yet taken (nextBunny), it's added to the persisted
   // roster, and it spawns a short hop away from the bowl so it visibly comes over to it.

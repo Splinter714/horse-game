@@ -1,9 +1,10 @@
 // Dog species definition. A friendly farm dog that trots around the world, can be
 // petted (#185), tags along as a companion (#186) — and, as of #347, actually needs
 // FEEDING and WATERING like the cat and bunny: it has real hunger/thirst needs and
-// its own combined food+water bowl by the doghouse (worldObjects.js buildDogBowl,
-// the shared `_addPetBowl` plumbing from #311/#283). A hungry or thirsty dog trots
-// to its stocked bowl and eats/drinks straight from it (seekDogFood/seekDogWater,
+// shares the one combined food+water bowl by the house with them (worldObjects.js
+// buildPetBowl, unified across all three pets by #361; the shared `_addPetBowl`
+// plumbing dates to #311/#283). A hungry or thirsty dog trots
+// to the stocked bowl and eats/drinks straight from it (seekDogFood/seekDogWater,
 // ./behaviors.js). Its kibble is the SAME `catFood` content the cat eats, scooped
 // from the one Kibble Sack in the yard — one sack feeds both pets (#347 unification),
 // so there's no extra source prop to hunt for.

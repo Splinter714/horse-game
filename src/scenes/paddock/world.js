@@ -204,12 +204,11 @@ export const WithWorld = (Base) => class extends Base {
     // Gathering sources (#63) — static, infinite props the player fills carriers at.
     this.buildSources();
 
-    // Pet food + water bowls (#202/#283/#311/#347) — fillable dishes the pet eats/
-    // drinks from directly (not gather sources). The player keeps them stocked.
-    this.buildCatBowls();
-    this.buildBunnyBowl();
+    // Pet food + water bowl (#202/#283/#311/#347, unified into ONE shared bowl by
+    // #361) — a fillable dish cat, dog and bunny all eat/drink from directly (not a
+    // gather source). The player keeps it stocked.
     this.buildDoghouse(); // #237 decorative yard prop; sets this.doghouseObstacles
-    this.buildDogBowl();  // #347 — the dog's bowl, placed relative to the doghouse
+    this.buildPetBowl();  // #361 — the one shared bowl, placed by the doghouse/house
     this.buildBirdEcosystem(); // #219/#240/#226/#239 bird-ecosystem props; paddock/birdEcosystem.js
     // Scenery stream cutting across the top-right corner of the world.
     this.buildStream();
@@ -233,14 +232,15 @@ export const WithWorld = (Base) => class extends Base {
       { x: 1046, y: 1085, content: 'water',  tex: 'well',         label: 'Well',          reach: 95,  ob: { w: 52,  h: 22 } },
       // Kibble sack (#202 rework) — the cat-food SOURCE, by the house. The player
       // scoops cat food into a basket here (like the grain bin for seed), then pours
-      // it into the food bowl. The bowls themselves are no longer gather sources —
-      // they're fillable dishes the cat eats/drinks from directly (buildCatBowls).
+      // it into the shared pet bowl. The bowl itself is no longer a gather source —
+      // it's a fillable dish the cat/dog/bunny all eat/drink from directly (#361
+      // buildPetBowl).
       // Position (815, 142) — the owner's own placement (#330 drag tool, baked in by #341).
       { x: 815,  y: 142, content: 'catFood',  tex: 'kibbleSack',   label: 'Kibble Sack',   reach: 90, ob: { w: 22, h: 20 } },
       // Bunny hutch (#224, reworked #283) — gather SOURCE for bunny food, scooped into a
-      // basket then poured into the bunny FOOD BOWL (buildBunnyBowl), which bunnies eat
-      // from directly; stocking it also lures a wild bunny in (capped at 4). No ground
-      // pile (items.js `stocks`). Water bowl fills from a plain bucket, like the cat's.
+      // basket then poured into the shared pet FOOD BOWL (#361 buildPetBowl), which
+      // bunnies eat from directly; stocking it also lures a wild bunny in (capped at 4).
+      // No ground pile (items.js `stocks`). Water side fills from a plain bucket.
       { x: 1293, y: 107, content: 'bunnyFood',  tex: 'bunnyHutch',    label: 'Bunny Hutch', reach: 100, ob: { w: 44, h: 30 } },
       // Nectar station (#226) — sugar-water jug by the house; fill a bucket, pour into the hummingbird feeder (its OWN resource vs seed #240).
       // Position (691, 236) — the owner's own placement (#330 drag tool, baked in by #341).
