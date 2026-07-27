@@ -10,6 +10,7 @@
 import { ROSTERS } from './rosters.js';
 import { sanitizeGarden } from './garden.js';
 import { sanitizePantry } from './pantry.js';
+import { sanitizeRecipeBook } from './cooking.js';
 import { DEFAULT_SADDLE_TYPE, SADDLE_TYPES, ALL_TOOL_UPGRADES } from './items.js';
 
 // Build a { load, save } pair for one species' roster from its config. Collapses the
@@ -275,6 +276,26 @@ export function loadPantry() {
 export function savePantry(pantry) {
   try {
     localStorage.setItem(PANTRY_KEY, JSON.stringify(sanitizePantry(pantry)));
+  } catch {}
+}
+
+// ── Recipe book (#214) ────────────────────────────────────────────────────────
+// Which cooking recipes (#41) the player has discovered by successfully cooking a
+// valid ingredient combo at the stove at least once. A small persisted id list,
+// own storage key, same load/save shape as the pantry above.
+const RECIPEBOOK_KEY = 'horse-game-recipebook-v1';
+
+export function loadRecipeBook() {
+  try {
+    return sanitizeRecipeBook(JSON.parse(localStorage.getItem(RECIPEBOOK_KEY)));
+  } catch {
+    return sanitizeRecipeBook(null);
+  }
+}
+
+export function saveRecipeBook(book) {
+  try {
+    localStorage.setItem(RECIPEBOOK_KEY, JSON.stringify(sanitizeRecipeBook(book)));
   } catch {}
 }
 

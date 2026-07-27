@@ -1,15 +1,28 @@
-// Cooking at the house stove (#213/#41) — its own concern mixin, split out of
+// Cooking at the house stove (#213/#41/#214) — its own concern mixin, split out of
 // HouseInteriorScene.js to stay under the scene size budget (modularity.test.js),
 // mirroring the houseInteriorDecor.js split. `this` is HouseInteriorScene.
 //
-// The stove is "dialed to" one recipe at a time (this._kitchenRecipeIdx), shown in
-// the contextual prompt. Interacting either COOKS the dialed recipe (if its
-// ingredients are on hand) or, when they aren't, CYCLES to the next recipe — so
-// repeated taps both browse the small recipe list and act as its "go" button, with
-// no second input needed (the house has only one interact key). Once a dish has
-// been cooked, a *following* interact offers to feed the most recently cooked dish
-// (per its recipe's `feedEffect`) instead of cooking again — a clear two-step
-// "cook, then feed" flow using the same single button.
+// #214 replaced the old "dialed to a known recipe from a fixed list" flow with PURE
+// DISCOVERY: there is no purchased/unlocked recipe list. The stove is "dialed to" a
+// PAIR of ingredients currently on hand (pantry + active carrier) — repeated taps
+// cycle through every distinct pair available, exactly like the old recipe cycling
+// did, so the interaction shape (browse + go on one button) is unchanged. What
+// changed is what's being browsed: raw ingredient combos, not known dishes.
+//
+// The contextual-prompt label IS the safe preview: before you ever tap, it already
+// tells you whether the dialed combo is a real recipe (and affordable) or an
+// unknown/incomplete guess — tapping either COOKS (only when valid+affordable) or
+// CYCLES to the next combo. So an invalid guess never costs ingredients; you only
+// spend them on a tap that the label already promised would cook something.
+//
+// A successful cook adds the recipe to the player's persisted recipe book
+// (save.js loadRecipeBook/saveRecipeBook) — "discovered" recipes are bubbled to the
+// front of the combo cycle (quick to dial back up next time) and listed in the
+// recipe-book panel (houseInteriorRecipeBook.js, toggled with R).
+//
+// Once a dish has been cooked, a *following* interact offers to feed the most
+// recently cooked dish (per its recipe's `feedEffect`) instead of cooking/trying
+// again — the existing two-step "cook, then feed" flow, unchanged by #214.
 //
 // Cooked dishes do BOTH (#41 scope): sell for more at the farm stand than their raw
 // ingredients (carried out in a basket via the existing sell pipeline — CONTENT_DEFS/
@@ -17,25 +30,83 @@
 // when fed (right here at the stove — the house has no in-world roster to walk a
 // dish out to).
 
-import { savePantry, ROSTER_SPECIES } from '../data/save.js';
+import { loadPantry, savePantry, loadRecipeBook, saveRecipeBook, ROSTER_SPECIES } from '../data/save.js';
 import { addToPantry } from '../data/pantry.js';
 import { CONTENT_DEFS } from '../data/items.js';
-import { RECIPE_LIST, DISH_CONTENTS, canCookRecipe } from '../data/cooking.js';
+import {
+  RECIPE_LIST, DISH_CONTENTS, canCookRecipe, matchRecipe, discoverRecipe, isRecipeDiscovered,
+  INGREDIENT_CONTENTS,
+} from '../data/cooking.js';
 import { startMealBuff } from '../data/playerBuff.js';
 import { EVENTS } from '../data/events.js';
 
 export const WithHouseInteriorCooking = (Base) => class extends Base {
+  // Called once from create() — sets up every bit of cooking-related state
+  // (combo-cycle index, pantry, recipe book) in one place so the scene core stays
+  // a single call instead of three separate load/initialize lines.
+  _initCooking() {
+    this._kitchenComboIdx = 0;
+    this.pantry = loadPantry();
+    this.recipeBook = loadRecipeBook();
+  }
+
+  // Which ingredient contents are available RIGHT NOW (pantry + active carrier),
+  // restricted to contents any recipe actually uses — the pool the combo picker
+  // draws pairs from. Sorted for a stable cycle order.
+  _availableIngredientContents() {
+    return INGREDIENT_CONTENTS
+      .filter((content) => this._availableIngredient(content) > 0)
+      .sort();
+  }
+
+  // Every distinct unordered pair of currently-available ingredients, discovered
+  // combos first (so a recipe you already know is quick to dial back up) then
+  // alphabetically — the "quick-cookable next time" half of #214's ask.
+  _comboCandidates() {
+    const contents = this._availableIngredientContents();
+    const pairs = [];
+    for (let i = 0; i < contents.length; i++) {
+      for (let j = i + 1; j < contents.length; j++) {
+        pairs.push([contents[i], contents[j]]);
+      }
+    }
+    return pairs.sort((pairA, pairB) => {
+      const recipeA = matchRecipe(pairA[0], pairA[1]);
+      const recipeB = matchRecipe(pairB[0], pairB[1]);
+      const knownA = recipeA && isRecipeDiscovered(this.recipeBook, recipeA.id) ? 0 : 1;
+      const knownB = recipeB && isRecipeDiscovered(this.recipeBook, recipeB.id) ? 0 : 1;
+      if (knownA !== knownB) return knownA - knownB;
+      return 0; // stable sort keeps the alphabetical order from contents.sort() above
+    });
+  }
+
+  _comboLabel(pair) {
+    return pair.map((content) => CONTENT_DEFS[content]?.label ?? content).join(' + ');
+  }
+
   // The stove's contextual-prompt label while standing near it: what interacting
-  // will do right now — feed a just-cooked dish, cook the dialed recipe, or name
-  // what it still needs (mirrors the kitchen-counter/spinning-wheel prompt pattern).
+  // will do right now — feed a just-cooked dish, cook the dialed combo, or name why
+  // it can't yet (mirrors the kitchen-counter/spinning-wheel prompt pattern). This
+  // label IS the safe preview #214 asks for: it always tells you what a tap will do
+  // BEFORE you tap it.
   _kitchenLabel() {
     if (this._lastCookedDish) {
       const target = RECIPE_LIST.find((r) => r.output.content === this._lastCookedDish).feedEffect.species;
       return `Stove  •  Feed ${CONTENT_DEFS[this._lastCookedDish].label} to the ${target}s`;
     }
-    const recipe = RECIPE_LIST[this._kitchenRecipeIdx % RECIPE_LIST.length];
-    if (this._canCookRecipeNow(recipe)) return `Stove  •  Cook ${recipe.label}`;
-    return `Stove  •  ${recipe.label} needs ${this._recipeNeedText(recipe)}`;
+    const candidates = this._comboCandidates();
+    if (candidates.length === 0) {
+      return 'Stove  •  Gather two different ingredients to try a recipe  •  [R] Recipe book';
+    }
+    const pair = candidates[this._kitchenComboIdx % candidates.length];
+    const recipe = matchRecipe(pair[0], pair[1]);
+    if (recipe && this._canCookRecipeNow(recipe)) {
+      return `Stove  •  Cook ${recipe.label}?  (${this._comboLabel(pair)})`;
+    }
+    if (recipe) {
+      return `Stove  •  ${recipe.label} needs ${this._recipeNeedText(recipe)}`;
+    }
+    return `Stove  •  Try ${this._comboLabel(pair)}?  (unknown combo)`;
   }
 
   _recipeNeedText(recipe) {
@@ -49,12 +120,31 @@ export const WithHouseInteriorCooking = (Base) => class extends Base {
       this._feedCookedDish(this._lastCookedDish);
       return;
     }
-    const recipe = RECIPE_LIST[this._kitchenRecipeIdx % RECIPE_LIST.length];
-    if (this._canCookRecipeNow(recipe)) {
+    const candidates = this._comboCandidates();
+    if (candidates.length === 0) {
+      this._flashPromptMessage('Need two different ingredients to try a recipe');
+      return;
+    }
+    this._kitchenComboIdx = this._kitchenComboIdx % candidates.length;
+    const pair = candidates[this._kitchenComboIdx];
+    const recipe = matchRecipe(pair[0], pair[1]);
+    if (recipe && this._canCookRecipeNow(recipe)) {
       this._cookRecipe(recipe);
     } else {
-      this._kitchenRecipeIdx = (this._kitchenRecipeIdx + 1) % RECIPE_LIST.length;
-      this._flashKitchenHint();
+      this._kitchenComboIdx = (this._kitchenComboIdx + 1) % candidates.length;
+      this._flashKitchenHint(recipe, pair);
+    }
+  }
+
+  // A friendly hint naming the dialed combo and what it still needs (a real but
+  // unaffordable recipe) or that it's simply not a recipe at all — shown after
+  // cycling past a combo that couldn't be cooked. No ingredients are ever consumed
+  // to show this — the preview (the prompt label) already knew before the tap.
+  _flashKitchenHint(recipe, pair) {
+    if (recipe) {
+      this._flashPromptMessage(`${recipe.label}  •  need ${this._recipeNeedText(recipe)}`);
+    } else {
+      this._flashPromptMessage(`${this._comboLabel(pair)}  •  not a recipe`);
     }
   }
 
@@ -74,16 +164,10 @@ export const WithHouseInteriorCooking = (Base) => class extends Base {
     return canCookRecipe(recipe, (content) => this._availableIngredient(content));
   }
 
-  // A friendly hint naming the dialed recipe and what it still needs, shown after
-  // cycling past a recipe that can't be cooked yet.
-  _flashKitchenHint() {
-    const recipe = RECIPE_LIST[this._kitchenRecipeIdx % RECIPE_LIST.length];
-    this._flashPromptMessage(`${recipe.label}  •  need ${this._recipeNeedText(recipe)}`);
-  }
-
   // Consume each ingredient (pantry first, then the active carrier — mirrors
-  // findIngredient's source order) and stock the resulting dish in the pantry.
-  // Only called once _canCookRecipeNow has confirmed enough is on hand.
+  // findIngredient's source order), stock the resulting dish in the pantry, and
+  // (#214) record the recipe as discovered so it's remembered/quick-cookable next
+  // time. Only called once _canCookRecipeNow has confirmed enough is on hand.
   _cookRecipe(recipe) {
     for (const ing of recipe.ingredients) {
       let remaining = ing.amount;
@@ -98,8 +182,13 @@ export const WithHouseInteriorCooking = (Base) => class extends Base {
     }
     this.pantry = addToPantry(this.pantry, recipe.output.content, recipe.output.amount);
     savePantry(this.pantry);
+    const wasKnown = isRecipeDiscovered(this.recipeBook, recipe.id);
+    this.recipeBook = discoverRecipe(this.recipeBook, recipe.id);
+    saveRecipeBook(this.recipeBook);
     this._lastCookedDish = recipe.output.content;
-    this._flashPromptMessage(`Cooked ${recipe.label}!  •  interact again to feed it`);
+    this._flashPromptMessage(wasKnown
+      ? `Cooked ${recipe.label}!  •  interact again to feed it`
+      : `Discovered ${recipe.label}!  •  interact again to feed it`);
   }
 
   // Feed the most recently cooked dish to its recipe's target species (right here at

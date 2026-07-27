@@ -3,8 +3,9 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-  RECIPES, RECIPE_LIST, DISH_CONTENTS,
+  RECIPES, RECIPE_LIST, DISH_CONTENTS, INGREDIENT_CONTENTS,
   canCookRecipe, rawIngredientValue, dishSellPrice, isProfitableToCook, recipeForDish,
+  matchRecipe, sanitizeRecipeBook, discoverRecipe, isRecipeDiscovered,
 } from './cooking.js';
 import { CONTENT_DEFS } from './items.js';
 import { STAND_DEFS } from '../scenes/paddock/constants.js';
@@ -81,5 +82,64 @@ describe('cooking recipes (#41)', () => {
       expect(isPantryStorable(content)).toBe(true);
       expect(CARRIER_DEFS.basket.accepts).toContain(content);
     }
+  });
+});
+
+describe('recipe discovery (#214)', () => {
+  it('matchRecipe finds a recipe from its two ingredients, order-independent', () => {
+    const stew = RECIPES.vegetableStew; // carrot + potato
+    expect(matchRecipe('carrot', 'potato')).toBe(stew);
+    expect(matchRecipe('potato', 'carrot')).toBe(stew);
+  });
+
+  it('matchRecipe returns null for an unknown/invalid combination', () => {
+    expect(matchRecipe('carrot', 'wheat')).toBeNull();
+    expect(matchRecipe('carrot', 'carrot')).toBeNull();
+    expect(matchRecipe('not-a-content', 'also-not')).toBeNull();
+  });
+
+  it('every recipe is reachable via matchRecipe (no recipe silently unfindable)', () => {
+    for (const recipe of RECIPE_LIST) {
+      const [a, b] = recipe.ingredients;
+      expect(matchRecipe(a.content, b.content)).toBe(recipe);
+    }
+  });
+
+  it('INGREDIENT_CONTENTS lists every raw ingredient content, never a dish output', () => {
+    for (const content of INGREDIENT_CONTENTS) {
+      expect(DISH_CONTENTS).not.toContain(content);
+    }
+    for (const recipe of RECIPE_LIST) {
+      for (const ing of recipe.ingredients) {
+        expect(INGREDIENT_CONTENTS).toContain(ing.content);
+      }
+    }
+  });
+
+  it('sanitizeRecipeBook drops anything that is not a real, known recipe id', () => {
+    const stew = RECIPES.vegetableStew.id;
+    expect(sanitizeRecipeBook(null)).toEqual([]);
+    expect(sanitizeRecipeBook(undefined)).toEqual([]);
+    expect(sanitizeRecipeBook('not-an-array')).toEqual([]);
+    expect(sanitizeRecipeBook([stew, 'madeUpRecipe', 42, stew])).toEqual([stew]);
+  });
+
+  it('discoverRecipe adds a recipe once (idempotent) without disturbing others', () => {
+    const stew = RECIPES.vegetableStew.id;
+    const pie = RECIPES.berryPie.id;
+    let book = [];
+    book = discoverRecipe(book, stew);
+    expect(book).toEqual([stew]);
+    book = discoverRecipe(book, stew); // no duplicate
+    expect(book).toEqual([stew]);
+    book = discoverRecipe(book, pie);
+    expect(book).toEqual([stew, pie]);
+  });
+
+  it('isRecipeDiscovered reflects the sanitized book contents', () => {
+    const stew = RECIPES.vegetableStew.id;
+    expect(isRecipeDiscovered([stew], stew)).toBe(true);
+    expect(isRecipeDiscovered([], stew)).toBe(false);
+    expect(isRecipeDiscovered(null, stew)).toBe(false);
   });
 });
