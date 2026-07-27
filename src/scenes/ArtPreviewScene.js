@@ -132,6 +132,8 @@ const WORLD_OBJECT_KEYS = [
   'coop', 'doghouse', 'bunnyHutch', 'foxDen',
   'birdBath', 'birdhouse', 'beehive', 'beehiveReady',
   'seedFeeder', 'seedFeederEmpty', 'nectarFeeder', 'nectarFeederEmpty', 'duckFeeder',
+  'hummingbirdHouse', 'hummingbirdHouseOpen', 'hummingbirdTiePost',
+  'petBowl_00', 'petBowl_10', 'petBowl_01', 'petBowl_11',
   'farmStand', 'shopStall', 'generalStore', 'petStore',
   'well', 'grainBin', 'compostBin', 'haystack',
   'fence', 'gateClosed', 'gateOpen', 'trough',
