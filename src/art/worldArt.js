@@ -462,16 +462,35 @@ export function buildWorldTextures(scene) {
   // unlike barnBack, which never fades. A small, plain texture (not the full
   // BARN_W×BARN_H footprint) since it's just a connecting ridge, no walls/windows.
   gen(scene, 'barnRoofMid', BARN_W, ROOF_MID_H, (g) => {
+    const MID = BARN_W / 2;
+    // The connector's own top/bottom boundary now follows the SAME two-segment
+    // gambrel taper (a shallow lower slope, then a steeper cap narrowing to a
+    // point) that the front/back roof art uses, instead of a flat rectangle —
+    // its bottom (y=ROOF_MID_H) is full width, meeting the front eave, and its
+    // top narrows to a single point at (MID, 0), meeting the back roof's peak.
+    const SHOULDER_Y = ROOF_MID_H * 0.44;
+    const SHOULDER_X0 = 64, SHOULDER_X1 = BARN_W - 64;
+    // topY(x): the y at which this silhouette reaches x, mirroring the taper above.
+    const topY = (x) => {
+      if (x <= SHOULDER_X0) return ROOF_MID_H - (x / SHOULDER_X0) * (ROOF_MID_H - SHOULDER_Y);
+      if (x >= SHOULDER_X1) return ROOF_MID_H - ((BARN_W - x) / SHOULDER_X0) * (ROOF_MID_H - SHOULDER_Y);
+      return SHOULDER_Y * (Math.abs(x - MID) / (MID - SHOULDER_X0));
+    };
     g.layer('roof');
-    g.fillStyle(0x9a3826, 1); g.fillRect(4, 0, BARN_W - 8, ROOF_MID_H);
-    g.fillStyle(0xb6432e, 1); g.fillRect(4, 0, BARN_W - 8, 6);           // ridge highlight
-    // Vertical rafter slats running the depth of the roof (front-to-back), so this
-    // stretched-to-fit plane reads as following the roof's slope/ridge line instead
-    // of looking like flat horizontal shingle courses running across it.
+    g.fillStyle(0x9a3826, 1);
+    g.fillPoints([
+      { x: 4, y: ROOF_MID_H }, { x: SHOULDER_X0, y: SHOULDER_Y }, { x: MID, y: 0 },
+      { x: SHOULDER_X1, y: SHOULDER_Y }, { x: BARN_W - 4, y: ROOF_MID_H },
+    ]);
+    // Vertical rafter slats running the depth of the roof (front-to-back), clipped
+    // to the tapered silhouette above, so this stretched-to-fit plane reads as
+    // following the roof's slope/ridge line instead of flat horizontal courses
+    // running across a rectangle.
     g.fillStyle(0x7a2a1c, 1);
-    for (let x = 12; x < BARN_W - 8; x += 18) g.fillRect(x, 6, 2, ROOF_MID_H - 6);
+    for (let x = 12; x < BARN_W - 8; x += 18) { const ty = topY(x); g.fillRect(x, ty, 2, ROOF_MID_H - ty); }
     g.fillStyle(0xa8462e, 1);
-    for (let x = 14; x < BARN_W - 8; x += 18) g.fillRect(x, 6, 1, ROOF_MID_H - 6); // slat highlight
+    for (let x = 14; x < BARN_W - 8; x += 18) { const ty = topY(x); g.fillRect(x, ty, 1, ROOF_MID_H - ty); } // slat highlight
+    g.fillStyle(0xb6432e, 1); g.fillRect(MID - 3, 0, 6, ROOF_MID_H); // ridge cap, running the full depth
     g.fillStyle(0x6a2418, 1); g.fillRect(4, ROOF_MID_H - 3, BARN_W - 8, 3);   // south edge shadow
   });
 
