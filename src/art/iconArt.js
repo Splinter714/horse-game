@@ -138,6 +138,15 @@ export function buildIconTextures(scene) {
     g.fillStyle(0xa9862b, 1); g.fillRect(7, 4, 6, 1);        // knot
     g.fillStyle(0xffffff, 0.6); g.fillCircle(6, 12, 1); g.fillCircle(14, 15, 1); // flour dusting
   });
+  gen(scene, 'iconRawSugar', 20, 20, (g) => { // raw sugar (#227) — bought at the store
+    g.fillStyle(0xe4dcc0, 1); g.fillEllipse(10, 17, 11, 4); // rounded sack base (mirrors iconFlour)
+    g.fillStyle(0xf2ecd8, 1); g.fillRect(4, 8, 12, 10);      // sack body
+    g.fillStyle(0xfffdf6, 1); g.fillRect(4, 8, 3, 10);       // left highlight
+    g.fillStyle(0xd8d0b4, 1); g.fillRect(13, 8, 3, 10);      // right shade
+    g.fillStyle(0xbfa860, 1); g.fillRect(6, 5, 8, 3);        // cinched neck tie
+    g.fillStyle(0xa9862b, 1); g.fillRect(7, 4, 6, 1);        // knot
+    g.fillStyle(0xffffff, 0.8); g.fillCircle(6, 12, 1); g.fillCircle(14, 15, 1); g.fillCircle(10, 13, 1); // coarse grain glints
+  });
   gen(scene, 'iconStew', 20, 20, (g) => { // vegetable stew (#41) — bowl of stew
     g.fillStyle(0x8a5a2e, 1); g.fillEllipse(10, 16, 9, 3);          // bowl base shadow
     g.fillStyle(0xe4dcc0, 1); g.fillEllipse(10, 13, 9, 5);          // bowl body
@@ -503,6 +512,24 @@ export function buildIconTextures(scene) {
     g.fillStyle(0xc9862e, 1); g.fillRoundedRect(4, 4, 12, 6, 2);     // loaf body
     g.fillStyle(0xe8a848, 1); g.fillEllipse(10, 4, 11, 3);           // domed golden top
     g.fillStyle(0xffe08a, 0.8); g.fillCircle(8, 4, 0.8); g.fillCircle(12, 5, 0.8); // glaze glints
+  });
+  // Basket of raw sugar (#227) — a plain mound of coarse white/tan grains, bought at
+  // the general store as the sugar-cube recipe's ingredient. Distinct from the
+  // golden grain (seed) and pale flour mounds — coarser, chunkier grains.
+  gen(scene, 'iconBasketRawSugar', 20, 20, (g) => {
+    drawBasketBody(g);
+    g.fillStyle(0xf2ecd8, 1); g.fillRoundedRect(4, 4, 12, 7, 2); // mound of sugar
+    g.fillStyle(0xe4dcc0, 1); g.fillRect(4, 7, 12, 1); g.fillRect(4, 9, 12, 1);
+    g.fillStyle(0xffffff, 1);
+    g.fillRect(6, 5, 1, 1); g.fillRect(10, 4, 1, 1); g.fillRect(13, 6, 1, 1); g.fillRect(8, 7, 1, 1); // coarse grain glints
+  });
+  // Basket of sugar cubes (#227) — a small stack of white cubes with a sparkle, the
+  // cooked (raw sugar + water) form. Mirrors the standalone iconTreat texture below.
+  gen(scene, 'iconBasketSugarCube', 20, 20, (g) => {
+    drawBasketBody(g);
+    g.fillStyle(0xf5ecd0, 1); g.fillRect(4, 4, 5, 5); g.fillRect(10, 5, 5, 5); g.fillRect(7, 3, 5, 5);
+    g.fillStyle(0xe8d8a8, 1); g.fillRect(4, 7, 5, 1); g.fillRect(10, 8, 5, 1); g.fillRect(7, 6, 5, 1);
+    g.fillStyle(0xffe066, 1); g.fillRect(12, 2, 1, 1); g.fillRect(13, 1, 1, 2); g.fillRect(11, 3, 2, 1); // sparkle
   });
 
   // Scooper tool (#232) — a stable rake/scoop on a handle. Reads as the "clean up

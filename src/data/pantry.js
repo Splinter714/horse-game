@@ -16,6 +16,9 @@ export const PANTRY_STORABLE = [
   // Cooking (#41): cooked dishes can be stocked in the pantry like any other
   // produce, in case there's no active carrier free to hold the stove's output.
   'vegetableStew', 'berryPie', 'honeyBread',
+  // Sugar cubes (#227): raw sugar is the purchased pantry-staple ingredient; sugar
+  // cubes are the cooked dish, storable like the other dishes above.
+  'rawSugar', 'sugarCube',
 ];
 
 export function isPantryStorable(content) {

@@ -266,6 +266,15 @@ export const STAND_DEFS = {
   vegetableStew: { price: 16, tex: 'iconStew',       scale: 0.9, emoji: '🍲', floatIcon: 'iconStew' },
   berryPie:      { price: 26, tex: 'iconBerryPie',   scale: 0.9, emoji: '🥧', floatIcon: 'iconBerryPie' },
   honeyBread:    { price: 27, tex: 'iconHoneyBread', scale: 0.9, emoji: '🍞', floatIcon: 'iconHoneyBread' },
+  // Sugar cubes (#227): raw sugar is a bought-in pantry staple (data/shop.js
+  // SHOP_STOCK), priced a touch above hay/carrot since it's a store-bought good,
+  // not gathered. Sugar cubes (the cooked dish) reuse the existing 'iconTreat'
+  // texture (art/iconArt.js) — a sugar-cube-with-sparkle icon that was already
+  // drawn but unused before this issue. Priced above its raw sugar + water
+  // ingredient cost (data/cooking.js isProfitableToCook), same payoff pattern as
+  // the other dishes.
+  rawSugar:      { price: 4,  tex: 'iconRawSugar',   scale: 0.9, emoji: '🧂', floatIcon: 'iconRawSugar' },
+  sugarCube:     { price: 20, tex: 'iconTreat',       scale: 0.9, emoji: '🍬', floatIcon: 'iconTreat' },
 };
 export const STAND_TYPES = Object.keys(STAND_DEFS);
 

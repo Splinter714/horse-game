@@ -51,6 +51,18 @@ export const RECIPES = {
     output: { content: 'honeyBread', amount: 1 },
     feedEffect: { species: 'cow', stat: 'happiness', amount: 35 },
   },
+  // Raw sugar + water → sugar cubes (#227), the classic horse treat: moisten the
+  // sugar, press and dry into cubes. Fed to the horses — a bigger happiness bump
+  // than berry pie/honey bread above (the "special treat" horses love most),
+  // decided at build time per the issue (explicitly NOT tied to the hummingbird
+  // feeder, #226).
+  sugarCube: {
+    id: 'sugarCube',
+    label: 'Sugar Cubes',
+    ingredients: [{ content: 'rawSugar', amount: 3 }, { content: 'water', amount: 1 }],
+    output: { content: 'sugarCube', amount: 1 },
+    feedEffect: { species: 'horse', stat: 'happiness', amount: 40 },
+  },
 };
 
 export const RECIPE_LIST = Object.values(RECIPES);
