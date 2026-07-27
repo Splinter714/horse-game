@@ -44,9 +44,10 @@ describe('#241 barn/house are distinct world objects', () => {
     // the ONLY thing hiding barnInterior from a player standing outside, so its
     // wall must run from the eave all the way to the sprite base (y = BARN_H).
     // The first pass stopped the wall at y=68 of a 132-tall footprint, leaving the
-    // interior floor permanently visible from outside.
-    expect(worldArt).toMatch(/fillRect\(8, 40, 144, BARN_H - 40\)/);
-    expect(worldArt).toMatch(/fillRect\(60, 62, 40, BARN_H - 62\)/); // doorway to the base
+    // interior floor permanently visible from outside; #349 enlarged the barn and
+    // parametrized these on BARN_W/BARN_H so the invariant scales with the footprint.
+    expect(worldArt).toMatch(/fillRect\(8, 54, BARN_W - 16, BARN_H - 54\)/); // wall to the base
+    expect(worldArt).toMatch(/fillRect\(DOOR_X0, 62, DOOR_X1 - DOOR_X0, BARN_H - 62\)/); // doorway to the base
   });
 
   it('the barn is a separate structure, not at the house position', () => {
