@@ -68,18 +68,22 @@ export const WithWorld = (Base) => class extends Base {
 
     const flowers = ['flowerRed', 'flowerYellow', 'flowerWhite'];
     [
-      // Indices 0-8, 10-19, 21, 23, 25, 26, 27, 29, 33, 34, 35, 38 are the owner's
+      // Indices 0-8, 10-19, 21, 23, 25, 27, 29, 33, 34, 35, 38 are the owner's
       // own placements (#330 drag tool, baked in by #338, #341, #342, #343, #348).
       // The #343 + #348 batches are the tight flower cluster the owner arranged
       // around the bird bath (roughly x 370-540, y 225-295).
+      // #349: the seven flowers that landed inside the enlarged barn footprint
+      // (indices 26, 30-32, 36, 37, 39 — barn now covers x 210-890, y 900-1360, and
+      // a flower drawn inside it would render on the barn floor / hummingbirds would
+      // hover into the roof) were moved clear of it.
       [464, 251], [443, 256], [506, 280], [436, 274], [402, 247],
       [479, 260], [425, 229], [421, 288], [489, 226], [1000, 350],
       [496, 266], [415, 271], [490, 246], [460, 272], [422, 248],
       [516, 264], [509, 241], [378, 255], [372, 278], [491, 294],
       [1700, 600], [395, 264], [1860, 520], [527, 253], [1180, 950],
-      [538, 267], [807, 1284], [525, 283], [1780, 900], [452, 289],
-      [420, 1020], [560, 900], [700, 1040], [480, 282], [954, 1157],
-      [395, 283], [240, 1100], [360, 980], [404, 225], [630, 1100],
+      [538, 267], [980, 1400], [525, 283], [1780, 900], [452, 289],
+      [1010, 985], [560, 860], [1120, 1430], [480, 282], [954, 1157],
+      [395, 283], [960, 1240], [1660, 1010], [404, 225], [1700, 1320],
     ].forEach(([x, y], i) => {
       const sprite = this.add.image(x, y, flowers[i % flowers.length]).setScale(S).setDepth(y);
       // `sprite` kept so the dev drag tool (#330) can move the actual flower, not
@@ -151,7 +155,8 @@ export const WithWorld = (Base) => class extends Base {
       .setScale(S).setDepth(ty).setOrigin(0.5, 0.5);
     // level = numeric water (0..TROUGH_CAP); `filled` mirrors level>0 (kept in sync by _setTroughLevel, #103).
     this.props.trough = { x: tx, y: ty, sprite: troughSprite, level: 0, filled: false };
-    this.buildShelter(); // covered shelter (#319); places props.shelter — worldObjects.js
+    // (The standalone covered shelter that used to be built here was removed in
+    // #349 — the barn is the rain shelter now, for every pasture grazer.)
 
     // Trash can (#191) — a dented metal bin the ambient raccoon rummages in at night.
     // Purely a charming prop (no stock/gathering/economy), in the farm band near the

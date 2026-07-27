@@ -95,10 +95,11 @@ export const SHEEP = {
     superSampled: true,
     shadowScale: 0.55, walkFps: 4, tweenRate: 13, eatFps: 6, bodyR: 14,
     roam: 'pasture',
+    // #349: moved east out of the enlarged barn's footprint (x 210–890, y 900–1360).
     placements: [
-      { x: 480, y: 1040 },
-      { x: 600, y: 1110 },
-      { x: 520, y: 1180 },
+      { x: 940, y: 1020 },
+      { x: 1030, y: 1090 },
+      { x: 950, y: 1300 },
     ],
   },
 
@@ -109,5 +110,7 @@ export const SHEEP = {
   // AI priority list, highest first — the sheep reuses the horse behavior modules
   // (registered as BEHAVIORS.sheep in ../index.js) via the generic dispatcher: seek
   // dropped hay, drink at the trough/stream, graze the grass. No begging the player.
-  behaviors: ['seekFood', 'seekWater', 'seekStream', 'graze'],
+  // `seekShelter` (#349) sits after the real needs and before ambient grazing: rain
+  // sends her into the barn until it clears.
+  behaviors: ['seekFood', 'seekWater', 'seekStream', 'seekShelter', 'graze'],
 };

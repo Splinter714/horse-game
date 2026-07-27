@@ -99,9 +99,10 @@ export const LLAMA = {
     roam: 'pasture',
     // One placement per roster individual: the llama and the alpaca, up in the pasture
     // near the sheep flock.
+    // #349: moved east out of the enlarged barn's footprint (x 210–890, y 900–1360).
     placements: [
-      { x: 700, y: 1060 },   // llama0 (llama)
-      { x: 800, y: 1140 },   // llama1 (alpaca)
+      { x: 1120, y: 1000 },  // llama0 (llama)
+      { x: 1210, y: 1070 },  // llama1 (alpaca)
     ],
   },
 
@@ -112,5 +113,7 @@ export const LLAMA = {
   // AI priority list, highest first. The llama reuses the horse grazer behavior modules
   // (registered as BEHAVIORS.llama in ../index.js) — seek dropped hay, drink at the
   // trough/stream, graze the grass. (No more `spit` entry — see note above, #268.)
-  behaviors: ['seekFood', 'seekWater', 'seekStream', 'graze'],
+  // `seekShelter` (#349) sits after the real needs and before ambient grazing: rain
+  // sends her into the barn until it clears.
+  behaviors: ['seekFood', 'seekWater', 'seekStream', 'seekShelter', 'graze'],
 };

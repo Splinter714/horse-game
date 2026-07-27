@@ -112,9 +112,10 @@ export const WithBehaviors = (Base) => class extends Base {
       bondChance: HERD.BOND_CHANCE,
       bondCooldown: HERD.BOND_COOLDOWN,
       lastBond: h._lastBond ?? null,
-      // Covered shelter (#319) — the seekShelter behavior just needs to know it's
-      // raining; the weather-change hook (weather.js) is what parks/releases the
-      // horse, so no distance/state field is needed here.
+      // Barn rain-shelter (#319, generalized by #349) — the shared seekShelter
+      // behavior just needs to know it's raining; the weather-change hook
+      // (weather.js) is what parks/releases the animal, so no distance/state field
+      // is needed here.
       weather: this._weather ?? WEATHER.SUN,
     };
   }

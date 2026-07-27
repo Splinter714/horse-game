@@ -8,9 +8,45 @@
 // and unit-tested, and the scene mixin (scenes/paddock/barn.js) just wires input →
 // these helpers and persists the result. No Phaser here.
 
-// How many stalls the barn interior draws (worldArt `barnInterior`). Keep in sync
-// with the divider count there and the stall geometry in scenes/paddock/barn.js.
-export const NUM_STALLS = 4;
+// ── Barn footprint + interior layout (design-grid units) ─────────────────────
+// SINGLE SOURCE OF TRUTH for the barn's geometry, shared by the art (art/worldArt.js
+// draws the `barnInterior`/`barnFront` textures at exactly this size) and the scene
+// mixin (scenes/paddock/barn.js derives world positions from it). They used to be
+// two hand-synced copies of 160×132; #349 enlarged the barn a long way, so the
+// numbers live here once instead.
+//
+// #349: 160×132 → 340×230 design units (×2.13 wide, ×1.74 tall; ×3.7 the floor
+// area). At the global scale S=2 that's 680×460 world px — a barn you can walk
+// around inside, with a full row of stalls and a proper tack room.
+export const BARN_W = 340;
+export const BARN_H = 230;
+
+// Stall row along the back wall. `STALL_X0` is the left edge of stall 0's divider,
+// `STALL_STEP` the pitch; a stall's CENTRE is STALL_X0 + i*STALL_STEP + STALL_STEP/2.
+// The left bay (x < STALL_X0) is the tack room.
+export const NUM_STALLS = 8;
+export const STALL_X0 = 108;
+export const STALL_STEP = 28;
+// Design-space y of the pieces of a stall: divider posts, the nameboard, the hay
+// mound, and where an assigned horse stands (just south of its hay).
+export const STALL_TOP = 56;
+export const STALL_SIGN_Y = 66;
+export const STALL_HAY_Y = 92;
+export const STALL_STAND_Y = 118;
+// Centre x of stall `i` in design space.
+export const stallCenterX = (i) => STALL_X0 + i * STALL_STEP + STALL_STEP / 2;
+
+// Tack room anchor (left bay), for the tack-rack interactable.
+export const TACK_X = 52, TACK_Y = 126;
+
+// Ground footprint used for collision + the walk-in interior. The barn art is
+// taller than its footprint (the roof overhangs to the north), so the solid box
+// starts at WALL_Y0, not at the top of the texture. DOOR_X0..DOOR_X1 is the open
+// doorway gap in the south wall — it must line up with the doorway drawn in the
+// `barnFront` façade.
+export const WALL_X0 = 8, WALL_X1 = BARN_W - 8;
+export const WALL_Y0 = 58, WALL_Y1 = BARN_H - 2;
+export const DOOR_X0 = 130, DOOR_X1 = 210;
 
 const STORAGE_KEY = 'horse-game-barn-v1';
 

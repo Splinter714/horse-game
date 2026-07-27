@@ -99,5 +99,7 @@ export const COW = {
   // (registered as BEHAVIORS.cow in ../index.js) via the generic dispatcher. She
   // seeks dropped food, drinks at the trough/stream, and grazes the grass, but she
   // does NOT beg the player (no `begPlayer`) — she's placid, not pushy.
-  behaviors: ['seekFood', 'seekWater', 'seekStream', 'graze'],
+  // `seekShelter` (#349) sits after the real needs and before ambient grazing: rain
+  // sends her into the barn until it clears.
+  behaviors: ['seekFood', 'seekWater', 'seekStream', 'seekShelter', 'graze'],
 };

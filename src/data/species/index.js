@@ -26,6 +26,7 @@ import * as bunnyBehaviors from './bunny/behaviors.js';
 import * as foxBehaviors from './fox/behaviors.js';
 import * as duckBehaviors from './duck/behaviors.js';
 import * as swimBehaviors from './swim.js';
+import * as shelterBehaviors from './shelter.js';
 
 export const SPECIES = {
   horse: HORSE,
@@ -52,7 +53,12 @@ export function getSpecies(id) {
 // (a plain context snapshot in, boolean out) and unit-tested; `run` is the
 // scene-coupled execution that reuses the existing movement primitives.
 export const BEHAVIORS = {
-  horse: indexById(horseBehaviors),
+  // Every PASTURE GRAZER (horse/cow/pig/sheep/goat/llama) also gets the GENERIC
+  // rain-shelter module (#349, ./shelter.js): when it rains they all head into the
+  // barn. It's mixed in per species rather than living in horse/behaviors.js so the
+  // yard critters that reuse the horse grazer primitives (fox, duck) don't silently
+  // inherit a behavior aimed at the pasture's building.
+  horse: { ...indexById(horseBehaviors), ...indexById(shelterBehaviors) },
   chicken: indexById(chickenBehaviors),
   // The rooster is a flock bird like the hen — it REUSES the chicken behavior modules
   // (flee dog / seed / follow / gather at bin) and layers its own `crowAtDawn` (#269)
@@ -61,16 +67,16 @@ export const BEHAVIORS = {
   // The cow is a herbivore grazer like the horse, so she reuses the horse behavior
   // modules; her own `behaviors` list (cow/index.js) picks the subset she runs
   // (food/water/graze, no begging). The run() primitives are species-generic.
-  cow: indexById(horseBehaviors),
+  cow: { ...indexById(horseBehaviors), ...indexById(shelterBehaviors) },
   // The pig is a grazer like the cow, so she reuses the horse behavior modules too;
   // her `behaviors` list (pig/index.js) picks the subset she runs. Her pickier diet
   // (apples/carrots, no hay) is enforced by the food data, not a separate behavior.
   // She also gets her own `wallow` module (#197) — a low-priority charm behavior
   // (mud-roll), layered on top of the reused horse modules.
-  pig: { ...indexById(horseBehaviors), ...indexById(pigBehaviors) },
+  pig: { ...indexById(horseBehaviors), ...indexById(pigBehaviors), ...indexById(shelterBehaviors) },
   // The sheep is a grazer like the cow/pig — reuses the horse behavior modules; her
   // `behaviors` list (sheep/index.js) picks the subset (hay/water/graze, no begging).
-  sheep: indexById(horseBehaviors),
+  sheep: { ...indexById(horseBehaviors), ...indexById(shelterBehaviors) },
   // The cat feeds/waters itself at its own dropped piles (seekFood/seekWater, #202
   // refinement) and falls back to fishing at the stream when hungry (#163) — its
   // own species-specific behavior module (no reuse of the horse modules).
@@ -88,12 +94,12 @@ export const BEHAVIORS = {
   // `behaviors` list (goat/index.js) picks the subset she runs (food/water/graze, no
   // begging). Her eat-everything diet (all pile contents) is enforced by the food data
   // (items.js `feeds`), not a separate behavior. The run() primitives are species-generic.
-  goat: indexById(horseBehaviors),
+  goat: { ...indexById(horseBehaviors), ...indexById(shelterBehaviors) },
   // The llama is a grazer like the sheep/cow/pig — reuses the horse grazer behavior
   // modules; her `behaviors` list (llama/index.js) picks the subset (hay/water/graze,
   // no begging). (She no longer has her own charm module — the spitting quirk was
   // turned off per playtest feedback, #268.)
-  llama: indexById(horseBehaviors),
+  llama: { ...indexById(horseBehaviors), ...indexById(shelterBehaviors) },
   // The tamed fox is a grazer that eats dropped FOX-FOOD piles — it reuses the horse
   // grazer run primitives (horseGoEat/horseGoDrink) plus its own seekFoxFood/seekFoxWater
   // gates (fox/behaviors.js); its `behaviors` list (fox/index.js) picks the fox subset.
