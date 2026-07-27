@@ -83,20 +83,30 @@ export const WithDevLabels = (Base) => class extends Base {
 
   // ─── Object labels ─────────────────────────────────────────────────────────
 
-  // Every placed world object as `{ name, x, y }`, derived from `this.props` so a
-  // newly-added prop is labelled without touching this file. Named (non-array)
-  // props are collected first so that when a prop is ALSO a member of a generic
-  // list (e.g. `props.catBowl` is one of `props.petBowls`) the readable name wins
-  // and the duplicate at the same spot is dropped.
+  // Every placed world object as `{ name, x, y, obj, also }`, derived from
+  // `this.props` so a newly-added prop is labelled without touching this file.
+  // Named (non-array) props are collected first so that when a prop is ALSO a
+  // member of a generic list (e.g. `props.catBowl` is one of `props.petBowls`)
+  // the readable name wins and the duplicate at the same spot is dropped.
+  //
+  // `obj` is the live object itself and `also` the same-spot duplicates that were
+  // deduped away — the labels ignore both, but the drag tool (#330) needs them so
+  // grabbing a thing moves ALL of what sits at that coordinate. Shared on purpose:
+  // both dev tools enumerate the world through this one function.
   _devLabelTargets() {
     const out  = [];
-    const seen = new Set();
+    const seen = new Map();
     const push = (name, o) => {
       if (!o || typeof o.x !== 'number' || typeof o.y !== 'number') return;
       const at = `${Math.round(o.x)}:${Math.round(o.y)}`;
-      if (seen.has(at)) return; // same spot already named by a friendlier key
-      seen.add(at);
-      out.push({ name, x: o.x, y: o.y });
+      const dup = seen.get(at);
+      if (dup) { // same spot already named by a friendlier key
+        if (o !== dup.obj && !dup.also.includes(o)) dup.also.push(o);
+        return;
+      }
+      const entry = { name, x: o.x, y: o.y, obj: o, also: [] };
+      seen.set(at, entry);
+      out.push(entry);
     };
 
     const entries = Object.entries(this.props ?? {}).filter(([k]) => !TRANSIENT.has(k));
