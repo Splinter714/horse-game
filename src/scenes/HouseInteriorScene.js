@@ -2,11 +2,12 @@ import Phaser from 'phaser';
 import { EVENTS } from '../data/events.js';
 import { applyDpr, dprOf, logicalW, logicalH } from './uiUtils.js';
 import { HOUSE_INTERIOR, PLAYER_SPEED as OUTDOOR_PLAYER_SPEED } from './paddock/constants.js';
-import { loadPantry, savePantry } from '../data/save.js';
+import { savePantry } from '../data/save.js';
 import { addToPantry, takeFromPantry, isPantryStorable } from '../data/pantry.js';
 import { CONTENT_DEFS } from '../data/items.js';
 import { WithHouseInteriorDecor } from './houseInteriorDecor.js';
 import { WithHouseInteriorCooking } from './houseInteriorCooking.js';
+import { WithHouseInteriorRecipeBook } from './houseInteriorRecipeBook.js';
 
 // The enterable house interior (#56) — a small standalone room scene the player
 // walks INTO from the paddock's house door, does home-base things in, and walks
@@ -39,7 +40,7 @@ const PLAYER_SPEED = OUTDOOR_PLAYER_SPEED;
 const EXIT_COOLDOWN_MS = 400;        // ignore the doorway right after entering
 const PROMPT_REACH = 70;             // world px: how close to a station to prompt
 
-export default class HouseInteriorScene extends WithHouseInteriorCooking(WithHouseInteriorDecor(Phaser.Scene)) {
+export default class HouseInteriorScene extends WithHouseInteriorRecipeBook(WithHouseInteriorCooking(WithHouseInteriorDecor(Phaser.Scene))) {
   constructor() {
     super('HouseInteriorScene');
   }
@@ -51,16 +52,9 @@ export default class HouseInteriorScene extends WithHouseInteriorCooking(WithHou
     this._exiting = false;
     this._enteredAt = this.time.now;
 
-    // Cooking (#41): which recipe the stove is currently "dialed to" — cycles with
-    // repeated taps/interacts on the stove, cooks with Use (F / on-screen Use), like
-    // the carrier group fly-out cycling in the hotbar. Starts on the first recipe.
-    this._kitchenRecipeIdx = 0;
-
-    // Pantry storage (#212): a separate stockpile from the farm-stand stock and
-    // carried carrier inventory. Loaded fresh each time the house is entered
-    // (small enough to just re-read from localStorage; no need to keep it live
-    // in the registry while outside).
-    this.pantry = loadPantry();
+    // Cooking (#41/#214): combo-cycle index + pantry + persisted recipe book, all
+    // set up together by the cooking mixin (houseInteriorCooking.js's _initCooking).
+    this._initCooking();
 
     const HI = HOUSE_INTERIOR;
     const sc = HI.scale;
@@ -89,6 +83,7 @@ export default class HouseInteriorScene extends WithHouseInteriorCooking(WithHou
     this._buildFireplace();
     this._buildPlayer();
     this._buildInput();
+    this._buildRecipeBookUI(); // #214: simple toggle-able discovered-recipes panel
 
     // Prompt label — screen-fixed, bottom-centre, like a contextual hint.
     this.prompt = this.add.text(0, 0, '', {
@@ -180,6 +175,7 @@ export default class HouseInteriorScene extends WithHouseInteriorCooking(WithHou
     });
     this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.rKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R); // #214 recipe book
     // Tap-to-walk: tap a spot (or a station) to walk there; a station tap acts on arrival.
     this.input.on('pointerdown', this._onTap, this);
   }
@@ -220,6 +216,8 @@ export default class HouseInteriorScene extends WithHouseInteriorCooking(WithHou
 
   update(_time, delta) {
     if (this._customizing || this._exiting) return;
+    this._checkRecipeBookInput(); // #214: [R] toggles the discovered-recipes panel
+    if (this.recipeBookOpen) return; // panel open — pause movement/prompts underneath
     this._move(delta);
     this._checkExit();
     this._checkStationPrompt();

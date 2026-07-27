@@ -97,6 +97,50 @@ export function recipeForDish(content) {
 // Every dish content key, for the pantry/carrier allow-lists.
 export const DISH_CONTENTS = RECIPE_LIST.map((r) => r.output.content);
 
+// ── Recipe discovery (#214) ──────────────────────────────────────────────────
+// Pure discovery: there is no purchased/unlocked recipe list — the player finds a
+// recipe by trying a pair of ingredients at the stove. `matchRecipe` resolves which
+// (if any) recipe a chosen pair of ingredient CONTENTS would produce — order-
+// independent, and ignoring amounts (amounts are checked separately, via
+// canCookRecipe, once a match is found — this is the "is this even a real
+// combination" half of the safe preview, so a guess never has to consume anything
+// to find out). Returns null for an unknown/invalid combination.
+export function matchRecipe(contentA, contentB) {
+  return RECIPE_LIST.find((r) => {
+    if (r.ingredients.length !== 2) return false;
+    const [a, b] = r.ingredients;
+    return (a.content === contentA && b.content === contentB) ||
+           (a.content === contentB && b.content === contentA);
+  }) ?? null;
+}
+
+// The recipe book: which recipe ids the player has discovered by successfully
+// cooking them at least once. Sanitized to a de-duplicated array of known recipe
+// ids — drops anything stale/unrecognized (e.g. an old save referencing a removed
+// recipe), mirroring sanitizePantry/sanitizeGarden's defensive-load pattern.
+export function sanitizeRecipeBook(raw) {
+  if (!Array.isArray(raw)) return [];
+  const validIds = new Set(RECIPE_LIST.map((r) => r.id));
+  return [...new Set(raw.filter((id) => typeof id === 'string' && validIds.has(id)))];
+}
+
+// Add a recipe to the book (pure — returns a new sanitized array; a no-op, same
+// array contents, if it's already discovered).
+export function discoverRecipe(book, recipeId) {
+  const sanitized = sanitizeRecipeBook(book);
+  return sanitized.includes(recipeId) ? sanitized : [...sanitized, recipeId];
+}
+
+export function isRecipeDiscovered(book, recipeId) {
+  return sanitizeRecipeBook(book).includes(recipeId);
+}
+
+// Every raw ingredient content used by any recipe (never a dish output) — the
+// candidate pool the stove's ingredient-combo picker cycles pairs from.
+export const INGREDIENT_CONTENTS = [
+  ...new Set(RECIPE_LIST.flatMap((r) => r.ingredients.map((i) => i.content))),
+];
+
 // Sanity: every recipe's ingredients and output must exist in items.js CONTENT_DEFS,
 // and the output must be sellable (action 'sell') — otherwise the "sells for more"
 // half of the feature silently does nothing. Cheap enough to run at module load;

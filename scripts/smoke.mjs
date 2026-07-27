@@ -1460,9 +1460,10 @@ try {
       hi.pantry = { carrot: 2, potato: 1 };
 
       // Dial the stove to vegetableStew (cycle until its label shows Cook, not a
-      // needs-hint) — deterministic regardless of RECIPE_LIST order.
+      // needs-hint) — deterministic regardless of the ingredient-combo cycle order
+      // (#214: the stove cycles discoverable ingredient PAIRS, not a fixed recipe list).
       const stoveStation = hi.stations.find((s) => s.action === 'kitchen');
-      for (let i = 0; i < 5 && hi._kitchenRecipeIdx !== undefined; i++) {
+      for (let i = 0; i < 5 && hi._kitchenComboIdx !== undefined; i++) {
         const label = hi._kitchenLabel();
         if (label.includes('Cook Vegetable Stew')) break;
         hi._activate(stoveStation); // cooks or cycles depending on current dial
@@ -1489,13 +1490,16 @@ try {
       // Every horse got the bump, not just one.
       const allFedOk = horseKeys.every((k) => allHorses[k].stats.hunger > 10);
 
+      // Discovery (#214): a successful cook records the recipe in the persisted book.
+      const discoveredOk = Array.isArray(hi.recipeBook) && hi.recipeBook.includes('vegetableStew');
+
       hi._exit();
       await new Promise((r) => setTimeout(r, 400));
       const backInWorld = g.scene.isActive('PaddockScene') && !g.scene.isActive('HouseInteriorScene');
 
       return {
         dialedOk, cookedOk, ingredientsConsumedOk, beforePantryCarrot,
-        preFeedHunger, postFeedHunger, fedOk, allFedOk, backInWorld,
+        preFeedHunger, postFeedHunger, fedOk, allFedOk, backInWorld, discoveredOk,
       };
     } catch (e) {
       return { threw: String(e) };
@@ -1511,6 +1515,7 @@ try {
     if (!cook.fedOk) fail(`cooking (#41): feeding the dish did not restore hunger (${cook.preFeedHunger} -> ${cook.postFeedHunger})`);
     if (!cook.allFedOk) fail('cooking (#41): feeding only bumped one horse, expected every horse to be fed');
     if (!cook.backInWorld) fail('cooking (#41): exiting the house did not return to PaddockScene');
+    if (!cook.discoveredOk) fail('recipe discovery (#214): cooking vegetableStew did not record it in the recipe book');
   }
   // Sell-price check (Node-side, same STAND_DEFS table the live farm stand reads):
   // every cooked dish sells for more than its raw ingredients combined.
