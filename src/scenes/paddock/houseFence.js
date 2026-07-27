@@ -1,21 +1,41 @@
-// House fence line geometry (#344) — pure, no Phaser, so it can be unit-tested.
+// House fence line geometry (#344, reworked #372) — pure, no Phaser, so it can be
+// unit-tested (kept pure even though this repo dropped its test runner
+// 2026-07-27, matching houseFencePath.js's `respaceHouseFence`).
 //
-// The six fence posts near the house are tracked prop records (#329) that the dev
-// drag tool can reposition individually or as a #337 group. Their collision used to
-// be a hardcoded rect matching where they originally sat, so relocating the run left
-// an invisible fence behind at the old spot. This derives the band from wherever the
-// posts actually are instead.
+// The fence posts near the house are tracked prop records (#329) that the dev
+// drag tool can reposition individually, as a #337 group, or (#370) by dragging
+// the whole run's start/end endpoint. Their collision used to be a hardcoded rect
+// matching where they originally sat, so relocating the run left an invisible
+// fence behind at the old spot; later (#372) it became a single bounding box over
+// every post's live x/y instead.
 //
-// Each post draws the 'fence' rail with origin (0, 0.5): the rail extends RIGHT from
-// the post's x, and is vertically centred on its y. So the span runs from the
-// leftmost post's x to the rightmost post's x plus one segment width, and the band is
-// `band` tall around the posts' y (min/max, so a post nudged out of line is still
-// covered rather than being left with a gap you can walk through).
+// #372 playtest follow-up: a single box spanning the run's full x/y extent
+// over-covers near the ends/corners of any diagonal run (you'd feel a collision
+// block a bit before/after the visible fence line) — the box's corners stick out
+// past the actual (thin, angled) rail. This instead returns one tight rect PER
+// POST-TO-POST SPAN, hugging just that segment's own bounding box — a "thick
+// line" rather than one box over the whole run. Still axis-aligned (not a true
+// rotated rect/OBB): the existing collision system (`_hits`/`_collides` in
+// world.js) is AABB-vs-circle per obstacle for every obstacle in the game, and
+// splitting into several tighter segment boxes fits that shape with no changes
+// there, vs. reworking the shared system for a genuine OBB. A single segment
+// (post-to-post pair) is still nearly as diagonal as the box was, but each one
+// only spans ~96px instead of the whole run, so the over-coverage shrinks to
+// "near this one segment's ends" rather than "near the whole run's ends" — and a
+// horizontal or near-horizontal run (the common case) is unaffected either way.
+
+/** One tight AABB around the segment between two adjacent posts. */
+export function houseFenceSegmentRect(a, b, band) {
+  const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y) - band / 2;
+  return { x, y, w: Math.max(a.x, b.x) - x, h: Math.max(a.y, b.y) + band / 2 - y };
+}
 
 /** @param {{x:number,y:number}[]} posts */
-export function houseFenceRect(posts, segW, band) {
-  if (!posts?.length) return null;
-  const xs = posts.map((p) => p.x), ys = posts.map((p) => p.y);
-  const x = Math.min(...xs), y = Math.min(...ys) - band / 2;
-  return { x, y, w: Math.max(...xs) + segW - x, h: Math.max(...ys) + band / 2 - y };
+export function houseFenceSegmentRects(posts, band) {
+  if (!posts || posts.length < 2) return [];
+  const rects = [];
+  for (let i = 0; i < posts.length - 1; i++) {
+    rects.push(houseFenceSegmentRect(posts[i], posts[i + 1], band));
+  }
+  return rects;
 }
