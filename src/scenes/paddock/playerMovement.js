@@ -212,8 +212,17 @@ export const WithPlayerMovement = (Base) => class extends Base {
   _findPath(fromX, fromY, toX, toY, opts = {}) {
     const R = opts.R ?? 16; // clearance — a touch more than the body's collision radius
     const obs = opts.obstacles ?? this.obstacles;
+    // Route PLANNING uses a slightly larger clearance than actual movement does, so a
+    // gap that's technically wide enough for the bare body radius but too tight to
+    // realistically walk through (a couple of obstacles left a few px apart) gets
+    // treated as blocked and routed around, instead of A* finding a razor's-edge path
+    // straight through it — the "horses cluster in a tiny sliver" class of bug
+    // (2026-07-27). Doesn't affect real-time collision (_stepNav etc. still use the
+    // raw R), only which routes this search considers valid.
+    const SLIVER_MARGIN = 10;
+    const planR = R + SLIVER_MARGIN;
     // Straight shot? Skip the grid search entirely.
-    if (this._clearLine(fromX, fromY, toX, toY, R, obs)) return [{ x: toX, y: toY }];
+    if (this._clearLine(fromX, fromY, toX, toY, planR, obs)) return [{ x: toX, y: toY }];
 
     const CELL = 24;
     const { minX, maxX, minY, maxY } = PLAYER_BOUNDS;
@@ -228,7 +237,7 @@ export const WithPlayerMovement = (Base) => class extends Base {
     const blocked = new Uint8Array(N);
     for (let r = 0; r < rows; r++)
       for (let c = 0; c < cols; c++)
-        blocked[r * cols + c] = this._collides(wx(c), wy(r), R, obs) ? 1 : 0;
+        blocked[r * cols + c] = this._collides(wx(c), wy(r), planR, obs) ? 1 : 0;
 
     const startC = toC(fromX), startR = toR(fromY);
     let goalC = toC(toX), goalR = toR(toY);

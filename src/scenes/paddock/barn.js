@@ -107,17 +107,14 @@ export const WithBarn = (Base) => class extends Base {
     // position if the barn is moved (dev drag tool #330) — same stale-geometry
     // class of bug as #344's fence collision.
     this.barnAnchor = { x: ax, y: ay };
-    // The trough + well (world.js) sit just west of this wall — close enough (at
-    // their owner-placed positions) that the leftover strip between them and the
-    // wall was only ~3-4px, a nearly-sealed sliver too narrow for a horse to
-    // actually stand in but not narrow enough for pathfinding to treat as blocked,
-    // so horses kept routing into it and bunching up (2026-07-27 playtest). Rather
-    // than move the trough/well, pad the LEFT wall's collision (not its visible
-    // art) further west so it genuinely merges with theirs and fully seals the gap.
-    const WEST_PINCH_PAD = 24;
+    // (The trough + well sit close enough west of this wall that horses were
+    // clustering in the narrow leftover strip between them — 2026-07-27 playtest.
+    // That's now handled generically by _findPath's SLIVER_MARGIN in
+    // playerMovement.js, which treats any too-tight-to-really-walk-through gap as
+    // blocked for route planning; no barn-specific collision padding needed here.)
     this.barnObstacles = [
       wall(bx0, by0, bx1, by0 + T),                  // back (north) wall — behind the stalls
-      wall(bx0 - WEST_PINCH_PAD, by0, bx0 + T, by1), // left wall (padded west, see above)
+      wall(bx0, by0, bx0 + T, by1),                  // left wall
       wall(bx1 - T, by0, bx1, by1),                  // right wall
       wall(bx0, by1 - T, doorL, by1),               // south wall, left of doorway
       wall(doorR, by1 - T, bx1, by1),               // south wall, right of doorway
