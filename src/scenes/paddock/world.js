@@ -69,27 +69,39 @@ export const WithWorld = (Base) => class extends Base {
     const g = this.add.graphics().setDepth(-95);
     const routes = Object.values(this._pathRoutes);
     const subdivided = routes.map((wp) => {
-      // Chaikin-style corner-cutting (#378): soften each INTERIOR waypoint's
-      // hard kink by replacing it with two points pulled a small percentage
-      // toward its neighbors, before the straight-segment stamping below runs.
-      // This is a local copy used only for this bake — it never touches `wp`
-      // itself, so the real corner points `_pathRoutes` holds (and that
-      // splineDrag.js drags/inserts against) are untouched. Endpoints are
-      // left alone so route junctions/entrances still land exactly on the
-      // declared coordinates.
-      const smoothed = wp.length <= 2 ? wp : [
-        wp[0],
-        ...wp.slice(1, -1).flatMap(([x, y], idx) => {
-          const [px, py] = wp[idx];       // previous point (idx is i-1 in original array)
-          const [nx, ny] = wp[idx + 2];   // next point
-          const pull = 0.18;
-          return [
-            [x + (px - x) * pull, y + (py - y) * pull],
-            [x + (nx - x) * pull, y + (ny - y) * pull],
-          ];
-        }),
-        wp[wp.length - 1],
-      ];
+      // Chaikin-style corner-cutting (#378): soften each interior waypoint's
+      // hard kink by repeatedly replacing points with two points pulled a
+      // percentage toward their neighbors, before the straight-segment
+      // stamping below runs. This is a local copy used only for this bake —
+      // it never touches `wp` itself, so the real corner points
+      // `_pathRoutes` holds (and that splineDrag.js drags/inserts against)
+      // are untouched. Endpoints are left alone (each pass re-anchors the
+      // first/last point) so route junctions/entrances still land exactly
+      // on the declared coordinates.
+      //
+      // A single pass only trims the very tip of the corner, which still
+      // reads as a (smaller) cut corner rather than a true curve — a
+      // playtest note on the first version of this fix (#378). Running
+      // several passes, each smoothing the previous pass's output, converges
+      // toward a properly rounded bend while staying a cheap point-pull
+      // (no bezier/spline math needed).
+      const CHAIKIN_PASSES = 3;
+      const CHAIKIN_PULL = 0.25;
+      let smoothed = wp;
+      for (let pass = 0; pass < CHAIKIN_PASSES && smoothed.length > 2; pass++) {
+        smoothed = [
+          smoothed[0],
+          ...smoothed.slice(1, -1).flatMap(([x, y], idx) => {
+            const [px, py] = smoothed[idx];       // previous point (idx is i-1 in current array)
+            const [nx, ny] = smoothed[idx + 2];   // next point
+            return [
+              [x + (px - x) * CHAIKIN_PULL, y + (py - y) * CHAIKIN_PULL],
+              [x + (nx - x) * CHAIKIN_PULL, y + (ny - y) * CHAIKIN_PULL],
+            ];
+          }),
+          smoothed[smoothed.length - 1],
+        ];
+      }
       const pts = [];
       for (let i = 0; i < smoothed.length - 1; i++) {
         const [x0, y0] = smoothed[i], [x1, y1] = smoothed[i + 1];
