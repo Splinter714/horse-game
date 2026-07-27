@@ -290,6 +290,11 @@ export const WithHorseAI = (Base) => class extends Base {
         if (!trough.filled) { h._drinkSpot = null; h.state = 'idle'; this.scheduleWander(h, 500); return; }
         h.sprite.setFlipX(!facingRight);
         h.sprite.play(`eat_${h.key}`, true);
+        // Always draw the drinker in front of the trough art, regardless of the
+        // y-based depth sort — a horse at a spot NORTH of the trough's own centre
+        // (depth = its y) would otherwise render behind it while drinking, which
+        // reads wrong right at the water's edge.
+        h.sprite.setDepth(Math.max(h.sprite.depth, trough.y + 1));
 
         playDrink();
         let drinksDone = 0;
