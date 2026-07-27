@@ -88,7 +88,10 @@ export const PIG = {
     superSampled: true, // drawn on the ART_SCALE grid — display at S/ART_SCALE
     shadowScale: 0.7, walkFps: 4, tweenRate: 11, eatFps: 6, bodyR: 12,
     roam: 'pasture',
-    placements: [{ x: 1280, y: 1240 }],
+    // (1280, 1240) landed inside the barn's relocated footprint (x 1075-1723,
+    // y 962-1302) — part of the same spawn-point sweep as the horse/cow fixes
+    // (2026-07-27). Moved clear, west of the barn.
+    placements: [{ x: 760, y: 1150 }],
   },
 
   // Info-panel presentation: animated portrait (idle frames), stat bars from

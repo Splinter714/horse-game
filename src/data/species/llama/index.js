@@ -99,10 +99,15 @@ export const LLAMA = {
     roam: 'pasture',
     // One placement per roster individual: the llama and the alpaca, up in the pasture
     // near the sheep flock.
-    // #349: moved east out of the enlarged barn's footprint (x 210–890, y 900–1360).
+    // #349 moved these east out of the enlarged barn's ORIGINAL placeholder
+    // footprint (x 210-890, y 900-1360) — but the owner then repositioned the
+    // barn itself (#330 drag tool) to (1399, 1306), whose actual collision covers
+    // x 1075-1723, y 962-1302, right back over both these spots. Moved west of
+    // the barn instead (2026-07-27, part of the same spawn-point sweep as the
+    // horse/cow/pig fixes).
     placements: [
-      { x: 1120, y: 1000 },  // llama0 (llama)
-      { x: 1210, y: 1070 },  // llama1 (alpaca)
+      { x: 700, y: 1000 },   // llama0 (llama)
+      { x: 820, y: 1120 },   // llama1 (alpaca)
     ],
   },
 

@@ -88,7 +88,11 @@ export const COW = {
     // multiplier on top of S, applied to her sprite + shadow in creatures.js.
     scale: 1.35,
     roam: 'pasture',
-    placements: [{ x: 1150, y: 1300 }],
+    // (1150, 1300) landed just inside the barn's relocated south wall (barn
+    // collision now x 1075-1723, y 962-1302 — the owner's #330 reposition never
+    // got cross-checked against this spawn point, same class of bug as the horse
+    // spawn fix, 2026-07-27). Moved clear, south of the barn.
+    placements: [{ x: 1200, y: 1420 }],
   },
 
   // Info-panel presentation: animated portrait (she has idle frames), stat bars
