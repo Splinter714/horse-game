@@ -24,41 +24,20 @@
 import { S, TOWN_X0, TOWN_W, TOWN_Y0, TOWN_Y1 } from './constants.js';
 import { bakeStaticGraphics } from './bakeGraphics.js';
 
-// #371: this used to be a flat .setTint() on the whole tileSprite — a hard edge
-// exactly at TOWN_X0. Mirrors trail.js's farm/trail gradient-overlay technique
-// (BLEND_IN/BLEND_OUT + a Graphics gradient, not a plain setTint) so the
-// farm/town boundary fades in instead of snapping on. Town sits EAST of the
-// boundary (increasing x), the trail's mirror image, so the blend direction
-// is flipped: alpha 0 back on the farm side, full alpha out into town.
-const TOWN_TINT = 0xd8cf9e;
-const TOWN_FULL_ALPHA = 0.55; // matches trail.js's overlay strength
-const TOWN_BLEND_IN = TOWN_X0 - 120;  // still farm side: blend starts here, alpha 0
-const TOWN_BLEND_OUT = TOWN_X0 + 420; // well into town: blend finishes here, alpha at full
+// #381: town used to carry its own warm ground tint (originally a flat
+// .setTint(), then a gradient-overlay blend added by #371 to soften the
+// farm/town seam). After several rounds chasing that seam, the owner's call
+// was to drop per-region ground tinting entirely rather than keep fixing
+// blend edges — town's ground is now plain grass, same as the farm.
 
 export const WithTown = (Base) => class extends Base {
   buildTown() {
-    // Town ground — a warmer, slightly dustier tint than the farm's grass reads as
-    // "a little street/square" without needing a new tileset; reuses the existing
-    // grass texture tiled across the extension band (mirrors buildTrail's tinting).
-    // Plain (untinted) base layer — the tint is applied by the gradient overlay
-    // below instead of a uniform .setTint(), so the transition fades in.
+    // Town ground — plain grass, same texture/tiling as the farm (no tint
+    // layer; see file header). Reuses the existing grass texture tiled
+    // across the extension band.
     const top = TOWN_Y0 - 40, bandH = (TOWN_Y1 - TOWN_Y0) + 80;
     this.add.tileSprite(TOWN_X0, top, TOWN_W, bandH, 'grass')
       .setOrigin(0, 0).setTileScale(S, S).setDepth(-100);
-
-    // Smooth tint blend (mirrors buildTrail's gradient overlay): fades the
-    // town tint in from 0 alpha at TOWN_BLEND_IN (still on the farm side) to
-    // full alpha at TOWN_BLEND_OUT (well into town), then a flat full-alpha
-    // fill covers the rest of town out to its far edge. Reads as a gradual
-    // color shift instead of a hard line at TOWN_X0.
-    const tintG = this.add.graphics().setDepth(-99);
-    // Rect spans x ∈ [TOWN_BLEND_IN, TOWN_BLEND_OUT]: left edge (farm side) is
-    // zero alpha, right edge (deeper into town) is full alpha — the mirror of
-    // trail.js's left/right assignment, since town blends in the +x direction.
-    tintG.fillGradientStyle(TOWN_TINT, TOWN_TINT, TOWN_TINT, TOWN_TINT, 0, TOWN_FULL_ALPHA, 0, TOWN_FULL_ALPHA);
-    tintG.fillRect(TOWN_BLEND_IN, top, TOWN_BLEND_OUT - TOWN_BLEND_IN, bandH);
-    tintG.fillStyle(TOWN_TINT, TOWN_FULL_ALPHA);
-    tintG.fillRect(TOWN_BLEND_OUT, top, (TOWN_X0 + TOWN_W) - TOWN_BLEND_OUT, bandH);
 
     // A worn path leading off the farm's east edge into town, so the transition
     // reads as "the street continues from here" (mirrors the trail's dirt path).

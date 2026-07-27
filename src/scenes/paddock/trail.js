@@ -10,99 +10,35 @@
 // the 500-line budget) so this doesn't collide with other agents editing the
 // farm's world.js in parallel.
 //
-// 2026-07-06 playtest follow-up (both addressed here, #36):
-//   1. "Make the trail bigger — a long loop rather than the current shorter
-//      stretch." TRAIL_W/TRAIL_Y0/TRAIL_Y1 (constants.js) nearly doubled, and
-//      the dirt path is now a closed LOOP (out along the top, curls around the
-//      far west end, back along the bottom, closing back at the entrance)
-//      instead of one dead-end line — you can walk the whole loop and end up
-//      back at the farm.
-//   2. "Smooth the ground tint transition into the trail — currently a hard
-//      line." The cooler trail tint now fades in gradually over a blend zone
-//      that straddles the farm/trail boundary (see the gradient overlay in
-//      the ground block below) instead of snapping on at x=0.
-// (The third playtest point — "minimap feels too abstract, no concrete
+// 2026-07-06 playtest follow-up (#36):
+//   "Make the trail bigger — a long loop rather than the current shorter
+//   stretch." TRAIL_W/TRAIL_Y0/TRAIL_Y1 (constants.js) nearly doubled, and
+//   the dirt path is now a closed LOOP (out along the top, curls around the
+//   far west end, back along the bottom, closing back at the entrance)
+//   instead of one dead-end line — you can walk the whole loop and end up
+//   back at the farm.
+// (A second playtest point — "minimap feels too abstract, no concrete
 // alternative decided yet" — is a genuine open design question, not a
 // concrete fix, so it's intentionally NOT touched here; see hotbar/minimap.js.)
+//
+// #381: the trail used to carry its own cooler ground tint, softened at the
+// farm/trail boundary and (after #371) at the band's top/bottom edges by a
+// gradient-overlay + RenderTexture alpha-mask. After several rounds chasing
+// that seam, the owner's call was to drop per-region ground tinting
+// entirely — the trail's ground is now plain grass, same as the farm.
 
-import Phaser from 'phaser';
 import { S, TRAIL_X0, TRAIL_W, TRAIL_Y0, TRAIL_Y1 } from './constants.js';
 import { playGather } from '../../audio/sounds.js';
-
-const TRAIL_TINT = 0xbfe0c0;
-// How far the tint blend zone extends on either side of the farm/trail
-// boundary (x=0) — negative into the trail, positive back into the farm —
-// so the color change reads as a gradual fade rather than a hard edge.
-const BLEND_IN = 120;   // still farm side: blend starts here, alpha 0
-const BLEND_OUT = -420; // trail side: blend finishes here, alpha at full
-// #371: the X-axis blend above only softens the farm/trail boundary — the
-// band's own top/bottom edges (TRAIL_Y0/TRAIL_Y1 ± the 40px pad below) still
-// cut the tint off hard against the surrounding grass. This is how far in
-// (px) the tint fades out near those edges, mirrored top and bottom.
-const BLEND_Y = 100;
 
 export const WithTrail = (Base) => class extends Base {
   buildTrail() {
     const top = TRAIL_Y0 - 40, bandH = (TRAIL_Y1 - TRAIL_Y0) + 80;
 
-    // Trail ground — a slightly darker/cooler grass tint reads as "further from
-    // the farm" without needing a new tileset; the stream/grass textures already
-    // exist so this just reuses 'grass' tiled across the extension band. Plain
-    // (untinted) base layer — the tint itself is applied by the gradient overlay
-    // below so the transition can fade in instead of snapping on.
+    // Trail ground — plain grass, same texture/tiling as the farm (no tint
+    // layer; see file header). Reuses the existing grass texture tiled
+    // across the extension band.
     this.add.tileSprite(TRAIL_X0, top, TRAIL_W, bandH, 'grass')
       .setOrigin(0, 0).setTileScale(S, S).setDepth(-100);
-
-    // Smooth tint blend (playtest fix #2): a horizontal gradient overlay that
-    // fades the cooler trail tint in from 0 alpha at BLEND_IN (still on the
-    // farm side) to full alpha at BLEND_OUT (well into the trail), then a flat
-    // full-alpha fill covers the rest of the trail out to its far edge. Reads
-    // as a gradual color shift instead of a hard line at x=0.
-    const tintG = this.add.graphics();
-    const FULL_ALPHA = 0.55;
-    // Rect spans x ∈ [BLEND_OUT, BLEND_IN]: left edge (BLEND_OUT, deeper into
-    // the trail) is full alpha, right edge (BLEND_IN, still on the farm side)
-    // is zero alpha — i.e. fillGradientStyle's (topLeft/bottomLeft) corners are
-    // the trail side, (topRight/bottomRight) the farm side.
-    tintG.fillGradientStyle(TRAIL_TINT, TRAIL_TINT, TRAIL_TINT, TRAIL_TINT, FULL_ALPHA, 0, FULL_ALPHA, 0);
-    tintG.fillRect(BLEND_OUT, top, BLEND_IN - BLEND_OUT, bandH);
-    tintG.fillStyle(TRAIL_TINT, FULL_ALPHA);
-    tintG.fillRect(TRAIL_X0, top, BLEND_OUT - TRAIL_X0, bandH);
-
-    // #371 fix 2: the gradient above only fades along X — the band's top/bottom
-    // edges still cut off hard. Bake the X-faded tint into a RenderTexture, then
-    // ERASE a second, Y-only alpha mask into it (two strips: full erase-alpha
-    // right at the top/bottom edge, fading to 0 by BLEND_Y px in) so the tint
-    // also fades out near those edges. RenderTexture's ERASE blend mode does
-    // `dest.alpha *= (1 - source.alpha)`, so wherever the mask is opaque the
-    // baked tint gets knocked down toward transparent — a real 2D falloff
-    // (X gradient × Y gradient) rather than a single 1D gradient rect.
-    const rt = this.add.renderTexture(TRAIL_X0, top, TRAIL_W, bandH).setOrigin(0, 0).setDepth(-99);
-    // #371 regression fix: the game boots with `pixelArt: true` (main.js), which makes
-    // every texture default to NEAREST filtering — correct for crisp sprite art, but it
-    // turns this baked-in gradient into a visibly stepped/blocky one. The gradient used
-    // to be a live Graphics fill, which WebGL renders as a per-vertex-interpolated shaded
-    // mesh (always smooth, independent of texture filtering); baking it into a
-    // RenderTexture made it a *sampled texture* for the first time, so it started
-    // inheriting the game's NEAREST default — and every camera-scroll subpixel offset
-    // shows up as a hard stair-step in what should be a smooth blend. That's what made
-    // the farm/trail seam look worse, not better, after this band's Y-fade was added.
-    // Force this one texture back to LINEAR so the gradient stays smooth; it doesn't
-    // affect any sprite's pixel-art filtering, which is set independently per texture.
-    rt.texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
-    rt.draw(tintG, -TRAIL_X0, -top);
-    tintG.destroy();
-
-    const fadeG = this.add.graphics();
-    const white = 0xffffff;
-    // Top strip: alpha 1 right at the band's top edge, fading to 0 by BLEND_Y in.
-    fadeG.fillGradientStyle(white, white, white, white, 1, 1, 0, 0);
-    fadeG.fillRect(TRAIL_X0, top, TRAIL_W, BLEND_Y);
-    // Bottom strip: alpha 0 at BLEND_Y from the bottom edge, fading to 1 right at it.
-    fadeG.fillGradientStyle(white, white, white, white, 0, 0, 1, 1);
-    fadeG.fillRect(TRAIL_X0, top + bandH - BLEND_Y, TRAIL_W, BLEND_Y);
-    rt.erase(fadeG, -TRAIL_X0, -top);
-    fadeG.destroy();
 
     // A worn dirt path leading off the farm's west edge into the trail. Bigger
     // trail playtest fix #1: instead of one dead-end line, this is now a closed
