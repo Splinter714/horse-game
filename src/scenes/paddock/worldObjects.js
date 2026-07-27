@@ -291,8 +291,10 @@ export const WithWorldObjects = (Base) => class extends Base {
   // with the house wall or fence obstacles.
   buildDoghouse() {
     const x = 260, y = 460;
-    this.props.doghouse = { x, y };
-    this.add.image(x, y, 'doghouse').setScale(S).setDepth(y).setOrigin(0.5, 1);
+    const sprite = this.add.image(x, y, 'doghouse').setScale(S).setDepth(y).setOrigin(0.5, 1);
+    // `sprite` kept so the dev drag tool (#330) can move the visible kennel, not
+    // just this record's numbers.
+    this.props.doghouse = { x, y, sprite };
     // Sprite 48×42 at S (origin 0.5,1); solid kennel body ≈ local x8–38, y18–40 →
     // inset a touch so the player can brush right up to it.
     this.doghouseObstacles = [{ x: x - 30 + 2, y: y - 48 + 2, w: 60 - 4, h: 44 - 4 }];

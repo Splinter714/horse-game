@@ -72,16 +72,21 @@ export const WithWorld = (Base) => class extends Base {
       [420, 1020], [560, 900], [700, 1040], [850, 820], [980, 1020],
       [120, 750], [240, 1100], [360, 980], [500, 800], [630, 1100],
     ].forEach(([x, y], i) => {
-      this.add.image(x, y, flowers[i % flowers.length]).setScale(S).setDepth(y);
-      (this.props.flowers ??= []).push({ x, y }); // hummingbirds (#226) hover near flowers
+      const sprite = this.add.image(x, y, flowers[i % flowers.length]).setScale(S).setDepth(y);
+      // `sprite` kept so the dev drag tool (#330) can move the actual flower, not
+      // just this record's numbers (hummingbirds #226 hover near flowers by x/y).
+      (this.props.flowers ??= []).push({ x, y, sprite });
     });
 
     // House (#241) — the player's home base, NW corner. Interactive: walk up and
     // sleep until morning. This is the old "barn" object rebranded (#241 split);
     // home-base semantics (cat home, night huddle, sleep, player spawn) all anchor
     // here. Its interior is built in #56.
-    this.add.image(240, 280, 'house').setScale(S).setDepth(279).setOrigin(0.5, 1);
-    this.props.house = { x: 240, y: 250 };
+    const houseSprite = this.add.image(240, 280, 'house').setScale(S).setDepth(279).setOrigin(0.5, 1);
+    // `sprite` kept alongside the anchor so the dev drag tool (#330) can move the
+    // visible building, not just this record's numbers — the anchor is offset from
+    // the sprite's own (240, 280) on purpose (30px above), so only the delta matters.
+    this.props.house = { x: 240, y: 250, sprite: houseSprite };
     this._buildChimneySmoke(); // matches the indoor fireplace (#230) — a wisp above the chimney
     this.buildSlopMaker(); // slop-maker (#225) — house-exterior leftovers sink; paddock/farmStand.js
 
@@ -101,9 +106,9 @@ export const WithWorld = (Base) => class extends Base {
     // (pop-door + ramp foot; coop is 64×52, origin 0.5,1) is what chickens file
     // in/out of at nightfall (dayNight.js chickenRoost/chickenLeaveCoop).
     const coopX = 930, coopY = 400;
-    this.add.image(coopX, coopY, 'coop').setScale(S).setDepth(coopY).setOrigin(0.5, 1);
+    const coopSprite = this.add.image(coopX, coopY, 'coop').setScale(S).setDepth(coopY).setOrigin(0.5, 1);
     this.props.coop = {
-      x: coopX, y: coopY,
+      x: coopX, y: coopY, sprite: coopSprite, // sprite kept for the dev drag tool (#330)
       doorX: coopX + (17 - 32) * S, doorY: coopY + (39 - 52) * S, // ≈ (900, 374)
       rampX: coopX + (10 - 32) * S, rampY: coopY,                 // ≈ (886, 400)
     };

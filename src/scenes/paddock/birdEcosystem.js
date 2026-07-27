@@ -38,8 +38,10 @@ export const WithBirdEcosystem = (Base) => class extends Base {
   // pedestal footprint so the player and grazers path around it.
   buildBirdBath() {
     const x = 620, y = 470;
-    this.add.image(x, y, 'birdBath').setScale(S).setDepth(y).setOrigin(0.5, 1);
-    this.props.birdBath = { x, y };
+    const sprite = this.add.image(x, y, 'birdBath').setScale(S).setDepth(y).setOrigin(0.5, 1);
+    // `sprite` kept so the dev drag tool (#330) can move the visible bath, not
+    // just this record's numbers.
+    this.props.birdBath = { x, y, sprite };
     // Sprite 34×40 at S (origin 0.5,1); the solid part is the pedestal foot ≈ 20px
     // wide at the base → ~44×20 footprint, bottom a touch above y so a bird landing
     // on the near rim still reads as "on" the bath.
@@ -227,8 +229,10 @@ export const WithBirdEcosystem = (Base) => class extends Base {
   // live preview if a different yard corner reads better.
   buildBirdhouse() {
     const x = 500, y = 260;
-    this.add.image(x, y, 'birdhouse').setScale(S).setDepth(y).setOrigin(0.5, 1);
-    this.props.birdhouse = { x, y };
+    const sprite = this.add.image(x, y, 'birdhouse').setScale(S).setDepth(y).setOrigin(0.5, 1);
+    // `sprite` kept so the dev drag tool (#330) can move the visible birdhouse,
+    // not just this record's numbers.
+    this.props.birdhouse = { x, y, sprite };
     // Sprite 26×58 at S (origin 0.5,1); the solid part is the slim post foot → a
     // narrow ~22×16 footprint at the base so the player can walk right up to it.
     this.birdEcosystemObstacles.push({ x: x - 11, y: y - 16, w: 22, h: 14 });
