@@ -37,9 +37,11 @@ export const WithWorld = (Base) => class extends Base {
     // coordinate (900, 700) but are NOT the same array reference, so dragging one
     // route's end doesn't drag the others' matching point — see splineDrag.js.
     this._pathRoutes = {
-      fromHouse: [[235, 322], [470, 500], [700, 610], [900, 700]],   // house → junction
-      toGate:    [[900, 700], [935, 800], [960, 895]],               // junction → pasture gate
-      toStream:  [[900, 700], [1180, 560], [1420, 440], [1610, 372]], // junction → stream bank
+      // fromHouse/toGate/toStream: #373 drag tool, repositioned + bend points
+      // added 2026-07-27 (owner's own placements).
+      fromHouse: [[221, 265], [219, 380], [398, 511], [680, 574], [905, 720]],
+      toGate:    [[905, 720], [983, 763], [962, 899], [976, 1124], [952, 1406], [1410, 1379], [1394, 1268]],
+      toStream:  [[978, 797], [1029, 663], [1180, 537], [1454, 459], [1718, 534], [1844, 468], [1848, 221]],
       toStand:   [[1955, 742], [1800, 772], [1640, 794], [1560, 802]], // off east edge → farm stand
     };
     this._bakePathGraphics();
@@ -350,9 +352,9 @@ export const WithWorld = (Base) => class extends Base {
       // Hay Pile / Well positions are the owner's own placements (#330 drag tool, baked in by #342, moved again after #349's barn relocation).
       { x: 1127, y: 1350, content: 'hay',    tex: 'haystack',     label: 'Hay Pile',      reach: 100, ob: { w: 84,  h: 36 } },
       { x: 1234, y: 425, content: 'carrot', tex: 'carrotGarden', label: 'Carrot Garden', reach: 100, ob: { w: 104, h: 42 } },
-      { x: 1660, y: 512, content: 'apple',  tex: 'appleTree',    label: 'Apple Tree',    reach: 90,  ob: { w: 44,  h: 26 } },
-      { x: 1802, y: 497, content: 'orange', tex: 'orangeTree', label: 'Orange Tree', reach: 90, ob: { w: 44, h: 26 } }, // #228 tree, mirrors apple
-      { x: 1736, y: 546, content: 'berry',  tex: 'berryBush',  label: 'Berry Bush',  reach: 85, ob: { w: 40, h: 18 } }, // #228 bush, same mechanic, no trunk
+      { x: 1510, y: 412, content: 'apple',  tex: 'appleTree',    label: 'Apple Tree',    reach: 90,  ob: { w: 44,  h: 26 } }, // #330 drag tool, repositioned 2026-07-27
+      { x: 1635, y: 447, content: 'orange', tex: 'orangeTree', label: 'Orange Tree', reach: 90, ob: { w: 44, h: 26 } }, // #228 tree, mirrors apple; #330 drag tool, repositioned 2026-07-27
+      { x: 1573, y: 442, content: 'berry',  tex: 'berryBush',  label: 'Berry Bush',  reach: 85, ob: { w: 40, h: 18 } }, // #228 bush, same mechanic, no trunk; #330 drag tool, repositioned 2026-07-27
       { x: 818,  y: 402, content: 'seed',   tex: 'grainBin',     label: 'Grain Bin',     reach: 95,  ob: { w: 66,  h: 40 } },
       { x: 1046, y: 1085, content: 'water',  tex: 'well',         label: 'Well',          reach: 95,  ob: { w: 52,  h: 22 } },
       // Kibble sack (#202 rework) — the cat-food SOURCE, by the house. The player
