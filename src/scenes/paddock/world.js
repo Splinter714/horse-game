@@ -4,14 +4,13 @@
 import Phaser from 'phaser';
 import {
   WORLD_W, WORLD_H, PASTURE_BOUNDS, GATE_GAP_X0, GATE_GAP_X1, S,
-  FENCE_TEX_H, FENCE_POST_CROP_W,
+  FENCE_POST_CROP_W,
   FENCE_RAIL_TOP_OFFSET, FENCE_RAIL_BOTTOM_OFFSET, FENCE_RAIL_THICKNESS,
   FENCE_RAIL_TOP_COLOR, FENCE_RAIL_BOTTOM_COLOR,
 } from './constants.js';
 import { SPECIES } from '../../data/species/index.js';
 import { bakeStaticGraphics } from './bakeGraphics.js';
 import { houseFenceSegmentRects } from './houseFence.js';
-import { respaceHouseFence } from './houseFencePath.js';
 
 // Collision band thickness for the house fence line (#344) — the solid slice of the
 // 48px-tall rail sprite, matching the height the old hardcoded rect used.
@@ -196,16 +195,21 @@ export const WithWorld = (Base) => class extends Base {
     // approach (see git history) — that one needed a special-cased end-cap crop
     // to avoid a dangling rail past the last post; a single line per rail can't
     // dangle since it's drawn exactly post-to-post.
+    // #375 rework: the run is now an ordered list of JOINTS (start, any
+    // interior joints, end) rather than a single {start,end} pair — a chain
+    // of straight SEGMENTS the fence bends around. Initially just the two
+    // ends (one segment, same as before); dragging an individual #330-style
+    // post grab point (houseFencePath.js's `_houseFenceResolveJoint`) can
+    // PROMOTE an auto-filled interior post into a new joint, splitting a
+    // segment in two. `_fillHouseFencePosts` runs `respaceHouseFence` once per
+    // segment and stitches the results into the flat `this.props.houseFence`
+    // list the rest of the game reads.
     const fenceStart = { x: -136, y: 57 };
     const fenceEnd   = { x: -136 + 5 * 96, y: 57 }; // 6 posts, 96px spacing
-    const fenceSpecs = respaceHouseFence(fenceStart, fenceEnd, 96);
+    this.props.houseFenceJoints = [fenceStart, fenceEnd];
     this.props.houseFence = [];
-    fenceSpecs.forEach(({ x, y }, i) => {
-      const sprite = this.add.image(x, y, 'fence').setScale(S).setDepth(y).setOrigin(0, 0.5)
-        .setCrop(0, 0, FENCE_POST_CROP_W, FENCE_TEX_H);
-      this.props.houseFence.push({ x, y, sprite, label: `Fence Post ${i + 1}` });
-    });
-    this._buildHouseFenceRails(fenceStart, fenceEnd);
+    this._fillHouseFencePosts(this.props.houseFenceJoints);
+    this._buildHouseFenceRails(this.props.houseFenceJoints);
 
     // Chicken coop, right of the fence line (fence ends ~x=876). Roost geometry
     // (pop-door + ramp foot; coop is 64×52, origin 0.5,1) is what chickens file
@@ -383,28 +387,34 @@ export const WithWorld = (Base) => class extends Base {
     }
   }
 
-  // House-fence rail lines (#372 rework, then #372 playtest fix). Draws the two
-  // rails as continuous line segments from `start` to `end`, each offset by a
-  // FIXED vertical amount from the post's own y — matching the post sprites,
-  // which are always drawn un-rotated (plain vertical post art) regardless of
-  // the run's angle. An earlier version offset the rails perpendicular to the
-  // run's ANGLE instead, which lined up with the post art only when the run was
-  // horizontal — at any other angle the perpendicular offset visibly drifted off
-  // the (un-rotated) post sprites, worse the steeper the angle (2026-07-27
-  // playtest). Since `respaceHouseFence` places every post exactly on the
-  // straight line between `start` and `end`, a pure vertical translation of that
-  // line still passes through every intermediate post's own (x, y+offset) point
-  // — collinearity is preserved under a (0, dy) translation — so one line per
-  // rail still reaches every post correctly, just anchored to the post art
-  // instead of rotated to the run. Destroys/recreates its own single Graphics
-  // object each call (stashed on `this._houseFenceRailGfx`) so the #370 drag
-  // tool's `_respaceHouseFenceTo` (houseFencePath.js) can just call this again
-  // after every respace, same as the initial build here.
-  _buildHouseFenceRails(start, end) {
+  // House-fence rail lines (#372 rework, #372 playtest fix, #375 polyline
+  // rework). Draws the two rails as continuous line segments joint-to-joint
+  // for EVERY segment of the run — one pair of lines per consecutive joint
+  // pair, not one pair for the whole span — so a bent fence's rails follow
+  // every corner instead of cutting a chord across it. Each line is offset by
+  // a FIXED vertical amount from the post's own y — matching the post
+  // sprites, which are always drawn un-rotated (plain vertical post art)
+  // regardless of a segment's angle. An earlier version offset the rails
+  // perpendicular to the run's ANGLE instead, which lined up with the post art
+  // only when the run was horizontal — at any other angle the perpendicular
+  // offset visibly drifted off the (un-rotated) post sprites, worse the
+  // steeper the angle (2026-07-27 playtest). Since `respaceHouseFence` places
+  // every post exactly on the straight line between its segment's two joints,
+  // a pure vertical translation of that line still passes through every
+  // intermediate post's own (x, y+offset) point — collinearity is preserved
+  // under a (0, dy) translation — so one line per rail per segment still
+  // reaches every post correctly, just anchored to the post art instead of
+  // rotated to the segment. Destroys/recreates its own single Graphics object
+  // each call (stashed on `this._houseFenceRailGfx`, one object covering every
+  // segment — depth is the average of every joint's y) so the #370/#375 drag
+  // tool's `_respaceHouseFenceFromJoints` (houseFencePath.js) can just call
+  // this again after every respace/promotion, same as the initial build here.
+  _buildHouseFenceRails(joints) {
     this._houseFenceRailGfx?.destroy();
-    const g = this.add.graphics().setDepth((start.y + end.y) / 2);
-    // Post sprites are drawn with origin (0, 0.5) — start.x/end.x are each
-    // post's LEFT edge, not its visual center. That's invisible on a mostly-
+    if (!joints || joints.length < 2) { this._houseFenceRailGfx = null; return null; }
+    const g = this.add.graphics().setDepth(this._houseFenceRailDepth(joints));
+    // Post sprites are drawn with origin (0, 0.5) — a joint's x is each post's
+    // LEFT edge, not its visual center. That's invisible on a mostly-
     // horizontal run (a few px of x-offset is lost along a long line), but on
     // a north/south run the rails end up hugging one side of the post column
     // instead of passing through its center (2026-07-27 playtest). Shift both
@@ -412,7 +422,10 @@ export const WithWorld = (Base) => class extends Base {
     const cx = (FENCE_POST_CROP_W * S) / 2;
     const drawRail = (offset, color) => {
       g.lineStyle(FENCE_RAIL_THICKNESS, color, 1);
-      g.lineBetween(start.x + cx, start.y + offset, end.x + cx, end.y + offset);
+      for (let i = 0; i < joints.length - 1; i++) {
+        const a = joints[i], b = joints[i + 1];
+        g.lineBetween(a.x + cx, a.y + offset, b.x + cx, b.y + offset);
+      }
     };
     drawRail(FENCE_RAIL_TOP_OFFSET, FENCE_RAIL_TOP_COLOR);
     drawRail(FENCE_RAIL_BOTTOM_OFFSET, FENCE_RAIL_BOTTOM_COLOR);
