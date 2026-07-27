@@ -186,8 +186,22 @@ function render() {
   });
 
   // ── bounding box ─────────────────────────────────────────────────────────
+  // Union across EVERY frame of the active pose (not just the one currently
+  // showing), so the panel boxes stay a fixed size while an animation plays —
+  // otherwise a pose whose frames have different extents (legs out vs. tucked
+  // in, say) resized the boxes every frame, which read as jostling (2026-07-27).
+  // Falls back to just this frame's own ops when there's no active pose to span
+  // (e.g. dissecting via the ?dissect= URL param with no gallery/pose picker).
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  for (const o of scoped) { const b = bbox(o); x0=Math.min(x0,b[0]); y0=Math.min(y0,b[1]); x1=Math.max(x1,b[2]); y1=Math.max(y1,b[3]); }
+  const framesToSpan = state.activePose?.frames?.length ? state.activePose.frames : [key];
+  for (const frameKey of framesToSpan) {
+    const frameData = reg[frameKey];
+    if (!frameData) continue;
+    const frameScoped = part
+      ? frameData.ops.filter((o) => o.layer === part || o.layer.startsWith(`${part}.`))
+      : frameData.ops;
+    for (const o of frameScoped) { const b = bbox(o); x0=Math.min(x0,b[0]); y0=Math.min(y0,b[1]); x1=Math.max(x1,b[2]); y1=Math.max(y1,b[3]); }
+  }
   // Auto-fit each panel to the dock width (ops are super-sampled, so a fixed scale would
   // overflow the column). Cap at MAX_SCALE so small/drilled-in parts don't blow up.
   SCALE = Math.min(MAX_SCALE, (DOCK_W - 30) / Math.max(1, (x1 - x0) + 10));
@@ -275,8 +289,13 @@ function renderPoses() {
       border: '1px solid ' + (active ? '#6a9bee' : '#454852'),
     });
     btn.addEventListener('click', () => {
-      stopPlaying();
+      // Switching pose keeps play/pause as-is (2026-07-27) — if it was playing,
+      // it keeps playing the new pose; if paused, it stays paused on frame 0 of
+      // the new pose. Only reset the frame index (a pose with fewer frames than
+      // the previous one could otherwise leave playFrameIdx out of range).
       state.activePose = p;
+      playFrameIdx = 0;
+      renderPoses(); // refresh the play button's enabled state/label for the new pose's frame count
       render();
     });
     posesEl.appendChild(btn);
