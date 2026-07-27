@@ -35,6 +35,35 @@ import { bakeStaticGraphics } from './bakeGraphics.js';
 // clearly walkable rather than a knife-edge.
 const FORD_HALF_WIDTH = 42;
 
+// Auto-densify (#379): the drag tool (#373) lets `_streamCtrl`'s points be
+// pulled apart arbitrarily, but the bank/water geometry below is built PER
+// control-point interval (the Catmull-Rom pass, the meander offset's `dist`
+// accumulator, the bank-width layers) — so a sparse gap between two dragged-
+// apart points stretches that geometry oddly. Mirrors the house fence's
+// `respaceHouseFence` auto-fill-at-fixed-spacing pattern (houseFencePath.js),
+// but derives extra points rather than fence posts, and — unlike the fence,
+// which mutates its joint list in place — leaves `_streamCtrl` itself
+// untouched so the dev drag tool keeps grabbing exactly the points the user
+// placed; only the working copy handed to the spline/bank/collision build
+// below is densified. Linear interpolation is enough: the Catmull-Rom pass
+// right after smooths straight over the seams. Pure, so easy to sanity-check.
+const CTRL_MAX_SPACING = 260; // world px — beyond this, insert interpolated points
+export function densifyStreamCtrl(ctrl, maxSpacing = CTRL_MAX_SPACING) {
+  if (!ctrl || ctrl.length < 2) return ctrl;
+  const out = [ctrl[0]];
+  for (let i = 1; i < ctrl.length; i++) {
+    const [x0, y0] = ctrl[i - 1];
+    const [x1, y1] = ctrl[i];
+    const dist = Math.hypot(x1 - x0, y1 - y0);
+    const n = Math.max(1, Math.ceil(dist / maxSpacing));
+    for (let s = 1; s <= n; s++) {
+      const t = s / n;
+      out.push([x0 + (x1 - x0) * t, y0 + (y1 - y0) * t]);
+    }
+  }
+  return out;
+}
+
 export const WithStream = (Base) => class extends Base {
   // Shortest distance from (x, y) to any segment of any worn-path route
   // currently in `this._pathRoutes` — generic over every route (not just
@@ -77,7 +106,10 @@ export const WithStream = (Base) => class extends Base {
   // points. Called once from `buildStream()` and again on every dev spline-drag
   // move (#373).
   _rebuildStream() {
-    const ctrl = this._streamCtrl;
+    // Densify a working copy every rebuild (#379) so it stays correct as
+    // `_streamCtrl`'s points get dragged apart — the raw array itself is
+    // left alone for the drag tool.
+    const ctrl = densifyStreamCtrl(this._streamCtrl);
     const g = this.add.graphics().setDepth(-96);
     // smooth the control points with a Catmull-Rom spline
     const cr = (p0, p1, p2, p3, t) => {
