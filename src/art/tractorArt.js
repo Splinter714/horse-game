@@ -110,15 +110,22 @@ export function buildTractorTextures(scene, colorId = DEFAULT_TRACTOR_COLOR) {
     g.layer('shadow');
     g.fillStyle(0x000000, 0.18); g.fillEllipse(34, 46, 46, 8);
 
-    // Rear wheels, one either side, wider stance than the side view's single pair.
+    // Wheels, one either side, wider stance than the side view's single pair.
+    // #355: wheels are mounted crosswise on the tractor body (their axle runs
+    // side-to-side), so the side view sees a wheel's round FACE (a circle is
+    // correct there) but the front/back view looks straight down that axle —
+    // we see the tire edge-on, a narrow vertical tread band, not the same round
+    // face. Drawing a full circle here (carried over from the side art) read as
+    // a sideways/wrong-orientation wheel even while driving up/down.
     g.layer('wheels');
     const wy = 40 + bob;
-    g.fillStyle(tire, 1); g.fillCircle(14, wy, 13);
-    g.fillStyle(tireHi, 1); g.fillCircle(14, wy - 3, 5);
-    g.fillStyle(hub, 1); g.fillCircle(14, wy, 4);
-    g.fillStyle(tire, 1); g.fillCircle(54, wy, 13);
-    g.fillStyle(tireHi, 1); g.fillCircle(54, wy - 3, 5);
-    g.fillStyle(hub, 1); g.fillCircle(54, wy, 4);
+    const drawWheel = (x) => {
+      g.fillStyle(tire, 1); g.fillEllipse(x, wy, 14, 27);
+      g.fillStyle(tireHi, 1); g.fillEllipse(x - 3, wy - 4, 4, 10);
+      g.fillStyle(hub, 1); g.fillEllipse(x, wy, 5, 9);
+    };
+    drawWheel(14);
+    drawWheel(54);
 
     // Body — a straight-on box, centred between the wheels.
     g.layer('body');
