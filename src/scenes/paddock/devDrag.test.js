@@ -93,3 +93,56 @@ describe('dev drag: object enumeration is shared with the #329 label tool', () =
     expect(targets).toHaveLength(1);
   });
 });
+
+// Minimal stand-in for a Phaser Text label: just enough of the getData/setData/
+// setVisible surface `_updateDevLabelVisibility` touches.
+function fakeLabel(at, obj) {
+  const data = { at, obj };
+  return {
+    visible: false,
+    getData(k) { return data[k]; },
+    setData(k, v) { data[k] = v; return this; },
+    setVisible(v) { this.visible = v; return this; },
+  };
+}
+
+describe('dev labels: the dragged/held object always shows its label (#330)', () => {
+  it('forces the held object visible even outside LABEL_RADIUS', () => {
+    const s = new Scene();
+    s.player = { sprite: { x: 0, y: 0 } };
+    const farObj = { x: 5000, y: 5000 }; // way outside LABEL_RADIUS (80px)
+    const nearObj = { x: 10, y: 10 };
+    const farLabel = fakeLabel({ x: 5000, y: 5000 }, farObj);
+    const nearLabel = fakeLabel({ x: 10, y: 10 }, nearObj);
+    s._devObjLabels = [farLabel, nearLabel];
+    s._devLabelsAt = null;
+
+    // Nothing held: normal proximity rule applies.
+    s._dragHeld = null;
+    s._updateDevLabelVisibility();
+    expect(farLabel.visible).toBe(false);
+    expect(nearLabel.visible).toBe(true);
+
+    // Now the far object is grabbed — its label must show despite the distance,
+    // and the near one still follows the ordinary proximity rule.
+    s._dragHeld = { obj: farObj };
+    s._updateDevLabelVisibility();
+    expect(farLabel.visible).toBe(true);
+    expect(nearLabel.visible).toBe(true);
+  });
+
+  it('bypasses the movement throttle while something is held', () => {
+    const s = new Scene();
+    s.player = { sprite: { x: 0, y: 0 } };
+    const heldObj = { x: 5000, y: 5000 };
+    const label = fakeLabel({ x: 5000, y: 5000 }, heldObj);
+    s._devObjLabels = [label];
+    s._dragHeld = { obj: heldObj };
+
+    // Simulate an already-up-to-date throttle bucket for this (stationary) player —
+    // without the held-object bypass this would short-circuit and skip the pass.
+    s._devLabelsAt = `${Math.round(0 / 8)},${Math.round(0 / 8)}`;
+    s._updateDevLabelVisibility();
+    expect(label.visible).toBe(true);
+  });
+});

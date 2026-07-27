@@ -40,6 +40,14 @@
 // bird-feeder cluster, the pet bowls) will still share a cell at any sane step —
 // that's an accurate reflection of real-world clustering, not a labeling bug, and
 // the existing anti-overlap nudge on the object labels already handles it.
+//
+// The currently-dragged object's label is ALWAYS shown (2026-07-26 follow-up): the
+// #330 drag tool's `this._dragHeld` (the entry under the finger, or null) is read
+// directly here — the two dev tools already share state this way (`_devLabelTargets`
+// itself). Whichever label's `obj` matches `_dragHeld.obj` is forced visible even
+// outside `LABEL_RADIUS`, so nudging an object far from the player doesn't lose its
+// name/coords readout. `_dragHeld` is always defined (null when the drag tool is off
+// or nothing is held), so this is a no-op — not a crash — whenever nothing is grabbed.
 
 import { loadDevSettings } from '../../data/save.js';
 import { dprOf } from '../uiUtils.js';
@@ -186,6 +194,9 @@ export const WithDevLabels = (Base) => class extends Base {
       // Stash the object's true anchor (pre-nudge) for the proximity check below —
       // the label's own (x, y) can be nudged 40-60px up in a cluster.
       lbl.setData('at', { x: t.x, y: t.y });
+      // The live object itself, so the drag tool's "currently held" entry can be
+      // matched by identity rather than by (fragile, non-unique) name.
+      lbl.setData('obj', t.obj);
       this._devObjLabels.push(lbl);
     }
     this._devLabelsAt = null; // force a fresh visibility pass against the new set
@@ -195,14 +206,22 @@ export const WithDevLabels = (Base) => class extends Base {
   // player moves (throttled to "moved more than a few px" so this isn't a real
   // per-frame cost). Nothing to do while the overlay is off or there's no player
   // yet (e.g. very first frames of create()).
+  //
+  // Exception to the throttle/radius: whatever the #330 drag tool currently has
+  // held (`this._dragHeld`) always shows its label, however far it's been dragged
+  // from the player — and since a drag moves the object without moving the
+  // player, the throttle is bypassed too (there's always at most one held object,
+  // so this stays cheap).
   _updateDevLabelVisibility() {
     const p = this.player?.sprite;
     if (!p) return;
+    const heldObj = this._dragHeld?.obj ?? null;
     const at = `${Math.round(p.x / 8)},${Math.round(p.y / 8)}`;
-    if (at === this._devLabelsAt) return;
+    if (at === this._devLabelsAt && !heldObj) return;
     this._devLabelsAt = at;
     const r2 = LABEL_RADIUS * LABEL_RADIUS;
     for (const lbl of this._devObjLabels) {
+      if (heldObj && lbl.getData('obj') === heldObj) { lbl.setVisible(true); continue; }
       const src = lbl.getData('at');
       const dx = src.x - p.x, dy = src.y - p.y;
       lbl.setVisible(dx * dx + dy * dy <= r2);
