@@ -16,7 +16,7 @@ import { TROUGH_CAP } from '../scenes/paddock/constants.js';
 import {
   BARN_W, BARN_H, NUM_STALLS, STALL_X0, STALL_STEP, STALL_TOP, STALL_SIGN_Y,
   STALL_HAY_Y, stallCenterX, DOOR_X0, DOOR_X1, BACK_WALL_H, BACK_ROOF_H, ROOF_MID_H,
-  FRONT_EAVE,
+  FRONT_EAVE, ROOF_PEAK,
 } from '../data/barn.js';
 
 // Water-trough texture size (#336). Rotated 90° from the original 100×26 so the
@@ -437,24 +437,54 @@ export function buildWorldTextures(scene) {
   // BARN_W×BARN_H footprint) since it's just a connecting ridge, no walls/windows.
   gen(scene, 'barnRoofMid', BARN_W, ROOF_MID_H, (g) => {
     const MID = BARN_W / 2;
-    // 2026-07-27 owner-confirmed design: constant width the whole way through — no
-    // tapering/notch at either end at all. Width matches barnFront's/barnBack's own
-    // cap base exactly (their `fillPoints([{x:64,y:60},{x:MID,y:6},{x:BARN_W-64,y:60}])`
-    // triangle), so it reads as a straight continuation of the cap rather than the
-    // full wall width. Height is whatever this texture gets stretched to at runtime
-    // (setDisplaySize, in barn.js) to fill the actual front-to-back gap — that's
-    // the "variable" part, not the width.
-    const SX0 = 64, SX1 = BARN_W - 64;
+    // 2026-07-27 owner-confirmed design (third pass): the connector is FULL WALL
+    // WIDTH (matching barnFront's/barnBack's own eave inset), and its own DEPTH
+    // (front-to-back thickness) is constant everywhere across that width — but the
+    // strip's start/end points aren't flat horizontal lines: both undulate up/down
+    // together, tracing the SAME roofline height profile front/back's own roof uses
+    // (a shallow lower-slope down to the cap's shoulder width, then the cap's
+    // steeper rise to the peak) — so the whole constant-thickness ribbon sits
+    // higher (nearer y=0) toward the centre/ridge and lower (nearer y=ROOF_MID_H)
+    // toward the side walls, instead of a flat cut with a separate tapered notch.
+    const X0 = 8, X1 = BARN_W - 8;               // full wall width
+    const SX0 = 64, SX1 = BARN_W - 64;           // shoulder, matching the cap's own base
+    const THICKNESS = ROOF_MID_H * 0.55;         // the constant depth of the strip itself
+    const RISE_MAX = ROOF_MID_H - THICKNESS;     // how far the strip can shift up/down
+    // front/back's own shoulder sits at design y=60: lower-slope runs EAVE(130)->60
+    // = 70 units, cap runs 60->PEAK(6) = 54 units, out of a 124-unit total span.
+    const REAL_SPAN = FRONT_EAVE - ROOF_PEAK;
+    const LOWER_RISE = RISE_MAX * ((FRONT_EAVE - 60) / REAL_SPAN);
+    const CAP_RISE = RISE_MAX - LOWER_RISE;
+    const shoulderHalf = MID - SX0, wallHalf = MID - X0;
+    // rise(x): how far DOWN (toward y=ROOF_MID_H) the strip sits at this x — 0 dead
+    // centre (highest, matching the peak), growing through the cap band to
+    // CAP_RISE at the shoulder, then through the lower-slope band to RISE_MAX at
+    // the wall edges (lowest, matching the eave).
+    const rise = (x) => {
+      const d = Math.abs(x - MID);
+      if (d >= wallHalf) return RISE_MAX;
+      if (d > shoulderHalf) return CAP_RISE + (RISE_MAX - CAP_RISE) * (d - shoulderHalf) / (wallHalf - shoulderHalf);
+      return CAP_RISE * (d / shoulderHalf);
+    };
+    const topY    = (x) => rise(x);
+    const bottomY = (x) => rise(x) + THICKNESS;
     g.layer('roof');
-    g.fillStyle(0x9a3826, 1); g.fillRect(SX0, 0, SX1 - SX0, ROOF_MID_H);
-    // Vertical rafter slats running the depth of the roof (front-to-back), so this
-    // stretched-to-fit plane reads as following the roof's slope/ridge line instead
-    // of flat courses running across it.
+    g.fillStyle(0x9a3826, 1);
+    // Build the ribbon as a polygon: top boundary left-to-right, then bottom
+    // boundary right-to-left, sampling the shoulder/wall break points on each side.
+    g.fillPoints([
+      { x: X0, y: topY(X0) }, { x: SX0, y: topY(SX0) }, { x: MID, y: topY(MID) },
+      { x: SX1, y: topY(SX1) }, { x: X1, y: topY(X1) },
+      { x: X1, y: bottomY(X1) }, { x: SX1, y: bottomY(SX1) }, { x: MID, y: bottomY(MID) },
+      { x: SX0, y: bottomY(SX0) }, { x: X0, y: bottomY(X0) },
+    ]);
+    // Vertical rafter slats running the depth of the roof, clipped to the ribbon's
+    // own top/bottom at each x, so they follow the roofline's rise/fall too.
     g.fillStyle(0x7a2a1c, 1);
-    for (let x = SX0 + 4; x < SX1; x += 18) g.fillRect(x, 0, 2, ROOF_MID_H);
+    for (let x = X0 + 4; x < X1; x += 18) g.fillRect(x, topY(x), 2, THICKNESS);
     g.fillStyle(0xa8462e, 1);
-    for (let x = SX0 + 6; x < SX1; x += 18) g.fillRect(x, 0, 1, ROOF_MID_H); // slat highlight
-    g.fillStyle(0xb6432e, 1); g.fillRect(MID - 3, 0, 6, ROOF_MID_H); // ridge cap, running the full depth
+    for (let x = X0 + 6; x < X1; x += 18) g.fillRect(x, topY(x), 1, THICKNESS); // slat highlight
+    g.fillStyle(0xb6432e, 1); g.fillRect(MID - 3, topY(MID), 6, THICKNESS); // ridge cap
   });
 
   // --- fence segment (tileable horizontally, 48 wide) ---
