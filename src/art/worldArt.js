@@ -696,15 +696,21 @@ export function buildWorldTextures(scene) {
   // splash/drink (paddock/wildlife.js), no refilling/upkeep. Origin (0.5,1) at the
   // foot so it depth-sorts on its base like the other pedestal props. Dissect tags
   // (g.layer) per logical part for the dev dissect tool.
-  gen(scene, 'birdBath', 34, 40, (g) => {
+  // Canvas grown 40->44 tall (2026-07-27 owner feedback: the base ellipse's bottom
+  // edge (old cy=38, h=7 -> bottom 41.5) exceeded the old 40px canvas, so it was
+  // getting a flat clipped bottom in-world instead of its natural curve — same bug
+  // class as the barn's earlier see-through-wall issue, just a texture bounds
+  // overflow instead of a collision one. Base ellipses also given a touch more
+  // height (more perceived tilt), and the water oval a touch more height too.
+  gen(scene, 'birdBath', 34, 44, (g) => {
     const stone = 0xb8b2a6, stoneHi = 0xd6d0c4, stoneLo = 0x8f897d, moss = 0x7a8a52;
     const rim = 0xa8a294, water = 0x5aa6d6;
 
     // Wide base foot
     g.layer('base');
-    g.fillStyle(stoneLo, 1); g.fillEllipse(17, 38, 22, 7);   // ground shadow ring
-    g.fillStyle(stone, 1);   g.fillEllipse(17, 36, 20, 6);
-    g.fillStyle(stoneHi, 1); g.fillEllipse(17, 35, 16, 3);
+    g.fillStyle(stoneLo, 1); g.fillEllipse(17, 38, 22, 9);   // ground shadow ring
+    g.fillStyle(stone, 1);   g.fillEllipse(17, 36, 20, 7);
+    g.fillStyle(stoneHi, 1); g.fillEllipse(17, 35, 16, 4);
     g.fillStyle(moss, 0.7);  g.fillRect(7, 36, 2, 1); g.fillRect(25, 35, 2, 1); // moss flecks
 
     // Fluted pedestal column
@@ -727,7 +733,7 @@ export function buildWorldTextures(scene) {
     // feedback), centred on the basin's own inner rim ellipse (17,12,30,9 above)
     // and evenly inset from its edge so it sits cleanly inside the opening.
     g.layer('water');
-    g.fillStyle(water, 1); g.fillEllipse(17, 12, 26, 5);
+    g.fillStyle(water, 1); g.fillEllipse(17, 12, 26, 6);
   });
 
   // --- seed bird feeder (28 × 56) — refillable songbird feeder on a post (#240) ---

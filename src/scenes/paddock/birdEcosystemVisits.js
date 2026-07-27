@@ -22,11 +22,12 @@ import { offscreenX, exitX } from './offscreen.js';
 // offset must be multiplied by S. The original offsets were the raw texture numbers
 // (bath 26, feeder 28, birdhouse 29), i.e. HALF the real height, which parked every
 // visiting bird partway down the pedestal/post instead of on the rim/tray/perch.
-//   bird bath   34×40 — water surface at ty≈13  → 27 texture px up
+//   bird bath   34×44 — water surface at ty≈13  → 31 texture px up (canvas grew
+//                       40->44 on 2026-07-27 to stop the base ellipse clipping)
 //   seed feeder 28×56 — landing tray top ty=28  → 28 texture px up
 //   birdhouse   26×58 — perch dowel top  ty=27  → 31 texture px up
 //   birdhouse   26×58 — entrance hole    ty=23  → 35 texture px up (#365 enter/peek)
-const BATH_PERCH_UP = 27 * S;      // stand in the basin water
+const BATH_PERCH_UP = 31 * S;      // stand in the basin water
 const FEEDER_PERCH_UP = 28 * S;    // stand on the landing tray
 const BIRDHOUSE_PERCH_UP = 31 * S; // stand on the perch dowel under the hole
 const BIRDHOUSE_HOLE_UP = 35 * S;  // the entrance hole itself, just above the perch
