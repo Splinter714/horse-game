@@ -479,7 +479,13 @@ export function buildWorldTextures(scene) {
     // left the sides barely covered along most of the depth — that's the bug this
     // fixes.)
     const PEAK_TAPER_H = ROOF_MID_H * 0.33;
-    const HALF = BARN_W / 2 - 4;
+    // x-inset matches barnFront's OWN eave inset exactly (its wall/roof silhouette
+    // is x=8..BARN_W-8 at the eave line — see the `fillRect(8, EAVE, BARN_W - 16, ...)`
+    // wall/`fillPoints` lower-slope calls above), so the connector's front edge
+    // starts at precisely the same shape as the top of the front wall/roof instead
+    // of a slightly different 4px inset leaving a seam (2026-07-27 owner feedback).
+    const X0 = 8, X1 = BARN_W - 8;
+    const HALF = BARN_W / 2 - X0;
     // topY(x): the y at which this silhouette reaches x — 0 (the very peak) exactly
     // at MID, rising to PEAK_TAPER_H (full height available) by the side edges. (Had
     // this backwards on the first pass — every slat's clip was inverted from the
@@ -488,19 +494,19 @@ export function buildWorldTextures(scene) {
     g.layer('roof');
     g.fillStyle(0x9a3826, 1);
     g.fillPoints([
-      { x: 4, y: PEAK_TAPER_H }, { x: MID, y: 0 }, { x: BARN_W - 4, y: PEAK_TAPER_H },
-      { x: BARN_W - 4, y: ROOF_MID_H }, { x: 4, y: ROOF_MID_H },
+      { x: X0, y: PEAK_TAPER_H }, { x: MID, y: 0 }, { x: X1, y: PEAK_TAPER_H },
+      { x: X1, y: ROOF_MID_H }, { x: X0, y: ROOF_MID_H },
     ]);
     // Vertical rafter slats running the depth of the roof (front-to-back), clipped
     // to the tapered silhouette above, so this stretched-to-fit plane reads as
     // following the roof's slope/ridge line instead of flat horizontal courses
     // running across a rectangle.
     g.fillStyle(0x7a2a1c, 1);
-    for (let x = 12; x < BARN_W - 8; x += 18) { const ty = topY(x); g.fillRect(x, ty, 2, ROOF_MID_H - ty); }
+    for (let x = X0 + 4; x < X1; x += 18) { const ty = topY(x); g.fillRect(x, ty, 2, ROOF_MID_H - ty); }
     g.fillStyle(0xa8462e, 1);
-    for (let x = 14; x < BARN_W - 8; x += 18) { const ty = topY(x); g.fillRect(x, ty, 1, ROOF_MID_H - ty); } // slat highlight
+    for (let x = X0 + 6; x < X1; x += 18) { const ty = topY(x); g.fillRect(x, ty, 1, ROOF_MID_H - ty); } // slat highlight
     g.fillStyle(0xb6432e, 1); g.fillRect(MID - 3, 0, 6, ROOF_MID_H); // ridge cap, running the full depth
-    g.fillStyle(0x6a2418, 1); g.fillRect(4, ROOF_MID_H - 3, BARN_W - 8, 3);   // south edge shadow
+    g.fillStyle(0x6a2418, 1); g.fillRect(X0, ROOF_MID_H - 3, X1 - X0, 3);   // south edge shadow
   });
 
   // --- fence segment (tileable horizontally, 48 wide) ---
@@ -655,15 +661,17 @@ export function buildWorldTextures(scene) {
 
   // --- doghouse (48 × 42) — decorative yard prop (#237) ---
   // A classic peaked-roof kennel: a wooden gable house with a round arched
-  // doorway, a little name-board over the door, a food bowl beside it, and a
-  // gnawed bone on the grass — all to read as "a dog lives here." Decorative
+  // doorway, a little name-board over the door, and a gnawed bone on the grass
+  // — all to read as "a dog lives here." No painted-on food bowl (2026-07-27 —
+  // #361 moved to one shared pet bowl near the house, so a bowl painted into this
+  // static art was a stale second one that wasn't actually functional). Decorative
   // only; the dog actually using it is deferred to #186. Dissect tags (g.layer)
   // per logical part for the dev dissect tool.
   gen(scene, 'doghouse', 48, 42, (g) => {
     const wall = 0xc08a4e, wallDark = 0x9a6a34, plank = 0x84592a;
     const roofDark = 0x6a3a1c, roofMid = 0x9a5024, roofHi = 0xc07a40;
-    const dark = 0x241408, board = 0x6e4326, bowl = 0xc94a3a, bowlDark = 0x9a3428;
-    const bone = 0xeadfc4, food = 0x8a5a2e;
+    const dark = 0x241408, board = 0x6e4326;
+    const bone = 0xeadfc4;
 
     // Body box (the kennel walls)
     g.layer('body');
@@ -695,12 +703,6 @@ export function buildWorldTextures(scene) {
     g.fillRect(11, 15, 2, 3); g.fillRect(15, 12, 2, 3); g.fillRect(19, 9, 2, 3);
     g.fillStyle(board, 1); g.fillRect(3, 19, 40, 2);      // eave board
     g.fillStyle(roofDark, 1); g.fillRect(22, 4, 2, 4);    // ridge cap
-
-    // Food bowl beside the door
-    g.layer('bowl');
-    g.fillStyle(bowlDark, 1); g.fillEllipse(41, 38, 12, 6);
-    g.fillStyle(bowl, 1);     g.fillEllipse(41, 37, 11, 5);
-    g.fillStyle(food, 1);     g.fillEllipse(41, 36, 7, 3);
 
     // Gnawed bone on the grass
     g.layer('bone');
