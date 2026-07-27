@@ -480,9 +480,11 @@ export function buildWorldTextures(scene) {
     // fixes.)
     const PEAK_TAPER_H = ROOF_MID_H * 0.33;
     const HALF = BARN_W / 2 - 4;
-    // topY(x): the y at which this silhouette reaches x — full width (y = PEAK_TAPER_H)
-    // everywhere except right near the centre, which rises to the peak point (y = 0).
-    const topY = (x) => PEAK_TAPER_H * (1 - Math.min(1, Math.abs(x - MID) / HALF));
+    // topY(x): the y at which this silhouette reaches x — 0 (the very peak) exactly
+    // at MID, rising to PEAK_TAPER_H (full height available) by the side edges. (Had
+    // this backwards on the first pass — every slat's clip was inverted from the
+    // notch actually drawn, which is what read as "off" here.)
+    const topY = (x) => PEAK_TAPER_H * Math.min(1, Math.abs(x - MID) / HALF);
     g.layer('roof');
     g.fillStyle(0x9a3826, 1);
     g.fillPoints([

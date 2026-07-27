@@ -228,6 +228,10 @@ pass regardless, so don't claim something works without having run the build at 
   sleep disabled (lid-open or `caffeinate`). A hung/0%-CPU build usually means the Mac slept,
   not a real build failure — retry once awake.
 - Use `EVENTS.*` constants, not bare event strings.
+- **Any ground/terrain color change needs a gentle blend, never a hard line** — mirror
+  the farm/trail transition (`scenes/paddock/trail.js`'s `BLEND_IN`/`BLEND_OUT` gradient
+  overlay that fades the cooler trail tint in gradually over a zone, instead of a sharp
+  cutoff). Applies to any future ground-color boundary (biomes, seasons, terrain types).
 - The owner can't verify code by reading it — run `npm run build` and, where feasible,
   exercise the change in the dev server/live preview yourself before reporting done.
 - **Commit per logical unit** (e.g. per issue) so any single change can be rolled back
