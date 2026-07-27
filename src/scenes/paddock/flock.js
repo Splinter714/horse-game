@@ -9,6 +9,7 @@
 import Phaser from 'phaser';
 import { playPeck, playGather } from '../../audio/sounds.js';
 import { eggContentForChicken } from '../../data/species/chicken/eggColor.js';
+import { flockFollowSpot, flockGatherSpot } from '../../data/species/chicken/flockSpots.js';
 
 export const WithFlock = (Base) => class extends Base {
   // The 2s flock driver. The per-bird decision (peck dropped seed → follow a
@@ -33,6 +34,23 @@ export const WithFlock = (Base) => class extends Base {
     }
   }
 
+  // This bird's flock SLOT — a small integer, unique per bird, that decides where it
+  // stands in a group formation (trailing the player, waiting at the grain bin). It's
+  // the bird's position among the flock birds at the moment it first asks, then cached
+  // so it never shifts (a chick hatching later simply takes the next free slot).
+  //
+  // #328: this used to be `key.charCodeAt(key.length - 1)`, which collides across
+  // species — 'chicken0' (Daisy, the white hen) and 'rooster0' both end in '0', so the
+  // two of them computed the SAME follow/gather spot, walked onto the same pixel and
+  // parked there, reading in play as a hen and the rooster stuck together.
+  _flockSlot(a) {
+    if (a._flockSlot == null) {
+      const i = this.animals.filter((o) => this._isFlockBird(o)).indexOf(a);
+      a._flockSlot = i < 0 ? 0 : i;
+    }
+    return a._flockSlot;
+  }
+
   // Nearest seed pile this chicken can actually get to (seed inside the pasture
   // needs the gate open), or null. A pile feeds several birds (`feedsLeft`), so a
   // dropped pile draws a crowd to peck rather than locking to one chicken while the
@@ -55,10 +73,7 @@ export const WithFlock = (Base) => class extends Base {
   // re-paths when it has fallen behind, so a chicken keeping pace pecks in place.
   chickenFollow(a) {
     const p = this.player.sprite;
-    const idx = a.key.charCodeAt(a.key.length - 1) || 0;
-    const angle = idx * 1.3;
-    const tx = p.x + Math.cos(angle) * 46;
-    const ty = p.y + 30 + Math.sin(angle) * 22;
+    const { x: tx, y: ty } = flockFollowSpot(this._flockSlot(a), p.x, p.y);
 
     a.state = 'following';
     const d = Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, p.x, p.y);
@@ -81,11 +96,7 @@ export const WithFlock = (Base) => class extends Base {
   // a fixed spot, so once parked it stays put (no per-tick re-pathing) until it's
   // fed or the morning ends.
   chickenGatherAt(a, bin) {
-    const idx = a.key.charCodeAt(a.key.length - 1) || 0;
-    const angle = Math.PI * (0.2 + idx * 0.16);
-    const r = 36 + (idx % 3) * 12;
-    const tx = bin.x + Math.cos(angle) * r;
-    const ty = bin.y + 20 + Math.sin(angle) * (r * 0.45);
+    const { x: tx, y: ty } = flockGatherSpot(this._flockSlot(a), bin.x, bin.y);
 
     a.state = 'gathering';
     const d = Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, tx, ty);
