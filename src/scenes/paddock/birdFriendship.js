@@ -120,15 +120,29 @@ export const WithBirdFriendship = (Base) => class extends Base {
 
   // Between little visits home, a friendly bird potters near its home spot instead of
   // vanishing like an ambient critter — it's a recognizable regular, not a fly-through.
+  // Settle into the idle potter loop. This ALWAYS lands the bird in the perched/peck
+  // pose — callers that were mid-approach clear that state via `_friendlyBirdSettle`
+  // (#340: the old `state === 'approaching'` bail here deadlocked the bird in its fly
+  // animation forever, since the trip home never cleared 'approaching').
   _friendlyBirdIdle(rec) {
     if (!rec.sprite?.active || rec.state === 'approaching') return;
     rec.state = 'idle';
     rec.sprite.play(birdAnimKey(rec.typeId, 'peck'), true);
-    this.time.delayedCall(Phaser.Math.Between(3000, 7000), () => {
+    rec.idleTimer?.remove();
+    rec.idleTimer = this.time.delayedCall(Phaser.Math.Between(3000, 7000), () => {
+      rec.idleTimer = null;
       if (!rec.sprite?.active || rec.state !== 'idle') return;
       const home = this._friendHomeSpot();
       this._friendlyBirdHop(rec, home.x, home.y, () => this._friendlyBirdIdle(rec));
     });
+  }
+
+  // End an approach: drop out of the 'approaching' state, then resume the idle loop
+  // (which re-plays the perched pose). Without this the bird is stuck flapping.
+  _friendlyBirdSettle(rec) {
+    if (!rec.sprite?.active) return;
+    rec.state = 'idle';
+    this._friendlyBirdIdle(rec);
   }
 
   _friendlyBirdHop(rec, tx, ty, onArrive) {
@@ -164,6 +178,7 @@ export const WithBirdFriendship = (Base) => class extends Base {
     if (!rec.sprite?.active || !this.player?.sprite) return;
     rec.state = 'approaching';
     if (rec.tween) { rec.tween.stop(); rec.tween = null; }
+    rec.idleTimer?.remove(); rec.idleTimer = null; // don't let a stale potter timer fire mid-approach
     const p = this.player.sprite;
     const tx = Phaser.Math.Clamp(p.x + Phaser.Math.Between(-28, 28), BOUNDS.minX, BOUNDS.maxX);
     const ty = Phaser.Math.Clamp(p.y - Phaser.Math.Between(24, 36), BOUNDS.minY, BOUNDS.maxY);
@@ -174,7 +189,8 @@ export const WithBirdFriendship = (Base) => class extends Base {
       this.time.delayedCall(Phaser.Math.Between(2500, 5000), () => {
         if (!rec.sprite?.active) return;
         const home = this._friendHomeSpot();
-        this._friendlyBirdHop(rec, home.x, home.y, () => this._friendlyBirdIdle(rec));
+        // Settle (not plain idle) — the trip home is what ENDS the approach.
+        this._friendlyBirdHop(rec, home.x, home.y, () => this._friendlyBirdSettle(rec));
       });
     });
   }

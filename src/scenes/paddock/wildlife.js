@@ -101,7 +101,11 @@ export const WithWildlife = (Base) => class extends Base {
         c._lastHostY = horse.sprite.y;
       }
 
-      if (c.ground) c.sprite.setDepth(c.sprite.y);
+      // Ground critters depth-sort by their feet — EXCEPT birds perched up on a tall
+      // prop (#340): their feet are far above the prop's own anchor, so sorting by
+      // sprite.y would bury them behind the birdhouse/feeder/bath they're standing on.
+      // Those spawn with an explicit depth of prop.y + 1 and keep it (`fixedDepth`).
+      if (c.ground && !c.fixedDepth) c.sprite.setDepth(c.sprite.y);
       if (c.ground) {
         const dist = Phaser.Math.Distance.Between(px, py, c.sprite.x, c.sprite.y);
         if (c.kind === 'bird') {
