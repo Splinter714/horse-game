@@ -250,6 +250,22 @@ export function buildWorldTextures(scene) {
   // occludes it correctly. The south edge (y≈H) is the open doorway.
   gen(scene, 'barnInterior', BARN_W, BARN_H, (g) => {
     const FX0 = 8, FX1 = BARN_W - 8, FY0 = 40, FY1 = BARN_H - 4;     // floor rect
+    g.layer('roofcap');
+    // Back roof cap + connecting eave strips (2026-07-27 owner feedback): the front
+    // façade (barnFront) only ever drew a roof over the SOUTH gable end, so the rest
+    // of the building (everything north of the back wall, y < FY0) had no roof at
+    // all — the world's grass showed through there and the barn didn't read as
+    // covered along its depth. This caps the back the same way, and shades the side
+    // edges so the roof reads as one covering spanning front-to-back, not two
+    // disconnected gables.
+    const RMID = BARN_W / 2;
+    g.fillStyle(0x7a2a1c, 1); g.fillTriangle(FX0 - 4, FY0, RMID, 6, FX1 + 4, FY0);        // underside/shadow
+    g.fillStyle(0x9a3826, 1);
+    g.fillPoints([{ x: FX0, y: FY0 }, { x: RMID - 46, y: 22 }, { x: RMID + 46, y: 22 }, { x: FX1, y: FY0 }]); // slopes
+    g.fillStyle(0xb6432e, 1);
+    g.fillPoints([{ x: RMID - 46, y: 22 }, { x: RMID, y: 6 }, { x: RMID + 46, y: 22 }]);   // cap
+    g.fillStyle(0x6a2418, 1);                                                              // eave shadow strips, connecting
+    g.fillRect(FX0 - 4, FY0 - 6, 4, 6); g.fillRect(FX1, FY0 - 6, 4, 6);
     g.layer('floor');
     g.fillStyle(0x6a5236, 1); g.fillRect(FX0, FY0, FX1 - FX0, FY1 - FY0); // packed-dirt floor
     g.fillStyle(0x5e492f, 1);                                        // plank/board seams
