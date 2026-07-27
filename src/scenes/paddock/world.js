@@ -113,6 +113,14 @@ export const WithWorld = (Base) => class extends Base {
       this.props.trailEntrance.x = loop[0][0];
       this.props.trailEntrance.y = loop[0][1];
     }
+
+    // Fords (#377): a path drag can create or close a stream crossing just as
+    // much as a stream drag can, so re-derive the stream's collision here too.
+    // Guarded on `_streamCtrl` existing — at boot, `buildPath()` runs before
+    // `buildStream()` (below), so the very first call has no stream yet to
+    // re-check; `buildStream()`'s own initial `_rebuildStream()` call already
+    // scans the (by-then-built) `_pathRoutes` once it runs.
+    if (this._streamCtrl) this._rebuildStream();
   }
 
   buildWorld() {
