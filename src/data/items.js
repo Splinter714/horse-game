@@ -131,10 +131,10 @@ export const CONTENT_DEFS = {
   // kitchen counter (#40), alongside strawberries — one shared "fruit jam" sink
   // rather than a bespoke processed good per fruit, keeping this simple.
   orange: { label: 'Oranges', icon: 'iconBasketOrange', action: 'feed', ground: 'orangePile', feeds: ['horse', 'cow', 'pig', 'goat'], craftsTo: 'jam' },
-  // Berries drop no `horse` in their `feeds` list (#228 playtest, 2026-07-24): horses
-  // eating berries read as wrong for the species, so berries are diet-gated away from
-  // horses while staying available to the other grazers (cow/pig/goat) below.
-  berry:  { label: 'Berries', icon: 'iconBasketBerry',  action: 'feed', ground: 'berryPile',  feeds: ['cow', 'pig', 'goat'], craftsTo: 'jam' },
+  // Berries are pig-only (#228 playtest, 2026-07-24 + 2026-07-26 follow-up): horses
+  // eating berries read as wrong for the species, and a further narrowing dropped
+  // cow/goat too — berries are now diet-gated to the pig alone.
+  berry:  { label: 'Berries', icon: 'iconBasketBerry',  action: 'feed', ground: 'berryPile',  feeds: ['pig'], craftsTo: 'jam' },
   // Jam — the processed form of strawberries (#40), worth more at the stand than raw
   // fruit (the payoff for the extra crafting step, mirrors yarn).
   jam:        { label: 'Jam',          icon: 'iconBasketJam',        action: 'sell' },
