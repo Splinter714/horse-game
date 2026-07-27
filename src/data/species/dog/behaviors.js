@@ -2,10 +2,11 @@
 // shape as the other species: `test` is pure (unit-tested in ./behaviors.test.js),
 // `run` is the scene-coupled primitive (charm.js dogGoHerd, catAI.js petEatFromBowl).
 //
-// #347 — the dog now has real hunger/thirst, so its first priority is its own combined
-// food+water bowl by the doghouse (worldObjects.js buildDogBowl): a hungry or thirsty
-// dog trots over and eats/drinks a serving DIRECTLY from the stocked side, exactly like
-// the cat and bunny. The bowl distances are Infinity when that side is empty
+// #347 — the dog now has real hunger/thirst, so its first priority is the shared
+// combined food+water bowl by the house (worldObjects.js buildPetBowl, unified across
+// all three pets by #361): a hungry or thirsty dog trots over and eats/drinks a
+// serving DIRECTLY from the stocked side, exactly like the cat and bunny (all three
+// now share the one bowl). The bowl distances are Infinity when that side is empty
 // (_catBowlDist), so an empty dish reads as "nothing to seek" and the dog just gets on
 // with its herding/swimming/wandering rather than pacing an empty bowl.
 //
@@ -21,7 +22,7 @@ const BOWL_RANGE  = 1200; // …and the (stocked) bowl is within this many px
 export const seekDogFood = {
   id: 'seekDogFood',
   test: (ctx) => ctx.hunger < HUNGER_SEEK && ctx.nearestFoodDist < BOWL_RANGE,
-  run: (scene, a) => scene.petEatFromBowl(a, scene.props.dogBowl, 'food'),
+  run: (scene, a) => scene.petEatFromBowl(a, scene.props.petBowl, 'food'),
 };
 
 // Thirsty → trot to the stocked dog water bowl and drink a serving from it
@@ -29,7 +30,7 @@ export const seekDogFood = {
 export const seekDogWater = {
   id: 'seekDogWater',
   test: (ctx) => ctx.thirst < THIRST_SEEK && ctx.nearestWaterDist < BOWL_RANGE,
-  run: (scene, a) => scene.petEatFromBowl(a, scene.props.dogBowl, 'water'),
+  run: (scene, a) => scene.petEatFromBowl(a, scene.props.petBowl, 'water'),
 };
 
 // Sheep nearby (and off cooldown) → amble over and bunch the flock. nearestSheepDist

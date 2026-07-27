@@ -619,21 +619,15 @@ export function buildPropTextures(scene) {
       g.fillStyle(wHi, 0.6); g.fillEllipse(42, 6, 3, 1);
     }
   };
-  // One combined bowl texture set per pet — cat (kibble, orange-brown), bunny
-  // (pellets, leafy green) and dog (#347: bigger meaty chunks, a deeper brown) —
-  // each with all four food/water fill-state combinations. Same dish shape and water
-  // side throughout, so the three read as one family of object; only the food tint
-  // differs.
+  // The one shared pet bowl texture (#361 — cat/dog/bunny used to each get their own
+  // tinted set; now there's a single shared bowl so a single kibble-tinted texture
+  // family, with all four food/water fill-state combinations. Same dish shape and
+  // water side as before — only the per-pet tint variants are gone since there's one
+  // bowl to draw.
   const BOWL_STATES = [[false, false], [true, false], [false, true], [true, true]];
   for (const [foodFilled, waterFilled] of BOWL_STATES) {
     const suffix = `${foodFilled ? 1 : 0}${waterFilled ? 1 : 0}`;
-    gen(scene, `catBowl_${suffix}`, 52, 16, (g) => drawPetBowl(g, { foodFilled, waterFilled }));
-    gen(scene, `bunnyBowl_${suffix}`, 52, 16, (g) => drawPetBowl(g, {
-      foodFilled, waterFilled, foodColor: 0x6a9c3c, foodHi: 0x8fc95e,
-    }));
-    gen(scene, `dogBowl_${suffix}`, 52, 16, (g) => drawPetBowl(g, {
-      foodFilled, waterFilled, foodColor: 0x8a5730, foodHi: 0xb07a4a,
-    }));
+    gen(scene, `petBowl_${suffix}`, 52, 16, (g) => drawPetBowl(g, { foodFilled, waterFilled }));
   }
 
   // Bunny hutch (#224) — the gathering source for bunny food + water. A little raised

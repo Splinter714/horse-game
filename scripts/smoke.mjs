@@ -90,7 +90,7 @@ try {
       // worldObjects: food drops / trough / gate / pet bowls (#202 rework,
       // #283/#289 generalized the cat-specific bowl methods → generic pet bowls).
       'placeFood', '_freeFoodSpot', 'fillTrough', '_setTroughLevel', 'toggleGate',
-      'buildCatBowls', 'fillPetBowl', '_setPetBowlLevel', '_petBowlFor',
+      'buildPetBowl', 'fillPetBowl', '_setPetBowlLevel', '_petBowlFor',
       'petEatFromBowl', '_catContext', '_catBowlDist',
       // careActions: brush-on-horse + generic produce harvesting (milk).
       'useItemOnHorse', '_produceFromAnimal',
@@ -253,18 +253,19 @@ try {
       }
     } catch (e) { pigDiet = 'threw: ' + String(e); }
 
-    // #202 rework, #311 combined bowl: the cat eats DIRECTLY from a stocked bowl side.
-    // The bowl starts empty on both sides (a hungry cat with an empty food side falls
-    // through to fishing); once the food side is stocked, a hungry cat's behavior
-    // dispatch must claim it into the 'eating' state (petEatFromBowl, #283/#289/#311
-    // generic pet-bowl primitive) rather than dropping/gathering. Then draining that
-    // side to empty must flip its `filled` flag back off (the sprite swap the player
-    // sees) on the ONE combined bowl object.
+    // #202 rework, #311 combined bowl, #361 unified into ONE shared bowl: the cat eats
+    // DIRECTLY from a stocked bowl side. The bowl starts empty on both sides (a hungry
+    // cat with an empty food side falls through to fishing); once the food side is
+    // stocked, a hungry cat's behavior dispatch must claim it into the 'eating' state
+    // (petEatFromBowl, #283/#289/#311/#361 generic pet-bowl primitive) rather than
+    // dropping/gathering. Then draining that side to empty must flip its `filled` flag
+    // back off (the sprite swap the player sees) on the ONE shared bowl object (now
+    // also used by the dog and bunny, #361).
     let catBowls = 'no cat';
     try {
       const cat = paddock.animals.find((a) => a.model?.species === 'cat');
       if (cat) {
-        const bowl = paddock.props.catBowl;
+        const bowl = paddock.props.petBowl;
         const food = bowl.sides.food, water = bowl.sides.water;
         const startedEmpty = food.level === 0 && water.level === 0 && food.filled !== true;
         // Empty food side → a hungry cat should NOT be able to seek it (dist=Infinity).
