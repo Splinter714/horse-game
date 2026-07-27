@@ -130,6 +130,46 @@ describe('dev drag: collision follows the dragged object (#330)', () => {
   });
 });
 
+// A rect derived from SEVERAL prop records — the house fence's six posts (#344) —
+// can't be delta-shifted, because moving one post changes the band's size, not just
+// its position. Those carry `ownGroup` + `refit()` and get re-derived instead.
+describe('dev drag: group-owned collision (the house fence, #344)', () => {
+  const fenceScene = () => {
+    const s = new Scene();
+    const posts = Array.from({ length: 6 }, (_, i) => ({ x: 300 + i * 96, y: 320 }));
+    const rect = {
+      x: 300, y: 300, w: 576, h: 40, isFence: true, ownGroup: posts,
+      refit() { // stands in for world.js's _fitHouseFenceRect
+        const xs = posts.map((p) => p.x), ys = posts.map((p) => p.y);
+        this.x = Math.min(...xs); this.w = Math.max(...xs) + 96 - this.x;
+        this.y = Math.min(...ys) - 20; this.h = Math.max(...ys) + 20 - this.y;
+      },
+    };
+    s.obstacles = [rect];
+    return { s, posts, rect };
+  };
+
+  it('re-derives the band when the whole run is group-dragged', () => {
+    const { s, posts, rect } = fenceScene();
+    // The #337 multi-select drag: every post moves by the same delta as one entry.
+    for (const p of posts) s._devDragShiftEntry({ obj: p, also: [] }, -436, -263);
+    expect([rect.x, rect.y, rect.w, rect.h]).toEqual([-136, 37, 576, 40]);
+  });
+
+  it('grows the band when a single post is dragged out of the run', () => {
+    const { s, rect, posts } = fenceScene();
+    s._devDragShiftEntry({ obj: posts[5], also: [] }, 120, 0);
+    expect(rect.x).toBe(300);
+    expect(rect.w).toBe(696); // 780+120+96 − 300 — a delta-shift would have kept 576
+  });
+
+  it('leaves a group-owned rect alone when something else is dragged', () => {
+    const { s, rect } = fenceScene();
+    s._devDragShiftEntry({ obj: { x: 900, y: 900 }, also: [] }, 50, 50);
+    expect([rect.x, rect.y, rect.w, rect.h]).toEqual([300, 300, 576, 40]);
+  });
+});
+
 describe('dev drag: export (#330)', () => {
   it('reports only objects that actually moved, with where they came from', () => {
     const s = new Scene();
