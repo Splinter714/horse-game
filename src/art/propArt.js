@@ -631,9 +631,11 @@ export function buildPropTextures(scene) {
   }
 
   // Bunny hutch (#224) — the gathering source for bunny food + water. A little raised
-  // wooden hutch with a wire-mesh front, a shingled roof, and a bowl of green food
-  // pellets tucked in front. The player fills a carrier here, then drops a bunny-food
-  // pile to attract/feed bunnies. Origin bottom-centre (set by the placer).
+  // wooden hutch with a wire-mesh front and a shingled roof. No painted-on food
+  // dish (2026-07-27 — #361 moved to one shared pet bowl near the house, so a
+  // dish painted into this static art was a stale second one that wasn't actually
+  // functional). The player fills a carrier here, then drops a bunny-food pile to
+  // attract/feed bunnies. Origin bottom-centre (set by the placer).
   gen(scene, 'bunnyHutch', 48, 44, (g) => {
     const wood = 0xa9773f, woodHi = 0xc99a5f, woodLo = 0x7f5628;
     const roof = 0x8a5a34, roofHi = 0xa9754a, mesh = 0x4a4038;
@@ -660,11 +662,6 @@ export function buildPropTextures(scene) {
     g.fillStyle(roof, 1); g.fillRect(3, 10, 42, 7);
     g.fillStyle(roofHi, 1); g.fillRect(3, 10, 42, 2);
     g.fillStyle(0x6f4526, 1); g.fillRect(3, 13, 42, 1); g.fillRect(3, 15, 42, 1);
-    // a food dish of green pellets sitting out front
-    g.layer('dish');
-    g.fillStyle(0x8a97a0, 1); g.fillEllipse(24, 37, 16, 5);
-    g.fillStyle(0x5c8a3a, 1); g.fillEllipse(24, 35, 12, 4);
-    g.fillStyle(0x74a84c, 1); g.fillCircle(21, 34, 1.1); g.fillCircle(25, 34, 1.1); g.fillCircle(27, 35, 1);
   });
 
   // --- Trash can (#191) ---------------------------------------------------
