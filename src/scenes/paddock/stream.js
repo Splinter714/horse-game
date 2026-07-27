@@ -28,7 +28,38 @@
 
 import { bakeStaticGraphics } from './bakeGraphics.js';
 
+// Fords (#377): how close a stream sample point has to sit to a worn path's
+// line before its collision rect is skipped, opening a crossing. Matches the
+// path's visual footprint — the widest stamp radius (27, world.js) plus the
+// stamp-time wobble amplitude (10) plus a little slack so the gap reads as
+// clearly walkable rather than a knife-edge.
+const FORD_HALF_WIDTH = 42;
+
 export const WithStream = (Base) => class extends Base {
+  // Shortest distance from (x, y) to any segment of any worn-path route
+  // currently in `this._pathRoutes` — generic over every route (not just
+  // `toStream`), since bend points can now be dragged/inserted anywhere
+  // (#373) and a route that never used to come near the stream could later
+  // be dragged across it. Uses the routes' raw waypoints (not the wobbled
+  // stamp subdivision `_bakePathGraphics` draws with) — cheap, and close
+  // enough given the generous `FORD_HALF_WIDTH` slack above.
+  _nearestPathDist(x, y) {
+    let best = Infinity;
+    for (const pts of Object.values(this._pathRoutes ?? {})) {
+      for (let i = 1; i < pts.length; i++) {
+        const [x0, y0] = pts[i - 1];
+        const [x1, y1] = pts[i];
+        const dx = x1 - x0, dy = y1 - y0;
+        const lenSq = dx * dx + dy * dy;
+        let t = lenSq < 1 ? 0 : ((x - x0) * dx + (y - y0) * dy) / lenSq;
+        t = Math.max(0, Math.min(1, t));
+        const d = Math.hypot(x - (x0 + dx * t), y - (y0 + dy * t));
+        if (d < best) best = d;
+      }
+    }
+    return best;
+  }
+
   // A flowing stream that enters off the top edge and exits off the right edge,
   // cutting the top-right corner — scenery, drawn straight into the world with
   // Graphics (banks, water, ripples, stones, reeds) and backed by collision
@@ -133,6 +164,13 @@ export const WithStream = (Base) => class extends Base {
     for (let i = 0; i < path.length; i += 6) {
       const [x, y] = path[i];
       if (y < 40) continue;
+      // Fords (#377): where a worn path's line crosses the stream, skip this
+      // obstacle rect so the path reads as walkable there instead of blocking
+      // movement at a spot that visually looks crossable. Re-checked against
+      // `this._pathRoutes`' CURRENT points every rebuild (not computed once),
+      // so a path or stream drag re-derives the gap correctly either way — see
+      // `_nearestPathDist` below.
+      if (this._nearestPathDist(x, y) < FORD_HALF_WIDTH) continue;
       this.streamObstacles.push({ x: x - 42, y: y - 30, w: 84, h: 60, isStream: true });
     }
     if (this.obstacles) {
