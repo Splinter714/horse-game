@@ -8,6 +8,7 @@ import { CONTENT_DEFS } from '../../data/items.js';
 import { fillBowlLevel, bowlHasFood } from '../../data/bowls.js';
 import { PLAYER_BOUNDS, PASTURE_BOUNDS, TROUGH_CAP, TROUGH_PER_BUCKET, BOWL_CAP, S, DROPPINGS_CAP } from './constants.js';
 import { gateNudgeY } from './gateNudge.js';
+import { troughDrinkSpots, pickTroughSpot } from '../../data/trough.js';
 import { playSplash } from '../../audio/sounds.js';
 
 export const WithWorldObjects = (Base) => class extends Base {
@@ -162,6 +163,33 @@ export const WithWorldObjects = (Base) => class extends Base {
     t.level  = Phaser.Math.Clamp(level, 0, TROUGH_CAP);
     t.filled = t.level > 0;
     t.sprite.setTexture(this._troughTexture(t.level));
+  }
+
+  // Everyone currently drinking at (or walking to) a trough spot, so two animals
+  // never claim the same one. Horses and grazers drink here, and so do the tamed
+  // fox/duck — they all route through horseGoDrink — hence both rosters. Stream
+  // drinkers carry a `_streamSpot` instead and are simply not in this list.
+  _troughDrinkers(except) {
+    return [...(this.horses ?? []), ...(this.animals ?? [])]
+      .filter(a => a !== except && a.state === 'drinking' && a._drinkSpot);
+  }
+
+  // Claim the nearest free, REACHABLE drinking spot around the trough (#336), or
+  // null if every spot is taken or unreachable (the caller then wanders instead).
+  // Reachability reuses the existing collision/pathfinding helpers: a spot must be
+  // standable, and the animal must either have a clear straight line to it (so it
+  // can't drink through the trough from the wrong side) or a real A* route around.
+  _claimTroughSpot(a) {
+    const t = this.props.trough;
+    if (!t) return null;
+    const R = a.bodyR ?? 16;
+    const obs = this._obstaclesFor(a.key);
+    const from = { x: a.sprite.x, y: a.sprite.y };
+    return pickTroughSpot(troughDrinkSpots(t), from, this._troughDrinkers(a).map(o => o._drinkSpot), {
+      canStand:  (s) => !this._collides(s.x, s.y, R, obs),
+      clearLine: (s) => this._clearLine(from.x, from.y, s.x, s.y, R, obs),
+      canPath:   (s) => !!this._findPath(from.x, from.y, s.x, s.y, { R, obstacles: obs }),
+    });
   }
 
   // ─── Pet bowls (generic — #202 cat rework, #283 generalized, #311 combined) ─

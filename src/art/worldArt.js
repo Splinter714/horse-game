@@ -11,6 +11,27 @@ import { buildIconTextures } from './iconArt.js';
 import { buildPropTextures } from './propArt.js';
 import { TROUGH_CAP } from '../scenes/paddock/constants.js';
 
+// Water-trough texture size (#336). Rotated 90° from the original 100×26 so the
+// trough's long axis runs north–south and horses can line up along BOTH long
+// sides. The interior channel runs x=5..21, y=6..(TROUGH_H-4).
+const TROUGH_W = 26;
+const TROUGH_H = 100;
+
+// The wooden shell every trough texture shares (empty + each filled level).
+function drawTroughShell(g) {
+  g.fillStyle(0x8a5a2e, 1); g.fillRect(0, 4, TROUGH_W, TROUGH_H - 4);  // wood body / side rails
+  g.fillStyle(0xa06c38, 1); g.fillRect(0, 0, TROUGH_W, 6);             // far (north) end rim, lit
+  g.fillStyle(0x6a3c18, 1); g.fillRect(0, TROUGH_H - 4, TROUGH_W, 4);  // near (south) end board, shaded
+  g.fillStyle(0x3a2410, 1); g.fillRect(5, 6, 16, TROUGH_H - 12);       // dry dark interior channel
+  g.fillStyle(0x2a1a08, 1); g.fillRect(5, 6, 3, TROUGH_H - 12);        // shadow down the west wall
+}
+
+// Mid-length post divider, so it still reads as one long trough.
+function drawTroughPost(g) {
+  const mid = Math.round(TROUGH_H / 2) - 2;
+  g.fillStyle(0x6a3c18, 1); g.fillRect(2, mid, 22, 4); g.fillRect(0, mid - 2, 4, 2);
+}
+
 export function buildWorldTextures(scene) {
   // --- grass tiles (two variants for subtle variety) ---
   gen(scene, 'grass', 32, 32, (g) => {
@@ -335,13 +356,13 @@ export function buildWorldTextures(scene) {
   });
 
   // --- water trough (empty = dry dark interior) ---
-  gen(scene, 'trough', 100, 26, (g) => {
-    g.fillStyle(0x8a5a2e, 1); g.fillRect(0, 6, 100, 20);
-    g.fillStyle(0xa06c38, 1); g.fillRect(0, 2, 100, 5);
-    g.fillStyle(0x3a2410, 1); g.fillRect(4, 8, 92, 10); // dry dark interior
-    g.fillStyle(0x2a1a08, 1); g.fillRect(4, 15, 92, 3); // shadow at bottom
-    // Post dividers so it reads as one long trough
-    g.fillStyle(0x6a3c18, 1); g.fillRect(47, 4, 4, 22); g.fillRect(49, 2, 2, 4);
+  // Rotated 90° (#336): the trough now runs NORTH–SOUTH, drawn 26×100 (S=2 →
+  // 52×200 in world) instead of the old 100×26. Its long sides face west and
+  // east, which is what lets several horses line up along BOTH sides and drink
+  // at once (the old east/west END anchors only fitted two).
+  gen(scene, 'trough', TROUGH_W, TROUGH_H, (g) => {
+    drawTroughShell(g);
+    drawTroughPost(g);
   });
   // --- covered shelter (#319) — an open-sided lean-to horses tuck under when it
   // rains. Four posts holding up a pitched roof over a straw-strewn patch of
@@ -384,24 +405,25 @@ export function buildWorldTextures(scene) {
   });
 
   // Filled levels (#109): one texture per discrete water level (trough1..troughN)
-  // so the rendered height maps 1:1 to the actual level — no more collapsing many
+  // so the rendered water maps 1:1 to the actual level — no more collapsing many
   // distinct levels into a few "looks full" buckets (#103 had only low/half/full,
-  // which let, say, 7/9 and 9/9 look identical). The interior runs y=8..18 (10
-  // rows); water rises from the bottom, and only the top level fills it completely.
+  // which let, say, 7/9 and 9/9 look identical). Now the trough runs north–south
+  // (#336) the water is a full-LENGTH strip whose WIDTH grows with the level —
+  // the channel seen from above widens as it deepens — instead of a column
+  // rising from the bottom edge (which, rotated, would have read as water
+  // pooling at one end).
   for (let lvl = 1; lvl <= TROUGH_CAP; lvl++) {
-    gen(scene, `trough${lvl}`, 100, 26, (g) => {
-      g.fillStyle(0x8a5a2e, 1); g.fillRect(0, 6, 100, 20);   // wood body
-      g.fillStyle(0xa06c38, 1); g.fillRect(0, 2, 100, 5);    // top rim
-      g.fillStyle(0x3a2410, 1); g.fillRect(4, 8, 92, 10);    // dry dark interior
-      const rows = Math.round((lvl * 10) / TROUGH_CAP);      // 1..10 — distinct per level
-      const top  = 18 - rows;
-      g.fillStyle(0x5fa6d6, 1); g.fillRect(4, top, 92, rows);              // water body
-      g.fillStyle(0x9ae0f8, 1); g.fillRect(4, top, 92, Math.min(2, rows)); // surface highlight
-      if (rows >= 3) {                                        // sparkle dashes once it has depth
+    gen(scene, `trough${lvl}`, TROUGH_W, TROUGH_H, (g) => {
+      drawTroughShell(g);
+      const w  = Math.max(2, Math.round((lvl * 14) / TROUGH_CAP)); // 2..14 — distinct per level
+      const x0 = 5 + Math.round((16 - w) / 2);                     // centred in the channel
+      g.fillStyle(0x5fa6d6, 1); g.fillRect(x0, 8, w, TROUGH_H - 16);              // water body
+      g.fillStyle(0x9ae0f8, 1); g.fillRect(x0, 8, Math.min(2, w), TROUGH_H - 16); // lit west edge
+      if (w >= 5) {                                                // sparkle dashes once it has depth
         g.fillStyle(0x7cc8e8, 0.7);
-        g.fillRect(10, top + 1, 9, 1); g.fillRect(40, top + 1, 11, 1); g.fillRect(66, top + 1, 8, 1);
+        g.fillRect(x0 + 1, 20, w - 2, 1); g.fillRect(x0 + 1, 46, w - 2, 1); g.fillRect(x0 + 1, 74, w - 2, 1);
       }
-      g.fillStyle(0x6a3c18, 1); g.fillRect(47, 4, 4, 22); g.fillRect(49, 2, 2, 4); // post dividers
+      drawTroughPost(g); // divider sits proud of the water
     });
   }
 

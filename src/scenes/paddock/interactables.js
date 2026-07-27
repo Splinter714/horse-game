@@ -82,14 +82,19 @@ export const WithInteractables = (Base) => class extends Base {
       // bucket to top it up (#103) — not just when it's bone dry.
       if (!t || t.level >= TROUGH_CAP || item?.content !== 'water') return [];
       return [{
-        x: t.x, y: t.y, tapRadius: 200, reachDist: 145, promptOffsetY: 40,
+        x: t.x, y: t.y, tapRadius: 240, reachDist: 175, promptOffsetY: 40,
         canAct: true, label: 'Fill Trough',
         // Walk to the side the player is on: the well side (just north of the
-        // fence) to fill over it, or just inside the pasture from the south (#106).
+        // fence) to fill over it (#106), or — now the trough runs north–south
+        // (#336) — up against whichever long SIDE they're already on. The old
+        // "just south of it" anchor is inside the rotated trough's own footprint.
+        // Reach is generous to match: from over the fence the player stands ~145px
+        // from the trough's centre, though only a step from its north end.
         approach: (world) => {
+          const refX = world ? world.x : this.player.sprite.x;
           const refY = world ? world.y : this.player.sprite.y;
-          const onWellSide = refY < t.y;
-          return { x: t.x, y: onWellSide ? PASTURE_BOUNDS.minY - 34 : t.y + 56 };
+          if (refY < PASTURE_BOUNDS.minY) return { x: t.x, y: PASTURE_BOUNDS.minY - 34 };
+          return { x: t.x + (refX >= t.x ? 64 : -64), y: t.y };
         },
         activate: () => this.fillTrough(),
       }];
