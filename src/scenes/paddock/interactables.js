@@ -31,6 +31,25 @@ export const WithInteractables = (Base) => class extends Base {
       }];
     };
 
+    // Hummingbird house tie-post (#364) — bare-hand interact at the POST: tying
+    // the rope props the lid open (hummingbirds may then visit/go inside, see
+    // birdEcosystemVisits.js), untying lets it swing closed. A manual, repeatable
+    // toggle mirroring the gate's toggle pattern above — NOT the lead-rope-to-
+    // fence mechanic (#317), since this ties a fixed prop rather than leading an
+    // animal. Sits alongside the existing nectar jug/feeder (#226); separate
+    // attraction, doesn't touch that mechanic.
+    const hummingbirdPost = () => {
+      const p = this.props.hummingbirdPost;
+      const h = this.props.hummingbirdHouse;
+      if (!p || !h) return [];
+      return [{
+        x: p.x, y: p.y, tapRadius: 90, reachDist: 90, promptOffsetY: 50,
+        canAct: true, label: h.open ? 'Untie Rope  (let lid close)' : 'Tie Rope  (prop lid open)',
+        approach: () => ({ x: p.x, y: p.y + 40 }),
+        activate: () => this.toggleHummingbirdHouse(),
+      }];
+    };
+
     // Market stall (#29, narrowed by #312) — walk up and interact to open the
     // tool-upgrades buy panel. A bare-hand interact target like the house/gate: no
     // carried item needed.
@@ -440,7 +459,7 @@ export const WithInteractables = (Base) => class extends Base {
     // already driving (see tractor.js `_tractorInteractables`).
     const tractor = () => this._tractorInteractables?.() ?? [];
 
-    this.interactables = [gate, house, shop, generalStore, barn, gardenPlant, trailCollectible, tractor, trough, sharedPetBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, slopMaker, compostBin, trashCan, gardenWater, gardenHarvest, neighborGift, neighborTrade];
+    this.interactables = [gate, hummingbirdPost, house, shop, generalStore, barn, gardenPlant, trailCollectible, tractor, trough, sharedPetBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, slopMaker, compostBin, trashCan, gardenWater, gardenHarvest, neighborGift, neighborTrade];
     // Split by input: gate/house/shop/generalStore/barn/garden-plant/
     // trail-collectible/tractor are bare-hand "interact" targets (tap/click/E); the
     // rest require a carried tool/carrier and are triggered by Use (the on-screen
@@ -449,7 +468,7 @@ export const WithInteractables = (Base) => class extends Base {
     // receive), but it's grouped with toolWorld since gifting (the sibling
     // interaction at the same spot) does require a held carrier, and only one of
     // the two ever applies at a time (see neighborGift/neighborTrade above).
-    this.interactWorld = [gate, house, shop, generalStore, barn, gardenPlant, trailCollectible, tractor];
+    this.interactWorld = [gate, hummingbirdPost, house, shop, generalStore, barn, gardenPlant, trailCollectible, tractor];
     this.toolWorld     = [trough, sharedPetBowl, seedFeeder, nectarFeeder, beehive, sources, nests, farmStand, standWoolDump, spinningWheel, kitchenCounter, slopMaker, compostBin, trashCan, gardenWater, gardenHarvest, neighborGift, neighborTrade];
   }
 

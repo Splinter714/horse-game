@@ -1005,6 +1005,92 @@ export function buildWorldTextures(scene) {
     g.fillStyle(roofD, 1);  g.fillRect(12, 6, 2, 3);  // ridge cap
   });
 
+  // --- hummingbird house (26 × 54) — post-mounted box with a HINGED lid (#364) ---
+  // A small house whose peaked-roof lid hinges at the back (left, x≈3) and props
+  // open at the front (right, x≈23) when the rope tied off at the nearby post
+  // pulls it up — mirrors the birdhouse above but the lid is a moving part, not
+  // fixed scenery. Two variants: `hummingbirdHouse` (lid resting flush/closed) and
+  // `hummingbirdHouseOpen` (lid propped open on its hinge, revealing the dark
+  // interior slit + a little brass ring at the tip where the rope attaches).
+  // Origin (0.5,1) at the foot of the post so it depth-sorts on its base.
+  // Dissect-tagged (post/box/hole/lid/hinge).
+  const drawHummingbirdHouse = (g, open) => {
+    const post = 0x8a5a2e, postHi = 0xa9743c, postLo = 0x6a4420;
+    const wood = 0xcf9a5c, woodHi = 0xe6b878, woodLo = 0xa8763e;
+    const roofD = 0x7a3f22, roofM = 0xa8582c, roofH = 0xcf7f48, roofU = 0x5a2c18; // roofU = lid underside (shaded)
+    const hole = 0x2a1c10, hinge = 0x4a4a4a, ring = 0xe0b840;
+
+    // Post
+    g.layer('post');
+    g.fillStyle(postLo, 1); g.fillEllipse(13, 52, 8, 3); // ground shadow
+    g.fillStyle(post, 1);   g.fillRect(11, 36, 4, 18);
+    g.fillStyle(postHi, 1); g.fillRect(11, 36, 1, 18);
+    g.fillStyle(postLo, 1); g.fillRect(14, 36, 1, 18);
+
+    // House box
+    g.layer('box');
+    g.fillStyle(wood, 1);   g.fillRect(3, 20, 20, 16);
+    g.fillStyle(woodHi, 1); g.fillRect(3, 20, 20, 2);
+    g.fillStyle(woodLo, 1); g.fillRect(3, 34, 20, 2);
+
+    // Entrance hole
+    g.layer('hole');
+    g.fillStyle(hole, 1); g.fillCircle(13, 28, 3);
+
+    // Hinge (back-left edge, x≈3) — a small dark pin, visible in both states
+    g.layer('hinge');
+    g.fillStyle(hinge, 1); g.fillRect(2, 19, 3, 2);
+
+    if (open) {
+      // Dark gap under the lifted lid — the "propped open" mouth of the house.
+      g.layer('interior');
+      g.fillStyle(roofU, 1); g.fillTriangle(3, 20, 23, 20, 23, 8);
+
+      // Lid tilted up on the hinge: a thin wedge from the hinge (3,20) to the
+      // lifted tip near (23,7).
+      g.layer('lid');
+      g.fillStyle(roofM, 1); g.fillTriangle(3, 20, 23, 7, 23, 11);
+      g.fillStyle(roofH, 1); g.fillTriangle(3, 20, 23, 11, 3, 17);
+      g.fillStyle(roofD, 1); g.fillTriangle(3, 17, 23, 11, 23, 14);
+
+      // Rope ring at the tip, where the taut rope pulls to prop it open.
+      g.layer('ring');
+      g.fillStyle(ring, 1); g.fillCircle(23, 8, 1.6);
+    } else {
+      // Flush peaked roof, resting closed on the box top (mirrors the birdhouse).
+      g.layer('lid');
+      g.fillStyle(roofD, 1); g.fillTriangle(1, 20, 13, 9, 25, 20);
+      g.fillStyle(roofM, 1); g.fillTriangle(3, 20, 13, 11, 23, 20);
+      g.fillStyle(roofH, 1); g.fillRect(6, 16, 3, 2); g.fillRect(10, 13, 3, 2);
+      g.fillStyle(woodLo, 1); g.fillRect(1, 19, 24, 2); // eave board
+      g.fillStyle(roofD, 1);  g.fillRect(12, 9, 2, 3);  // ridge cap
+
+      // Rope ring at the tip, resting against the closed lid's front edge.
+      g.layer('ring');
+      g.fillStyle(ring, 1); g.fillCircle(22, 19, 1.6);
+    }
+  };
+  gen(scene, 'hummingbirdHouse',     26, 54, (g) => drawHummingbirdHouse(g, false));
+  gen(scene, 'hummingbirdHouseOpen', 26, 54, (g) => drawHummingbirdHouse(g, true));
+
+  // --- hummingbird house tie post (10 × 30) — the nearby post (#364) ---
+  // A simple stake the player ties/unties the house's rope at, mirroring the
+  // fence-rail tie point (#317) but as its own small fixed prop rather than a
+  // fence rail. Origin (0.5,1) at the foot. Dissect-tagged (post/hook).
+  gen(scene, 'hummingbirdTiePost', 10, 30, (g) => {
+    const post = 0x8a5a2e, postHi = 0xa9743c, postLo = 0x6a4420, hook = 0x4a4a4a;
+
+    g.layer('post');
+    g.fillStyle(postLo, 1); g.fillEllipse(5, 29, 6, 3); // ground shadow
+    g.fillStyle(post, 1);   g.fillRect(3, 4, 4, 25);
+    g.fillStyle(postHi, 1); g.fillRect(3, 4, 1, 25);
+    g.fillStyle(postLo, 1); g.fillRect(6, 4, 1, 25);
+
+    // Little tie-hook at the top
+    g.layer('hook');
+    g.fillStyle(hook, 1); g.fillRect(2, 2, 6, 2); g.fillCircle(5, 2, 1.6);
+  });
+
   // --- nest (18 × 12) — woven straw ring ---
   gen(scene, 'nest', 18, 12, (g) => {
     // Outer straw ring

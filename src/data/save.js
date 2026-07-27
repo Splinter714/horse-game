@@ -456,6 +456,30 @@ export function saveTractorState({ color }) {
   } catch {}
 }
 
+// ── Hummingbird house lid (#364) ──────────────────────────────────────────────
+// Whether the rope is tied off at the post (lid propped open) or untied (lid
+// swung closed) — a manual player toggle at the post (paddock/interactables.js
+// `toggleHummingbirdHouse`, mirroring the gate's toggle), not automatic. Its own
+// tiny storage key, mirroring the tractor color above, so the lid stays exactly
+// as the player left it across a reload. Defaults closed (matches the tractor's
+// default-parked, always-there-either-way spirit — nothing to "start" here).
+const HUMMINGBIRD_HOUSE_KEY = 'horse-game-hummingbird-house-v1';
+
+export function loadHummingbirdHouseState() {
+  try {
+    const data = JSON.parse(localStorage.getItem(HUMMINGBIRD_HOUSE_KEY));
+    return { open: typeof data?.open === 'boolean' ? data.open : false };
+  } catch {
+    return { open: false };
+  }
+}
+
+export function saveHummingbirdHouseState({ open }) {
+  try {
+    localStorage.setItem(HUMMINGBIRD_HOUSE_KEY, JSON.stringify({ open: !!open }));
+  } catch {}
+}
+
 // ── Bird befriending progress (#223) ──────────────────────────────────────────
 // Mirrors the fox-taming persistence shape above, but per BIRD TYPE (data/wildlife.js
 // BIRD_TYPES id) rather than a single counter — several types can be warming up (or
