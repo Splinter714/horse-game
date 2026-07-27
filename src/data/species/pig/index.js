@@ -102,5 +102,7 @@ export const PIG = {
   // own module — see ./behaviors.js) is appended last: a low-priority charm behavior
   // that never overrides feeding/drinking, so a content pig occasionally flops for
   // a mud-roll once she has nothing more pressing to do.
-  behaviors: ['seekFood', 'seekWater', 'seekStream', 'graze', 'wallow'],
+  // `seekShelter` (#349) sits after the real needs and before the ambient graze/
+  // wallow charm: rain sends her into the barn until it clears.
+  behaviors: ['seekFood', 'seekWater', 'seekStream', 'seekShelter', 'graze', 'wallow'],
 };

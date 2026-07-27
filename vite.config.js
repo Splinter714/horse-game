@@ -65,6 +65,12 @@ export default defineConfig(({ command }) => ({
         // at runtime, not fetched files. Precaching the built JS/HTML/icon shell is
         // enough for the whole game to boot and run with no connection.
         globPatterns: ['**/*.{js,css,html,png,ico,svg}'],
+        // The whole game is ONE bundle (all art is procedural code), and it just
+        // crossed Workbox's default 2 MiB per-file precache cap — which fails the
+        // build outright, and would otherwise silently leave the app un-precached
+        // (i.e. no offline play). Raised to 8 MiB so the shell keeps precaching as
+        // the game grows. (#349 — the enlarged barn art is what tipped it over.)
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
       },
     }),
   ],

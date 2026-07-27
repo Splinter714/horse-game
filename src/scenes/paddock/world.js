@@ -67,14 +67,18 @@ export const WithWorld = (Base) => class extends Base {
       // placements (#330 drag tool, baked in by #338, #341, #342, and #343).
       // The #343 batch is the tight flower cluster the owner arranged around the
       // bird bath (roughly x 395-520, y 225-275).
+      // #349: the seven west-pasture flowers (indices 26, 30–32, 36, 37, 39) moved
+      // east/north — the enlarged barn now covers x 210–890, y 900–1360, and a flower
+      // drawn inside it renders on the barn floor (and hummingbirds would hover into
+      // the roof). One of them (26) was an owner placement; the rest weren't.
       [464, 251], [443, 256], [260, 360], [436, 274], [402, 247],
       [479, 260], [425, 229], [492, 438], [489, 226], [1000, 350],
       [496, 266], [415, 271], [490, 246], [460, 272], [422, 248],
       [516, 264], [509, 241], [1340, 390], [1460, 570], [1580, 430],
       [1700, 600], [395, 264], [1860, 520], [1050, 800], [1180, 950],
-      [1380, 850], [807, 1284], [1473, 795], [1780, 900], [280, 880],
-      [420, 1020], [560, 900], [700, 1040], [1344, 695], [954, 1157],
-      [120, 750], [240, 1100], [360, 980], [404, 225], [630, 1100],
+      [1380, 850], [980, 1400], [1473, 795], [1780, 900], [280, 880],
+      [1010, 985], [560, 860], [1120, 1430], [1344, 695], [954, 1157],
+      [120, 750], [960, 1240], [1660, 1010], [404, 225], [1700, 1320],
     ].forEach(([x, y], i) => {
       const sprite = this.add.image(x, y, flowers[i % flowers.length]).setScale(S).setDepth(y);
       // `sprite` kept so the dev drag tool (#330) can move the actual flower, not
@@ -146,7 +150,8 @@ export const WithWorld = (Base) => class extends Base {
       .setScale(S).setDepth(ty).setOrigin(0.5, 0.5);
     // level = numeric water (0..TROUGH_CAP); `filled` mirrors level>0 (kept in sync by _setTroughLevel, #103).
     this.props.trough = { x: tx, y: ty, sprite: troughSprite, level: 0, filled: false };
-    this.buildShelter(); // covered shelter (#319); places props.shelter — worldObjects.js
+    // (The standalone covered shelter that used to be built here was removed in
+    // #349 — the barn is the rain shelter now, for every pasture grazer.)
 
     // Trash can (#191) — a dented metal bin the ambient raccoon rummages in at night.
     // Purely a charming prop (no stock/gathering/economy), in the farm band near the

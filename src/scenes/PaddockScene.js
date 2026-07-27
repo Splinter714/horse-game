@@ -229,11 +229,14 @@ export default class PaddockScene extends PaddockBase {
   // ─── Horses ──���─────────────────────────────────────────────���─────────────
 
   buildHorses() {
-    const h1 = this.spawnHorse(680,  1200, 'horse',  1500);
-    const h2 = this.spawnHorse(380,  1300, 'horse2',  800);
+    // Spawn spots sit in the OPEN pasture, east of the barn. #349 moved horses 1, 2
+    // and 5 out of the west half — the enlarged barn now covers x 210–890, y 900–1360,
+    // so their old spots (680,1200 / 380,1300 / 520,1350) were inside the building.
+    const h1 = this.spawnHorse(1000, 1180, 'horse',  1500);
+    const h2 = this.spawnHorse(1150, 1400, 'horse2',  800);
     const h3 = this.spawnHorse(1380, 1250, 'horse3', 2200);
     const h4 = this.spawnHorse(1050, 1150, 'horse4', 1200);
-    const h5 = this.spawnHorse(520,  1350, 'horse5', 3000);
+    const h5 = this.spawnHorse(1300, 1080, 'horse5', 3000);
     const h6 = this.spawnHorse(1600, 1280, 'horse6', 1800);
     const h7 = this.spawnHorse(900,  1220, 'horse7', 2600); // Ebony — Friesian
 

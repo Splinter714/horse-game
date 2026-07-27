@@ -163,8 +163,10 @@ export const USAGE_TIPS = {
     'Pasture Gate: interact bare-handed to swing it open or shut. Animals can only '
     + 'cross between the north yard and the south pasture while it is OPEN.',
   barn:
-    'Barn (#35): walk in through the south doorway. Interact bare-handed at a stall '
-    + 'to assign a horse to it; the tack room is along the wall.',
+    'Barn (#35/#349): walk in through the south doorway. Interact bare-handed at a '
+    + 'stall to assign a horse to it; the tack room fills the left bay. It is also '
+    + 'the farm\'s RAIN SHELTER — when it rains, every pasture grazer (horses, cow, '
+    + 'pig, sheep, goat, llamas) files inside on its own and waits it out.',
   coop:
     'Chicken Coop: no interaction needed — hens file in by themselves at nightfall '
     + 'and out again in the morning. The nests in front of it are where eggs turn up.',
@@ -192,9 +194,6 @@ export const USAGE_TIPS = {
   doghouse:
     'Doghouse (#237): the dog\'s home spot — nothing to do here. Pet the dog itself '
     + '(interact) wherever it happens to be.',
-  shelter:
-    'Covered Shelter (#319): no player action. When it rains, horses path here on '
-    + 'their own and wait it out.',
   flowers:
     'Flowers: scenery — hummingbirds hover near them. Nothing to pick.',
 

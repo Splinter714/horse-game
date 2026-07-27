@@ -12,13 +12,16 @@ import { PLAYER_BOUNDS, PASTURE_BOUNDS, GATE_X, GATE_GAP_X0, GATE_GAP_X1, BEG } 
 // to top it right up, so feeding stays meaningful.
 const GRAZE_RESTORE = 4;
 
-// Offsets (from props.shelter's standing anchor) a horse can take under the
-// covered shelter (#319) so several sheltering horses spread out under the roof
-// instead of stacking on one spot. Cycled by how many are already there.
+// Standing spots inside the BARN (#349) a sheltering animal can take, as fractions
+// of the barn's interior rect (props.barn.interior) so they scale with the building
+// instead of being pinned to pixel offsets. Cycled by how many are already inside,
+// so several sheltering animals spread down the aisle rather than stacking on one
+// spot. Kept in the lower/middle of the floor — the back of the interior is the
+// stall row, which assigned horses occupy.
 const SHELTER_SPOTS = [
-  { x: -34, y: 6 }, { x: 34, y: 6 },
-  { x: -34, y: -14 }, { x: 34, y: -14 },
-  { x: 0, y: 16 }, { x: 0, y: -22 },
+  { fx: 0.18, fy: 0.78 }, { fx: 0.36, fy: 0.62 }, { fx: 0.62, fy: 0.78 },
+  { fx: 0.82, fy: 0.62 }, { fx: 0.28, fy: 0.92 }, { fx: 0.72, fy: 0.92 },
+  { fx: 0.50, fy: 0.70 }, { fx: 0.92, fy: 0.86 },
 ];
 
 export const WithHorseAI = (Base) => class extends Base {
@@ -397,31 +400,49 @@ export const WithHorseAI = (Base) => class extends Base {
     return true;
   }
 
-  // Rain sends a horse to the covered shelter (#319) — fully automatic AI pathing,
-  // no player placement. Claims the horse immediately (state='sheltering', set
-  // BEFORE the walk completes) so horseTick's idle/wandering filter skips it for
-  // the whole trip, not just once parked — otherwise every tick mid-walk would
-  // re-fire the behavior and restart the path. It stays 'sheltering' (never reset
-  // to 'idle' on arrival) until the rain clears, when _releaseSheltering
-  // (weather.js, on WEATHER_CHANGE) hands it back to the normal wander chain.
-  horseGoToShelter(h) {
-    const shelter = this.props.shelter;
-    if (!shelter) return false;
-    if (h.state === 'sheltering') return true; // already there / already heading over
+  // Rain sends a grazer INTO THE BARN (#319, retargeted + generalized by #349) —
+  // fully automatic AI pathing, no player placement. Species-neutral: the shared
+  // `seekShelter` behavior (data/species/shelter.js) is registered by every pasture
+  // grazer (horse, cow, pig, sheep, goat, llama), so this runs for all of them.
+  //
+  // Claims the animal immediately (state='sheltering', set BEFORE the walk
+  // completes) so the AI tick's idle/wandering filter skips it for the whole trip,
+  // not just once parked — otherwise every tick mid-walk would re-fire the behavior
+  // and restart the path. It stays 'sheltering' (never reset to 'idle' on arrival)
+  // until the rain clears, when _releaseSheltering (weather.js, on WEATHER_CHANGE)
+  // hands it back to the normal wander chain.
+  //
+  // The walk is done in two legs — first to the apron just south of the barn's
+  // doorway, then to a spot on the interior floor — so animals visibly file in
+  // through the big door instead of picking a diagonal at the wall. (The barn's
+  // perimeter walls are real obstacles, so _findPath would route around anyway;
+  // the staging leg just makes the approach read as "walking in".)
+  animalGoToShelter(a) {
+    const barn = this.props.barn;
+    if (!barn?.interior) return false;
+    if (a.state === 'sheltering') return true; // already there / already heading over
 
-    h.state = 'sheltering';
-    if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
-    if (h._begTimer)   { this.time.removeEvent(h._begTimer); h._begTimer = null; }
-    if (h.eatTimer)    { this.time.removeEvent(h.eatTimer); h.eatTimer = null; }
+    a.state = 'sheltering';
+    if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
+    if (a._begTimer)   { this.time.removeEvent(a._begTimer); a._begTimer = null; }
+    if (a.eatTimer)    { this.time.removeEvent(a.eatTimer); a.eatTimer = null; }
 
-    const already = this._grazers().filter(o => o !== h && o.state === 'sheltering').length;
+    const already = this._grazers().filter(o => o !== a && o.state === 'sheltering').length;
     const spot = SHELTER_SPOTS[already % SHELTER_SPOTS.length];
-    const tx = shelter.x + spot.x, ty = shelter.y + spot.y;
+    const r = barn.interior;
+    const tx = r.x0 + (r.x1 - r.x0) * spot.fx;
+    const ty = r.y0 + (r.y1 - r.y0) * spot.fy;
+    const door = barn.door ?? { x: (r.x0 + r.x1) / 2, y: r.y1 };
 
-    this.moveCreatureTo(h, tx, ty, () => {
-      if (h.state !== 'sheltering' || !h.sprite.active) return;
-      h.sprite.setFlipX(spot.x > 0);
-      h.sprite.play(`idle_${h.key}`, true);
+    const settle = () => {
+      if (a.state !== 'sheltering' || !a.sprite.active) return;
+      a.sprite.setFlipX(tx > (r.x0 + r.x1) / 2);
+      a.sprite.play(`idle_${a.key}`, true);
+    };
+    // Leg 1: the apron below the doorway. Leg 2 (from its arrival callback): inside.
+    this.moveCreatureTo(a, door.x, door.y + 40, () => {
+      if (a.state !== 'sheltering' || !a.sprite.active) return;
+      this.moveCreatureTo(a, tx, ty, settle);
     });
     return true;
   }

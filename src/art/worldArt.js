@@ -10,6 +10,13 @@ import { gen } from './_frames.js';
 import { buildIconTextures } from './iconArt.js';
 import { buildPropTextures } from './propArt.js';
 import { TROUGH_CAP } from '../scenes/paddock/constants.js';
+// Barn footprint + interior layout — the single source of truth, shared with the
+// barn scene mixin so the drawn stalls/doorway line up with the collision + stand
+// spots (#349).
+import {
+  BARN_W, BARN_H, NUM_STALLS, STALL_X0, STALL_STEP, STALL_TOP, STALL_SIGN_Y,
+  STALL_HAY_Y, stallCenterX, DOOR_X0, DOOR_X1,
+} from '../data/barn.js';
 
 // Water-trough texture size (#336). Rotated 90° from the original 100×26 so the
 // trough's long axis runs north–south and horses can line up along BOTH long
@@ -232,88 +239,132 @@ export function buildWorldTextures(scene) {
   // player steps inside, the front-wall/roof façade (`barnFront`) fades out to
   // reveal the interior (`barnInterior`) drawn beneath it. See scenes/paddock/barn.js.
   //
-  // Footprint is 160×132 design px (origin 0.5,1 at the SOUTH doorway). At scale
-  // S=2 that's 320×264 world px — real walkable interior depth, per #35's note that
-  // the old #241 placeholder was too small to walk into. Dissect tags per part.
-  const BARN_W = 160, BARN_H = 132;
+  // Footprint is BARN_W×BARN_H design px (origin 0.5,1 at the SOUTH doorway),
+  // imported from data/barn.js so the art and the scene geometry can't drift apart.
+  // #349 enlarged it from 160×132 to 340×230 — at scale S=2 that's 680×460 world px,
+  // a genuinely roomy walk-in barn. Dissect tags per part.
 
-  // INTERIOR — floor, back/side inner walls, a row of 4 stalls along the back, and a
-  // tack room in the left bay. Drawn UNDER animals/player (low depth) so anything
-  // standing inside occludes it correctly. The south edge (y≈H) is the open doorway.
+  // INTERIOR — floor, back/side inner walls, the full row of stalls along the back,
+  // a proper tack room in the left bay and an aisle of hay bales/buckets filling the
+  // middle. Drawn UNDER animals/player (low depth) so anything standing inside
+  // occludes it correctly. The south edge (y≈H) is the open doorway.
   gen(scene, 'barnInterior', BARN_W, BARN_H, (g) => {
+    const FX0 = 8, FX1 = BARN_W - 8, FY0 = 40, FY1 = BARN_H - 4;     // floor rect
     g.layer('floor');
-    g.fillStyle(0x6a5236, 1); g.fillRect(8, 18, 144, 110);           // packed-dirt floor
+    g.fillStyle(0x6a5236, 1); g.fillRect(FX0, FY0, FX1 - FX0, FY1 - FY0); // packed-dirt floor
     g.fillStyle(0x5e492f, 1);                                        // plank/board seams
-    for (let y = 30; y < 128; y += 12) g.fillRect(10, y, 140, 1);
+    for (let y = FY0 + 16; y < FY1; y += 14) g.fillRect(FX0 + 2, y, FX1 - FX0 - 4, 1);
     g.fillStyle(0x775c3c, 1);                                        // straw scatter (light)
-    for (const [sx, sy] of [[40, 100], [96, 112], [130, 96], [60, 120]]) g.fillRect(sx, sy, 6, 1);
+    for (const [sx, sy] of [[60, 160], [140, 200], [250, 150], [96, 210], [300, 190], [190, 176]]) {
+      g.fillRect(sx, sy, 8, 1);
+    }
     g.layer('backwall');
-    g.fillStyle(0x8a3020, 1); g.fillRect(8, 18, 144, 16);            // inner back wall (shaded red)
-    g.fillStyle(0x7a2a1c, 1); g.fillRect(8, 18, 144, 3);            // wall-top shadow line
+    g.fillStyle(0x8a3020, 1); g.fillRect(FX0, FY0, FX1 - FX0, 22);   // inner back wall (shaded red)
+    g.fillStyle(0x7a2a1c, 1); g.fillRect(FX0, FY0, FX1 - FX0, 3);   // wall-top shadow line
     g.layer('stalls');
-    // Four stalls across the back: low dividers + a hay-mound + a nameboard each.
-    for (let i = 0; i < 4; i++) {
-      const x = 40 + i * 30;
-      g.fillStyle(0x6a4420, 1); g.fillRect(x, 30, 3, 30);           // stall divider post
-      g.fillStyle(0x8a5a2e, 1); g.fillRect(x, 44, 3, 3);           // divider rail cap
+    // A full row of NUM_STALLS stalls across the back: low dividers + a hay mound +
+    // a nameboard each. Geometry comes from data/barn.js so the scene's stand-spots
+    // land exactly on the drawn stalls.
+    for (let i = 0; i <= NUM_STALLS; i++) {
+      const x = STALL_X0 + i * STALL_STEP;
+      g.fillStyle(0x6a4420, 1); g.fillRect(x, STALL_TOP, 3, 46);     // stall divider post
+      g.fillStyle(0x8a5a2e, 1); g.fillRect(x, STALL_TOP + 20, 3, 3); // divider rail cap
     }
     // Stall goodies drawn in a second pass so their colours don't fight the divider loop.
-    for (let i = 0; i < 4; i++) {
-      const cx = 40 + i * 30 + 15;
-      g.fillStyle(0xd8b060, 1); g.fillRect(cx - 8, 52, 16, 6);      // hay mound
-      g.fillStyle(0xe8c878, 1); g.fillRect(cx - 8, 52, 16, 2);
-      g.fillStyle(0xead9b0, 1); g.fillRect(cx - 7, 36, 14, 6);      // nameboard
-      g.fillStyle(0x6a4420, 1); g.fillRect(cx - 7, 36, 14, 1);
+    for (let i = 0; i < NUM_STALLS; i++) {
+      const cx = stallCenterX(i);
+      g.fillStyle(0xd8b060, 1); g.fillRect(cx - 9, STALL_HAY_Y, 18, 7);       // hay mound
+      g.fillStyle(0xe8c878, 1); g.fillRect(cx - 9, STALL_HAY_Y, 18, 2);
+      g.fillStyle(0xead9b0, 1); g.fillRect(cx - 8, STALL_SIGN_Y, 16, 7);      // nameboard
+      g.fillStyle(0x6a4420, 1); g.fillRect(cx - 8, STALL_SIGN_Y, 16, 1);
     }
     g.layer('tack');
-    // Tack room / corner: a wall-mounted rack with a saddle, bridle and brush.
-    g.fillStyle(0x5a3f24, 1); g.fillRect(10, 66, 26, 3);            // shelf
-    g.fillStyle(0x7a5a34, 1); g.fillRect(13, 58, 10, 8);           // saddle body
-    g.fillStyle(0x5a3f24, 1); g.fillRect(13, 64, 10, 2);          // saddle skirt
-    g.fillStyle(0x2a1c10, 1); g.fillRect(27, 58, 2, 10);          // bridle strap
-    g.fillStyle(0x2a1c10, 1); g.fillCircle(28, 66, 3);           // bridle loop
-    g.fillStyle(0x8a5a2e, 1); g.fillRect(31, 60, 4, 6);          // brush block
-    g.fillStyle(0x3a2410, 1); g.fillRect(31, 65, 4, 2);         // brush bristles
+    // Tack room — the whole left bay now that there's room for one: a partition wall
+    // marking it off, two wall-mounted racks (saddles, bridles, brushes) and a
+    // workbench with a lantern.
+    g.fillStyle(0x6a4420, 1); g.fillRect(STALL_X0 - 12, STALL_TOP, 3, 78);    // partition post
+    g.fillStyle(0x5a3f24, 1); g.fillRect(12, 96, 78, 4);                      // upper shelf
+    g.fillStyle(0x5a3f24, 1); g.fillRect(12, 140, 78, 4);                     // lower shelf
+    for (const sx of [16, 46]) {                                              // two saddles
+      g.fillStyle(0x7a5a34, 1); g.fillRect(sx, 84, 22, 12);
+      g.fillStyle(0x5a3f24, 1); g.fillRect(sx, 92, 22, 4);
+      g.fillStyle(0x9a7a4c, 1); g.fillRect(sx + 2, 85, 18, 2);
+    }
+    for (const bx of [74, 82]) {                                              // hanging bridles
+      g.fillStyle(0x2a1c10, 1); g.fillRect(bx, 84, 2, 14);
+      g.fillStyle(0x2a1c10, 1); g.fillCircle(bx + 1, 100, 4);
+    }
+    g.fillStyle(0x8a5a2e, 1); g.fillRect(20, 130, 8, 10);                     // brush block
+    g.fillStyle(0x3a2410, 1); g.fillRect(20, 138, 8, 3);                      // brush bristles
+    g.fillStyle(0x6a4a28, 1); g.fillRect(40, 128, 44, 14);                    // workbench top
+    g.fillStyle(0x4a3018, 1); g.fillRect(42, 142, 4, 10); g.fillRect(78, 142, 4, 10); // legs
+    g.fillStyle(0xf0d890, 1); g.fillRect(66, 120, 8, 8);                      // lantern glow
+    g.fillStyle(0x3a2410, 1); g.fillRect(68, 116, 4, 4);                      // lantern hook
+    g.layer('aisle');
+    // Middle aisle dressing so the enlarged floor doesn't read as an empty hall:
+    // stacked hay bales down one side, water buckets and a feed barrel down the other.
+    for (const [bx, by] of [[120, 154], [120, 172], [150, 154]]) {
+      g.fillStyle(0xd8b060, 1); g.fillRect(bx, by, 26, 16);
+      g.fillStyle(0xe8c878, 1); g.fillRect(bx, by, 26, 4);
+      g.fillStyle(0xa88840, 1); g.fillRect(bx, by + 14, 26, 2);
+      g.fillStyle(0x8a6a30, 1); g.fillRect(bx + 6, by, 2, 16); g.fillRect(bx + 18, by, 2, 16);
+    }
+    for (const [wx, wy] of [[236, 160], [262, 176], [288, 158]]) {            // water buckets
+      g.fillStyle(0x8a8a94, 1); g.fillRect(wx, wy, 14, 12);
+      g.fillStyle(0x5fa6d6, 1); g.fillRect(wx + 2, wy + 2, 10, 4);
+      g.fillStyle(0x6a6a74, 1); g.fillRect(wx, wy + 10, 14, 2);
+    }
+    g.fillStyle(0x7a5a34, 1); g.fillRect(300, 186, 22, 24);                   // feed barrel
+    g.fillStyle(0x5a3f24, 1); g.fillRect(300, 192, 22, 3); g.fillRect(300, 204, 22, 3);
+    g.fillStyle(0x9a7a4c, 1); g.fillRect(300, 186, 22, 3);
   });
 
   // FRONT FAÇADE — the front wall, big doorway, gambrel roof, cupola & hayloft. This
   // is drawn OVER the interior + occupants (high depth) and is what fades out for the
-  // cutaway. Kept visually consistent with the old #241 barn so it still reads as a barn.
+  // cutaway. Kept visually consistent with the old #241 barn so it still reads as a
+  // barn, just scaled up to the #349 footprint (wider roof, four windows, a doorway
+  // matching data/barn.js's DOOR_X0..DOOR_X1 collision gap).
   gen(scene, 'barnFront', BARN_W, BARN_H, (g) => {
+    const MID = BARN_W / 2;
     g.layer('roof');
     // Gambrel (barn) roof spanning the wide front.
-    g.fillStyle(0x7a2a1c, 1); g.fillTriangle(4, 34, 80, 4, 156, 34);   // underside/shadow
+    g.fillStyle(0x7a2a1c, 1); g.fillTriangle(4, 54, MID, 6, BARN_W - 4, 54);   // underside/shadow
     g.fillStyle(0x9a3826, 1);
-    g.fillPoints([{ x: 8, y: 34 }, { x: 34, y: 18 }, { x: 126, y: 18 }, { x: 152, y: 34 }]); // lower slopes
+    g.fillPoints([{ x: 8, y: 54 }, { x: 64, y: 28 }, { x: BARN_W - 64, y: 28 }, { x: BARN_W - 8, y: 54 }]); // lower slopes
     g.fillStyle(0xb6432e, 1);
-    g.fillPoints([{ x: 34, y: 18 }, { x: 80, y: 4 }, { x: 126, y: 18 }]); // upper cap
-    g.fillStyle(0xc8543c, 1); g.fillRect(8, 33, 144, 2);                // eave highlight
+    g.fillPoints([{ x: 64, y: 28 }, { x: MID, y: 6 }, { x: BARN_W - 64, y: 28 }]); // upper cap
+    g.fillStyle(0xc8543c, 1); g.fillRect(8, 52, BARN_W - 16, 3);                // eave highlight
     g.layer('cupola');
-    g.fillStyle(0x9a3826, 1); g.fillRect(74, 0, 12, 8);
-    g.fillStyle(0x5a2418, 1); g.fillTriangle(71, 2, 80, -4, 89, 2);
-    g.fillStyle(0xf0d890, 1); g.fillRect(77, 3, 6, 4);
+    g.fillStyle(0x9a3826, 1); g.fillRect(MID - 11, 0, 22, 12);
+    g.fillStyle(0x5a2418, 1); g.fillTriangle(MID - 15, 3, MID, -7, MID + 15, 3);
+    g.fillStyle(0xf0d890, 1); g.fillRect(MID - 5, 3, 10, 6);
     g.layer('wall');
-    g.fillStyle(0xb6432e, 1); g.fillRect(8, 34, 144, 34);              // front wall band
-    g.fillStyle(0xc8543c, 1); g.fillRect(8, 34, 144, 5);             // top-lit band
-    g.fillStyle(0x7a2a1c, 1); g.fillRect(8, 34, 3, 34); g.fillRect(149, 34, 3, 34); // corner posts
+    g.fillStyle(0xb6432e, 1); g.fillRect(8, 54, BARN_W - 16, 52);              // front wall band
+    g.fillStyle(0xc8543c, 1); g.fillRect(8, 54, BARN_W - 16, 7);             // top-lit band
+    g.fillStyle(0x7a2a1c, 1); g.fillRect(8, 54, 4, 52); g.fillRect(BARN_W - 12, 54, 4, 52); // corner posts
+    g.fillStyle(0xa03826, 1);                                                 // board seams
+    for (let x = 24; x < BARN_W - 16; x += 16) g.fillRect(x, 62, 1, 44);
     g.layer('loft');
-    g.fillStyle(0x5a2418, 1); g.fillRect(72, 22, 16, 12);            // hayloft door
-    g.fillStyle(0xd8b060, 1); g.fillRect(75, 24, 10, 8);           // straw glow
-    g.fillStyle(0x3a1810, 1); g.fillRect(79, 15, 2, 8); g.fillCircle(80, 15, 2); // pulley
+    g.fillStyle(0x5a2418, 1); g.fillRect(MID - 15, 32, 30, 22);              // hayloft door
+    g.fillStyle(0xd8b060, 1); g.fillRect(MID - 10, 36, 20, 16);            // straw glow
+    g.fillStyle(0x3a1810, 1); g.fillRect(MID - 1, 20, 3, 12); g.fillCircle(MID, 20, 3); // pulley
     g.layer('doorway');
-    // A big open central doorway (the dark interior shows through). Framed jambs +
-    // a header, with the two doors swung open flat against the wall to either side.
-    g.fillStyle(0x2a1c10, 1); g.fillRect(60, 40, 40, 92);           // dark doorway opening
-    g.fillStyle(0x6a4420, 1); g.fillRect(56, 38, 4, 94); g.fillRect(100, 38, 4, 94); // jambs
-    g.fillStyle(0x6a4420, 1); g.fillRect(56, 38, 48, 4);           // header
+    // A big open central doorway (the dark interior shows through), lined up with the
+    // collision gap in the south wall. Framed jambs + a header, with the two doors
+    // swung open flat against the wall to either side.
+    g.fillStyle(0x2a1c10, 1); g.fillRect(DOOR_X0, 62, DOOR_X1 - DOOR_X0, BARN_H - 62); // dark opening
+    g.fillStyle(0x6a4420, 1);
+    g.fillRect(DOOR_X0 - 6, 58, 6, BARN_H - 58); g.fillRect(DOOR_X1, 58, 6, BARN_H - 58); // jambs
+    g.fillStyle(0x6a4420, 1); g.fillRect(DOOR_X0 - 6, 58, DOOR_X1 - DOOR_X0 + 12, 6);    // header
     g.fillStyle(0x8a5a2e, 1);                                       // open doors flat on the wall
-    g.fillRect(40, 40, 16, 28); g.fillRect(104, 40, 16, 28);
+    g.fillRect(DOOR_X0 - 34, 62, 28, 44); g.fillRect(DOOR_X1 + 6, 62, 28, 44);
     g.fillStyle(0xe8dcc0, 1);                                       // white braces on the doors
-    g.fillTriangle(41, 41, 55, 67, 56, 67); g.fillTriangle(105, 41, 119, 67, 120, 67);
+    g.fillTriangle(DOOR_X0 - 33, 63, DOOR_X0 - 7, 105, DOOR_X0 - 6, 105);
+    g.fillTriangle(DOOR_X1 + 7, 63, DOOR_X1 + 33, 105, DOOR_X1 + 34, 105);
     g.layer('window');
-    for (const wx of [22, 124]) {
-      g.fillStyle(0xf0d890, 1); g.fillRect(wx, 44, 12, 12);
-      g.fillStyle(0x7a2a1c, 1); g.fillRect(wx + 5, 44, 2, 12); g.fillRect(wx, 49, 12, 2);
+    for (const wx of [34, 76, BARN_W - 94, BARN_W - 52]) {
+      g.fillStyle(0xf0d890, 1); g.fillRect(wx, 68, 18, 18);
+      g.fillStyle(0x7a2a1c, 1); g.fillRect(wx + 8, 68, 2, 18); g.fillRect(wx, 76, 18, 2);
     }
   });
 
@@ -364,45 +415,10 @@ export function buildWorldTextures(scene) {
     drawTroughShell(g);
     drawTroughPost(g);
   });
-  // --- covered shelter (#319) — an open-sided lean-to horses tuck under when it
-  // rains. Four posts holding up a pitched roof over a straw-strewn patch of
-  // ground; deliberately open on every side (no walls) so a horse standing
-  // beneath it still reads clearly and can walk in/out freely — the AI just
-  // needs a covered spot to path to, not a building to enter. Dissect tags
-  // (g.layer) per logical part for the dev dissect tool.
-  gen(scene, 'shelter', 140, 108, (g) => {
-    const post = 0x8a5a2e, postDark = 0x6a3c18;
-    const roofDark = 0x5a3418, roofMid = 0x835024, roofHi = 0xa86a38;
-    const straw = 0xd9b25a, strawDark = 0xbd9646, strawShadow = 0x9c7c3a;
 
-    // Straw-covered ground patch under the roof
-    g.layer('floor');
-    g.fillStyle(strawShadow, 1); g.fillEllipse(70, 98, 116, 22);
-    g.fillStyle(straw, 1); g.fillEllipse(70, 94, 108, 18);
-    g.fillStyle(strawDark, 1);
-    for (let i = 0; i < 9; i++) {
-      const sx = 22 + i * 12;
-      g.fillRect(sx, 88 + (i % 3) * 3, 8, 2);
-    }
-
-    // Four support posts (back pair shorter/higher to read behind the roof pitch)
-    g.layer('posts');
-    g.fillStyle(post, 1);
-    g.fillRect(14, 38, 10, 58); g.fillRect(116, 38, 10, 58);   // front-left / front-right
-    g.fillRect(34, 26, 8, 50);  g.fillRect(98, 26, 8, 50);     // back-left / back-right
-    g.fillStyle(postDark, 1);
-    g.fillRect(14, 38, 3, 58); g.fillRect(116, 38, 3, 58);
-    g.fillRect(34, 26, 3, 50); g.fillRect(98, 26, 3, 50);
-
-    // Pitched roof spanning the posts
-    g.layer('roof');
-    g.fillStyle(roofDark, 1); g.fillTriangle(4, 40, 70, 2, 136, 40);
-    g.fillStyle(roofMid, 1);  g.fillTriangle(8, 38, 70, 6, 132, 38);
-    g.fillStyle(roofHi, 1);
-    g.fillRect(20, 26, 3, 5); g.fillRect(30, 20, 3, 5); g.fillRect(42, 14, 3, 5);
-    g.fillStyle(post, 1); g.fillRect(4, 38, 132, 4); // eave board
-    g.fillStyle(roofDark, 1); g.fillRect(68, 2, 4, 6); // ridge cap
-  });
+  // (The `shelter` texture — the open-sided lean-to from #319 — was deleted in #349.
+  // The barn is the farm's rain shelter now; see the `barnInterior`/`barnFront`
+  // textures above.)
 
   // Filled levels (#109): one texture per discrete water level (trough1..troughN)
   // so the rendered water maps 1:1 to the actual level — no more collapsing many

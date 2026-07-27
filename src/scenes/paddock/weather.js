@@ -11,11 +11,12 @@
 //   • Rain partially refills the trough — a slow timer tops it up toward a fraction
 //     of capacity (rainTroughFill), so the bucket loop still matters for a full
 //     trough. The tint/particles/indicator are DayNightScene's job.
-//   • Rain sends horses to the covered shelter (#319) — fully automatic AI: the
-//     seekShelter behavior (data/species/horse/behaviors.js) claims an idle/
-//     wandering horse and parks it at props.shelter (horseGoToShelter, horseAI.js)
-//     for the whole rain spell. When it clears, _releaseSheltering hands any
-//     parked horses back to the normal wander chain.
+//   • Rain sends every pasture grazer INTO THE BARN (#319, generalized + retargeted
+//     by #349) — fully automatic AI: the shared seekShelter behavior
+//     (data/species/shelter.js, registered by horse/cow/pig/sheep/goat/llama) claims
+//     an idle/wandering animal and parks it inside props.barn (animalGoToShelter,
+//     horseAI.js) for the whole rain spell. When it clears, _releaseSheltering hands
+//     everyone parked back to the normal wander chain.
 
 import Phaser from 'phaser';
 import { WEATHER, rainTroughFill, RAIN_TROUGH_TICK_MS } from '../../data/weather.js';
@@ -38,8 +39,8 @@ export const WithWeather = (Base) => class extends Base {
     }
   }
 
-  // Hand any horse parked at the shelter (#319) back to the normal wander chain
-  // once the rain clears — horseGoToShelter never resets state on its own (it
+  // Hand any grazer parked in the barn (#319/#349) back to the normal wander chain
+  // once the rain clears — animalGoToShelter never resets state on its own (it
   // stays 'sheltering' for the whole rain spell), so this is the only way out.
   _releaseSheltering() {
     for (const h of this._grazers()) {

@@ -14,23 +14,31 @@
 
 import Phaser from 'phaser';
 import { S } from './constants.js';
-import { NUM_STALLS, loadBarnState, saveBarnState, assignStall, nextStallOccupant, stallOfHorse } from '../../data/barn.js';
+import {
+  NUM_STALLS, loadBarnState, saveBarnState, assignStall, nextStallOccupant, stallOfHorse,
+  BARN_W as BARN_DW, BARN_H as BARN_DH, STALL_SIGN_Y, STALL_STAND_Y, stallCenterX,
+  TACK_X, TACK_Y, WALL_X0, WALL_X1, WALL_Y0, WALL_Y1, DOOR_X0, DOOR_X1,
+} from '../../data/barn.js';
 import { SADDLE_TYPES } from '../../data/items.js';
-
-// Design-grid footprint of the barn textures (must match worldArt BARN_W/BARN_H).
-const BARN_DW = 160, BARN_DH = 132;
 // How fast the façade fades in/out for the cutaway (alpha per ms).
 const CUTAWAY_FADE = 0.006;
 
 export const WithBarn = (Base) => class extends Base {
   buildBarn() {
-    // South-doorway anchor (origin 0.5,1). Sits on the open farm band between the
-    // house and the pasture gate, same neighbourhood as the old placeholder.
-    // Position (1585, 1172) - the owner's own placement (#330 drag tool, baked in by #342).
-    const ax = 1585, ay = 1172;
+    // South-doorway anchor (origin 0.5,1).
+    //
+    // #349 RELOCATED the barn. It used to sit at the owner's drag-tool placement
+    // (1585, 1172) in the NE corner of the pasture, but at 680×460 world px it no
+    // longer fits there: the well/trough/hay-pile cluster (x≈1387–1529) walls off
+    // the west and the town edge the east, leaving only ~460px of clear width. The
+    // widest clear band in the pasture is the WEST half — x 196 (inside the left
+    // fence) to 900 (the gate gap) — so the barn now anchors there, still straddling
+    // the north fence line the way it did before. Everything that was inside the new
+    // footprint (a few flowers, some spawn points) moved out; see world.js/species defs.
+    const ax = 550, ay = 1360;
     // Sprite → world helpers (origin 0.5,1, scale S). left/top corners in world px.
-    const left = ax - (BARN_DW / 2) * S;   // 1425
-    const top  = ay - BARN_DH * S;         // 908
+    const left = ax - (BARN_DW / 2) * S;   // 210
+    const top  = ay - BARN_DH * S;         // 900
     const dx = (d) => left + d * S;        // design-x → world-x
     const dy = (d) => top + d * S;         // design-y → world-y
 
@@ -43,31 +51,32 @@ export const WithBarn = (Base) => class extends Base {
     this.barnFrontAlpha = 1;
 
     // Interior walkable rect (inside the walls, clear of the back stalls). Used to
-    // detect "player is inside" for the cutaway and to seat stalled horses.
-    this.barnInterior = { x0: dx(14), y0: dy(60), x1: dx(146), y1: dy(126) };
+    // detect "player is inside" for the cutaway, to seat stalled horses, and (since
+    // #349) as the rain-shelter area every grazer paths into.
+    this.barnInterior = { x0: dx(WALL_X0 + 8), y0: dy(WALL_Y0 + 18), x1: dx(WALL_X1 - 8), y1: dy(WALL_Y1 - 4) };
 
     // Stall stand-spots: one per stall, in front of its hay mound along the back.
-    // Divider centres in design space are 55,85,115,145 (see worldArt barnInterior).
+    // Geometry comes from data/barn.js, which the interior art draws from too.
     this.barnStalls = [];
     for (let i = 0; i < NUM_STALLS; i++) {
-      const cx = 55 + i * 30;
+      const cx = stallCenterX(i);
       this.barnStalls.push({
         index: i,
-        x: dx(cx), y: dy(74),        // where an assigned horse stands
-        signX: dx(cx), signY: dy(39), // nameboard, for the assign prompt anchor
+        x: dx(cx), y: dy(STALL_STAND_Y),        // where an assigned horse stands
+        signX: dx(cx), signY: dy(STALL_SIGN_Y), // nameboard, for the assign prompt anchor
       });
     }
 
     // Tack room spot (left bay), for the discover-me hint prompt.
-    this.barnTack = { x: dx(24), y: dy(70) };
+    this.barnTack = { x: dx(TACK_X), y: dy(TACK_Y) };
 
     // Collision: perimeter walls with a south doorway gap. Registered here and spread
     // into this.obstacles by buildObstacles (world.js), which runs after buildWorld.
     const wall = (x0, y0, x1, y1, extra = {}) =>
       ({ x: x0, y: y0, w: x1 - x0, h: y1 - y0, isBarn: true, ...extra });
-    const bx0 = dx(8), bx1 = dx(152), by0 = dy(52), by1 = dy(130);
-    const doorL = dx(58), doorR = dx(102); // doorway gap in the south wall
-    const T = 14; // wall thickness
+    const bx0 = dx(WALL_X0), bx1 = dx(WALL_X1), by0 = dy(WALL_Y0), by1 = dy(WALL_Y1);
+    const doorL = dx(DOOR_X0), doorR = dx(DOOR_X1); // doorway gap in the south wall
+    const T = 16; // wall thickness
     this.barnObstacles = [
       wall(bx0, by0, bx1, by0 + T),                  // back (north) wall — behind the stalls
       wall(bx0, by0, bx0 + T, by1),                  // left wall
@@ -85,8 +94,11 @@ export const WithBarn = (Base) => class extends Base {
     // dev drag tool (#330) can move the whole visible barn, not just this record's
     // numbers. The collision walls follow a drag too (they're tagged `own` below);
     // the stalls and the interior rect still stay where the source put them.
+    // `door` is the middle of the south doorway gap — the way in, and (since #349)
+    // what the rain-shelter AI aims for before stepping inside.
     this.props.barn = {
       x: ax, y: ay, interior: this.barnInterior, stalls: this.barnStalls,
+      door: { x: dx((DOOR_X0 + DOOR_X1) / 2), y: dy(WALL_Y1) },
       sprite: this.barnFront, floor: this.barnInteriorSprite,
     };
     // Tag the wall rects with the prop record they belong to (#330) so the dev drag
