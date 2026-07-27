@@ -46,6 +46,10 @@ export const WithCompanion = (Base) => class extends Base {
     if (this.isNight) return;
     if (!['idle', 'wandering', 'following', 'companion-sit'].includes(a.state)) return;
 
+    // Off duty (#353): the player has told the dog to go play, so skip the whole
+    // follow-slot machinery and just keep its ordinary creature wander ticking.
+    if (!this._dogFollowing(a)) { this._dogFreeWander(a); return; }
+
     const px = this.player.sprite.x, py = this.player.sprite.y;
     // The follow slot sits a little behind the player, opposite their facing, so the
     // dog trails rather than crowding the front. Falls back to straight-down.
@@ -129,5 +133,58 @@ export const WithCompanion = (Base) => class extends Base {
   _dogStandUp(a) {
     a.state = 'idle';
     a.sprite.play(`idle_${a.key}`, true);
+  }
+
+  // ─── Follow / free-wander mode (#353) ────────────────────────────────────
+
+  // Is this dog on companion duty? Session state on the in-world entity (so it's
+  // per-dog); undefined means follow, matching the original always-follow feel.
+  _dogFollowing(a) { return a?._companionMode !== 'wander'; }
+
+  // Flip a companion animal between "follow me" and "go play". Called from the
+  // ordinary pet interact (interaction.js) so the same button that loves the dog
+  // also tells it what to do — no menu. Petting's own effect is unaffected.
+  toggleCompanionMode(key) {
+    const a = this.animals?.find((o) => o.key === key);
+    if (!a) return null;
+    const mode = a._companionMode === 'wander' ? 'follow' : 'wander';
+    a._companionMode = mode;
+    if (mode === 'wander') {
+      // Hand the dog straight back to its own devices: leave the sit/follow pose
+      // and let the free-wander kick send it off on a stroll shortly.
+      if (a.state === 'companion-sit' || a.state === 'following') this._dogStandUp(a);
+      this._dogWanderKickAt = (this.time?.now ?? 0) + 400;
+    }
+    this._companionModeLabel(a, mode === 'follow' ? 'Follow me!' : 'Go play!');
+    return mode;
+  }
+
+  // In wander mode the ordinary creature wander chain may already be dead — the
+  // follow branch stops wanderTween mid-move, so the tween's onComplete (which is
+  // what reschedules the next wander) never fires. Rather than resurrect that
+  // chain, keep our own gentle metronome: whenever the dog has been idle for a
+  // wander interval, give its goal-tick (herding/swim) a look-in and otherwise
+  // start a plain wander. Any natural chain still alive just wins the race and
+  // resets our timer — duplicate kicks die harmlessly against the idle guard.
+  _dogFreeWander(a) {
+    const now = this.time.now;
+    const gap = () => Phaser.Math.Between(a.wanderMin ?? 4000, a.wanderMax ?? 10000);
+    if (a.state !== 'idle') { this._dogWanderKickAt = now + gap(); return; }
+    if (now < (this._dogWanderKickAt ?? 0)) return;
+    this._dogWanderKickAt = now + gap();
+    if (a.tick && a.tick(a)) return;
+    this.creatureWander(a);
+  }
+
+  // A little floating word above the dog so the mode flip is legible in-world.
+  _companionModeLabel(a, text) {
+    const t = this.add.text(a.sprite.x, a.sprite.y - 92, text, {
+      fontFamily: 'system-ui, sans-serif', fontSize: '14px', color: '#fffde0',
+      backgroundColor: '#1c1f2edd', padding: { x: 6, y: 3 },
+    }).setOrigin(0.5).setDepth(10001);
+    this.tweens.add({
+      targets: t, y: t.y - 26, alpha: 0, delay: 700, duration: 800,
+      ease: 'Quad.easeIn', onComplete: () => t.destroy(),
+    });
   }
 };

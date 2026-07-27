@@ -7,6 +7,7 @@
 
 import Phaser from 'phaser';
 import { EVENTS } from '../../data/events.js';
+import { SPECIES } from '../../data/species/index.js';
 import { GREET_DIST, CARE_DIST, PET_SOUND_MS } from './constants.js';
 import { playChime, playNicker, playSqueal } from '../../audio/sounds.js';
 
@@ -22,7 +23,16 @@ export const WithInteraction = (Base) => class extends Base {
   _canPetAnimal(model) {
     if (!model) return true; // no care model (a foal) — affection always lands
     if (!model.actionDef?.('pet')) return true; // no love stat — pure affection
+    // A companion (the farm dog) is always pettable: the same interact also flips
+    // its follow ↔ free-wander mode (#353), so the prompt has to stay available
+    // even once it's completely spoiled.
+    if (this._isCompanion(model)) return true;
     return (model.stats?.happiness ?? 0) < 99.5 || !model.caredToday?.loved;
+  }
+
+  // Data-driven "does this species walk with me": the `companion` capability.
+  _isCompanion(model) {
+    return !!SPECIES[model?.species]?.capabilities?.companion;
   }
 
   // Resolve the care model for any animal key: horses live in the allHorses
@@ -52,6 +62,11 @@ export const WithInteraction = (Base) => class extends Base {
     if (model?.species === 'horse') this._petNicker(this.horses.find(x => x.key === key));
     else playChime();
     this.showHeart(sprite);
+
+    // Petting a companion also tells it whether to tag along or go do its own
+    // thing (#353) — additive to the love above, and only for companions, so
+    // petting every other animal is untouched.
+    if (this._isCompanion(model)) this.toggleCompanionMode?.(key);
     return true;
   }
 
