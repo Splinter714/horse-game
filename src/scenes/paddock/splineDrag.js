@@ -33,10 +33,25 @@
 // Handles are drawn as small filled circles, one colour per spline family, so
 // "grab a path/stream point" reads as visually distinct from #370's magenta
 // fence endpoints and the ordinary #330 per-post amber/green squares.
+//
+// FOREST/TRAIL LOOP (#373 follow-up): the owner was explicit that this should
+// not be a second system that merely *behaves* like the worn paths — it had to
+// actually BE the same one. So it isn't a separate descriptor in this file at
+// all: `trail.js`'s `buildTrail()` adds its loop as one more named entry in
+// `this._pathRoutes` (`forestLoop`) and calls the SAME `_bakePathGraphics()`
+// (world.js) the farm paths already use — including the same "rebake on every
+// drag tick" behaviour (that function already destroys+rebakes its
+// `bakeStaticGraphics` texture on every call, farm paths included, so there is
+// no live-vs-deferred split to make here). Since it's just another entry in
+// `_pathRoutes`, the loop below over `Object.entries(this._pathRoutes)` picks
+// it up automatically with zero special-casing — it just happens to be closed
+// (its first and last waypoints are the literal same array reference, so
+// dragging that shared point moves both ends together for free) and longer
+// than the others.
 
 const MARK_DEPTH    = 9504;    // above the #370 fence-endpoint marks (9503)
 const PICK_R        = 22;      // world px: how close a tap must be to grab a control point
-const PATH_COLOR     = 0xffa64d; // warm orange — the worn-path route handles
+const PATH_COLOR     = 0xffa64d; // warm orange — the worn-path route handles (incl. the forest loop)
 const STREAM_COLOR   = 0x39c6ff; // cyan-blue — the stream centerline handles
 
 export const WithSplineDrag = (Base) => class extends Base {
@@ -116,7 +131,11 @@ export const WithSplineDrag = (Base) => class extends Base {
         g.lineBetween(x0, y0, x1, y1);
       }
       spline.points.forEach((p, i) => {
-        const held = this._splineHeld?.spline === spline && this._splineHeld?.index === i;
+        // Reference equality, not index equality: a closed spline's shared
+        // start/end point (trail.js's loop) is literally the same array at
+        // two different indices, so this correctly highlights BOTH ends
+        // together instead of only whichever index the pick happened to land on.
+        const held = this._splineHeld?.spline === spline && spline.points[this._splineHeld.index] === p;
         g.fillStyle(spline.color, held ? 0.9 : 0.55);
         g.fillCircle(p[0], p[1], held ? 9 : 7);
         g.lineStyle(1.5, spline.color, held ? 1 : 0.85);

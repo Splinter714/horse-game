@@ -50,13 +50,43 @@ export const WithWorld = (Base) => class extends Base {
   // CURRENT points. Called once from `buildPath()` and again on every dev
   // spline-drag move (#373) — purely cosmetic (no collision), so a rebuild here
   // is just "throw away the old texture, draw a new one".
+  //
+  // The ONE shared implementation for every worn path in the game (#373
+  // follow-up) — including the forest/trail loop (`trail.js`'s `buildTrail()`
+  // adds it as `this._pathRoutes.forestLoop`, a closed route whose first and
+  // last waypoints are the same array reference). It used to be a separate,
+  // hand-rolled system (its own stamp loop, its own `bakeStaticGraphics` call)
+  // that merely behaved like this one; the owner was explicit that it needed
+  // to actually BE this one, not a look-alike, so it was folded in here
+  // instead of kept parallel. That's also why the wobble-subdivision step
+  // below exists: the loop's waypoints are far apart (hundreds of px), so
+  // stamping straight between them (as this function used to do) would draw
+  // hard-cornered sticks instead of a winding trail — subdividing every
+  // route's waypoints with a gentle sinusoidal wobble before stamping keeps
+  // the loop looking natural, and is cheap enough to be a no-op-looking
+  // improvement on the short farm-path segments too.
   _bakePathGraphics() {
     this._pathBake?.destroy();
     const g = this.add.graphics().setDepth(-95);
     const routes = Object.values(this._pathRoutes);
+    const subdivided = routes.map((wp) => {
+      const pts = [];
+      for (let i = 0; i < wp.length - 1; i++) {
+        const [x0, y0] = wp[i], [x1, y1] = wp[i + 1];
+        const dist = Math.hypot(x1 - x0, y1 - y0);
+        const steps = Math.max(1, Math.ceil(dist / 30));
+        for (let s = 0; s < steps; s++) {
+          const t = s / steps;
+          const wobble = 10 * Math.sin((x0 + (x1 - x0) * t) / 140);
+          pts.push([x0 + (x1 - x0) * t, y0 + (y1 - y0) * t + wobble]);
+        }
+      }
+      pts.push(wp[wp.length - 1]);
+      return pts;
+    });
     const stamp = (radius, color, alpha) => {
       g.fillStyle(color, alpha);
-      for (const pts of routes) {
+      for (const pts of subdivided) {
         for (let i = 0; i < pts.length - 1; i++) {
           const [x0, y0] = pts[i], [x1, y1] = pts[i + 1];
           const dist = Math.hypot(x1 - x0, y1 - y0);
@@ -71,9 +101,18 @@ export const WithWorld = (Base) => class extends Base {
     stamp(27, 0x977f52, 0.9);   // worn earthy edge
     stamp(18, 0xc3a87b, 0.95);  // lighter trodden centre
 
-    // Static from here on — bake it so those hundreds of fillCircles aren't
-    // re-tessellated every frame (#325). Pad = the largest stamp radius.
-    this._pathBake = bakeStaticGraphics(this, g, routes.flat(), 30, -95);
+    // Static from here on — bake it so those hundreds (thousands, with the
+    // forest loop folded in) of fillCircles aren't re-tessellated every frame
+    // (#325). Pad = the largest stamp radius.
+    this._pathBake = bakeStaticGraphics(this, g, subdivided.flat(), 30, -95);
+
+    // The forest loop's shared start/end waypoint doubles as the trail's
+    // entrance marker (trail.js) — keep it in sync if the loop gets reshaped.
+    const loop = this._pathRoutes.forestLoop;
+    if (loop && this.props.trailEntrance) {
+      this.props.trailEntrance.x = loop[0][0];
+      this.props.trailEntrance.y = loop[0][1];
+    }
   }
 
   buildWorld() {
