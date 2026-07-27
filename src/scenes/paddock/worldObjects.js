@@ -179,16 +179,27 @@ export const WithWorldObjects = (Base) => class extends Base {
   // Reachability reuses the existing collision/pathfinding helpers: a spot must be
   // standable, and the animal must either have a clear straight line to it (so it
   // can't drink through the trough from the wrong side) or a real A* route around.
+  //
+  // A spot must also NOT be indoors (2026-07-27): the trough's own OPEN INTERIOR of
+  // a nearby building isn't an obstacle by itself, so a drink spot that happens to
+  // land inside a building (e.g. the trough sitting close enough to the barn that
+  // one of its two long-side offsets falls past the barn's own wall, into its
+  // walkable floor) was being approved as "standable" and reachable via the door —
+  // a horse would path all the way around and inside just to "drink" beside the
+  // wall, reading as clustering/drinking-through-the-wall from outside. Reuses the
+  // same isAgentIndoors check the #350/#362 indoors-aware system already has,
+  // fed a bare point instead of a live agent.
   _claimTroughSpot(a) {
     const t = this.props.trough;
     if (!t) return null;
     const R = a.bodyR ?? 16;
     const obs = this._obstaclesFor(a.key);
     const from = { x: a.sprite.x, y: a.sprite.y };
+    const indoors = (s) => this.isAgentIndoors?.({ sprite: { x: s.x, y: s.y } }) ?? false;
     return pickTroughSpot(troughDrinkSpots(t), from, this._troughDrinkers(a).map(o => o._drinkSpot), {
-      canStand:  (s) => !this._collides(s.x, s.y, R, obs),
-      clearLine: (s) => this._clearLine(from.x, from.y, s.x, s.y, R, obs),
-      canPath:   (s) => !!this._findPath(from.x, from.y, s.x, s.y, { R, obstacles: obs }),
+      canStand:  (s) => !indoors(s) && !this._collides(s.x, s.y, R, obs),
+      clearLine: (s) => !indoors(s) && this._clearLine(from.x, from.y, s.x, s.y, R, obs),
+      canPath:   (s) => !indoors(s) && !!this._findPath(from.x, from.y, s.x, s.y, { R, obstacles: obs }),
     });
   }
 
