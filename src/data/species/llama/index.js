@@ -9,9 +9,12 @@
 //
 // Like the sheep, the llama is a placid GRAZER (opts into the shared herbivore food/
 // water AI via the `grazes` capability) and a FLEECE PRODUCER (shearable on a regrowth
-// timer, mirroring the sheep's wool). It also has a charming SPITTING quirk — a purely
-// cosmetic, harmless "ptooey" it does now and then (behaviors.js), like the pig's
-// wallow.
+// timer, mirroring the sheep's wool).
+//
+// Note: she originally also had a charming SPITTING quirk (a purely cosmetic,
+// harmless "ptooey", like the pig's wallow) — turned off per playtest feedback
+// (2026-07-26, #268). The behavior module, its test, and the scene-side primitive
+// were removed rather than just unlisted, since nothing else referenced them.
 
 // The two appearance variants, indexed by roster `coat` slot (0 = llama, 1 = alpaca).
 // Exported so the art builder (art/index.js) can map coat → variant without hardcoding.
@@ -108,7 +111,6 @@ export const LLAMA = {
 
   // AI priority list, highest first. The llama reuses the horse grazer behavior modules
   // (registered as BEHAVIORS.llama in ../index.js) — seek dropped hay, drink at the
-  // trough/stream, graze the grass — plus its OWN low-priority `spit` charm behavior
-  // (behaviors.js): a content, idle llama occasionally spits a harmless little "ptooey".
-  behaviors: ['seekFood', 'seekWater', 'seekStream', 'graze', 'spit'],
+  // trough/stream, graze the grass. (No more `spit` entry — see note above, #268.)
+  behaviors: ['seekFood', 'seekWater', 'seekStream', 'graze'],
 };
