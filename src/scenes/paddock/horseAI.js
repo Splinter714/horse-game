@@ -173,6 +173,7 @@ export const WithHorseAI = (Base) => class extends Base {
     if (a.eatTimer) { this.time.removeEvent(a.eatTimer); a.eatTimer = null; }
     if (a._begTimer) { this.time.removeEvent(a._begTimer); a._begTimer = null; }
     a._eatPile = null;
+    a._drinkSpot = null; // gave up on the trough — free the spot it had claimed (#336)
     a.state = 'idle';
     // A horse that hit the shut gate on its way to beg is at the choke point —
     // let it nicker for the player it can see but can't reach.
@@ -226,38 +227,31 @@ export const WithHorseAI = (Base) => class extends Base {
     return true;
   }
 
-  // Returns true if the horse committed to drinking, false if it bailed (e.g.
-  // the trough is already busy) so the caller can wander instead.
+  // Returns true if the horse committed to drinking, false if it bailed (every
+  // drinking spot taken or unreachable) so the caller can wander instead.
   horseGoDrink(h) {
     const trough = this.props.trough;
-    // Limit to 2 grazers at the trough at once. Stream drinkers also use the
-    // 'drinking' state but carry a _streamSpot claim (#108) — exclude them so the
-    // trough count (and the opposite-end partner below) only sees trough drinkers.
-    const atTrough = this._grazers().filter(o => o !== h && o.state === 'drinking' && !o._streamSpot).length;
-    if (atTrough >= 2) return false;
+    // The trough runs north–south now (#336), with a few standing spots along
+    // each long side, so several animals can drink at once instead of the old
+    // two-at-the-ends cap. _claimTroughSpot picks the nearest FREE spot this
+    // animal can actually get to — a horse penned on one side never claims a spot
+    // on the far side of the trough (or of any other obstacle). See data/trough.js.
+    const spot = this._claimTroughSpot(h);
+    if (!spot) return false;
 
     h.state = 'drinking';
     h._streamSpot = null; // this horse is at the trough now, not the stream
+    h._drinkSpot = spot;  // held while walking over + drinking, so nobody doubles up
     if (h.wanderTween) { h.wanderTween.stop(); h.wanderTween = null; }
     if (h._begTimer) { this.time.removeEvent(h._begTimer); h._begTimer = null; }
 
-    // Drink from a trough END, level with it — never from a spot south of it
-    // that reads as grazing on grass. The old target sat near the trough centre,
-    // which is *inside* the trough's own collision box, so the pathfinder bailed
-    // at the nearest clear cell (usually south of it). ±106 = half-width (88) +
-    // body radius + margin, so the end anchors are actually reachable. Two horses
-    // take opposite ends so they never stack; a lone horse takes the nearer end.
-    const other = this._grazers().find(o => o !== h && o.state === 'drinking' && !o._streamSpot);
-    const onWest = other ? other._drinkEnd !== 'west' : h.sprite.x <= trough.x;
-    h._drinkEnd = onWest ? 'west' : 'east';
-    const facingRight = onWest; // face inward toward the water
-    const tx = trough.x + (onWest ? -106 : 106);
-    const ty = trough.y;
+    const facingRight = spot.side === 'west'; // face inward, across the water
+    const tx = spot.x, ty = spot.y;
 
     // Pathfind to the trough, around obstacles and through the gate if outside.
     this.moveCreatureTo(h, tx, ty, () => {
         if (h.state !== 'drinking') return;
-        if (!trough.filled) { h.state = 'idle'; this.scheduleWander(h, 500); return; }
+        if (!trough.filled) { h._drinkSpot = null; h.state = 'idle'; this.scheduleWander(h, 500); return; }
         h.sprite.setFlipX(!facingRight);
         h.sprite.play(`eat_${h.key}`, true);
 
@@ -275,6 +269,7 @@ export const WithHorseAI = (Base) => class extends Base {
             if (drinksDone >= 1) {
               if (h.eatTimer) { this.time.removeEvent(h.eatTimer); h.eatTimer = null; }
               h.sprite.play(`idle_${h.key}`, true);
+              h._drinkSpot = null; // release the spot for the next thirsty animal
               h.state = 'idle';
               this.scheduleWander(h, 1500);
             }
@@ -306,6 +301,7 @@ export const WithHorseAI = (Base) => class extends Base {
     const [nx, ny] = source.nrm;
     const tx = bx + nx * 48, ty = by + ny * 48;
     h._streamSpot = { x: tx, y: ty }; // reserve this anchor while heading there / drinking
+    h._drinkSpot = null;              // at the stream, not the trough (#336)
     const faceLeft = nx > 0;
 
     this.moveCreatureTo(h, tx, ty, () => {

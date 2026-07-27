@@ -134,8 +134,13 @@ export const WithWorld = (Base) => class extends Base {
     // it sits below the well and the player can top it up by reaching over the
     // fence from the well side without entering the pasture, while horses drink
     // from the inside (#106). (Fence band ≈ y892–912; pasture starts at y910.)
-    // Position (1282, 1073) — the owner's own placement (#330 drag tool, baked in by #338).
-    const tx = 1282, ty = 1073;
+    // Position: the owner's own placement (#330 drag tool, baked in by #338) was
+    // set at (1282, 1073) on the PRE-rotation trough. #336 rotated the sprite 90°
+    // (now 26×100, S=2 → 52×200, running north–south) and nudged the default spot
+    // +28px south to keep its north end clear of the fence band — applying that
+    // same relative shift here rather than picking one side blind. Revisit via the
+    // drag tool if this doesn't read right against the taller footprint.
+    const tx = 1282, ty = 1101;
     const troughSprite = this.add.image(tx, ty, 'trough')
       .setScale(S).setDepth(ty).setOrigin(0.5, 0.5);
     // level = numeric water (0..TROUGH_CAP); `filled` mirrors level>0 (kept in sync by _setTroughLevel, #103).
@@ -309,9 +314,11 @@ export const WithWorld = (Base) => class extends Base {
       // Coop (origin 0.5,1 at 930,400; 64×52 at S=2 → 128×104). home:'flock' →
       // excluded from a flock bird's own obstacle list (#269, see _obstaclesFor).
       { x: 868, y: 300, w: 124, h: 100, home: 'flock', own: this.props.coop },
-      // Trough — tied to the live trough (origin 0.5,0.5; 200×52 sprite, inset to
-      // its body) so the collision moves with it when repositioned (#110/#106).
-      ...centredBox(this.props.trough, 176, 44, { isTrough: true, own: this.props.trough }),
+      // Trough — tied to the live trough (origin 0.5,0.5; 52×200 sprite after the
+      // 90° rotation in #336, inset to its body) so the collision moves with it
+      // when repositioned (#110/#106/#330). The rect is what stops a horse walking
+      // THROUGH the trough to a spot on the far side (see data/trough.js).
+      ...centredBox(this.props.trough, 44, 176, { isTrough: true, own: this.props.trough }),
       // Fence line (6 segments at y=320, origin 0,0.5; 96×48 each → x=300..876). isFence (#317): any rail is tie-able.
       { x: 300, y: 300, w: 576, h: 40, isFence: true },
       // Spinning wheel (#233) — solid ~52×20 footprint at swx,swy.

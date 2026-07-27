@@ -32,7 +32,10 @@ export const WithHerd = (Base) => class extends Base {
     // (When the trough is filled, horseTickForHorse already routes them to drink.)
     if (horse.stats.thirst < 45 && !this.props.trough?.filled && this.props.trough) {
       const t = this.props.trough;
-      return { tx: t.x + Phaser.Math.Between(-55, 55), ty: t.y + Phaser.Math.Between(18, 40) };
+      // Loiter along one of the trough's long SIDES — it runs north–south now
+      // (#336), so the old "just south of it" spot is inside its collision box.
+      const side = h.sprite.x >= t.x ? 1 : -1;
+      return { tx: t.x + side * Phaser.Math.Between(58, 80), ty: t.y + Phaser.Math.Between(-70, 70) };
     }
 
     // Content + bonded → go stand head-to-tail with a buddy (the classic herd
