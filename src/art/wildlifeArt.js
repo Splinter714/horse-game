@@ -107,6 +107,43 @@ function drawBirdPeck(g, headDown, t = DEFAULT_BIRD) {
   g.fillStyle(eye, 1); g.fillRect(12, hy - 1, 1, 1);
 }
 
+// Bathing pose (#366): a bird fluffed up and flapping both wings out to its sides —
+// a wing-flutter/ruffle shake, distinct from peck's single folded wing + head-bob-down
+// silhouette and fly's single wing swept fully up/down. Body reads rounder/fluffed
+// (wider belly patch) and the tail fans out rather than folding to a point.
+function drawBirdBathe(g, wingsOut, t = DEFAULT_BIRD) {
+  const eye = t.eye ?? EYE_DEFAULT;
+  g.layer('tail');
+  g.fillStyle(t.body, 1);
+  // Fanned, ruffled tail (two overlapping triangles instead of one folded point).
+  g.fillTriangle(0, 2, 5, 5, 1, 7);
+  g.fillTriangle(0, 10, 5, 6, 1, 4);
+  g.layer('body');
+  // Fluffed-up body: wider/rounder than the peck/fly silhouette.
+  g.fillStyle(t.body, 1); g.fillEllipse(8, 7, 10, 7);
+  g.fillStyle(t.belly, 0.9); g.fillEllipse(8, 8, 7, 4);
+  g.layer('crest');
+  if (t.crest) { g.fillStyle(t.body, 1); g.fillTriangle(11, 3, 13, 0, 14, 4); }
+  g.layer('head');
+  g.fillStyle(t.body, 1); g.fillCircle(12, 5, 2.4); // head up and alert, not down-pecking
+  g.layer('beak');
+  g.fillStyle(t.beak, 1); g.fillTriangle(14, 4, 16, 5, 14, 6);
+  g.layer('eye');
+  g.fillStyle(eye, 1); g.fillRect(12, 4, 1, 1);
+  g.layer('wing');
+  g.fillStyle(t.wing, 1);
+  // Both wings splayed OUT to the sides (a shake/flutter), not one wing swept
+  // fully up or down like the flying pose — this is the silhouette that reads
+  // as "bathing" rather than "flying" or "pecking the ground".
+  if (wingsOut) {
+    g.fillTriangle(6, 6, 1, 1, 9, 3);   // near wing raised/out
+    g.fillTriangle(9, 6, 14, 2, 6, 4);  // far wing raised/out too
+  } else {
+    g.fillTriangle(6, 7, 0, 11, 9, 9);   // near wing dropped/out
+    g.fillTriangle(9, 7, 14, 12, 6, 10); // far wing dropped/out too
+  }
+}
+
 // Texture/animation key helpers so the spawner and art builder agree on names.
 export const birdTexKey = (id, pose, frame) => `bird_${id}_${pose}_${frame}`;
 export const birdAnimKey = (id, pose) => `bird_${id}_${pose}`;
@@ -119,6 +156,8 @@ export function buildBirdTextures(scene) {
     gen(scene, birdTexKey(t.id, 'fly', 1), W, H, (g) => drawBirdFly(scaledGraphics(g), false, t));
     gen(scene, birdTexKey(t.id, 'peck', 0), W, H, (g) => drawBirdPeck(scaledGraphics(g), false, t));
     gen(scene, birdTexKey(t.id, 'peck', 1), W, H, (g) => drawBirdPeck(scaledGraphics(g), true, t));
+    gen(scene, birdTexKey(t.id, 'bathe', 0), W, H, (g) => drawBirdBathe(scaledGraphics(g), true, t));
+    gen(scene, birdTexKey(t.id, 'bathe', 1), W, H, (g) => drawBirdBathe(scaledGraphics(g), false, t));
   }
   // Back-compat aliases: the original un-prefixed keys map to the default sparrow, so
   // any code/tests that still reference `bird_fly_0` keep working.

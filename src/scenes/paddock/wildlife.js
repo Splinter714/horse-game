@@ -52,6 +52,8 @@ export const WithWildlife = (Base) => class extends Base {
     for (const t of BIRD_TYPES) {
       anim(birdAnimKey(t.id, 'fly'), [birdTexKey(t.id, 'fly', 0), birdTexKey(t.id, 'fly', 1)], 10);
       anim(birdAnimKey(t.id, 'peck'), [birdTexKey(t.id, 'peck', 0), birdTexKey(t.id, 'peck', 1)], 4);
+      // Bathing (#366): a wing-flutter/ruffle shake, distinct from peck's head-bob.
+      anim(birdAnimKey(t.id, 'bathe'), [birdTexKey(t.id, 'bathe', 0), birdTexKey(t.id, 'bathe', 1)], 8);
     }
     // Hummingbird (#226): a fast wing-buzz — two blur poses swapped quickly so the
     // wings read as a motion smear.
@@ -148,6 +150,7 @@ export const WithWildlife = (Base) => class extends Base {
       tex: birdTexKey(t.id, 'fly', 0),
       flyAnim: birdAnimKey(t.id, 'fly'),
       peckAnim: birdAnimKey(t.id, 'peck'),
+      batheAnim: birdAnimKey(t.id, 'bathe'),
     };
   }
 
