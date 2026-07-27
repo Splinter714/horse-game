@@ -311,8 +311,17 @@ export const WithWorld = (Base) => class extends Base {
     // pasture perimeter fence, the stream) are deliberately untagged — they aren't
     // draggable objects.
     this.obstacles = [
-      // House walls (#241) (origin 0.5,1 at 219,283; sprite 84×66 at S=2 → 168×132; walls ~lower 90px)
-      { x: 141, y: 195, w: 156, h: 88, own: this.props.house },
+      // House walls (#241) — derived from the LIVE prop anchor, not hardcoded absolutes
+      // (#345; same latent bug as the stale fence rect in #344). Geometry: the sprite
+      // is 84×66 at S=2 → 168×132, drawn with origin (0.5,1) at (house.x, house.y + 30)
+      // — i.e. its foot sits 30px below the prop anchor (see the house build above).
+      // The solid body is the lower 88px of the sprite, inset 6px on each side
+      // (168 - 12 = 156 wide), so relative to the anchor:
+      //   left  = house.x - 156/2      = house.x - 78
+      //   top   = (house.y + 30) - 88  = house.y - 58
+      // Matches (141, 195) at the current position (219, 253) and now follows the
+      // house automatically if it's ever dragged/rebaked.
+      ...(this.props.house ? [{ x: this.props.house.x - 78, y: this.props.house.y - 58, w: 156, h: 88, own: this.props.house }] : []),
       // Barn walls (#35) — the walk-in barn's perimeter with a south doorway gap.
       // Registered as this.barnObstacles by buildBarn (paddock/barn.js); spread in here.
       ...(this.barnObstacles || []), ...(this.doghouseObstacles || []), // + doghouse #237
