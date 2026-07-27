@@ -14,7 +14,7 @@
 
 import Phaser from 'phaser';
 import { S } from './constants.js';
-import { NUM_STALLS, loadBarnState, saveBarnState, assignStall, nextStallOccupant, stallOfHorse } from '../../data/barn.js';
+import { NUM_STALLS, loadBarnState, saveBarnState, assignStall, nextStallOccupant, stallOfHorse, isInsideBarn } from '../../data/barn.js';
 import { SADDLE_TYPES } from '../../data/items.js';
 
 // Design-grid footprint of the barn textures (must match worldArt BARN_W/BARN_H).
@@ -68,6 +68,13 @@ export const WithBarn = (Base) => class extends Base {
     const bx0 = dx(8), bx1 = dx(152), by0 = dy(52), by1 = dy(130);
     const doorL = dx(58), doorR = dx(102); // doorway gap in the south wall
     const T = 14; // wall thickness
+    // Doorway column in world-x — the ONLY approach that counts as "entering" for
+    // the cutaway (see updateBarnCutaway / isInsideBarn).
+    this.barnDoorway = { x0: doorL, x1: doorR };
+    // Baked anchor, so the cutaway can re-derive its bounds from the façade's LIVE
+    // position if the barn is moved (dev drag tool #330) — same stale-geometry
+    // class of bug as #344's fence collision.
+    this.barnAnchor = { x: ax, y: ay };
     this.barnObstacles = [
       wall(bx0, by0, bx1, by0 + T),                  // back (north) wall — behind the stalls
       wall(bx0, by0, bx0 + T, by1),                  // left wall
@@ -86,7 +93,7 @@ export const WithBarn = (Base) => class extends Base {
     // numbers. The collision walls follow a drag too (they're tagged `own` below);
     // the stalls and the interior rect still stay where the source put them.
     this.props.barn = {
-      x: ax, y: ay, interior: this.barnInterior, stalls: this.barnStalls,
+      x: ax, y: ay, interior: this.barnInterior, doorway: this.barnDoorway, stalls: this.barnStalls,
       sprite: this.barnFront, floor: this.barnInteriorSprite,
     };
     // Tag the wall rects with the prop record they belong to (#330) so the dev drag
@@ -96,16 +103,20 @@ export const WithBarn = (Base) => class extends Base {
   }
 
   // ─── Cutaway ───────────────────────────────────────────────────────────────
-  // Fade the front façade out when the player is inside the interior rect (or right
-  // at the doorway), back in when they leave. Runs every frame from update().
+  // Fade the front façade out when the player is actually INSIDE the barn (or in its
+  // doorway walking in), back in when they leave. Runs every frame from update().
+  // The trigger bounds are re-derived from the façade sprite's LIVE position so a
+  // moved barn (dev drag tool) doesn't leave the cutaway triggering at the old spot.
   updateBarnCutaway(delta) {
     if (!this.barnFront) return;
     const p = this.player?.sprite;
     if (!p) return;
-    const r = this.barnInterior;
-    // Include a little apron below the doorway so the façade is already clearing as
-    // you walk in, not popping once you're fully past the wall.
-    const inside = p.x > r.x0 - 20 && p.x < r.x1 + 20 && p.y > r.y0 - 10 && p.y < r.y1 + 40;
+    const ox = this.barnFront.x - (this.barnAnchor?.x ?? this.barnFront.x);
+    const oy = this.barnFront.y - (this.barnAnchor?.y ?? this.barnFront.y);
+    const r = this.barnInterior, d = this.barnDoorway;
+    const rect = (ox || oy) ? { x0: r.x0 + ox, x1: r.x1 + ox, y0: r.y0 + oy, y1: r.y1 + oy } : r;
+    const door = ox ? { x0: d.x0 + ox, x1: d.x1 + ox } : d;
+    const inside = isInsideBarn(rect, door, p.x, p.y);
     const target = inside ? 0.12 : 1; // keep a faint ghost so the barn's outline stays readable
     const step = CUTAWAY_FADE * delta;
     if (this.barnFrontAlpha < target) this.barnFrontAlpha = Math.min(target, this.barnFrontAlpha + step);

@@ -39,6 +39,16 @@ describe('#241 barn/house are distinct world objects', () => {
     expect(worldArt).toMatch(/gen\(scene,\s*'barnFront'/);
   });
 
+  it('the barn façade covers its whole footprint (no see-through, #35)', () => {
+    // Regression guard for the 2026-07-06 / 2026-07-26 playtest bug: barnFront is
+    // the ONLY thing hiding barnInterior from a player standing outside, so its
+    // wall must run from the eave all the way to the sprite base (y = BARN_H).
+    // The first pass stopped the wall at y=68 of a 132-tall footprint, leaving the
+    // interior floor permanently visible from outside.
+    expect(worldArt).toMatch(/fillRect\(8, 40, 144, BARN_H - 40\)/);
+    expect(worldArt).toMatch(/fillRect\(60, 62, 40, BARN_H - 62\)/); // doorway to the base
+  });
+
   it('the barn is a separate structure, not at the house position', () => {
     // House sits at the NW home-base corner (219,283 after the #335 reposition); the
     // barn is placed elsewhere (its own anchor in barn.js), a distinct building per

@@ -9,6 +9,8 @@ import {
   assignStall,
   unassignStall,
   nextStallOccupant,
+  isInsideBarn,
+  BARN_DOOR_APRON,
   loadBarnState,
   saveBarnState,
 } from './barn.js';
@@ -105,5 +107,50 @@ describe('persistence round-trip', () => {
 
   it('exposes a sane stall count', () => {
     expect(NUM_STALLS).toBeGreaterThanOrEqual(2);
+  });
+});
+
+// ── Cutaway trigger (#35) ────────────────────────────────────────────────────
+// The façade may only fade once the player is genuinely inside the barn or in its
+// doorway. Playtest 2026-07-06 (re-raised 2026-07-26): the old inline check padded
+// the interior rect on all four sides, so walking past the barn outside cut the
+// front wall away. These lock the boundary in.
+describe('#35 barn cutaway inside-check', () => {
+  // Mirrors the real geometry from scenes/paddock/barn.js at the baked anchor.
+  const interior = { x0: 1441, y0: 1007, x1: 1705, y1: 1139 };
+  const doorway = { x0: 1529, x1: 1617 };
+  const inside = (x, y) => isInsideBarn(interior, doorway, x, y);
+
+  it('fades when the player is standing in the middle of the barn', () => {
+    expect(inside(1573, 1070)).toBe(true);
+  });
+
+  it('fades while walking in through the doorway, just south of the room', () => {
+    expect(inside(1573, 1145)).toBe(true);
+    expect(inside(1573, interior.y1 + BARN_DOOR_APRON - 1)).toBe(true);
+  });
+
+  it('does NOT fade standing outside along the front wall, off the doorway', () => {
+    expect(inside(1460, 1145)).toBe(false); // in front of the left half
+    expect(inside(1690, 1145)).toBe(false); // in front of the right half
+  });
+
+  it('does NOT fade standing outside past either side wall', () => {
+    expect(inside(1430, 1070)).toBe(false); // west of the barn
+    expect(inside(1715, 1070)).toBe(false); // east of the barn
+  });
+
+  it('does NOT fade standing behind (north of) the barn', () => {
+    expect(inside(1573, 1000)).toBe(false);
+  });
+
+  it('does NOT fade once the player has walked well clear of the doorway', () => {
+    expect(inside(1573, interior.y1 + BARN_DOOR_APRON + 1)).toBe(false);
+    expect(inside(1573, 1300)).toBe(false);
+  });
+
+  it('is safe before the barn is built', () => {
+    expect(isInsideBarn(null, null, 0, 0)).toBe(false);
+    expect(isInsideBarn(interior, null, 1573, 1145)).toBe(false);
   });
 });

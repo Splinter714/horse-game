@@ -61,6 +61,33 @@ export function nextStallOccupant(assignments, stallIndex, horseKeys) {
   return seq[(i + 1) % seq.length];
 }
 
+// ── Cutaway trigger geometry (#35) ───────────────────────────────────────────
+// The barn's front façade fades out only once the player is actually inside the
+// building (or standing in its doorway walking in). Kept pure + unit-tested here
+// because the original inline check was too generous: it padded the interior rect
+// outward on every side, so walking PAST the barn — along the front, behind it, or
+// past either side wall — cut the façade away while the player was still outside
+// (playtest 2026-07-06, re-raised 2026-07-26).
+
+// How far south of the interior rect the doorway approach counts as "entering",
+// in world px. Only inside the doorway COLUMN — not along the whole front wall.
+export const BARN_DOOR_APRON = 28;
+// Lateral slack on the doorway column, so you don't have to be pixel-centred.
+const DOOR_PAD = 8;
+
+// interior: { x0, y0, x1, y1 } walkable rect; doorway: { x0, x1 } world-x span of
+// the gap in the south wall. Both must be in the barn's LIVE world coordinates.
+export function isInsideBarn(interior, doorway, px, py, apron = BARN_DOOR_APRON) {
+  if (!interior) return false;
+  const inRoom = px > interior.x0 && px < interior.x1
+              && py > interior.y0 && py < interior.y1;
+  if (inRoom) return true;
+  if (!doorway) return false;
+  // Doorway apron: strictly the doorway column, strictly south of the room.
+  return px > doorway.x0 - DOOR_PAD && px < doorway.x1 + DOOR_PAD
+      && py >= interior.y1 && py < interior.y1 + apron;
+}
+
 // ── Persistence ──────────────────────────────────────────────────────────────
 
 export function loadBarnState() {
