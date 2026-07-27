@@ -21,15 +21,16 @@ the same name. To add behaviour, find the concern below; if it fits none, add a 
 | Carriers | `hotbar/carriers.js` (`WithCarriers`) | `_slotView`, fill/use, grouped members + fly-out picker, `getActiveItem` (public API) |
 | Inventory | `hotbar/inventory.js` (`WithInventory`) | the full item grid + assign-to-slot |
 | Action buttons | `hotbar/actionButtons.js` (`WithActionButtons`) | the touch Interact/Info/Use buttons |
-| Pause menu | `hotbar/pauseMenu.js` (`WithPauseMenu`) | settings overlay, volume sliders, dev tools, gamepad focus nav, world freeze/resume |
+| Pause menu | `hotbar/pauseMenu.js` (`WithPauseMenu`) | settings overlay, toggle/cycle row helpers, volume sliders, gamepad focus nav, world freeze/resume |
+| Dev tools | `hotbar/devTools.js` (`WithDevTools`) | the TEMP "🛠 Dev tools" block at the bottom of the pause panel — `_buildDevTools` + `devToolsHeight(rowH)`, advance-time, Reset Herd, Reset Save (#351, two-step arm→confirm full wipe), the persisted overlay toggles and the draggable Random Events panel. Split out of `pauseMenu.js` to keep both under the size budget |
 | Baked chrome | `hotbar/bakedLayer.js` (helpers, not a mixin) | `renderBakedLayer`/`destroyBakedLayer` — the re-bakeable RenderTexture behind every HUD background (#326). The mutable sibling of `../paddock/bakeGraphics.js`: HiDPI-correct, reusable, and re-stamped only when the caller's change-gate says the drawing would differ. Use it for any new HUD background instead of a live `Graphics` |
 | FPS counter | `hotbar/fpsCounter.js` (`WithFpsCounter`) | the bottom-left fps/worst-frame readout (#325). Opt-in via the pause menu's dev tools (persisted in devSettings, default OFF) and deliberately available in production builds, since the frame-rate problem it was built for shows up on the deployed game. Refreshes 5×/sec, not per frame |
 
 The chain (innermost → outermost) is in `HotbarScene.js`:
 
 ```js
-HotbarScene extends WithPauseMenu(WithInventory(WithActionButtons(
-  WithCarriers(WithHotbarSlots(Phaser.Scene)))))
+HotbarScene extends WithFpsCounter(WithMinimap(WithDevTools(WithPauseMenu(
+  WithInventory(WithActionButtons(WithCarriers(WithHotbarSlots(Phaser.Scene))))))))
 ```
 
 Gamepad input is polled in PaddockScene (`_pollRawPad`) and routed here via

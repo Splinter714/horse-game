@@ -651,6 +651,39 @@ export function resetAllHorses() {
   }
 }
 
+// Every localStorage key this game owns starts with one of these prefixes:
+//   `horse-game-`  — game state, garden, pantry, recipe book, audio, UI, player look,
+//                    fox/duck taming, tractor, bird + neighbor friendship, gestations,
+//                    ready births, pair bonds, incubations, barn stalls, store
+//                    inventory, and the dev settings.
+//   `horse-care-`  — the per-species animal rosters (see rosters.js), including the
+//                    legacy single-horse save.
+// Scanning by PREFIX rather than listing keys is deliberate: a new species roster or a
+// new feature key is picked up automatically, so "Reset Save" can never quietly go
+// stale and leave half a save behind.
+export const SAVE_KEY_PREFIXES = ['horse-game-', 'horse-care-'];
+
+// Wipe EVERY saved key so the next load boots a completely fresh farm. Returns the
+// list of keys removed (handy for tests/logging). Caller should reload the page after.
+export function resetAllSaveData() {
+  const removed = [];
+  try {
+    // `key(i)`/`length` is the real Storage API; fall back to own-property names so a
+    // plain-object stub (tests, odd embeddings) still works.
+    const all = typeof localStorage.key === 'function'
+      ? Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i))
+      : Object.keys(localStorage);
+    const keys = all.filter((k) => k && SAVE_KEY_PREFIXES.some((p) => k.startsWith(p)));
+    for (const k of keys) {
+      localStorage.removeItem(k);
+      removed.push(k);
+    }
+  } catch (e) {
+    // localStorage unavailable — nothing to clear.
+  }
+  return removed;
+}
+
 export function hasSave() {
   try {
     return !!(localStorage.getItem(ROSTERS.horse.storageKey) || localStorage.getItem(ROSTERS.horse.legacy.key));

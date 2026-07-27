@@ -1,14 +1,16 @@
 // Pause menu — the full settings overlay: mute, control-prompt toggle, per-bus
-// volume sliders, the TEMP dev tools, and the gamepad focus navigation that drives
-// it while the world is frozen (#159). Freezes/*un*freezes the gameplay scenes.
-// Extracted from the monolithic HotbarScene (issue #167).
+// volume sliders, and the gamepad focus navigation that drives it while the world is
+// frozen (#159). Freezes/*un*freezes the gameplay scenes.
+// Extracted from the monolithic HotbarScene (issue #167). The TEMP dev-tools block at
+// the bottom of the panel lives in ./devTools.js (#351) — this file just reserves
+// `devToolsHeight(rowH)` pixels for it and calls `_buildDevTools`.
 
 import { toggleMute, isMuted, setVolume, getAudioSettings } from '../../audio/sounds.js';
-import { saveUiSettings, resetAllHorses, loadDevSettings, saveDevSettings } from '../../data/save.js';
+import { saveUiSettings } from '../../data/save.js';
 import { EVENTS } from '../../data/events.js';
-import { devEventList } from '../../data/ambientEvents.js';
 import { growHitArea, logicalW, logicalH, dprOf } from '../uiUtils.js';
 import { PAUSABLE_SCENES } from './constants.js';
+import { devToolsHeight } from './devTools.js';
 
 export const WithPauseMenu = (Base) => class extends Base {
   _togglePause() {
@@ -89,6 +91,9 @@ export const WithPauseMenu = (Base) => class extends Base {
     for (const o of this._pauseNodes) o.destroy();
     this._pauseNodes = [];
     this.pauseOpen   = true;
+    this._resetSaveTimer?.remove();
+    this._resetSaveTimer = null;
+    this._resetSaveArmed = false; // the wipe row always rebuilds disarmed (#351)
     // Controller-nav state (#159): focusables are collected as rows/sliders build.
     this._pauseFocus = [];
     this._pauseFocusIdx = 0;
@@ -115,7 +120,7 @@ export const WithPauseMenu = (Base) => class extends Base {
       ['Ambient', 'ambient'],
       ['Effects', 'effects'],
     ];
-    const devH   = 38 + rowH * 11; // TEMP dev-tools: heading + hint + dev rows
+    const devH   = devToolsHeight(rowH); // TEMP dev-tools block (./devTools.js)
     // 3 action/toggle rows: mute, control-prompts, Customize Character.
     const panelH = 56 + rowH * 3 + sliders.length * sliderH + 8 + devH;
     const px = Math.round((sw - panelW) / 2);
@@ -176,192 +181,11 @@ export const WithPauseMenu = (Base) => class extends Base {
       sy += sliderH;
     }
 
-    // ── TEMP dev tools (remove before a real release) ──────────────────────────
-    const devLbl = this.add.text(rowX, sy + 4, '🛠 Dev tools', {
-      fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: '#7a80a0',
-    }).setOrigin(0, 0).setDepth(104);
-    this._pauseNodes.push(devLbl);
-    // The two "Start …" rows below are persisted boot-state knobs; they take
-    // effect on the next page reload, not live.
-    const devHint = this.add.text(rowX + 80, sy + 5, '(start state — applies on reload)', {
-      fontFamily: 'system-ui, sans-serif', fontSize: '10px', color: '#5a6080',
-    }).setOrigin(0, 0).setDepth(104);
-    this._pauseNodes.push(devHint);
-
-    let dy = sy + 22;
-    this._addToggleRow(rowX, dy, rowW, rowH, '⏭ Advance Time of Day', () => this._advanceTime());
-    dy += rowH;
-    this._addCycleRow(rowX, dy, rowW, rowH, '🕑 Start phase',
-      ['Morning', 'Afternoon', 'Evening', 'Night'],
-      () => loadDevSettings().startPhase,
-      (v) => saveDevSettings({ startPhase: v }));
-    dy += rowH;
-    this._addCycleRow(rowX, dy, rowW, rowH, '🖥 Start screen',
-      [null, 'horse', 'preview'],
-      () => loadDevSettings().startEditor,
-      (v) => saveDevSettings({ startEditor: v }),
-      (v) => (v === 'preview' ? 'Art preview' : v ? 'Horse editor' : 'Farm'));
-    dy += rowH;
-    this._addCycleRow(rowX, dy, rowW, rowH, '📍 Start at',
-      ['House', 'Barn', 'Pasture', 'Gate', 'Farm stand', 'Coop'],
-      () => loadDevSettings().startLocation,
-      (v) => saveDevSettings({ startLocation: v }));
-    dy += rowH;
-    this._addToggleRow(rowX, dy, rowW, rowH, '♻ Reset Herd to Default', () => this._resetHerd());
-    dy += rowH;
-    this._addToggleRow(rowX, dy, rowW, rowH, '🎲 Random Events…', () => {
-      this._closePause();           // resume the game first so events are visible
-      this._toggleDevEvents();
-    });
-    dy += rowH;
-    // The persisted ON/Off dev overlays, as one table instead of four
-    // copy-pasted rows. All are live (no reload) and deliberately available in
-    // production builds, because the owner looks at the DEPLOYED game on his iPad
-    // — which is exactly where a frame-rate, placement or "how does this work?"
-    // question gets asked.
-    //   #325 FPS readout · #329 object labels + grid · #330 drag-to-reposition ·
-    //   #332 usage tooltips.
-    // The FPS row flips + persists its own flag inside _toggleFpsCounter (the
-    // overlay lives on this scene); the rest save here and poke PaddockScene.
-    const paddock = () => this.scene.get('PaddockScene');
-    const flip = (key, apply) => () => {
-      saveDevSettings({ [key]: !loadDevSettings()[key] });
-      apply();
-    };
-    const devToggles = [
-      ['📈 FPS Counter',          'showFps',       () => this._toggleFpsCounter()],
-      ['📐 Object Labels + Grid', 'showDevLabels', flip('showDevLabels', () => paddock()?.refreshDevOverlay())],
-      ['✋ Drag Objects',         'dragObjects',   flip('dragObjects',   () => paddock()?.refreshDevDrag())],
-      ['💡 Usage Tooltips',       'usageTips',     flip('usageTips',     () => paddock()?.refreshDevTooltips())],
-    ];
-    for (const [label, key, onTap] of devToggles) {
-      const text = () => `${label}: ${loadDevSettings()[key] ? 'ON' : 'Off'}`;
-      const row = this._addToggleRow(rowX, dy, rowW, rowH, text(),
-        () => { onTap(); row.setText(text()); });
-      dy += rowH;
-    }
-    const freezeDecayLbl = this._addToggleRow(rowX, dy, rowW, rowH,
-      `❄️ Freeze Decay: ${window.__devFreezeDecay ? 'ON' : 'Off'}`,
-      () => {
-        window.__devFreezeDecay = !window.__devFreezeDecay;
-        freezeDecayLbl.setText(`❄️ Freeze Decay: ${window.__devFreezeDecay ? 'ON' : 'Off'}`);
-      });
+    this._buildDevTools(rowX, sy, rowW, rowH); // TEMP dev tools (hotbar/devTools.js)
 
     // Controller focus highlight, drawn above the rows (#159).
     this._pauseRing = this.add.graphics().setDepth(106);
     this._pauseNodes.push(this._pauseRing);
-  }
-
-  // TEMP dev tool: jump the day/night clock forward one phase WITHOUT unpausing.
-  // The menu stays open so you can keep clicking to skip multiple phases; the
-  // lighting + clock label refresh in place (a paused scene still renders).
-  _advanceTime() {
-    const dn = this.scene.get('DayNightScene');
-    if (!dn) return;
-    dn._advancePhase();
-    dn._applyClock();
-  }
-
-  // TEMP dev tool: wipe every horse's saved data back to the default herd.
-  _resetHerd() {
-    const ok = window.confirm(
-      'Reset the whole herd to defaults?\n\nThis erases every horse’s custom colour, markings, and name.'
-    );
-    if (!ok) return;
-    resetAllHorses();
-    window.location.reload();
-  }
-
-  // The dev-overlay event list is now DERIVED from the data-driven registry
-  // (data/ambientEvents.js) — the same registry the ambient scheduler reads, so an
-  // event declared once auto-appears here AND enters the random rotation (#253). No
-  // hand-maintained list to keep in sync.
-  _devEventList() {
-    return devEventList();
-  }
-
-  _toggleDevEvents() {
-    if (this._devPanel?.active) { this._closeDevEvents(); return; }
-    this._openDevEvents();
-  }
-
-  _openDevEvents() {
-    this._closeDevEvents();
-
-    const sw = logicalW(this), sh = logicalH(this);
-    const events = this._devEventList();
-    const ROW = 40, PAD = 12, HDR = 38;
-    const W = 230, H = HDR + events.length * ROW + PAD;
-
-    // Start near bottom-left, clear of the hotbar. Clamp to the top so a tall list
-    // (the registry now drives its length) doesn't spill off-screen — it's draggable.
-    let cx = 20, cy = Math.max(20, sh - H - 80);
-
-    const panel = this.add.container(cx, cy).setDepth(300);
-    this._devPanel = panel;
-
-    // Background
-    const bg = this.add.graphics();
-    bg.fillStyle(0x0d1020, 0.97);
-    bg.fillRoundedRect(0, 0, W, H, 10);
-    bg.lineStyle(2, 0x3a4060, 1);
-    bg.strokeRoundedRect(0, 0, W, H, 10);
-    panel.add(bg);
-
-    // Title
-    panel.add(this.add.text(W / 2, 12, '🎲 Random Events', {
-      fontFamily: 'system-ui, sans-serif', fontSize: '13px', color: '#c8cce0',
-    }).setOrigin(0.5, 0));
-
-    // Drag handle — title bar strip (added before close button so ✕ sits on top).
-    const drag = this.add.zone(0, 0, W, HDR).setOrigin(0, 0).setInteractive({ useHandCursor: true });
-    let _lx = 0, _ly = 0, _dragging = false;
-    drag.on('pointerdown', (ptr) => { _dragging = true; _lx = ptr.x; _ly = ptr.y; });
-    const onMove = (ptr) => {
-      if (!_dragging) return;
-      panel.x += ptr.x - _lx; panel.y += ptr.y - _ly;
-      _lx = ptr.x; _ly = ptr.y;
-    };
-    const onUp = () => { _dragging = false; };
-    this.input.on('pointermove', onMove);
-    this.input.on('pointerup', onUp);
-    this._devPanelDragListeners = { onMove, onUp };
-    panel.add(drag);
-
-    // Close button — added after drag zone so it's on top and gets input first.
-    const closeBtn = this.add.text(W - 10, 8, '✕', {
-      fontFamily: 'system-ui, sans-serif', fontSize: '15px', color: '#8090b0',
-    }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
-    closeBtn.on('pointerdown', () => this._closeDevEvents());
-    panel.add(closeBtn);
-
-    // Event buttons
-    const paddock = this.scene.get('PaddockScene');
-    events.forEach((ev, i) => {
-      const ry = HDR + i * ROW, bh = ROW - 6, bw = W - PAD * 2;
-      const g = this.add.graphics();
-      const draw = (col) => { g.clear(); g.fillStyle(col, 0.9); g.fillRoundedRect(PAD, ry, bw, bh, 7); };
-      draw(0x1a1e30);
-      panel.add(g);
-      panel.add(this.add.text(W / 2, ry + bh / 2, ev.label, {
-        fontFamily: 'system-ui, sans-serif', fontSize: '13px', color: '#dfe4f5',
-      }).setOrigin(0.5, 0.5));
-      const zone = this.add.zone(PAD, ry, bw, bh).setOrigin(0, 0).setInteractive({ useHandCursor: true });
-      zone.on('pointerover', () => draw(0x2a3860));
-      zone.on('pointerout',  () => draw(0x1a1e30));
-      zone.on('pointerdown', () => { if (paddock) ev.fire(paddock); });
-      panel.add(zone);
-    });
-  }
-
-  _closeDevEvents() {
-    if (this._devPanel) { this._devPanel.destroy(true); this._devPanel = null; }
-    const dl = this._devPanelDragListeners;
-    if (dl) {
-      this.input.off('pointermove', dl.onMove);
-      this.input.off('pointerup', dl.onUp);
-      this._devPanelDragListeners = null;
-    }
   }
 
   // Draggable horizontal volume slider for one mixer bus (0–1). Calls setVolume
@@ -425,6 +249,11 @@ export const WithPauseMenu = (Base) => class extends Base {
     this._pauseFocus = null;
     this._pauseRing  = null;
     this._activeSlider = null;
+    // Never leave the wipe row armed across an open/close (#351).
+    this._resetSaveTimer?.remove();
+    this._resetSaveTimer = null;
+    this._resetSaveArmed = false;
+    this._resetSaveLbl   = null;
     for (const o of this._pauseNodes) o.destroy();
     this._pauseNodes = [];
 
