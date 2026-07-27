@@ -75,15 +75,17 @@ export const WithWorld = (Base) => class extends Base {
       // #349: the seven flowers that landed inside the enlarged barn footprint
       // (indices 26, 30-32, 36, 37, 39 — barn now covers x 210-890, y 900-1360, and
       // a flower drawn inside it would render on the barn floor / hummingbirds would
-      // hover into the roof) were moved clear of it.
+      // hover into the roof) were moved clear of it. Indices 30 and 37 were then
+      // moved again by the owner's own placement once the barn relocated further
+      // (#330 drag tool).
       [464, 251], [443, 256], [506, 280], [436, 274], [402, 247],
       [479, 260], [425, 229], [421, 288], [489, 226], [1000, 350],
       [496, 266], [415, 271], [490, 246], [460, 272], [422, 248],
       [516, 264], [509, 241], [378, 255], [372, 278], [491, 294],
-      [1700, 600], [395, 264], [1860, 520], [527, 253], [1180, 950],
+      [1700, 600], [395, 264], [1860, 520], [527, 253], [517, 1091],
       [538, 267], [980, 1400], [525, 283], [1780, 900], [452, 289],
-      [1010, 985], [560, 860], [1120, 1430], [480, 282], [954, 1157],
-      [395, 283], [960, 1240], [1660, 1010], [404, 225], [1700, 1320],
+      [669, 1254], [560, 860], [1120, 1430], [480, 282], [954, 1157],
+      [395, 283], [960, 1240], [887, 1409], [404, 225], [1700, 1320],
     ].forEach(([x, y], i) => {
       const sprite = this.add.image(x, y, flowers[i % flowers.length]).setScale(S).setDepth(y);
       // `sprite` kept so the dev drag tool (#330) can move the actual flower, not
@@ -149,8 +151,8 @@ export const WithWorld = (Base) => class extends Base {
     // it sits below the well and the player can top it up by reaching over the
     // fence from the well side without entering the pasture, while horses drink
     // from the inside (#106). (Fence band ≈ y892–912; pasture starts at y910.)
-    // Position (1415, 1064) — the owner's own placement (#330 drag tool, baked in by #342).
-    const tx = 1415, ty = 1064;
+    // Position (1049, 1204) — the owner's own placement (#330 drag tool, baked in by #349-followup).
+    const tx = 1049, ty = 1204;
     const troughSprite = this.add.image(tx, ty, 'trough')
       .setScale(S).setDepth(ty).setOrigin(0.5, 0.5);
     // level = numeric water (0..TROUGH_CAP); `filled` mirrors level>0 (kept in sync by _setTroughLevel, #103).
@@ -221,14 +223,14 @@ export const WithWorld = (Base) => class extends Base {
   // (centered on x, bottom at y) so you can't walk through it — registered in buildObstacles.
   buildSources() {
     const defs = [
-      // Hay Pile / Well positions are the owner's own placements (#330 drag tool, baked in by #342).
-      { x: 1487, y: 1196, content: 'hay',    tex: 'haystack',     label: 'Hay Pile',      reach: 100, ob: { w: 84,  h: 36 } },
+      // Hay Pile / Well positions are the owner's own placements (#330 drag tool, baked in by #342, moved again after #349's barn relocation).
+      { x: 1127, y: 1350, content: 'hay',    tex: 'haystack',     label: 'Hay Pile',      reach: 100, ob: { w: 84,  h: 36 } },
       { x: 1234, y: 425, content: 'carrot', tex: 'carrotGarden', label: 'Carrot Garden', reach: 100, ob: { w: 104, h: 42 } },
       { x: 1660, y: 512, content: 'apple',  tex: 'appleTree',    label: 'Apple Tree',    reach: 90,  ob: { w: 44,  h: 26 } },
       { x: 1802, y: 497, content: 'orange', tex: 'orangeTree', label: 'Orange Tree', reach: 90, ob: { w: 44, h: 26 } }, // #228 tree, mirrors apple
       { x: 1736, y: 546, content: 'berry',  tex: 'berryBush',  label: 'Berry Bush',  reach: 85, ob: { w: 40, h: 18 } }, // #228 bush, same mechanic, no trunk
       { x: 818,  y: 402, content: 'seed',   tex: 'grainBin',     label: 'Grain Bin',     reach: 95,  ob: { w: 66,  h: 40 } },
-      { x: 1413, y: 960, content: 'water',  tex: 'well',         label: 'Well',          reach: 95,  ob: { w: 52,  h: 22 } },
+      { x: 1046, y: 1085, content: 'water',  tex: 'well',         label: 'Well',          reach: 95,  ob: { w: 52,  h: 22 } },
       // Kibble sack (#202 rework) — the cat-food SOURCE, by the house. The player
       // scoops cat food into a basket here (like the grain bin for seed), then pours
       // it into the food bowl. The bowls themselves are no longer gather sources —

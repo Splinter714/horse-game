@@ -27,15 +27,12 @@ export const WithBarn = (Base) => class extends Base {
   buildBarn() {
     // South-doorway anchor (origin 0.5,1).
     //
-    // #349 RELOCATED the barn. It used to sit at the owner's drag-tool placement
-    // (1585, 1172) in the NE corner of the pasture, but at 680×460 world px it no
-    // longer fits there: the well/trough/hay-pile cluster (x≈1387–1529) walls off
-    // the west and the town edge the east, leaving only ~460px of clear width. The
-    // widest clear band in the pasture is the WEST half — x 196 (inside the left
-    // fence) to 900 (the gate gap) — so the barn now anchors there, still straddling
-    // the north fence line the way it did before. Everything that was inside the new
-    // footprint (a few flowers, some spawn points) moved out; see world.js/species defs.
-    const ax = 550, ay = 1360;
+    // #349 RELOCATED the barn (it used to sit at (1585, 1172); at 680×460 world px
+    // it no longer fit there). It briefly anchored at (550, 1360) as a "somewhere it
+    // fits" placeholder, then the owner repositioned it to its own spot with the
+    // #330 drag tool (baked in below) — the well/trough/Hay Pile were moved along
+    // with it (see world.js).
+    const ax = 1399, ay = 1306;
     // Sprite → world helpers (origin 0.5,1, scale S). left/top corners in world px.
     const left = ax - (BARN_DW / 2) * S;   // 210
     const top  = ay - BARN_DH * S;         // 900
