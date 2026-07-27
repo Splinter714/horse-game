@@ -9,7 +9,8 @@
 // in art/wildlifeArt.js (built in BootScene alongside world/player, not the roster).
 
 import Phaser from 'phaser';
-import { S, WORLD_W, BOUNDS } from './constants.js';
+import { S, BOUNDS } from './constants.js';
+import { offscreenX, exitX, skyY } from './offscreen.js';
 import { ART_SCALE } from '../../art/_frames.js';
 import { wildlifeActiveInWeather } from '../../data/weather.js';
 import { BIRD_TYPES, pickBirdType, shouldRaccoonBolt } from '../../data/wildlife.js';
@@ -223,19 +224,26 @@ export const WithWildlife = (Base) => class extends Base {
 
   _spawnFlyby() {
     const dir = Math.random() < 0.5 ? 1 : -1;            // 1 = left→right
-    const y0 = Phaser.Math.Between(90, 300);
+    // Enter/leave just past the CURRENT view, high in the on-screen sky (#354) — the
+    // old fixed farm-edge numbers now sit mid-map thanks to the trail/town extensions.
+    const y0 = skyY(this, Phaser.Math.Between);
     const arc = Phaser.Math.Between(18, 60);
-    const startX = dir === 1 ? -40 : WORLD_W + 40;
-    const endX = dir === 1 ? WORLD_W + 40 : -40;
+    const startX = offscreenX(this, dir === 1);
+    const endX = offscreenX(this, dir !== 1);
     const b = this._pickBird();
     const sprite = this.add.sprite(startX, y0, b.tex)
       .setOrigin(0.5, 0.5).setScale(WILD_SCALE).setDepth(100000).setFlipX(dir === -1).play(b.flyAnim);
     const c = { sprite, kind: 'bird', ground: false, state: 'flying', tween: null, bird: b };
     this._wildCritters.push(c);
 
+    // Time the crossing by SPEED rather than a fixed duration: the span is now the
+    // camera's width, not the whole farm, so a fixed 6–9.5s would read as slow motion.
+    // (0.21–0.33 px/ms is what the old numbers worked out to across the old world.)
+    const span = Math.abs(endX - startX);
+    const speed = Phaser.Math.FloatBetween(0.21, 0.33);
     const prox = { p: 0 };
     c.tween = this.tweens.add({
-      targets: prox, p: 1, duration: Phaser.Math.Between(6000, 9500), ease: 'Sine.easeInOut',
+      targets: prox, p: 1, duration: Phaser.Math.Clamp(span / speed, 2500, 12000), ease: 'Sine.easeInOut',
       onUpdate: () => {
         sprite.x = Phaser.Math.Linear(startX, endX, prox.p);
         sprite.y = y0 - Math.sin(Math.PI * prox.p) * arc;
@@ -254,7 +262,8 @@ export const WithWildlife = (Base) => class extends Base {
     }
     const dir = Math.random() < 0.5 ? 1 : -1;
     const b = this._pickBird();
-    const sprite = this.add.sprite(dir === 1 ? -40 : WORLD_W + 40, sy - 220, b.tex)
+    // Swoop in from beyond the current view (and clear of the landing spot), #354.
+    const sprite = this.add.sprite(offscreenX(this, dir === 1, 40, sx), sy - 220, b.tex)
       .setOrigin(0.5, 1).setScale(WILD_SCALE).setDepth(sy).setFlipX(dir === -1).play(b.flyAnim);
     const c = { sprite, kind: 'bird', ground: false, state: 'descending', tween: null, fleeing: false, bird: b };
     this._wildCritters.push(c);
@@ -292,11 +301,14 @@ export const WithWildlife = (Base) => class extends Base {
     if (c.tween) { c.tween.stop(); c.tween = null; }
     const sprite = c.sprite;
     sprite.play(c.bird?.flyAnim ?? 'bird_fly');
-    const toLeft = sprite.x < WORLD_W / 2;
-    sprite.setFlipX(toLeft);
+    // Leave past the nearer edge of the CURRENT view (#354) and climb as it goes —
+    // the old exit tweened to a fixed sky y up at the farm's north end, which sent a
+    // bird flushed down in the pasture streaking diagonally across the whole map.
+    const exit = exitX(this, sprite.x);
+    sprite.setFlipX(exit.toLeft);
     c.tween = this.tweens.add({
       targets: sprite,
-      x: toLeft ? -60 : WORLD_W + 60, y: Phaser.Math.Between(80, 200),
+      x: exit.x, y: sprite.y - Phaser.Math.Between(100, 220),
       duration: Phaser.Math.Between(1800, 2800), ease: 'Sine.easeIn',
       onComplete: () => this._despawnCritter(c),
     });
