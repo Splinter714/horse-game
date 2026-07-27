@@ -98,6 +98,7 @@ export const BOWL_CAP = 4;
 export const GATE_X = 960;
 export const GATE_GAP_X0 = 900;
 export const GATE_GAP_X1 = 1020;
+export const GATE_HALF_W = (GATE_GAP_X1 - GATE_GAP_X0) / 2; // 60 — half the gate opening, each fence end's offset from GATE_X
 
 // Global sprite scale.
 export const S = 2;
@@ -135,6 +136,18 @@ export const FENCE_RAIL_BOTTOM_COLOR  = 0xbc8442;
 // renders BEHIND it — owner ask, 2026-07-27: "the highest left/right stick-
 // out part and above" should sit above the top rail, "the rest below".
 export const FENCE_POST_TOP_SPLIT_Y = FENCE_TEX_H / 2 + FENCE_RAIL_TOP_OFFSET / S; // native px, = 7.5
+
+// Pasture-perimeter fence (#376 — converted to the same bendable-joint model as
+// the house fence, but keeps its OWN different placement scheme). Unlike the
+// house fence (posts cropped to just the post column + two separate continuous
+// rail lines), the pasture fence's 'fence' tile is drawn WHOLE (post + baked-in
+// rail) and stepped at HALF its own rendered width so consecutive tiles overlap
+// ~50% and the rail reads as continuous — no separate rail Graphics needed, but
+// every post must be individually rotated to match its segment's angle (the
+// house fence's posts stay unrotated since its rail is a separate line).
+// FENCE_TEX_W * S = 96 world px rendered tile width, so 48 is exactly half.
+export const PASTURE_FENCE_SPACING = (FENCE_TEX_W * S) / 2; // 48
+export const PASTURE_FENCE_BAND    = 20; // world px collision thickness — matches the old fixed-wall thickness
 
 // ── Animal droppings (#232) ─────────────────────────────────────────────────
 // The most droppings allowed lying in the pasture at once. Cosmetic clutter the

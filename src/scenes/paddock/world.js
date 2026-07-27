@@ -3,14 +3,15 @@
 
 import Phaser from 'phaser';
 import {
-  WORLD_W, WORLD_H, PASTURE_BOUNDS, GATE_GAP_X0, GATE_GAP_X1, S,
+  WORLD_W, WORLD_H, PASTURE_BOUNDS, GATE_X, GATE_HALF_W, S,
   FENCE_POST_CROP_W,
   FENCE_RAIL_TOP_OFFSET, FENCE_RAIL_BOTTOM_OFFSET, FENCE_RAIL_THICKNESS,
   FENCE_RAIL_TOP_COLOR, FENCE_RAIL_BOTTOM_COLOR,
+  PASTURE_FENCE_BAND,
 } from './constants.js';
 import { SPECIES } from '../../data/species/index.js';
 import { bakeStaticGraphics } from './bakeGraphics.js';
-import { houseFenceSegmentRects } from './houseFence.js';
+import { houseFenceSegmentRects, perimeterFenceSegmentRects } from './houseFence.js';
 
 // Collision band thickness for the house fence line (#344) — the solid slice of the
 // 48px-tall rail sprite, matching the height the old hardcoded rect used.
@@ -374,46 +375,47 @@ export const WithWorld = (Base) => class extends Base {
     }
   }
 
+  // #376 rework: the pasture perimeter used to be four independent walls (each
+  // its own fixed-step tile loop, corners hardcoded) built with a DIFFERENT
+  // placement scheme than the house fence (centered-origin tiles stepped at
+  // HALF their rendered width so consecutive tiles overlap 50%, vs. the house
+  // fence's left-origin/crop/joint-rail scheme). It's now one continuous
+  // bendable JOINT polyline — same #375 data model the house fence uses
+  // (ordered joints, one straight segment per consecutive pair, any point can
+  // be promoted to a bend point by dragging it in the #330/#370 dev tool) —
+  // open at the gate rather than a true closed ring, since the gate object
+  // itself fills that gap visually. See pastureFencePath.js for why the art
+  // build (`_fillPastureFencePosts`) isn't a drop-in reuse of the house
+  // fence's, even though the underlying respace maths is shared.
   buildPastureFence() {
     const PB = PASTURE_BOUNDS;
-    const fenceH = 48, fenceW = 48;
+    const topY = PB.minY - 8, botY = PB.maxY + 8, lX = PB.minX - 8, rX = PB.maxX + 8;
+    const gateX = GATE_X, gateY = topY;
 
-    // Left fence (vertical)
-    for (let y = PB.minY; y < PB.maxY; y += fenceH) {
-      this.add.image(PB.minX - 8, y + fenceH / 2, 'fence')
-        .setScale(S).setDepth(y + fenceH / 2).setOrigin(0.5, 0.5).setRotation(Math.PI / 2);
-    }
-
-    // Right fence (vertical)
-    for (let y = PB.minY; y < PB.maxY; y += fenceH) {
-      this.add.image(PB.maxX + 8, y + fenceH / 2, 'fence')
-        .setScale(S).setDepth(y + fenceH / 2).setOrigin(0.5, 0.5).setRotation(Math.PI / 2);
-    }
-
-    // Bottom fence (horizontal)
-    for (let x = PB.minX; x < PB.maxX; x += fenceW) {
-      this.add.image(x + fenceW / 2, PB.maxY + 8, 'fence')
-        .setScale(S).setDepth(PB.maxY + 8).setOrigin(0.5, 0.5);
-    }
-
-    // Top fence with gate opening - fence on left side of gate
-    const gateX = 960, gateY = PB.minY - 8;
-    for (let x = PB.minX; x < gateX - 60; x += fenceW) {
-      this.add.image(x + fenceW / 2, gateY, 'fence')
-        .setScale(S).setDepth(gateY).setOrigin(0.5, 0.5);
-    }
-
-    // Gate (interactive) — positioned at top center of pasture
+    // Gate (interactive) — positioned at top center of pasture. Built FIRST so
+    // the two gate-flanking joints below can be derived from its position.
     const gateSprite = this.add.image(gateX, gateY, 'gateClosed')
       .setScale(S).setDepth(gateY).setOrigin(0.5, 0.5);
-
     this.props.gate = { x: gateX, y: gateY, sprite: gateSprite, open: false };
 
-    // Fence on right side of gate
-    for (let x = gateX + 70; x < PB.maxX; x += fenceW) {
-      this.add.image(x + fenceW / 2, gateY, 'fence')
-        .setScale(S).setDepth(gateY).setOrigin(0.5, 0.5);
-    }
+    // One open polyline, winding gate-left-post → top-left corner → bottom-left
+    // corner → bottom-right corner → top-right corner → gate-right-post. The
+    // two end joints are LINKED to the gate (`gateLink`) rather than plain
+    // fixed points — `_applyPastureGateLinks` (pastureFencePath.js) re-derives
+    // their x/y from the gate's CURRENT position every respace, so the fence
+    // stays glued to the gate even if it's ever dragged/repositioned (#376
+    // decided: "gate linking = follows if the gate moves").
+    this.props.pastureFenceJoints = [
+      { x: gateX - GATE_HALF_W, y: gateY, gateLink: 'left' },
+      { x: lX, y: topY },
+      { x: lX, y: botY },
+      { x: rX, y: botY },
+      { x: rX, y: topY },
+      { x: gateX + GATE_HALF_W, y: gateY, gateLink: 'right' },
+    ];
+    this.props.pastureFence = [];
+    this._applyPastureGateLinks(this.props.pastureFenceJoints);
+    this._fillPastureFencePosts(this.props.pastureFenceJoints);
   }
 
   // House-fence rail lines (#372 rework, #372 playtest fix, #375 polyline
@@ -544,6 +546,58 @@ export const WithWorld = (Base) => class extends Base {
     for (const o of existing) o.refit?.();
   }
 
+  // Pasture-perimeter fence collision (#376 rework — was 4 hand-fixed rects
+  // over the original rectangle). Mirrors `_houseFenceObstacles`/
+  // `_buildHouseFenceSegmentRects`/`refitHouseFence` exactly, one tight rect
+  // per POST-TO-POST span of `this.props.pastureFence` instead of a fixed set
+  // over the old 4-sided rectangle — so collision follows the live joint
+  // polyline (including any bend point dragged into it) rather than a shape
+  // baked to the fence's original corners. Uses `perimeterFenceSegmentRects`
+  // (houseFence.js), not the house-fence-tuned `houseFenceSegmentRects` —
+  // pasture segments can be pure-vertical (the left/right walls), which the
+  // house-fence version can't pad correctly (see houseFence.js's comment).
+  _pastureFenceObstacles() {
+    return this._buildPastureFenceSegmentRects();
+  }
+
+  _buildPastureFenceSegmentRects() {
+    const posts = this.props.pastureFence;
+    if (!posts?.length) return [];
+    const rects = [];
+    for (let i = 0; i < posts.length - 1; i++) {
+      const rect = { x: 0, y: 0, w: 0, h: 0, isFence: true, ownGroup: posts };
+      rect.refit = () => this._fitPastureFenceSegment(rect, i);
+      rect.refit();
+      rects.push(rect);
+    }
+    return rects;
+  }
+
+  _fitPastureFenceSegment(rect, i) {
+    const posts = this.props.pastureFence;
+    const a = posts?.[i], b = posts?.[i + 1];
+    if (!a || !b) { rect.x = rect.y = rect.w = rect.h = 0; return rect; }
+    const [box] = perimeterFenceSegmentRects([a, b], PASTURE_FENCE_BAND);
+    if (box) Object.assign(rect, box);
+    return rect;
+  }
+
+  // Same "rebuild on count change, else refit in place" logic as `refitHouseFence`.
+  refitPastureFence() {
+    const posts = this.props.pastureFence;
+    if (!this.obstacles || !posts) return;
+    const existing = this.obstacles.filter((o) => o.ownGroup === posts);
+    const wantCount = Math.max(0, posts.length - 1);
+    if (existing.length !== wantCount) {
+      for (let i = this.obstacles.length - 1; i >= 0; i--) {
+        if (this.obstacles[i].ownGroup === posts) this.obstacles.splice(i, 1);
+      }
+      this.obstacles.push(...this._buildPastureFenceSegmentRects());
+      return;
+    }
+    for (const o of existing) o.refit?.();
+  }
+
   buildObstacles() {
     // Collision footprint for a centred prop (origin 0.5,0.5) from its live
     // position — so a movable prop's collision follows it instead of being pinned
@@ -604,18 +658,18 @@ export const WithWorld = (Base) => class extends Base {
       ...(this.birdEcosystemObstacles || []), ...this._petBowlObstacles(), // #202 fix; see worldObjects.js
     ];
 
-    // ── Solid pasture fence ── (perimeter walls with a single gap at the gate)
-    // The gate opening spans x ≈ [GATE_GAP_X0, GATE_GAP_X1] at the top edge.
+    // ── Solid pasture fence ── (#376: one tight rect per post-to-post span of
+    // the live joint polyline, instead of 4 rects fixed to the original
+    // rectangle — see `_pastureFenceObstacles` above. `this.fenceObstacles` is
+    // kept as the same PUBLIC name/shape other code may already expect (a
+    // flat array of `isFence: true` rects), it's just derived now instead of
+    // hand-typed. The gate opening is still just "wherever the two gate-linked
+    // joints currently are" — no separate gate-gap rect needed, since the open
+    // polyline doesn't have a segment spanning the gap in the first place.
     const PB = PASTURE_BOUNDS;
-    const topY = PB.minY - 8, botY = PB.maxY + 8, lX = PB.minX - 8, rX = PB.maxX + 8;
-    const T = 20; // wall thickness
-    this.fenceObstacles = [
-      { x: PB.minX, y: topY - T / 2, w: GATE_GAP_X0 - PB.minX, h: T, isFence: true }, // top-left of gate
-      { x: GATE_GAP_X1, y: topY - T / 2, w: PB.maxX - GATE_GAP_X1, h: T, isFence: true }, // top-right of gate
-      { x: PB.minX, y: botY - T / 2, w: PB.maxX - PB.minX, h: T, isFence: true },     // bottom
-      { x: lX - T / 2, y: topY, w: T, h: botY - topY, isFence: true },                // left
-      { x: rX - T / 2, y: topY, w: T, h: botY - topY, isFence: true },                // right
-    ];
+    const topY = PB.minY - 8;
+    const T = 20; // wall thickness — matches PASTURE_FENCE_BAND, kept local for the gate rect below
+    this.fenceObstacles = this._pastureFenceObstacles();
     for (const f of this.fenceObstacles) this.obstacles.push(f);
 
     // Gate obstacle — fills the fence gap; matches the fence's own vertical band
