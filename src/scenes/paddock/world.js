@@ -403,9 +403,16 @@ export const WithWorld = (Base) => class extends Base {
   _buildHouseFenceRails(start, end) {
     this._houseFenceRailGfx?.destroy();
     const g = this.add.graphics().setDepth((start.y + end.y) / 2);
+    // Post sprites are drawn with origin (0, 0.5) — start.x/end.x are each
+    // post's LEFT edge, not its visual center. That's invisible on a mostly-
+    // horizontal run (a few px of x-offset is lost along a long line), but on
+    // a north/south run the rails end up hugging one side of the post column
+    // instead of passing through its center (2026-07-27 playtest). Shift both
+    // ends by half the cropped post width so the rails attach at post center.
+    const cx = (FENCE_POST_CROP_W * S) / 2;
     const drawRail = (offset, color) => {
       g.lineStyle(FENCE_RAIL_THICKNESS, color, 1);
-      g.lineBetween(start.x, start.y + offset, end.x, end.y + offset);
+      g.lineBetween(start.x + cx, start.y + offset, end.x + cx, end.y + offset);
     };
     drawRail(FENCE_RAIL_TOP_OFFSET, FENCE_RAIL_TOP_COLOR);
     drawRail(FENCE_RAIL_BOTTOM_OFFSET, FENCE_RAIL_BOTTOM_COLOR);
