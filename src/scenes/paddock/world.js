@@ -5,6 +5,11 @@ import Phaser from 'phaser';
 import { WORLD_W, WORLD_H, PASTURE_BOUNDS, GATE_GAP_X0, GATE_GAP_X1, S } from './constants.js';
 import { SPECIES } from '../../data/species/index.js';
 import { bakeStaticGraphics } from './bakeGraphics.js';
+import { houseFenceRect } from './houseFence.js';
+
+// Collision band thickness for the house fence line (#344) — the solid slice of the
+// 48px-tall rail sprite, matching the height the old hardcoded rect used.
+const HOUSE_FENCE_BAND = 40;
 
 export const WithWorld = (Base) => class extends Base {
   // ─── World ───────────────────────────────────────────────────────────────
@@ -292,6 +297,34 @@ export const WithWorld = (Base) => class extends Base {
 
   // ─── Obstacles & collision ───────────────────────────────────────────────
 
+  // Collision for the house fence line (#344). This used to be a literal
+  // `{ x: 300, y: 300, w: 576, h: 40 }` typed to match the posts' ORIGINAL spot, so
+  // once the run was dragged elsewhere (#330/#337, baked in by #343) you still bumped
+  // into an invisible fence back at the old position. It's now a bounding band over
+  // `this.props.houseFence`'s live post coordinates, so it lands wherever the posts do.
+  //
+  // Unlike every other rect, this one belongs to SIX prop records rather than one, so
+  // the #330 `own:` delta-shift can't describe it (dragging a single post changes the
+  // band's width, not just its position). It carries `ownGroup` + `refit()` instead —
+  // the drag tool calls refit() whenever any member of the group moves.
+  // `isFence` (#317) marks it tie-able, same as before.
+  _houseFenceObstacles() {
+    if (!this.props.houseFence?.length) return [];
+    const rect = { x: 0, y: 0, w: 0, h: 0, isFence: true, ownGroup: this.props.houseFence };
+    rect.refit = () => this._fitHouseFenceRect(rect);
+    rect.refit();
+    return [rect];
+  }
+
+  // Fit `rect` to the current post positions. The 'fence' texture is 48×24 at S
+  // (→ 96×48 on screen); HOUSE_FENCE_BAND is the solid slice of that height the old
+  // hardcoded rect used. Maths in houseFence.js so it's testable without Phaser.
+  _fitHouseFenceRect(rect) {
+    const box = houseFenceRect(this.props.houseFence, 48 * S, HOUSE_FENCE_BAND);
+    if (box) Object.assign(rect, box);
+    return rect;
+  }
+
   buildObstacles() {
     // Collision footprint for a centred prop (origin 0.5,0.5) from its live
     // position — so a movable prop's collision follows it instead of being pinned
@@ -324,8 +357,8 @@ export const WithWorld = (Base) => class extends Base {
       // when repositioned (#110/#106/#330). The rect is what stops a horse walking
       // THROUGH the trough to a spot on the far side (see data/trough.js).
       ...centredBox(this.props.trough, 44, 176, { isTrough: true, own: this.props.trough }),
-      // Fence line (6 segments at y=320, origin 0,0.5; 96×48 each → x=300..876). isFence (#317): any rail is tie-able.
-      { x: 300, y: 300, w: 576, h: 40, isFence: true },
+      // House fence line — derived from the LIVE post records (#344), never hardcoded.
+      ...this._houseFenceObstacles(),
       // Spinning wheel (#233) — solid ~52×20 footprint at swx,swy.
       ...(this.props.spinningWheel ? [{ x: this.props.spinningWheel.x - 26, y: this.props.spinningWheel.y - 20, w: 52, h: 20, own: this.props.spinningWheel }] : []),
       // Kitchen counter (#40) — solid ~56×16 counter-top footprint at S=2.

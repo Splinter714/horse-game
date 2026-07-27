@@ -307,6 +307,12 @@ export const WithDevDrag = (Base) => class extends Base {
   // — the interactable reach/tap zones — already reads `this.props.<name>.x/y` fresh
   // on every call (interactables.js descriptors are closures over `this`, not over
   // coordinates), so it tracks a drag on its own with nothing to sync here.
+  //
+  // One rect spans a GROUP of props rather than a single one: the house fence line
+  // (#344), whose band is derived from all six fence-post records. A delta can't
+  // describe that — dragging one post out of the run changes the band's SIZE — so
+  // such a rect carries `ownGroup` (the array of records) plus `refit()`, and gets
+  // re-derived from the group's live positions instead of translated.
   _devDragShiftObstacles(e, dx, dy) {
     if (!dx && !dy) return;
     const owners = new Set([e.obj, ...e.also]);
@@ -316,7 +322,14 @@ export const WithDevDrag = (Base) => class extends Base {
     const lists = [this.obstacles ?? [], this.gateObstacle ? [this.gateObstacle] : []];
     for (const list of lists) {
       for (const o of list) {
-        if (done.has(o) || !o.own || !owners.has(o.own)) continue;
+        if (done.has(o)) continue;
+        if (o.ownGroup) {
+          if (!o.ownGroup.some((p) => owners.has(p))) continue;
+          done.add(o);
+          o.refit?.();
+          continue;
+        }
+        if (!o.own || !owners.has(o.own)) continue;
         done.add(o);
         o.x += dx; o.y += dy;
       }
