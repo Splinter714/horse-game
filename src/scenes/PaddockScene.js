@@ -281,6 +281,7 @@ export default class PaddockScene extends PaddockBase {
     this.separateHorses();
     this.depthSort();
     this.updateBarnCutaway(delta); // fade the barn façade when the player steps inside (#35)
+    this.updateBarnBackWall(delta); // light see-through if the player is behind the back wall (#362)
     this.updateWildlife();
     this.tickRegrowth();      // regrow shorn fleece once its timer completes (#233)
     this.updateDevOverlay(); // #329 dev overlay — no-op unless toggled on

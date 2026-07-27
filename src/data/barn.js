@@ -48,6 +48,55 @@ export const WALL_X0 = 8, WALL_X1 = BARN_W - 8;
 export const WALL_Y0 = 58, WALL_Y1 = BARN_H - 2;
 export const DOOR_X0 = 130, DOOR_X1 = 210;
 
+// ── Back wall + roof cap + middle roof connector (#362) ──────────────────────
+// barnFront alone used to be the ONLY roof over the whole footprint (its texture
+// spans the full BARN_H, with the roof triangle covering the north portion) — fine
+// while opaque, but once it fades for the interior cutaway the WHOLE thing thins
+// out, including the part that should read as "the barn is still a covered
+// building" from outside. Three new geometry constants, shared by the art
+// (worldArt.js draws `barnBack`/`barnRoofMid`) and the scene mixin (barn.js
+// positions + depths them):
+//
+// `barnBack` is anchored at the barn's own back (north) wall line (WALL_Y0), same
+// x/scale/origin convention as barnFront, and is ALWAYS opaque — it's the solid
+// backdrop the interior never had. Its own local "base" is the bottom of its
+// (same-sized) canvas, so its wall/roof band is BACK_WALL_H + BACK_ROOF_H design
+// units tall, capped there rather than spanning the whole BARN_H.
+export const BACK_WALL_H = 60;
+export const BACK_ROOF_H = 50;
+
+// barnFront's own eave line (design-space y, in ITS canvas — where its roof ends
+// and its wall band begins). Kept here too (worldArt.js's barnFront still owns the
+// literal art) so barn.js can compute where barnRoofMid needs to meet it without
+// duplicating the magic number. NOT a re-tune — same value (130) as before #362.
+export const FRONT_EAVE = 130;
+
+// `barnRoofMid` is a plain continuous roof plane bridging the depth between
+// barnBack's own eave and barnFront's eave, so the silhouette reads as one
+// continuous covered building front-to-back from outside. It fades in lockstep
+// with barnFront (same trigger/alpha) — unlike barnBack, which never fades.
+export const ROOF_MID_H = 90;
+
+// ── Generic back-wall see-through (#362) ─────────────────────────────────────
+// A building's back wall is normally fully opaque so the interior can't be seen
+// from outside — but if the player walks around BEHIND it (further north than its
+// own footprint), it should get a light transparency instead of fully hiding them.
+// Kept pure and reusable by ANY walled building (not barn-specific): `wall` is
+// just `{ x0, x1, y }` — the wall's world-x span and the world-y line of its south
+// (interior-facing) face. Mirrors the isInsideBarn() pattern above.
+export function isBehindWall(wall, px, py) {
+  if (!wall) return false;
+  return px >= wall.x0 && px <= wall.x1 && py < wall.y;
+}
+
+// Target alpha for a wall sprite given whether the player is behind it — a much
+// lighter dip than the interior cutaway's fade (target 0.12), since this is just
+// "let the player stay visible", not "reveal what's inside".
+export const WALL_SEE_THROUGH_ALPHA = 0.55;
+export function wallTargetAlpha(isBehind) {
+  return isBehind ? WALL_SEE_THROUGH_ALPHA : 1;
+}
+
 const STORAGE_KEY = 'horse-game-barn-v1';
 
 // Which stall (index) a horse is currently assigned to, or null if unstalled.

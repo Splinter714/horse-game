@@ -18,6 +18,7 @@ import {
   NUM_STALLS, loadBarnState, saveBarnState, assignStall, nextStallOccupant, stallOfHorse, isInsideBarn,
   BARN_W as BARN_DW, BARN_H as BARN_DH, STALL_SIGN_Y, STALL_STAND_Y, stallCenterX,
   TACK_X, TACK_Y, WALL_X0, WALL_X1, WALL_Y0, WALL_Y1, DOOR_X0, DOOR_X1,
+  BACK_WALL_H, FRONT_EAVE, isBehindWall, wallTargetAlpha,
 } from '../../data/barn.js';
 import { SADDLE_TYPES } from '../../data/items.js';
 // How fast the façade fades in/out for the cutaway (alpha per ms).
@@ -46,6 +47,27 @@ export const WithBarn = (Base) => class extends Base {
     // edge like a tall prop). This is the sprite the cutaway fades.
     this.barnFront = this.add.image(ax, ay, 'barnFront').setScale(S).setDepth(ay).setOrigin(0.5, 1);
     this.barnFrontAlpha = 1;
+
+    // Back wall + roof (#362) — always-opaque backdrop for the north side, anchored
+    // at the barn's own back (north) wall line rather than the front doorway, so it
+    // depth-sorts as a north object per the same "depth = own base world-y"
+    // convention front/creatures use: anyone standing south of this line (nearly
+    // everyone in/around the barn) has a bigger y/depth and draws in front of it.
+    const backY = dy(WALL_Y0);
+    this.barnBack = this.add.image(ax, backY, 'barnBack').setScale(S).setDepth(backY).setOrigin(0.5, 1);
+    this.barnBackAlpha = 1; // the light see-through dip for #362's behind-the-wall mechanic (not the cutaway fade)
+
+    // Middle roof connector (#362) — a plain roof plane bridging the depth between
+    // barnBack's own eave and barnFront's eave, so the silhouette reads as one
+    // continuous covered building front-to-back from outside. Stretched vertically
+    // (setDisplaySize, not just S) to exactly bridge that gap regardless of the two
+    // footprints' exact proportions, rather than hardcoding a height that could
+    // drift out of sync. Fades in lockstep with barnFront (updateBarnCutaway).
+    const frontEaveY = ay - (BARN_DH - FRONT_EAVE) * S;
+    const backEaveY = backY - BACK_WALL_H * S;
+    this.barnRoofMid = this.add.image(ax, frontEaveY, 'barnRoofMid')
+      .setDisplaySize(BARN_DW * S, Math.max(4, frontEaveY - backEaveY))
+      .setDepth(frontEaveY).setOrigin(0.5, 1);
 
     // Interior walkable rect (inside the walls, clear of the back stalls). Used to
     // detect "player is inside" for the cutaway, to seat stalled horses, and (since
@@ -130,6 +152,10 @@ export const WithBarn = (Base) => class extends Base {
   // doorway walking in), back in when they leave. Runs every frame from update().
   // The trigger bounds are re-derived from the façade sprite's LIVE position so a
   // moved barn (dev drag tool) doesn't leave the cutaway triggering at the old spot.
+  //
+  // barnRoofMid fades in LOCKSTEP with barnFront (#362, same trigger/alpha every
+  // frame) — it's the connecting roof piece between the front and the ALWAYS-opaque
+  // back wall (barnBack, which this does NOT touch — see updateBarnBackWall below).
   updateBarnCutaway(delta) {
     if (!this.barnFront) return;
     const p = this.player?.sprite;
@@ -141,6 +167,44 @@ export const WithBarn = (Base) => class extends Base {
     if (this.barnFrontAlpha < target) this.barnFrontAlpha = Math.min(target, this.barnFrontAlpha + step);
     else if (this.barnFrontAlpha > target) this.barnFrontAlpha = Math.max(target, this.barnFrontAlpha - step);
     this.barnFront.setAlpha(this.barnFrontAlpha);
+    this.barnRoofMid?.setAlpha(this.barnFrontAlpha);
+  }
+
+  // ─── Generic back-wall see-through (#362) ───────────────────────────────────
+  // A back wall is normally fully opaque (unlike the front, it never does the
+  // interior cutaway) — but if the player walks around BEHIND it (north of its
+  // own face), it gets a light, non-fading-to-nothing transparency instead of
+  // fully hiding them, same spirit as _barnLiveRects()/isInsideBarn() but for a
+  // different question ("is the player on the far side of THIS wall").
+  //
+  // Deliberately parameterized by wall sprite + footprint (not hardcoded to
+  // `this.barnBack`) so a future second walled building can opt into the same
+  // mechanic by calling this with its own back-wall sprite/rect instead of a
+  // barn-only one-off. `wall` is `{ x0, x1, y }` in LIVE world coordinates (see
+  // isBehindWall in data/barn.js). `alphaKey` names the scene field that tracks
+  // this sprite's current fade state (so multiple walls can each keep their own).
+  updateWallSeeThrough(sprite, wall, alphaKey, delta) {
+    if (!sprite || !wall) return;
+    const p = this.player?.sprite;
+    const behind = p ? isBehindWall(wall, p.x, p.y) : false;
+    const target = wallTargetAlpha(behind);
+    const step = CUTAWAY_FADE * delta;
+    let a = this[alphaKey] ?? 1;
+    if (a < target) a = Math.min(target, a + step);
+    else if (a > target) a = Math.max(target, a - step);
+    this[alphaKey] = a;
+    sprite.setAlpha(a);
+  }
+
+  // Barn-specific wiring for the generic mechanic above: the back wall's own
+  // face is the barn's back (north) wall line, re-derived from its LIVE position
+  // the same way _barnLiveRects() re-derives the interior/doorway (#330 drag-tool
+  // safe).
+  updateBarnBackWall(delta) {
+    if (!this.barnBack) return;
+    const r = this._barnLiveRects().rect;
+    const wall = { x0: r.x0, x1: r.x1, y: this.barnBack.y };
+    this.updateWallSeeThrough(this.barnBack, wall, 'barnBackAlpha', delta);
   }
 
   // ─── Indoors check (#350) ───────────────────────────────────────────────────

@@ -15,7 +15,8 @@ import { TROUGH_CAP } from '../scenes/paddock/constants.js';
 // spots (#349).
 import {
   BARN_W, BARN_H, NUM_STALLS, STALL_X0, STALL_STEP, STALL_TOP, STALL_SIGN_Y,
-  STALL_HAY_Y, stallCenterX, DOOR_X0, DOOR_X1,
+  STALL_HAY_Y, stallCenterX, DOOR_X0, DOOR_X1, BACK_WALL_H, BACK_ROOF_H, ROOF_MID_H,
+  FRONT_EAVE,
 } from '../data/barn.js';
 
 // Water-trough texture size (#336). Rotated 90° from the original 100×26 so the
@@ -356,7 +357,7 @@ export function buildWorldTextures(scene) {
     // read as a boxy wall with a token roof cap instead of a barn's gambrel silhouette.
     // Lowering it deepens the roof (the part that actually reads as "barn") and
     // shrinks the wall to a normal door-height band.
-    const EAVE = 130;
+    const EAVE = FRONT_EAVE;
     g.layer('silhouette');
     // Opaque base covering exactly the interior texture's extent, so no sliver of
     // floor/back wall can peek out past the roof's slanted corners. Everything below
@@ -409,6 +410,64 @@ export function buildWorldTextures(scene) {
       g.fillStyle(0xf0d890, 1); g.fillRect(wx, EAVE + 14, 18, 18);
       g.fillStyle(0x7a2a1c, 1); g.fillRect(wx + 8, EAVE + 14, 2, 18); g.fillRect(wx, EAVE + 22, 18, 2);
     }
+  });
+
+  // BACK WALL + ROOF (#362) — a NEW always-opaque backdrop for the barn's north
+  // side. Mirrors barnFront's gambrel/eave style (same BARN_W×BARN_H canvas, same
+  // colour language) but has no doorway — animals don't enter from the back — and
+  // its content is capped near the BOTTOM of the canvas (BACK_ROOF_H + BACK_WALL_H
+  // tall), not spread across the whole BARN_H the way barnFront's is. The scene
+  // mixin (scenes/paddock/barn.js) anchors this sprite at the barn's own back
+  // (north) wall line (data/barn.js WALL_Y0), origin (0.5,1) — same convention as
+  // barnFront/barnInterior — so this canvas-bottom band lands right at that wall
+  // line and its roof rises a modest amount further north as overhang.
+  //
+  // This is the ONLY thing that keeps the barn's north side reading as a covered
+  // building once barnFront fades out for the interior cutaway (#35) — it must
+  // independently satisfy the same "opaque wall-to-base, no gap" invariant as
+  // barnFront, just over its own (shorter) footprint instead of the whole BARN_H.
+  gen(scene, 'barnBack', BARN_W, BARN_H, (g) => {
+    const MID = BARN_W / 2;
+    const BASE = BARN_H;                    // canvas bottom = the anchor (back wall line)
+    const EAVE = BASE - BACK_WALL_H;        // where the roof ends and the wall begins
+    const PEAK = EAVE - BACK_ROOF_H;        // roof peak row
+    g.layer('silhouette');
+    // Opaque base covering the whole band, so no sliver of interior/grass can peek
+    // out past the roof's slanted corners (mirrors barnFront's silhouette layer).
+    g.fillStyle(0x7a2a1c, 1); g.fillRect(8, EAVE, BARN_W - 16, BASE - EAVE);
+    g.layer('roof');
+    g.fillStyle(0x7a2a1c, 1); g.fillTriangle(4, EAVE, MID, PEAK, BARN_W - 4, EAVE);
+    g.fillStyle(0x9a3826, 1);
+    g.fillPoints([{ x: 8, y: EAVE }, { x: 60, y: PEAK + 22 }, { x: BARN_W - 60, y: PEAK + 22 }, { x: BARN_W - 8, y: EAVE }]);
+    g.fillStyle(0xb6432e, 1);
+    g.fillPoints([{ x: 60, y: PEAK + 22 }, { x: MID, y: PEAK }, { x: BARN_W - 60, y: PEAK + 22 }]);
+    g.fillStyle(0x6a2418, 1); g.fillRect(8, EAVE - 2, BARN_W - 16, 3); // eave shadow strip
+    g.layer('wall');
+    g.fillStyle(0xb6432e, 1); g.fillRect(8, EAVE, BARN_W - 16, BASE - EAVE);
+    g.fillStyle(0xa03826, 1);
+    for (let y = EAVE + 10; y < BASE - 4; y += 10) g.fillRect(12, y, BARN_W - 24, 1); // board seams
+    g.fillStyle(0x7a2a1c, 1);                                                       // corner posts
+    g.fillRect(8, EAVE, 4, BASE - EAVE); g.fillRect(BARN_W - 12, EAVE, 4, BASE - EAVE);
+    g.layer('window');
+    for (const wx of [50, BARN_W - 68]) {
+      g.fillStyle(0xf0d890, 1); g.fillRect(wx, EAVE + 6, 16, 14);
+      g.fillStyle(0x7a2a1c, 1); g.fillRect(wx + 7, EAVE + 6, 2, 14); g.fillRect(wx, EAVE + 12, 16, 2);
+    }
+  });
+
+  // MIDDLE ROOF CONNECTOR (#362) — a plain roof plane bridging the depth between
+  // barnBack's own eave and barnFront's eave, so the barn silhouette reads as one
+  // continuous covered building front-to-back from outside, not a front gable with
+  // nothing behind it. Fades in lockstep with barnFront (see updateBarnCutaway) —
+  // unlike barnBack, which never fades. A small, plain texture (not the full
+  // BARN_W×BARN_H footprint) since it's just a connecting ridge, no walls/windows.
+  gen(scene, 'barnRoofMid', BARN_W, ROOF_MID_H, (g) => {
+    g.layer('roof');
+    g.fillStyle(0x9a3826, 1); g.fillRect(4, 0, BARN_W - 8, ROOF_MID_H);
+    g.fillStyle(0xb6432e, 1); g.fillRect(4, 0, BARN_W - 8, 6);           // ridge highlight
+    g.fillStyle(0x7a2a1c, 1);
+    for (let y = 14; y < ROOF_MID_H; y += 16) g.fillRect(4, y, BARN_W - 8, 2); // shingle courses
+    g.fillStyle(0x6a2418, 1); g.fillRect(4, ROOF_MID_H - 3, BARN_W - 8, 3);   // south edge shadow
   });
 
   // --- fence segment (tileable horizontally, 48 wide) ---
