@@ -52,4 +52,9 @@ describe('pig chooseBehavior — wallow', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.01);
     expect(chooseBehavior('pig', { ...BASE, hunger: 40, nearestHayDist: 200 })).toBe('seekFood');
   });
+
+  it('would otherwise wallow, but indoors → does not (no mud on the barn floor, #350)', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.01);
+    expect(chooseBehavior('pig', { ...BASE, indoors: true })).toBe(null);
+  });
 });

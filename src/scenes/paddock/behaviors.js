@@ -33,6 +33,14 @@ export const WithBehaviors = (Base) => class extends Base {
       : species === 'bunny' ? this._bunnyContext(agent)
       : species === 'duck' ? this._duckContext(agent)
       : this._horseContext(agent);
+    // Generic indoors-aware flag (#350): true when the agent is currently standing
+    // inside a building (the barn today; isAgentIndoors — barn.js — generalizes to
+    // a second building later). Computed once here, in the shared dispatch path, so
+    // every species' ctx shape gets it uniformly rather than each context builder
+    // duplicating the check. Outdoor-only ambient behaviors (graze/wallow/seekBuddy)
+    // read ctx.indoors to decline while sheltering; seekShelter itself is unaffected
+    // — it's the behavior that puts the animal indoors in the first place.
+    ctx.indoors = this.isAgentIndoors ? this.isAgentIndoors(agent) : false;
     const spec = getSpecies(species);
     const registry = BEHAVIORS[species] ?? {};
     for (const id of spec.behaviors ?? []) {

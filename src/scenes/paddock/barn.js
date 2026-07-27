@@ -115,6 +115,20 @@ export const WithBarn = (Base) => class extends Base {
   }
 
   // ─── Cutaway ───────────────────────────────────────────────────────────────
+  // Re-derive the barn's LIVE interior/doorway rects from the façade sprite's
+  // current position vs. its baked anchor, so a dev-drag-tool (#330) move of the
+  // barn is reflected everywhere that needs to know "is X inside the barn" —
+  // the cutaway fade (updateBarnCutaway) and the generic indoors check
+  // (isAgentIndoors, #350) both call this instead of duplicating the offset math.
+  _barnLiveRects() {
+    const ox = this.barnFront.x - (this.barnAnchor?.x ?? this.barnFront.x);
+    const oy = this.barnFront.y - (this.barnAnchor?.y ?? this.barnFront.y);
+    const r = this.barnInterior, d = this.barnDoorway;
+    const rect = (ox || oy) ? { x0: r.x0 + ox, x1: r.x1 + ox, y0: r.y0 + oy, y1: r.y1 + oy } : r;
+    const door = ox ? { x0: d.x0 + ox, x1: d.x1 + ox } : d;
+    return { rect, door };
+  }
+
   // Fade the front façade out when the player is actually INSIDE the barn (or in its
   // doorway walking in), back in when they leave. Runs every frame from update().
   // The trigger bounds are re-derived from the façade sprite's LIVE position so a
@@ -123,17 +137,29 @@ export const WithBarn = (Base) => class extends Base {
     if (!this.barnFront) return;
     const p = this.player?.sprite;
     if (!p) return;
-    const ox = this.barnFront.x - (this.barnAnchor?.x ?? this.barnFront.x);
-    const oy = this.barnFront.y - (this.barnAnchor?.y ?? this.barnFront.y);
-    const r = this.barnInterior, d = this.barnDoorway;
-    const rect = (ox || oy) ? { x0: r.x0 + ox, x1: r.x1 + ox, y0: r.y0 + oy, y1: r.y1 + oy } : r;
-    const door = ox ? { x0: d.x0 + ox, x1: d.x1 + ox } : d;
+    const { rect, door } = this._barnLiveRects();
     const inside = isInsideBarn(rect, door, p.x, p.y);
     const target = inside ? 0.12 : 1; // keep a faint ghost so the barn's outline stays readable
     const step = CUTAWAY_FADE * delta;
     if (this.barnFrontAlpha < target) this.barnFrontAlpha = Math.min(target, this.barnFrontAlpha + step);
     else if (this.barnFrontAlpha > target) this.barnFrontAlpha = Math.max(target, this.barnFrontAlpha - step);
     this.barnFront.setAlpha(this.barnFrontAlpha);
+  }
+
+  // ─── Indoors check (#350) ───────────────────────────────────────────────────
+  // Generic "is this animal currently indoors" check, so outdoor-only AMBIENT
+  // behaviors (graze, wallow, herd-clustering — anything with no location sense
+  // of its own, assuming "the ground under me is grass/mud") can decline to fire
+  // while an animal is sheltering inside a building. Named generically (not
+  // isAgentInBarn) because the barn is the only building today, but this is meant
+  // to generalize to a second building later by extending this one check rather
+  // than hand-patching each ambient behavior.
+  isAgentIndoors(agent) {
+    if (!this.barnInterior) return false;
+    const p = agent?.sprite;
+    if (!p) return false;
+    const { rect, door } = this._barnLiveRects();
+    return isInsideBarn(rect, door, p.x, p.y);
   }
 
   // ─── Stall assignment ────────────────────────────────────────────────────────

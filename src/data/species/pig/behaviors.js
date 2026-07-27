@@ -15,6 +15,7 @@
 export const wallow = {
   id: 'wallow',
   test: (ctx) =>
+    !ctx.indoors && // no mud on the barn floor (#350) — indoors-aware, see ctx.indoors
     !ctx.isNight &&
     (ctx.lastWallow == null || ctx.now - ctx.lastWallow > ctx.wallowCooldown) &&
     Math.random() < ctx.wallowChance,
