@@ -69,9 +69,30 @@ export const WithWorld = (Base) => class extends Base {
     const g = this.add.graphics().setDepth(-95);
     const routes = Object.values(this._pathRoutes);
     const subdivided = routes.map((wp) => {
+      // Chaikin-style corner-cutting (#378): soften each INTERIOR waypoint's
+      // hard kink by replacing it with two points pulled a small percentage
+      // toward its neighbors, before the straight-segment stamping below runs.
+      // This is a local copy used only for this bake — it never touches `wp`
+      // itself, so the real corner points `_pathRoutes` holds (and that
+      // splineDrag.js drags/inserts against) are untouched. Endpoints are
+      // left alone so route junctions/entrances still land exactly on the
+      // declared coordinates.
+      const smoothed = wp.length <= 2 ? wp : [
+        wp[0],
+        ...wp.slice(1, -1).flatMap(([x, y], idx) => {
+          const [px, py] = wp[idx];       // previous point (idx is i-1 in original array)
+          const [nx, ny] = wp[idx + 2];   // next point
+          const pull = 0.18;
+          return [
+            [x + (px - x) * pull, y + (py - y) * pull],
+            [x + (nx - x) * pull, y + (ny - y) * pull],
+          ];
+        }),
+        wp[wp.length - 1],
+      ];
       const pts = [];
-      for (let i = 0; i < wp.length - 1; i++) {
-        const [x0, y0] = wp[i], [x1, y1] = wp[i + 1];
+      for (let i = 0; i < smoothed.length - 1; i++) {
+        const [x0, y0] = smoothed[i], [x1, y1] = smoothed[i + 1];
         const dist = Math.hypot(x1 - x0, y1 - y0);
         const steps = Math.max(1, Math.ceil(dist / 30));
         for (let s = 0; s < steps; s++) {
@@ -80,7 +101,7 @@ export const WithWorld = (Base) => class extends Base {
           pts.push([x0 + (x1 - x0) * t, y0 + (y1 - y0) * t + wobble]);
         }
       }
-      pts.push(wp[wp.length - 1]);
+      pts.push(smoothed[smoothed.length - 1]);
       return pts;
     });
     const stamp = (radius, color, alpha) => {
