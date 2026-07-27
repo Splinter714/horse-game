@@ -35,7 +35,7 @@ export const WithBarn = (Base) => class extends Base {
 
     // Interior floor drawn under animals/player. Depth just above the ground path
     // layers (-95..-99) but below any creature (creatures use depth = y ≈ 500+).
-    this.add.image(ax, ay, 'barnInterior').setScale(S).setDepth(-40).setOrigin(0.5, 1);
+    this.barnInteriorSprite = this.add.image(ax, ay, 'barnInterior').setScale(S).setDepth(-40).setOrigin(0.5, 1);
     // Front façade overlay drawn OVER occupants (high depth, anchored to its south
     // edge like a tall prop). This is the sprite the cutaway fades.
     this.barnFront = this.add.image(ax, ay, 'barnFront').setScale(S).setDepth(ay).setOrigin(0.5, 1);
@@ -79,8 +79,15 @@ export const WithBarn = (Base) => class extends Base {
     this.barnState = loadBarnState();
 
     // props.barn — kept for the barn/house split guard + any consumers. Anchor point
-    // is the doorway; `interior` gives the walkable rect.
-    this.props.barn = { x: ax, y: ay, interior: this.barnInterior, stalls: this.barnStalls };
+    // is the doorway; `interior` gives the walkable rect. `sprite`/`floor` are the
+    // façade + interior-floor images, kept here (not just on scene fields) so the
+    // dev drag tool (#330) can move the whole visible barn, not just this record's
+    // numbers — stalls/interior rect/collision walls stay where the source put
+    // them, same known limitation as every other dragged object's collision.
+    this.props.barn = {
+      x: ax, y: ay, interior: this.barnInterior, stalls: this.barnStalls,
+      sprite: this.barnFront, floor: this.barnInteriorSprite,
+    };
   }
 
   // ─── Cutaway ───────────────────────────────────────────────────────────────
