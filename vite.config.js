@@ -65,6 +65,12 @@ export default defineConfig(({ command }) => ({
         // at runtime, not fetched files. Precaching the built JS/HTML/icon shell is
         // enough for the whole game to boot and run with no connection.
         globPatterns: ['**/*.{js,css,html,png,ico,svg}'],
+        // The one big app bundle (Phaser + the whole game) crossed workbox's default
+        // 2 MiB precache ceiling in #358 — at which point the build FAILS outright and,
+        // if it didn't, the main bundle would silently drop out of the precache and the
+        // game would stop booting offline. Raised to 8 MiB so the shell keeps precaching
+        // as the game grows; it's a local install-size limit, not a download budget.
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
       },
     }),
   ],

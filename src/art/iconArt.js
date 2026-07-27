@@ -576,7 +576,9 @@ export function buildIconTextures(scene) {
   // blades opening to the upper-right with round finger-loop handles at the lower-left,
   // pinned by a rivet at the cross. Reads as the "cut/clip" tool at hotbar size,
   // distinct from the scooper's rake head.
-  gen(scene, 'iconShears', 20, 20, (g) => {
+  // The shears themselves, shared by the empty and loaded variants below so the tool
+  // is drawn once — the load is layered on top of exactly the same pair of blades.
+  const drawShears = (g) => {
     // handles — two dark finger loops at the lower-left, drawn as filled discs with a
     // punched-out lighter center so they read as rings (fill-only, no stroke).
     g.fillStyle(0x3a4048, 1); g.fillCircle(5, 15, 3); g.fillCircle(9, 16.5, 3);
@@ -590,6 +592,30 @@ export function buildIconTextures(scene) {
     // pivot rivet where the blades cross
     g.fillStyle(0x6f7580, 1); g.fillCircle(8, 13, 1.6);
     g.fillStyle(0x9aa3b0, 1); g.fillCircle(7.5, 12.5, 0.7);
+  };
+
+  gen(scene, 'iconShears', 20, 20, drawShears);
+
+  // Loaded shears (#358) — the same tool with its carried load tucked into the open
+  // jaws, so a pair that's carrying something reads at a glance in the hotbar (not
+  // just from the small count badge). Two variants for the two things the shears can
+  // hold: a cream WOOL tuft as sheared, and a warm YARN ball once it's been spun at
+  // the wheel. Both sit between the blades, in the V above the rivet, with the tool
+  // drawn under them so the blades still read as shears.
+  gen(scene, 'iconShearsWool', 20, 20, (g) => {
+    drawShears(g);
+    g.fillStyle(0xf0ece8, 1);                       // cloud of fleece in the jaws
+    g.fillCircle(11, 8, 3.2); g.fillCircle(14, 6.5, 2.6); g.fillCircle(12.5, 10, 2.6);
+    g.fillStyle(0xfbf9f6, 1); g.fillCircle(10, 6.6, 1.2); g.fillCircle(14, 5.4, 1); // top highlights
+    g.fillStyle(0xd8d2cb, 1); g.fillCircle(12.6, 10.6, 1.1);                        // underside shade
+  });
+  gen(scene, 'iconShearsYarn', 20, 20, (g) => {
+    drawShears(g);
+    g.fillStyle(0xd88a6a, 1); g.fillCircle(12.5, 8, 4);         // wound ball
+    g.fillStyle(0xe8a888, 1);                                    // wound strands
+    g.fillRect(8.7, 7.5, 7.6, 0.9); g.fillRect(12, 4.2, 0.9, 7.6);
+    g.fillStyle(0xc06f52, 1); g.fillEllipse(12.5, 8, 8, 2);      // rounding shade
+    g.fillStyle(0xfbe2d6, 1); g.fillCircle(11, 6.2, 0.9);        // glint
   });
 
   // Empty bucket — a metal pail tilted slightly forward so you see down into it.
