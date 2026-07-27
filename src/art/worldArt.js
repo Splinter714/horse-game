@@ -16,7 +16,7 @@ import { TROUGH_CAP } from '../scenes/paddock/constants.js';
 import {
   BARN_W, BARN_H, NUM_STALLS, STALL_X0, STALL_STEP, STALL_TOP, STALL_SIGN_Y,
   STALL_HAY_Y, stallCenterX, DOOR_X0, DOOR_X1, BACK_WALL_H, BACK_ROOF_H, ROOF_MID_H,
-  FRONT_EAVE, ROOF_PEAK,
+  FRONT_EAVE,
 } from '../data/barn.js';
 
 // Water-trough texture size (#336). Rotated 90° from the original 100×26 so the
@@ -245,28 +245,13 @@ export function buildWorldTextures(scene) {
   // #349 enlarged it from 160×132 to 340×230 — at scale S=2 that's 680×460 world px,
   // a genuinely roomy walk-in barn. Dissect tags per part.
 
-  // INTERIOR — floor, back/side inner walls, the full row of stalls along the back,
-  // a proper tack room in the left bay and an aisle of hay bales/buckets filling the
-  // middle. Drawn UNDER animals/player (low depth) so anything standing inside
-  // occludes it correctly. The south edge (y≈H) is the open doorway.
+  // INTERIOR — floor, the full row of stalls along the back, and a tack room in the
+  // left bay. Drawn UNDER animals/player (low depth) so anything standing inside
+  // occludes it correctly. The south edge (y≈H) is the open doorway. (2026-07-27:
+  // removed the back-roof cap, inner back-wall band, and middle-aisle dressing —
+  // the roof-cap job is now barnBack's, and the owner wanted the floor plainer.)
   gen(scene, 'barnInterior', BARN_W, BARN_H, (g) => {
     const FX0 = 8, FX1 = BARN_W - 8, FY0 = 40, FY1 = BARN_H - 4;     // floor rect
-    g.layer('roofcap');
-    // Back roof cap + connecting eave strips (2026-07-27 owner feedback): the front
-    // façade (barnFront) only ever drew a roof over the SOUTH gable end, so the rest
-    // of the building (everything north of the back wall, y < FY0) had no roof at
-    // all — the world's grass showed through there and the barn didn't read as
-    // covered along its depth. This caps the back the same way, and shades the side
-    // edges so the roof reads as one covering spanning front-to-back, not two
-    // disconnected gables.
-    const RMID = BARN_W / 2;
-    g.fillStyle(0x7a2a1c, 1); g.fillTriangle(FX0 - 4, FY0, RMID, 6, FX1 + 4, FY0);        // underside/shadow
-    g.fillStyle(0x9a3826, 1);
-    g.fillPoints([{ x: FX0, y: FY0 }, { x: RMID - 46, y: 22 }, { x: RMID + 46, y: 22 }, { x: FX1, y: FY0 }]); // slopes
-    g.fillStyle(0xb6432e, 1);
-    g.fillPoints([{ x: RMID - 46, y: 22 }, { x: RMID, y: 6 }, { x: RMID + 46, y: 22 }]);   // cap
-    g.fillStyle(0x6a2418, 1);                                                              // eave shadow strips, connecting
-    g.fillRect(FX0 - 4, FY0 - 6, 4, 6); g.fillRect(FX1, FY0 - 6, 4, 6);
     g.layer('floor');
     g.fillStyle(0x6a5236, 1); g.fillRect(FX0, FY0, FX1 - FX0, FY1 - FY0); // packed-dirt floor
     g.fillStyle(0x5e492f, 1);                                        // plank/board seams
@@ -275,9 +260,6 @@ export function buildWorldTextures(scene) {
     for (const [sx, sy] of [[60, 160], [140, 200], [250, 150], [96, 210], [300, 190], [190, 176]]) {
       g.fillRect(sx, sy, 8, 1);
     }
-    g.layer('backwall');
-    g.fillStyle(0x8a3020, 1); g.fillRect(FX0, FY0, FX1 - FX0, 22);   // inner back wall (shaded red)
-    g.fillStyle(0x7a2a1c, 1); g.fillRect(FX0, FY0, FX1 - FX0, 3);   // wall-top shadow line
     g.layer('stalls');
     // A full row of NUM_STALLS stalls across the back: low dividers + a hay mound +
     // a nameboard each. Geometry comes from data/barn.js so the scene's stand-spots
@@ -317,23 +299,6 @@ export function buildWorldTextures(scene) {
     g.fillStyle(0x4a3018, 1); g.fillRect(42, 142, 4, 10); g.fillRect(78, 142, 4, 10); // legs
     g.fillStyle(0xf0d890, 1); g.fillRect(66, 120, 8, 8);                      // lantern glow
     g.fillStyle(0x3a2410, 1); g.fillRect(68, 116, 4, 4);                      // lantern hook
-    g.layer('aisle');
-    // Middle aisle dressing so the enlarged floor doesn't read as an empty hall:
-    // stacked hay bales down one side, water buckets and a feed barrel down the other.
-    for (const [bx, by] of [[120, 154], [120, 172], [150, 154]]) {
-      g.fillStyle(0xd8b060, 1); g.fillRect(bx, by, 26, 16);
-      g.fillStyle(0xe8c878, 1); g.fillRect(bx, by, 26, 4);
-      g.fillStyle(0xa88840, 1); g.fillRect(bx, by + 14, 26, 2);
-      g.fillStyle(0x8a6a30, 1); g.fillRect(bx + 6, by, 2, 16); g.fillRect(bx + 18, by, 2, 16);
-    }
-    for (const [wx, wy] of [[236, 160], [262, 176], [288, 158]]) {            // water buckets
-      g.fillStyle(0x8a8a94, 1); g.fillRect(wx, wy, 14, 12);
-      g.fillStyle(0x5fa6d6, 1); g.fillRect(wx + 2, wy + 2, 10, 4);
-      g.fillStyle(0x6a6a74, 1); g.fillRect(wx, wy + 10, 14, 2);
-    }
-    g.fillStyle(0x7a5a34, 1); g.fillRect(300, 186, 22, 24);                   // feed barrel
-    g.fillStyle(0x5a3f24, 1); g.fillRect(300, 192, 22, 3); g.fillRect(300, 204, 22, 3);
-    g.fillStyle(0x9a7a4c, 1); g.fillRect(300, 186, 22, 3);
   });
 
   // FRONT FAÇADE — the front wall, big doorway, gambrel roof, cupola & hayloft. This
@@ -472,68 +437,24 @@ export function buildWorldTextures(scene) {
   // BARN_W×BARN_H footprint) since it's just a connecting ridge, no walls/windows.
   gen(scene, 'barnRoofMid', BARN_W, ROOF_MID_H, (g) => {
     const MID = BARN_W / 2;
-    // Full wall width, matching barnFront's/barnBack's own eave inset exactly (their
-    // wall/roof silhouette is x=8..BARN_W-8 at the eave line).
-    const X0 = 8, X1 = BARN_W - 8;
-    // Cap/shoulder width — matches barnFront's/barnBack's own upper-cap base exactly
-    // (their `fillPoints([{x:64,y:60},{x:MID,y:6},{x:BARN_W-64,y:60}])` triangle).
+    // 2026-07-27 owner-confirmed design: constant width the whole way through — no
+    // tapering/notch at either end at all. Width matches barnFront's/barnBack's own
+    // cap base exactly (their `fillPoints([{x:64,y:60},{x:MID,y:6},{x:BARN_W-64,y:60}])`
+    // triangle), so it reads as a straight continuation of the cap rather than the
+    // full wall width. Height is whatever this texture gets stretched to at runtime
+    // (setDisplaySize, in barn.js) to fill the actual front-to-back gap — that's
+    // the "variable" part, not the width.
     const SX0 = 64, SX1 = BARN_W - 64;
-    // 2026-07-27 owner feedback: BOTH ends of the connector should align with the
-    // very top (the roof CAP) of barnFront/barnBack, not just a plain triangle from
-    // the full wall width — the bottom was flat and the top's proportions didn't
-    // match the real cap. Each end now mirrors front/back's own eave-to-peak profile
-    // (a shallower lower-slope taper from full width down to the cap's shoulder
-    // width, THEN the cap's own steeper taper to a point), scaled to fit a portion
-    // of this texture's height, with a full-width band left in the middle so the
-    // roof still reads as covering the barn's full side-wall length (an earlier
-    // pass that tapered the WHOLE height left the sides barely covered — kept that
-    // fix; this only reshapes the two end notches to match the real cap).
-    const END_H = ROOF_MID_H * 0.4;
-    // front/back's own shoulder sits at design y=60: lower-slope runs EAVE(130)->60
-    // = 70 units, cap runs 60->PEAK(6) = 54 units, out of a 124-unit total span.
-    const REAL_SPAN = FRONT_EAVE - ROOF_PEAK;
-    const LOWER_H = END_H * ((FRONT_EAVE - 60) / REAL_SPAN);
-    const CAP_H = END_H - LOWER_H;
-    const shoulderHalf = MID - SX0;
-    const wallHalf = MID - X0;
-    // kiteEdgeY(x): the y-coordinate of the top (back) notch's own outline at this
-    // x — END_H at the wall edges (the notch's wide base, matching the fillPoints
-    // vertices below), down through LOWER_H at the shoulder, down to 0 at dead
-    // centre (the peak point). (First pass had this inverted — it returned 0 at
-    // the wall edges instead of at the peak, so the SLATS below extended full
-    // height right at the edges, poking out past the actual dome the fill above
-    // draws — that mismatch, not the fill shape itself, was what read as broken.)
-    const kiteEdgeY = (x) => {
-      const d = Math.abs(x - MID);
-      if (d >= wallHalf) return END_H;
-      if (d > shoulderHalf) return LOWER_H + (END_H - LOWER_H) * (d - shoulderHalf) / (wallHalf - shoulderHalf);
-      return LOWER_H * (d / shoulderHalf);
-    };
-    const topY    = (x) => kiteEdgeY(x);                  // back-end notch's own boundary, from y=0
-    const bottomY = (x) => ROOF_MID_H - kiteEdgeY(x);     // front-end notch's own boundary, to y=ROOF_MID_H
     g.layer('roof');
-    g.fillStyle(0x9a3826, 1);
-    // Full-width middle band…
-    g.fillRect(X0, END_H, X1 - X0, ROOF_MID_H - 2 * END_H);
-    // …plus the two end notches, each built from the same lower-slope + cap points
-    // front/back's own roof uses, just mirrored top/bottom.
-    g.fillPoints([ // top (back) notch
-      { x: X0, y: END_H }, { x: SX0, y: LOWER_H }, { x: MID, y: 0 },
-      { x: SX1, y: LOWER_H }, { x: X1, y: END_H },
-    ]);
-    g.fillPoints([ // bottom (front) notch
-      { x: X0, y: ROOF_MID_H - END_H }, { x: SX0, y: ROOF_MID_H - LOWER_H }, { x: MID, y: ROOF_MID_H },
-      { x: SX1, y: ROOF_MID_H - LOWER_H }, { x: X1, y: ROOF_MID_H - END_H },
-    ]);
-    // Vertical rafter slats running the depth of the roof (front-to-back), clipped
-    // to the silhouette above, so this stretched-to-fit plane reads as following
-    // the roof's slope/ridge line instead of flat courses running across it.
+    g.fillStyle(0x9a3826, 1); g.fillRect(SX0, 0, SX1 - SX0, ROOF_MID_H);
+    // Vertical rafter slats running the depth of the roof (front-to-back), so this
+    // stretched-to-fit plane reads as following the roof's slope/ridge line instead
+    // of flat courses running across it.
     g.fillStyle(0x7a2a1c, 1);
-    for (let x = X0 + 4; x < X1; x += 18) { const ty = topY(x), by = bottomY(x); g.fillRect(x, ty, 2, by - ty); }
+    for (let x = SX0 + 4; x < SX1; x += 18) g.fillRect(x, 0, 2, ROOF_MID_H);
     g.fillStyle(0xa8462e, 1);
-    for (let x = X0 + 6; x < X1; x += 18) { const ty = topY(x), by = bottomY(x); g.fillRect(x, ty, 1, by - ty); } // slat highlight
+    for (let x = SX0 + 6; x < SX1; x += 18) g.fillRect(x, 0, 1, ROOF_MID_H); // slat highlight
     g.fillStyle(0xb6432e, 1); g.fillRect(MID - 3, 0, 6, ROOF_MID_H); // ridge cap, running the full depth
-    g.fillStyle(0x6a2418, 1); g.fillRect(X0, ROOF_MID_H - 3, X1 - X0, 3);   // south edge shadow
   });
 
   // --- fence segment (tileable horizontally, 48 wide) ---
