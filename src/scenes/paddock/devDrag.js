@@ -90,6 +90,7 @@ export const WithDevDrag = (Base) => class extends Base {
       this.input.off('pointerupoutside', this._devDragDrop, this);
     }
     this._clearHouseFencePath?.(); // #370
+    this._clearSplineDrag?.();     // #373 (paths + stream control points)
     this._dragMarks?.destroy();
     this._dragHud?.destroy();
     this._dragPanel?.destroy();
@@ -144,6 +145,11 @@ export const WithDevDrag = (Base) => class extends Base {
     // the fence run, on top of the ordinary per-post handles above. Same
     // toggle, same lifecycle; see houseFencePath.js.
     this._mountHouseFencePath?.();
+
+    // Worn-path + stream control-point editing (#373) — orange/cyan handles on
+    // every route/spline control point. Same toggle, same lifecycle; see
+    // splineDrag.js.
+    this._mountSplineDrag?.();
   }
 
   // Re-snapshot `_dragEntries` after posts are destroyed/recreated mid-drag
@@ -230,6 +236,20 @@ export const WithDevDrag = (Base) => class extends Base {
       return true;
     }
 
+    // Worn-path / stream control points (#373) — same "first refusal ahead of
+    // the generic per-post pick" priority as the fence endpoints above, so
+    // grabbing a route point always reshapes the spline rather than moving
+    // some unrelated prop that happens to sit nearby.
+    const sp = this._splineDragTap?.(w);
+    if (sp) {
+      this._splineHeld  = sp;
+      this._dragMoved   = false;
+      this._dragPressX  = w.x;
+      this._dragPressY  = w.y;
+      this._dragHud?.setText(`${sp.spline.label} — point ${sp.index + 1}/${sp.spline.points.length}, drag to reshape`);
+      return true;
+    }
+
     let best = null, bestD = PICK_R;
     for (const e of this._dragEntries) {
       const d = Math.hypot(e.obj.x - w.x, e.obj.y - w.y);
@@ -267,6 +287,16 @@ export const WithDevDrag = (Base) => class extends Base {
       this._drawDevDragMarks();
       return;
     }
+    if (this._splineHeld) {
+      if (!pointer.isDown) return;
+      const w = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      if (!this._dragMoved) {
+        if (Math.hypot(w.x - this._dragPressX, w.y - this._dragPressY) < TAP_SLOP) return;
+        this._dragMoved = true;
+      }
+      this._splineDragMove(w);
+      return;
+    }
     const e = this._dragHeld;
     if (!e || !pointer.isDown) return;
     const w = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
@@ -288,6 +318,12 @@ export const WithDevDrag = (Base) => class extends Base {
       this._dragMoved = false;
       this._devDragHud(null);
       this._drawFenceEndpoints();
+      return;
+    }
+    if (this._splineHeld) {
+      this._splineHeld = null;
+      this._dragMoved  = false;
+      this._devDragHud(null);
       return;
     }
     const e = this._dragHeld;
@@ -468,11 +504,16 @@ export const WithDevDrag = (Base) => class extends Base {
     // moved single object's {x,y} is. Included whenever the fence exists, not
     // only after an endpoint drag — the owner may just want the CURRENT config.
     const fence = this._houseFenceExport?.();
-    const out = fence ? { ...moved, houseFence: fence } : moved;
+    // Worn-path / stream control points (#373) — only the splines that were
+    // actually reshaped, keyed by id (`path:<name>` / `stream`), each an array
+    // of [x,y] pairs ready to paste over world.js's route consts / stream.js's
+    // `ctrl` array.
+    const splines = this._splineExport?.();
+    const out = { ...moved, ...(fence ? { houseFence: fence } : {}), ...(splines ? { splines } : {}) };
     const n = Object.keys(moved).length;
     const json = JSON.stringify(out, null, 2);
     // eslint-disable-next-line no-console
-    console.log('[dev-positions]', (n || fence) ? json : '(nothing moved)');
+    console.log('[dev-positions]', (n || fence || splines) ? json : '(nothing moved)');
     // Clipboard access is best-effort — it needs a secure context and a user
     // gesture, and rejects ASYNCHRONOUSLY when denied, so the promise is caught
     // too (an unhandled rejection would show up as a console error in the smoke test).
@@ -481,7 +522,7 @@ export const WithDevDrag = (Base) => class extends Base {
       const p = navigator.clipboard?.writeText(json);
       if (p) { copied = true; p.catch(() => {}); }
     } catch { /* clipboard not available — the panel and the log still have it */ }
-    if (!quiet) this._showDevDragPanel(moved, copied, undefined, fence);
+    if (!quiet) this._showDevDragPanel(moved, copied, undefined, fence, splines);
     return out;
   }
 
@@ -492,6 +533,7 @@ export const WithDevDrag = (Base) => class extends Base {
     for (const e of this._dragEntries ?? []) {
       this._devDragShiftEntry(e, e.ox - e.obj.x, e.oy - e.obj.y);
     }
+    this._resetSplines?.(); // #373 — also puts paths/stream back + re-bakes/re-derives
     this._dragHeld = null;
     this._dragMove = null;
     this._devDragHud(null);
@@ -499,7 +541,7 @@ export const WithDevDrag = (Base) => class extends Base {
     this._showDevDragPanel({}, false, 'Reset — everything back to its source position. (Selection and groups are kept.)');
   }
 
-  _showDevDragPanel(moved, copied, note, fence) {
+  _showDevDragPanel(moved, copied, note, fence, splines) {
     this._dragPanel?.destroy();
     const names = Object.keys(moved);
     const lines = names.length
@@ -519,10 +561,19 @@ export const WithDevDrag = (Base) => class extends Base {
     const fenceLines = fence
       ? [`houseFence: { start: {x:${fence.start.x}, y:${fence.start.y}}, end: {x:${fence.end.x}, y:${fence.end.y}}, count: ${fence.count} }`]
       : [];
+    // Worn-path / stream control points (#373) — one line per reshaped spline,
+    // the array ready to paste over its source (world.js's route consts /
+    // stream.js's `ctrl`).
+    const splineLines = splines
+      ? Object.entries(splines).map(([id, pts]) => `${id}: ${JSON.stringify(pts)}`)
+      : [];
 
     const o = worldUiOffset(this);
     this._dragPanel = this.add.text(BTN_X + o.x, BTN_Y + (BTN_H + 6) * 4 + 10 + o.y,
-      [...head, '', ...lines, ...(fenceLines.length ? ['', ...fenceLines] : []), ...(groups.length ? ['', ...groups] : [])].join('\n'), {
+      [...head, '', ...lines,
+       ...(fenceLines.length ? ['', ...fenceLines] : []),
+       ...(splineLines.length ? ['', ...splineLines] : []),
+       ...(groups.length ? ['', ...groups] : [])].join('\n'), {
         fontFamily: 'ui-monospace, Menlo, monospace',
         fontSize: '11px', color: '#ffffff', backgroundColor: '#0d1020f2',
         padding: { x: 8, y: 6 }, lineSpacing: 3,

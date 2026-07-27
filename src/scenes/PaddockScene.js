@@ -61,6 +61,7 @@ import { WithDevDrag } from './paddock/devDrag.js';
 import { WithDevGroups } from './paddock/devGroups.js';
 import { WithDevTooltips } from './paddock/devTooltips.js';
 import { WithHouseFencePath } from './paddock/houseFencePath.js';
+import { WithSplineDrag } from './paddock/splineDrag.js';
 import { applyDpr } from './uiUtils.js';
 
 // The concern mixins, listed outermost-first (same order the old deeply-nested
@@ -85,7 +86,7 @@ const PADDOCK_MIXINS = [
   WithPlayerBuff,
   WithEffects, WithPersistence, WithRendering, WithWorldObjects, WithCareActions,
   WithInteraction, WithInput, WithPlayerMovement, WithCoop, WithPrompts, WithInteractables, WithUseDispatch,
-  WithDevLabels, WithDevDrag, WithDevGroups, WithDevTooltips, WithHouseFencePath,
+  WithDevLabels, WithDevDrag, WithDevGroups, WithDevTooltips, WithHouseFencePath, WithSplineDrag,
 ];
 const PaddockBase = PADDOCK_MIXINS.reduceRight((Base, Mixin) => Mixin(Base), Phaser.Scene);
 

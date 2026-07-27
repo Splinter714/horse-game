@@ -201,6 +201,11 @@ export const WithHerd = (Base) => class extends Base {
   // behavior instead of stopping once a horse gets dirty.
   _maybeRoll(h) {
     if (this.isNight || h.state !== 'idle') return;
+    // No dirt to roll in on the barn floor (#350) — this is an onSettle hook, not a
+    // behavior-registry entry, so it doesn't get ctx.indoors for free; it calls the
+    // same generic isAgentIndoors() check (barn.js) directly instead of duplicating
+    // the geometry.
+    if (this.isAgentIndoors?.(h)) return;
     const horse = this.registry.get('allHorses')?.[h.key];
     if (!horse) return;
     const roll = this._movementFor(horse.species).roll ?? {};
