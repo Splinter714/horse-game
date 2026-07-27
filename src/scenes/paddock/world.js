@@ -11,7 +11,7 @@ import {
 } from './constants.js';
 import { SPECIES } from '../../data/species/index.js';
 import { bakeStaticGraphics } from './bakeGraphics.js';
-import { houseFenceSegmentRects, perimeterFenceSegmentRects } from './houseFence.js';
+import { houseFenceSegmentRect, perimeterFenceSegmentRect } from './houseFence.js';
 
 // Collision band thickness for the house fence line (#344) — the solid slice of the
 // 48px-tall rail sprite, matching the height the old hardcoded rect used.
@@ -488,9 +488,13 @@ export const WithWorld = (Base) => class extends Base {
   //
   // #372 playtest follow-up: that single box over-covered near the ends/corners of
   // a diagonal run (its corners stick out past the actual thin, angled line). This
-  // returns one tight rect per POST-TO-POST SPAN instead — a "thick line" hugging
-  // each segment rather than one box over the whole run (see houseFence.js for the
-  // full reasoning re: AABB segments vs. a true rotated rect).
+  // returns one tight rect per POST-TO-POST SPAN instead of one for the whole run.
+  //
+  // #387 follow-up: even a single ~96px span's box stuck its corners out on a
+  // diagonal. Each span's rect is now a true ORIENTED rect (OBB) — centered on
+  // the segment, sized to its length × the collision band, rotated to match its
+  // angle — instead of an axis-aligned box (see houseFence.js and `_hits()`'s
+  // comment below for the maths).
   //
   // Unlike most rects, these belong to the whole post-record array rather than one
   // prop, so the #330 `own:` delta-shift can't describe them (dragging a single
@@ -526,9 +530,8 @@ export const WithWorld = (Base) => class extends Base {
   _fitHouseFenceSegment(rect, i) {
     const posts = this.props.houseFence;
     const a = posts?.[i], b = posts?.[i + 1];
-    if (!a || !b) { rect.x = rect.y = rect.w = rect.h = 0; return rect; }
-    const [box] = houseFenceSegmentRects([a, b], HOUSE_FENCE_BAND);
-    if (box) Object.assign(rect, box);
+    if (!a || !b) { rect.x = rect.y = rect.w = rect.h = rect.angle = 0; return rect; }
+    Object.assign(rect, houseFenceSegmentRect(a, b, HOUSE_FENCE_BAND));
     return rect;
   }
 
@@ -566,10 +569,11 @@ export const WithWorld = (Base) => class extends Base {
   // per POST-TO-POST span of `this.props.pastureFence` instead of a fixed set
   // over the old 4-sided rectangle — so collision follows the live joint
   // polyline (including any bend point dragged into it) rather than a shape
-  // baked to the fence's original corners. Uses `perimeterFenceSegmentRects`
-  // (houseFence.js), not the house-fence-tuned `houseFenceSegmentRects` —
-  // pasture segments can be pure-vertical (the left/right walls), which the
-  // house-fence version can't pad correctly (see houseFence.js's comment).
+  // baked to the fence's original corners. Uses `perimeterFenceSegmentRect`
+  // (houseFence.js) — an oriented rect (#387), so unlike the old axis-aligned
+  // version it handles a pure-vertical span (the left/right perimeter walls)
+  // exactly like any other angle; kept as its own name for clarity even though
+  // it's the same maths as the house-fence version now.
   _pastureFenceObstacles() {
     return this._buildPastureFenceSegmentRects();
   }
@@ -590,9 +594,8 @@ export const WithWorld = (Base) => class extends Base {
   _fitPastureFenceSegment(rect, i) {
     const posts = this.props.pastureFence;
     const a = posts?.[i], b = posts?.[i + 1];
-    if (!a || !b) { rect.x = rect.y = rect.w = rect.h = 0; return rect; }
-    const [box] = perimeterFenceSegmentRects([a, b], PASTURE_FENCE_BAND);
-    if (box) Object.assign(rect, box);
+    if (!a || !b) { rect.x = rect.y = rect.w = rect.h = rect.angle = 0; return rect; }
+    Object.assign(rect, perimeterFenceSegmentRect(a, b, PASTURE_FENCE_BAND));
     return rect;
   }
 
@@ -718,10 +721,59 @@ export const WithWorld = (Base) => class extends Base {
     for (const o of (this.streamObstacles || [])) this.obstacles.push(o);
   }
 
-  // Point-vs-rect check with a character radius.
+  // Point-vs-rect check with a character radius. Every obstacle in the game
+  // goes through this one function.
+  //
+  // #387: fence segments now carry an optional `angle` (radians) so their
+  // collision can be a true rect ORIENTED along the rail instead of an
+  // axis-aligned box that over-covers a diagonal span. When `obs.angle` is
+  // set, `obs.x`/`obs.y` are the rect's CENTER (not a corner) and `obs.w`/
+  // `obs.h` are its full length/thickness — the standard "rotate the query
+  // point into the rect's own local frame, then do the same axis-aligned
+  // half-extent test" technique for circle-vs-OBB. Every other obstacle in
+  // the game (buildings, props, plain fence stand-ins, etc.) has no `angle`
+  // and falls through to the original corner-based AABB test unchanged.
   _hits(x, y, r, obs) {
+    // `!== undefined`, not a truthy check — a perfectly horizontal segment's
+    // angle is exactly 0, which is falsy but still means "oriented rect".
+    if (obs.angle !== undefined) {
+      const cos = Math.cos(-obs.angle), sin = Math.sin(-obs.angle);
+      const dx = x - obs.x, dy = y - obs.y;
+      const lx = dx * cos - dy * sin;
+      const ly = dx * sin + dy * cos;
+      const hw = obs.w / 2, hh = obs.h / 2;
+      return lx + r > -hw && lx - r < hw && ly + r > -hh && ly - r < hh;
+    }
     return x + r > obs.x && x - r < obs.x + obs.w &&
            y + r > obs.y && y - r < obs.y + obs.h;
+  }
+
+  // Closest point ON an obstacle rect to (px,py) — handles both a plain
+  // corner-based AABB ({x,y,w,h}, x/y = top-left, matching `_hits` above) and
+  // an oriented rect ({x,y,w,h,angle}, x/y = CENTER). Used by fence-adjacent
+  // features that need "the nearest point on THIS rail" rather than just a
+  // boolean hit test (tying a horse to a fence, the dev tooltip's nearest
+  // rail) — added alongside the #387 oriented-rect fence collision so those
+  // stay correct instead of clamping into a rect using corner-based math a
+  // centered, rotated rect doesn't have.
+  _nearestPointOnObstacleRect(px, py, o) {
+    if (o.angle === undefined) {
+      return {
+        x: Math.min(Math.max(px, o.x), o.x + o.w),
+        y: Math.min(Math.max(py, o.y), o.y + o.h),
+      };
+    }
+    const cos = Math.cos(o.angle), sin = Math.sin(o.angle);
+    const dx = px - o.x, dy = py - o.y;
+    const lx = dx * cos + dy * sin;
+    const ly = -dx * sin + dy * cos;
+    const hw = o.w / 2, hh = o.h / 2;
+    const clx = Math.min(Math.max(lx, -hw), hw);
+    const cly = Math.min(Math.max(ly, -hh), hh);
+    return {
+      x: o.x + clx * cos - cly * sin,
+      y: o.y + clx * sin + cly * cos,
+    };
   }
 
   // Species key for a creature, stripping any trailing instance number

@@ -356,8 +356,9 @@ export const WithRiding = (Base) => class extends Base {
     let best = null, bestD = Infinity;
     for (const f of this.obstacles) {
       if (!f.isFence) continue;
-      const cx = Phaser.Math.Clamp(x, f.x, f.x + f.w);
-      const cy = Phaser.Math.Clamp(y, f.y, f.y + f.h);
+      // #387: fence rects may now be oriented (angle + center x/y), so use
+      // the shared helper instead of a plain corner-based clamp.
+      const { x: cx, y: cy } = this._nearestPointOnObstacleRect(x, y, f);
       const d = Phaser.Math.Distance.Between(x, y, cx, cy);
       if (d < bestD) { bestD = d; best = { x: cx, y: cy }; }
     }
