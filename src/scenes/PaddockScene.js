@@ -239,7 +239,11 @@ export default class PaddockScene extends PaddockBase {
     const h1 = this.spawnHorse(1000, 1180, 'horse',  1500);
     const h2 = this.spawnHorse(1150, 1400, 'horse2',  800);
     const h3 = this.spawnHorse(1620, 1380, 'horse3', 2200);
-    const h4 = this.spawnHorse(1050, 1150, 'horse4', 1200);
+    // horse4 (1050,1150) was spawning directly inside the water trough's own
+    // collision box (x 1027-1071, y 1116-1292 — a separate bug from the barn one
+    // above, "Splash" stuck in place, 2026-07-27 playtest). Moved clear of both
+    // the trough and the well.
+    const h4 = this.spawnHorse(970, 1050, 'horse4', 1200);
     const h5 = this.spawnHorse(960,  1300, 'horse5', 3000);
     const h6 = this.spawnHorse(1250, 1400, 'horse6', 1800);
     const h7 = this.spawnHorse(900,  1220, 'horse7', 2600); // Ebony — Friesian
