@@ -13,6 +13,20 @@ import { dirtMultiplier } from '../../data/weather.js';
 const LAY_DOWN_DIRTY = 2;
 const OVERNIGHT_DIRTY = 10;
 
+// Species → the scene method that resolves its home-structure entry point (#363).
+// Any roster animal of one of these species goes home for the night (_animalGoHome/
+// _animalLeaveHome) instead of drifting into the generic herd huddle. Cat is handled
+// separately above (it also sometimes curls up outside instead, CHARM.CAT_CURL_CHANCE).
+// Deliberately NOT wired for fox/bunny's pre-tame wild phase — the wild fox
+// (paddock/fox.js `_wildFox`) and a not-yet-attracted bunny are never added to
+// `this.animals` in the first place, so this only ever applies to an already-tamed/
+// -attracted roster individual.
+const HOME_SPOTS = {
+  dog: '_doghouseEntry',
+  fox: '_foxDenEntry',
+  bunny: '_bunnyHutchEntry',
+};
+
 export const WithDayNight = (Base) => class extends Base {
   // ─── Day / Night ─────────────────────────────────────────────────────────
 
@@ -142,14 +156,17 @@ export const WithDayNight = (Base) => class extends Base {
   restAllAnimals() {
     // The barnyard beds down together (#187, charm.js): horses + other pasture
     // animals settle (the non-horses drift in to join the herd); the cat sometimes
-    // curls up outside instead of going into the house.
+    // curls up outside instead of going into the house; the dog/fox/bunny go home
+    // to their own structure (#363), mirroring the cat/chicken pattern.
     for (const h of this.horses) this._settleAnimalForNight(h);
     for (const a of this.animals) {
+      const species = a.model?.species;
       if (this._isFlockBird(a)) this.chickenRoost(a); // hens + roosters into the coop (#269)
       else if (a.key === 'cat') {
         if (Math.random() < CHARM.CAT_CURL_CHANCE) this.catCurlUp(a);
         else this.catGoHome(a);
       }
+      else if (HOME_SPOTS[species]) this._animalGoHome(a, this[HOME_SPOTS[species]]());
       else this._settleAnimalForNight(a);
     }
     // Send any visiting NPCs away at night
@@ -222,6 +239,8 @@ export const WithDayNight = (Base) => class extends Base {
           if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
           a.state = 'idle'; this.scheduleAnimalWander(a, Phaser.Math.Between(500, 2500));
         }
+      } else if (HOME_SPOTS[a.model?.species] && a.state === 'homing') {
+        this._animalLeaveHome(a, this[HOME_SPOTS[a.model.species]]());
       } else if (a.state === 'resting' || a.state === 'settling') {
         if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
         a.state = 'idle'; this.scheduleAnimalWander(a, Phaser.Math.Between(500, 3000));
@@ -302,20 +321,59 @@ export const WithDayNight = (Base) => class extends Base {
     return { x: house.x, y: house.y + 44 }; // ≈ (240, 294), clear of the house walls
   }
 
+  // The doghouse's front, just south of its collision box (worldObjects.js
+  // buildDoghouse — the box already ends 6px above the doghouse's own y, so a
+  // small margin below that is clear of the kennel). Used by the dog's go-home (#363).
+  _doghouseEntry() {
+    const house = this.props.doghouse;
+    return { x: house.x, y: house.y + 8 };
+  }
+
+  // A world `sources` entry's front, just south of its collision box (world.js
+  // `_buildObstacles`: every source's `ob` box ends exactly at the source's own y).
+  // Shared by the fox den + bunny hutch go-home entries (#363) — looked up by label
+  // rather than hardcoded coordinates, since the dev drag tool can reposition sources.
+  _sourceEntry(label) {
+    const s = this.props.sources?.find((s) => s.label === label);
+    if (!s) return null;
+    return { x: s.x, y: s.y + 14 };
+  }
+
+  _foxDenEntry() { return this._sourceEntry('Fox Den'); }
+  _bunnyHutchEntry() { return this._sourceEntry('Bunny Hutch'); }
+
   // Nightfall: the cat heads home to the house to sleep (#90), pathing there
   // around obstacles, then slipping inside (fade up + out of view) like the
   // chickens roost in the coop. Curls into its nap pose (#198, catArt.js
   // drawCatNap) for the fade if the species has one — a species without a nap
   // pose falls back to idle, so this stays safe for any future world-roamer.
   catGoHome(a) {
+    this._animalGoHome(a, this._houseEntry());
+  }
+
+  // Morning: the cat re-emerges from the house and resumes prowling.
+  catLeaveHome(a) {
+    this._animalLeaveHome(a, this._houseEntry());
+  }
+
+  // Generalized go-home-for-the-night (#363, lifted out of the cat-only catGoHome
+  // above): stop whatever the animal was doing, path to `entry` (an {x,y} clear of
+  // the home structure's collision box — _houseEntry/_doghouseEntry/_sourceEntry),
+  // then fade+step up into the structure like the cat/chickens do. `entry` is
+  // resolved fresh each call (not cached) so a dev-drag-tool reposition of the home
+  // prop takes effect immediately. A no-op if the home spot isn't available yet
+  // (e.g. a source that hasn't loaded) — the animal just falls through to the
+  // generic herd-settle next time restAllAnimals runs.
+  _animalGoHome(a, entry) {
+    if (!entry) { this._settleAnimalForNight(a); return; }
     if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
     if (a._sleepTimer) { this.time.removeEvent(a._sleepTimer); a._sleepTimer = null; }
-    if (a.eatTimer)    { this.time.removeEvent(a.eatTimer); a.eatTimer = null; } // stop a mid-bowl meal (#202)
+    if (a.eatTimer)    { this.time.removeEvent(a.eatTimer); a.eatTimer = null; } // stop a mid-bowl/pile meal (#202)
     a._eatPile = null;
     a._eatBowl = null;
     a.state = 'homing';
 
-    const { x: ex, y: ey } = this._houseEntry();
+    const { x: ex, y: ey } = entry;
     this.moveCreatureTo(a, ex, ey, () => {
       if (a.state !== 'homing' || !a.sprite.active) return;
       a.shadow.setVisible(false);
@@ -323,7 +381,7 @@ export const WithDayNight = (Base) => class extends Base {
       const napKey = `nap_${a.key}`;
       a.sprite.play(this.anims.exists(napKey) ? napKey : `idle_${a.key}`, true);
       a.wanderTween = this.tweens.add({
-        targets: a.sprite, y: ey - 16, alpha: 0, // step up into the house, fading
+        targets: a.sprite, y: ey - 16, alpha: 0, // step up into the home, fading
         duration: 600, ease: 'Sine.easeIn',
         onComplete: () => {
           a.wanderTween = null;
@@ -333,10 +391,12 @@ export const WithDayNight = (Base) => class extends Base {
     });
   }
 
-  // Morning: the cat re-emerges from the house and resumes prowling.
-  catLeaveHome(a) {
+  // Morning: re-emerge from the home structure and resume wandering (or go straight
+  // back home if night somehow fell again mid-emerge). Mirrors catLeaveHome.
+  _animalLeaveHome(a, entry) {
+    if (!entry) { a.state = 'idle'; a.sprite.setVisible(true).setAlpha(1); this.scheduleAnimalWander(a, Phaser.Math.Between(300, 2500)); return; }
     if (a.wanderTween) { a.wanderTween.stop(); a.wanderTween = null; }
-    const { x: ex, y: ey } = this._houseEntry();
+    const { x: ex, y: ey } = entry;
     a.state = 'leaving';
     a.sprite.setPosition(ex, ey - 16).setAlpha(0).setVisible(true);
     a.shadow.setPosition(ex, ey).setVisible(true);
@@ -347,7 +407,7 @@ export const WithDayNight = (Base) => class extends Base {
       onComplete: () => {
         a.wanderTween = null;
         if (!a.sprite.active) return;
-        if (this.isNight) { this.catGoHome(a); return; }
+        if (this.isNight) { this._animalGoHome(a, entry); return; }
         a.state = 'idle';
         this.scheduleAnimalWander(a, Phaser.Math.Between(300, 2500));
       },
