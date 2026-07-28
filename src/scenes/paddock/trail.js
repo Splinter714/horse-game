@@ -27,7 +27,7 @@
 // that seam, the owner's call was to drop per-region ground tinting
 // entirely — the trail's ground is now plain grass, same as the farm.
 
-import { S, TRAIL_X0, TRAIL_W, TRAIL_Y0, TRAIL_Y1, PLAYER_BOUNDS } from './constants.js';
+import { S, TRAIL_X0, TRAIL_W, PLAYER_BOUNDS } from './constants.js';
 import { playGather } from '../../audio/sounds.js';
 
 export const WithTrail = (Base) => class extends Base {
@@ -47,9 +47,6 @@ export const WithTrail = (Base) => class extends Base {
     // LOOP — out along the top of the band, curling around the far-west end,
     // back along the bottom, and closing back at the entrance — so there's a
     // long circuit to explore rather than a short there-and-back stretch.
-    const midY = (TRAIL_Y0 + TRAIL_Y1) / 2;
-    const topY = TRAIL_Y0 + 90, botY = TRAIL_Y1 - 90;
-    const farX = TRAIL_X0 + 140;
     // Added as one more named entry in `this._pathRoutes` (#373 follow-up),
     // NOT a separate system — it goes through world.js's `buildPath`-owned
     // `_pathRoutes` / `_bakePathGraphics()`, the exact same code the farm
@@ -58,12 +55,14 @@ export const WithTrail = (Base) => class extends Base {
     // CLOSED — the first and last waypoints are the literal SAME array
     // reference (not just equal values), so dragging that shared point moves
     // both ends together automatically (it's one logical point, not two).
-    const start = [20, midY];
+    // Shape is the owner's own placement (#330/#370 drag tool, baked in
+    // 2026-07-27) rather than the original symmetric topY/botY/farX formula.
+    const start = [222, 384];
     this._pathRoutes.forestLoop = [
       start,
-      [-180, topY + 30], [-520, topY - 20], [-900, topY + 40], [-1280, topY + 20],
-      [farX, midY],
-      [-1280, botY - 20], [-900, botY - 40], [-520, botY + 20], [-180, botY - 30],
+      [8, 561], [-180, 180], [-520, 130], [-900, 190], [-1280, 170],
+      [-1560, 650],
+      [-1280, 1130], [-900, 1110], [-520, 1170], [-180, 1120], [7, 563],
       start,
     ];
     // A simple marker at the trail's mouth (the farm side) so the entrance
