@@ -57,13 +57,21 @@ export const WithTrail = (Base) => class extends Base {
     // both ends together automatically (it's one logical point, not two).
     // Shape is the owner's own placement (#330/#370 drag tool, baked in
     // 2026-07-27) rather than the original symmetric topY/botY/farX formula.
-    const start = [222, 384];
+    // #397 follow-up: the loop's mouth is now MID-POINT-LINKED to the
+    // fromHouse path (the literal same array element as fromHouse[3], not
+    // just an equal coordinate — buildWorld()/buildPath() runs before
+    // buildTrail(), so `this._pathRoutes.fromHouse` already exists here) —
+    // dragging that shared point moves both. The loop still self-closes too,
+    // but now onto one of its OWN interior points (`selfJoin`) rather than
+    // its own absolute start, per the same mid-point-link mechanism.
+    const start = this._pathRoutes.fromHouse[3];
+    const selfJoin = [-56, 465];
     this._pathRoutes.forestLoop = [
       start,
-      [8, 561], [-180, 180], [-520, 130], [-900, 190], [-1280, 170],
+      [64, 475], selfJoin, [-109, 432], [-180, 180], [-520, 130], [-900, 190], [-1280, 170],
       [-1560, 650],
-      [-1280, 1130], [-900, 1110], [-520, 1170], [-180, 1120], [7, 563],
-      start,
+      [-1280, 1130], [-900, 1110], [-520, 1170], [-180, 1120], [-124, 538],
+      selfJoin,
     ];
     // A simple marker at the trail's mouth (the farm side) so the entrance
     // reads clearly from the paddock, and so the minimap has a landmark to

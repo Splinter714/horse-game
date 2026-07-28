@@ -41,9 +41,9 @@ export const WithWorld = (Base) => class extends Base {
     this._pathRoutes = {
       // fromHouse/toGate/toStream: #373 drag tool, repositioned + bend points
       // added 2026-07-27 (owner's own placements).
-      fromHouse: [[218, 263], [219, 380], [398, 511], [680, 574], [952, 700]],
+      fromHouse: [[218, 263], [220, 325], [196, 389], [219, 461], [256, 465], [358, 494], [504, 577], [680, 574], [952, 700]],
       toGate:    [[952, 700], [958, 766], [961, 874], [950, 1119], [943, 1311], [1118, 1416], [1410, 1379], [1394, 1268]],
-      toStream:  [[952, 700], [1029, 663], [1180, 537], [1452, 476], [1718, 534], [1844, 468], [1873, 51]],
+      toStream:  [[952, 700], [1029, 663], [1180, 537], [1452, 476], [1718, 534], [1844, 468], [1870, 101], [1871, 0]],
       toStand:   [[2179, 679], [2186, 777], [1952, 749], [1846, 699], [1770, 564], [1644, 508]], // off east edge → farm stand
     };
     this._bakePathGraphics();
@@ -431,7 +431,7 @@ export const WithWorld = (Base) => class extends Base {
       { x: -43, y: 899 },
       { x: -46, y: 1490 },
       { x: 2032, y: 1490 },
-      { x: 2021, y: 860 },
+      { x: 2019, y: 889 },
       { x: gateX + GATE_HALF_W, y: gateY, gateLink: 'right' },
     ];
     this.props.pastureFence = [];
