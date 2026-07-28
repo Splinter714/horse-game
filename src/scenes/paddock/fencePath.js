@@ -157,13 +157,28 @@ export function createFencePathMixin(spec) {
     // Re-derive the position of any `gateLink`-tagged joint from
     // `this.props.gate`'s CURRENT x/y, before the segment respace maths
     // below consumes the joint list. No-op for a non-gate-linkable instance.
+    //
+    // #392: a joint's x is a post sprite's ANCHOR, not its visual center —
+    // `buildFencePostSprites` draws with origin (0, 0.5), so the post's actual
+    // visible body sits `cx` (half the cropped post width) to the right of the
+    // anchor, always, regardless of which side of the gate the joint is on
+    // (`_buildFenceRails` in world.js applies this same `+cx` shift so the
+    // rails hit the post's real center instead of its anchor). Setting the
+    // anchor to exactly `gate.x ± GATE_HALF_W` therefore put the LEFT post's
+    // visible body `cx` px too far toward the gate (into the opening) and the
+    // RIGHT post's visible body `cx` px too far away from it — the two sides
+    // read as asymmetric even though the joint coordinates were mirrored.
+    // Subtracting `cx` from the anchor on both sides (uniformly, same as the
+    // rail shift) puts each post's actual VISUAL center at `gate.x ±
+    // GATE_HALF_W`, so both sides attach the same way relative to the gate.
     [names.applyGateLinks](joints) {
       if (!gateLinkable) return;
       const gate = this.props.gate;
       if (!gate) return;
+      const cx = (FENCE_POST_CROP_W * S) / 2;
       for (const j of joints) {
-        if (j.gateLink === 'left')  { j.x = gate.x - GATE_HALF_W; j.y = gate.y; }
-        if (j.gateLink === 'right') { j.x = gate.x + GATE_HALF_W; j.y = gate.y; }
+        if (j.gateLink === 'left')  { j.x = gate.x - GATE_HALF_W - cx; j.y = gate.y; }
+        if (j.gateLink === 'right') { j.x = gate.x + GATE_HALF_W - cx; j.y = gate.y; }
       }
     }
 
