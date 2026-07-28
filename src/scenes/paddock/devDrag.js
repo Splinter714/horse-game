@@ -52,6 +52,62 @@ const BTN_X      = 8;     // logical screen px, top-left stack
 const BTN_Y      = 64;    // clear of the day/night HUD row along the very top
 const BTN_H      = 30;
 
+// #395: the house fence and pasture fence are two INSTANCES of the exact same
+// fencePath.js engine (#386) — but until now devDrag.js's own tap/move/drop/
+// mount/clear/export dispatch still hand-duplicated one block per fence,
+// keyed off each instance's own held-state field and generated method names.
+// This list is what makes the dispatch below run the literal same code for
+// both: each entry names one instance's `heldField` (where its in-progress
+// drag lives — a different scene property per instance, since two fences can
+// exist at once) and its `names` block (the SAME method-name map each
+// fence's own spec already declares in houseFencePath.js/pastureFencePath.js
+// — reused here verbatim, not re-typed, so the two can never drift). Looked
+// up dynamically (`this[cfg.heldField]`, `this[cfg.names.tap]`, …) rather
+// than hardcoded, exactly like `createFencePathMixin` itself already does
+// internally. Mirrors how the worn-path/stream splines below are already a
+// single generic `_splineHeld` block driving every route generically — this
+// is the same treatment applied to the two fences.
+const FENCE_CONFIGS = [
+  {
+    heldField: '_fenceJointHeld',
+    label: 'House fence',
+    exportKey: 'houseFence',
+    gateLinkable: false, // the house fence has no gate
+    names: {
+      mount: '_mountHouseFencePath',
+      clear: '_clearHouseFencePath',
+      tap: '_houseFencePathTap',
+      resolveJoint: '_houseFenceResolveJoint',
+      pathMove: '_houseFencePathMove',
+      joints: '_fenceJoints',
+      posts: '_fencePosts',
+      drawJoints: '_drawFenceJoints',
+      deleteNode: '_houseFenceDeleteNode',
+      toggleGateLink: '_houseFenceToggleGateLink', // unused (gateLinkable: false)
+      export: '_houseFenceExport',
+    },
+  },
+  {
+    heldField: '_pastureJointHeld',
+    label: 'Pasture fence',
+    exportKey: 'pastureFence',
+    gateLinkable: true, // the pasture fence's joints can attach to the gate
+    names: {
+      mount: '_mountPastureFencePath',
+      clear: '_clearPastureFencePath',
+      tap: '_pastureFencePathTap',
+      resolveJoint: '_pastureFenceResolveJoint',
+      pathMove: '_pastureFencePathMove',
+      joints: '_pastureJoints',
+      posts: '_pasturePosts',
+      drawJoints: '_drawPastureFenceJoints',
+      deleteNode: '_pastureFenceDeleteNode',
+      toggleGateLink: '_pastureFenceToggleGateLink',
+      export: '_pastureFenceExport',
+    },
+  },
+];
+
 // A value that can be moved on screen (a Phaser GameObject), as opposed to the
 // plain `{ x, y, sprite }` records most props are.
 const isGameObj = (v) =>
@@ -93,8 +149,7 @@ export const WithDevDrag = (Base) => class extends Base {
       this.input.off('pointerup',        this._devDragDrop, this);
       this.input.off('pointerupoutside', this._devDragDrop, this);
     }
-    this._clearHouseFencePath?.();   // #370
-    this._clearPastureFencePath?.(); // #376
+    for (const cfg of FENCE_CONFIGS) this[cfg.names.clear]?.(); // #370/#376, unified by #395
     this._clearSplineDrag?.();       // #373 (paths + stream control points)
     this._dragMarks?.destroy();
     this._dragHud?.destroy();
@@ -149,14 +204,12 @@ export const WithDevDrag = (Base) => class extends Base {
     this.input.on('pointerup',        this._devDragDrop, this);
     this.input.on('pointerupoutside', this._devDragDrop, this);
 
-    // House-fence PATH editing (#370) — two extra magenta endpoint handles on
-    // the fence run, on top of the ordinary per-post handles above. Same
-    // toggle, same lifecycle; see houseFencePath.js.
-    this._mountHouseFencePath?.();
-
-    // Pasture-fence PATH editing (#376) — same joint-drag/promote mechanism,
-    // blue handles, on the pasture perimeter; see pastureFencePath.js.
-    this._mountPastureFencePath?.();
+    // Fence PATH editing (#370 house / #376 pasture) — extra joint handles on
+    // top of the ordinary per-post handles above (magenta for the house
+    // fence, blue for the pasture fence; see houseFencePath.js/
+    // pastureFencePath.js for each instance's spec). Same toggle, same
+    // lifecycle. #395: both instances mounted through the SAME loop now.
+    for (const cfg of FENCE_CONFIGS) this[cfg.names.mount]?.();
 
     // Worn-path + stream control-point editing (#373) — orange/cyan handles on
     // every route/spline control point. Same toggle, same lifecycle; see
@@ -235,32 +288,23 @@ export const WithDevDrag = (Base) => class extends Base {
 
     const w = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
 
-    // House-fence PATH posts (#370, reworked into joints by #375) get first
-    // refusal on the world-space pick, ahead of the ordinary per-post grab, so
-    // tapping any post on the fence always means "reshape the fence" rather
-    // than "move this one sprite". `jointPick` is a PENDING descriptor — the
-    // actual joint (existing or newly-promoted) is resolved lazily, the first
-    // move tick past TAP_SLOP below, so a plain tap that never drags can't
-    // silently promote an interior post into a permanent joint.
-    const jointPick = this._houseFencePathTap?.(w);
-    if (jointPick) {
-      this._fenceJointHeld = jointPick;
+    // Fence PATH posts (#370 house / #376 pasture) get first refusal on the
+    // world-space pick, ahead of the ordinary per-post grab, so tapping any
+    // post on either fence always means "reshape the fence" rather than
+    // "move this one sprite". The pick is a PENDING descriptor — the actual
+    // joint (existing or newly-promoted) is resolved lazily, the first move
+    // tick past TAP_SLOP below, so a plain tap that never drags can't
+    // silently promote an interior post into a permanent joint. #395: one
+    // loop drives both instances (house checked first, matching the original
+    // priority order), rather than two hand-copied blocks.
+    for (const cfg of FENCE_CONFIGS) {
+      const pick = this[cfg.names.tap]?.(w);
+      if (!pick) continue;
+      this[cfg.heldField] = pick;
       this._dragMoved  = false;
       this._dragPressX = w.x;
       this._dragPressY = w.y;
-      this._dragHud?.setText(`House fence: ${this._fencePosts().length} posts — drag to reshape`);
-      return true;
-    }
-
-    // Pasture-fence PATH posts (#376) — same "first refusal ahead of the
-    // generic per-post pick" priority as the house fence above.
-    const pasturePick = this._pastureFencePathTap?.(w);
-    if (pasturePick) {
-      this._pastureJointHeld = pasturePick;
-      this._dragMoved  = false;
-      this._dragPressX = w.x;
-      this._dragPressY = w.y;
-      this._dragHud?.setText(`Pasture fence: ${this._pasturePosts().length} posts — drag to reshape`);
+      this._dragHud?.setText(`${cfg.label}: ${this[cfg.names.posts]().length} posts — drag to reshape`);
       return true;
     }
 
@@ -311,7 +355,12 @@ export const WithDevDrag = (Base) => class extends Base {
   // still a candidate tap. Past it, every entry in the moving set gets the SAME
   // delta (a rigid translation), so a group keeps its shape.
   _devDragMove(pointer) {
-    if (this._fenceJointHeld) {
+    // Fences (#395: one generic block drives both instances — see
+    // FENCE_CONFIGS above). Order matches the original house-then-pasture
+    // priority, though at most one of the two `heldField`s is ever set at
+    // once (a single press can only be holding one thing).
+    for (const cfg of FENCE_CONFIGS) {
+      if (!this[cfg.heldField]) continue;
       if (!pointer.isDown) return;
       const w = this._devDragClampWorldPoint(this.cameras.main.getWorldPoint(pointer.x, pointer.y));
       if (!this._dragMoved) {
@@ -320,30 +369,15 @@ export const WithDevDrag = (Base) => class extends Base {
         // Resolve NOW, the moment this press actually becomes a drag — an
         // auto-fill post gets promoted into a real joint here (#375), an
         // existing joint just resolves to its own index.
-        this._fenceJointHeld = this._houseFenceResolveJoint(this._fenceJointHeld);
+        this[cfg.heldField] = this[cfg.names.resolveJoint](this[cfg.heldField]);
       }
-      this._houseFencePathMove(this._fenceJointHeld.index, w);
-      this._drawFenceJoints();
+      this[cfg.names.pathMove](this[cfg.heldField].index, w);
+      this[cfg.names.drawJoints]();
       // #389: if this joint's an endpoint fused to another fence's endpoint,
       // rerun the OTHER fence's own respace too — mutating the shared joint
       // object already moved its coordinates, but each fence still redraws
       // itself separately.
-      this._syncLinkedEndpoint?.(this._fenceJoints(), this._fenceJointHeld.index);
-      this._drawDevDragMarks();
-      return;
-    }
-    if (this._pastureJointHeld) {
-      if (!pointer.isDown) return;
-      const w = this._devDragClampWorldPoint(this.cameras.main.getWorldPoint(pointer.x, pointer.y));
-      if (!this._dragMoved) {
-        if (Math.hypot(w.x - this._dragPressX, w.y - this._dragPressY) < TAP_SLOP) return;
-        this._dragMoved = true;
-        this._pastureJointHeld = this._pastureFenceResolveJoint(this._pastureJointHeld);
-      }
-      this._pastureFencePathMove(this._pastureJointHeld.index, w);
-      this._drawPastureFenceJoints();
-      // #389 — see the house-fence branch above.
-      this._syncLinkedEndpoint?.(this._pastureJoints(), this._pastureJointHeld.index);
+      this._syncLinkedEndpoint?.(this[cfg.names.joints](), this[cfg.heldField].index);
       this._drawDevDragMarks();
       return;
     }
@@ -440,61 +474,36 @@ export const WithDevDrag = (Base) => class extends Base {
   // A press that never became a drag is a tap: toggle the object (and its group)
   // in or out of the selection.
   _devDragDrop() {
-    if (this._fenceJointHeld) {
+    // Fences (#395: one generic block for both instances — see FENCE_CONFIGS
+    // above). A plain tap (never dragged past TAP_SLOP) on an EXISTING joint
+    // tries a quick-double-tap delete first (#394, never offered on the
+    // run's own endpoints — idx 0/length-1 — which stay link-toggleable
+    // only), then an endpoint link toggle (#389, only fires on an actual run
+    // endpoint with an eligible partner nearby, or one already linked to
+    // unlink). Only a `gateLinkable` instance (the pasture fence) falls back
+    // further to the gate-link toggle when the endpoint toggle didn't handle
+    // it — the house fence has no gate, so it stops at the endpoint toggle,
+    // exactly as before.
+    for (const cfg of FENCE_CONFIGS) {
+      if (!this[cfg.heldField]) continue;
       if (!this._dragMoved) {
-        const joints = this._fenceJoints();
-        const idx = this._devHeldIndex(this._fenceJointHeld);
-        // #394: a quick second tap on the SAME interior joint removes the
-        // bend instead of the ordinary single-tap link-toggle below — never
-        // offered on the run's own endpoints (idx 0/length-1), which stay
-        // link-toggleable only. Checked ahead of the toggle so the delete
-        // wins outright on the tap that triggers it.
+        const joints = this[cfg.names.joints]();
+        const idx = this._devHeldIndex(this[cfg.heldField]);
         if (idx !== undefined && idx > 0 && idx < joints.length - 1 && this._devDoubleTapNode(joints, idx)) {
-          this._houseFenceDeleteNode(this._fenceJointHeld);
-          this._dragHud?.setText('House fence: bend removed');
+          this[cfg.names.deleteNode](this[cfg.heldField]);
+          this._dragHud?.setText(`${cfg.label}: bend removed`);
         } else {
-          this._devEndpointTapToggle(joints, this._fenceJointHeld, 'House fence');
-        }
-      }
-      this._fenceJointHeld = null;
-      this._dragMoved = false;
-      this._devDragHud(null);
-      this._drawFenceJoints();
-      return;
-    }
-    if (this._pastureJointHeld) {
-      // A plain tap (never dragged past TAP_SLOP) on an EXISTING joint tries
-      // an endpoint link first (#389) — only fires on an actual run endpoint
-      // with an eligible partner nearby, or one already linked to unlink.
-      // Otherwise falls back to the existing gate-link toggle, so an
-      // interior joint (or an endpoint with nothing to link to) still
-      // behaves exactly as before — see fencePath.js's `toggleGateLink` /
-      // pastureFencePath.js's header.
-      //
-      // #394: a quick second tap on the SAME interior joint takes priority
-      // over both of those and removes the bend instead (an interior joint
-      // is never a run endpoint, so it's never itself endpoint-linked — but
-      // it CAN carry a gate-link, since the pasture fence lets any tapped
-      // joint attach to the gate; deleting it just drops that tag along with
-      // the joint, no dangling reference to clean up separately).
-      if (!this._dragMoved) {
-        const joints = this._pastureJoints();
-        const idx = this._devHeldIndex(this._pastureJointHeld);
-        if (idx !== undefined && idx > 0 && idx < joints.length - 1 && this._devDoubleTapNode(joints, idx)) {
-          this._pastureFenceDeleteNode(this._pastureJointHeld);
-          this._dragHud?.setText('Pasture fence: bend removed');
-        } else {
-          const handled = this._devEndpointTapToggle(joints, this._pastureJointHeld, 'Pasture fence');
-          if (!handled) {
-            const linked = this._pastureFenceToggleGateLink?.(this._pastureJointHeld);
-            if (linked) this._dragHud?.setText(`Pasture fence: joint gate-link toggled`);
+          const handled = this._devEndpointTapToggle(joints, this[cfg.heldField], cfg.label);
+          if (!handled && cfg.gateLinkable) {
+            const linked = this[cfg.names.toggleGateLink]?.(this[cfg.heldField]);
+            if (linked) this._dragHud?.setText(`${cfg.label}: joint gate-link toggled`);
           }
         }
       }
-      this._pastureJointHeld = null;
+      this[cfg.heldField] = null;
       this._dragMoved = false;
       this._devDragHud(null);
-      this._drawPastureFenceJoints();
+      this[cfg.names.drawJoints]();
       return;
     }
     if (this._splineHeld) {
@@ -701,15 +710,13 @@ export const WithDevDrag = (Base) => class extends Base {
   // be torn down anyway.
   exportDevPositions({ quiet = false } = {}) {
     const moved = this._devMovedPositions();
-    // House-fence PATH config (#370) — the run's current start/end/count, so it
-    // can be baked into world.js's `this.props.houseFence` loop the same way a
-    // moved single object's {x,y} is. Included whenever the fence exists, not
-    // only after an endpoint drag — the owner may just want the CURRENT config.
-    const fence = this._houseFenceExport?.();
-    // Pasture-fence PATH config (#376) — same idea as the house fence's,
-    // included whenever the fence exists so the CURRENT joint list (gate links
-    // included) can be baked into world.js's `buildPastureFence`.
-    const pastureFence = this._pastureFenceExport?.();
+    // Fence PATH configs (#370 house / #376 pasture) — each run's current
+    // joint list/count, so it can be baked into world.js's `buildHouseFence`/
+    // `buildPastureFence` the same way a moved single object's {x,y} is.
+    // Included whenever a fence exists, not only after an endpoint drag — the
+    // owner may just want the CURRENT config. #395: one loop over both
+    // instances instead of two hand-written lookups.
+    const fenceExports = FENCE_CONFIGS.map(cfg => ({ cfg, exp: this[cfg.names.export]?.() }));
     // Worn-path / stream control points (#373) — only the splines that were
     // actually reshaped, keyed by id (`path:<name>` — the forest/trail loop is
     // just another named route, `path:forestLoop` — / `stream`), each an array
@@ -718,14 +725,14 @@ export const WithDevDrag = (Base) => class extends Base {
     const splines = this._splineExport?.();
     const out = {
       ...moved,
-      ...(fence ? { houseFence: fence } : {}),
-      ...(pastureFence ? { pastureFence } : {}),
+      ...Object.fromEntries(fenceExports.filter(f => f.exp).map(f => [f.cfg.exportKey, f.exp])),
       ...(splines ? { splines } : {}),
     };
     const n = Object.keys(moved).length;
+    const anyFence = fenceExports.some(f => f.exp);
     const json = JSON.stringify(out, null, 2);
     // eslint-disable-next-line no-console
-    console.log('[dev-positions]', (n || fence || pastureFence || splines) ? json : '(nothing moved)');
+    console.log('[dev-positions]', (n || anyFence || splines) ? json : '(nothing moved)');
     // Clipboard access is best-effort — it needs a secure context and a user
     // gesture, and rejects ASYNCHRONOUSLY when denied, so the promise is caught
     // too (an unhandled rejection would show up as a console error in the smoke test).
@@ -734,7 +741,7 @@ export const WithDevDrag = (Base) => class extends Base {
       const p = navigator.clipboard?.writeText(json);
       if (p) { copied = true; p.catch(() => {}); }
     } catch { /* clipboard not available — the panel and the log still have it */ }
-    if (!quiet) this._showDevDragPanel(moved, copied, undefined, fence, splines, pastureFence);
+    if (!quiet) this._showDevDragPanel(moved, copied, undefined, fenceExports, splines);
     return out;
   }
 
@@ -753,7 +760,7 @@ export const WithDevDrag = (Base) => class extends Base {
     this._showDevDragPanel({}, false, 'Reset — everything back to its source position. (Selection and groups are kept.)');
   }
 
-  _showDevDragPanel(moved, copied, note, fence, splines, pastureFence) {
+  _showDevDragPanel(moved, copied, note, fenceExports, splines) {
     this._dragPanel?.destroy();
     const names = Object.keys(moved);
     const lines = names.length
@@ -767,17 +774,14 @@ export const WithDevDrag = (Base) => class extends Base {
     // needs), so the panel names the groups separately — otherwise six moved fence
     // posts look like six coincidences.
     const groups = (this._dragGroups ?? []).map(g => `⛓ ${g.name}: ${g.members.join(', ')}`);
-    // House-fence PATH config (#370, joints since #375) — the full joint list
-    // to paste into world.js's houseFence build, shown as its own line since
-    // it isn't a per-object delta like the ones above.
-    const fenceLines = fence
-      ? [`houseFence: { joints: ${JSON.stringify(fence.joints)}, count: ${fence.count} }`]
-      : [];
-    // Pasture-fence PATH config (#376) — same idea, its own line (includes any
-    // `gateLink` tag on the two end joints).
-    const pastureFenceLines = pastureFence
-      ? [`pastureFence: { joints: ${JSON.stringify(pastureFence.joints)}, count: ${pastureFence.count} }`]
-      : [];
+    // Fence PATH configs (#370 house / #376 pasture, joints since #375) — the
+    // full joint list to paste into world.js's fence build, one line per
+    // instance since it isn't a per-object delta like the ones above
+    // (includes any `gateLink` tag on the pasture fence's joints). #395: one
+    // loop over both instances instead of two near-identical blocks.
+    const fenceLines = (fenceExports ?? []).flatMap(({ cfg, exp }) => exp
+      ? [`${cfg.exportKey}: { joints: ${JSON.stringify(exp.joints)}, count: ${exp.count} }`]
+      : []);
     // Worn-path / stream control points (#373) — one line per reshaped spline,
     // the array ready to paste over its source (world.js's route consts /
     // stream.js's `ctrl`).
@@ -789,7 +793,6 @@ export const WithDevDrag = (Base) => class extends Base {
     this._dragPanel = this.add.text(BTN_X + o.x, BTN_Y + (BTN_H + 6) * 4 + 10 + o.y,
       [...head, '', ...lines,
        ...(fenceLines.length ? ['', ...fenceLines] : []),
-       ...(pastureFenceLines.length ? ['', ...pastureFenceLines] : []),
        ...(splineLines.length ? ['', ...splineLines] : []),
        ...(groups.length ? ['', ...groups] : [])].join('\n'), {
         fontFamily: 'ui-monospace, Menlo, monospace',
