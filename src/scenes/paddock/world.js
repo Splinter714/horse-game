@@ -192,7 +192,7 @@ export const WithWorld = (Base) => class extends Base {
       [346, 241], [395, 264], [355, 264], [527, 253], [539, 237],
       [538, 267], [478, 206], [525, 283], [370, 206], [452, 289],
       [401, 204], [364, 245], [532, 213], [480, 282], [421, 210],
-      [395, 283], [496, 207], [887, 1409], [404, 225], [1700, 1320],
+      [395, 283], [496, 207], [345, 217], [404, 225], [1700, 1320],
     ].forEach(([x, y], i) => {
       const sprite = this.add.image(x, y, flowers[i % flowers.length]).setScale(S).setDepth(y);
       // `sprite` kept so the dev drag tool (#330) can move the actual flower, not
