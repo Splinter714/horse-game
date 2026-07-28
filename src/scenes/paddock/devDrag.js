@@ -42,6 +42,7 @@
 
 import { loadDevSettings } from '../../data/save.js';
 import { dprOf, logicalW, logicalH, worldUiOffset } from '../uiUtils.js';
+import { DEV_DRAG_MAX_Y } from './constants.js';
 
 const PICK_R     = 90;    // world px: how close a tap must be to grab an object
 const TAP_SLOP   = 6;     // world px of travel before a press counts as a drag, not a tap
@@ -292,13 +293,21 @@ export const WithDevDrag = (Base) => class extends Base {
     return true;
   }
 
+  // Clamp a live drag target's y so nothing can be pulled south of DEV_DRAG_MAX_Y
+  // (#390) — past that line the object would render behind the hotbar strip at
+  // every possible camera scroll position and become permanently untappable.
+  _devDragClampWorldPoint(w) {
+    if (w.y > DEV_DRAG_MAX_Y) w.y = DEV_DRAG_MAX_Y;
+    return w;
+  }
+
   // Nothing actually moves until the press has travelled TAP_SLOP — below that it's
   // still a candidate tap. Past it, every entry in the moving set gets the SAME
   // delta (a rigid translation), so a group keeps its shape.
   _devDragMove(pointer) {
     if (this._fenceJointHeld) {
       if (!pointer.isDown) return;
-      const w = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      const w = this._devDragClampWorldPoint(this.cameras.main.getWorldPoint(pointer.x, pointer.y));
       if (!this._dragMoved) {
         if (Math.hypot(w.x - this._dragPressX, w.y - this._dragPressY) < TAP_SLOP) return;
         this._dragMoved = true;
@@ -319,7 +328,7 @@ export const WithDevDrag = (Base) => class extends Base {
     }
     if (this._pastureJointHeld) {
       if (!pointer.isDown) return;
-      const w = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      const w = this._devDragClampWorldPoint(this.cameras.main.getWorldPoint(pointer.x, pointer.y));
       if (!this._dragMoved) {
         if (Math.hypot(w.x - this._dragPressX, w.y - this._dragPressY) < TAP_SLOP) return;
         this._dragMoved = true;
@@ -334,7 +343,7 @@ export const WithDevDrag = (Base) => class extends Base {
     }
     if (this._splineHeld) {
       if (!pointer.isDown) return;
-      const w = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      const w = this._devDragClampWorldPoint(this.cameras.main.getWorldPoint(pointer.x, pointer.y));
       if (!this._dragMoved) {
         if (Math.hypot(w.x - this._dragPressX, w.y - this._dragPressY) < TAP_SLOP) return;
         this._dragMoved = true;
@@ -350,7 +359,7 @@ export const WithDevDrag = (Base) => class extends Base {
     }
     const e = this._dragHeld;
     if (!e || !pointer.isDown) return;
-    const w = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+    const w = this._devDragClampWorldPoint(this.cameras.main.getWorldPoint(pointer.x, pointer.y));
     if (!this._dragMoved) {
       if (Math.hypot(w.x - this._dragPressX, w.y - this._dragPressY) < TAP_SLOP) return;
       this._dragMoved = true;
