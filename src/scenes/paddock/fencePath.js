@@ -61,14 +61,22 @@ export function respaceFenceRun(start, end, spacing = DEFAULT_SPACING) {
   return posts;
 }
 
-// Pure: average joint y — the depth every rail line (and, offset ±1, every
-// post's cap/body split) is drawn at. Shared by both fence instances AND
-// world.js's `_buildFenceRails` (a plain function, not a per-instance method,
-// so it isn't defined twice across the two `createFencePathMixin` classes —
-// see the "unique method names" convention in the paddock README).
-export function fenceRailDepth(joints) {
-  if (!joints?.length) return 0;
-  return joints.reduce((s, j) => s + j.y, 0) / joints.length;
+// Pure: the average y of two consecutive joints — the depth ONE rail segment
+// (the straight run between joints[i] and joints[i+1]) is drawn at. #396: this
+// used to be computed once for the WHOLE run (every joint averaged together),
+// which is wrong for any fence whose span crosses a character's y — a player
+// standing near the south end of a long fence would sort against a depth
+// dragged north by the run's far joints. Every OTHER sprite in this game
+// (player/horses/chickens/birds) is depth-sorted by its own actual y
+// (`.setDepth(sprite.y)`); a fence segment doesn't move, but it still needs
+// its BASE depth to reflect only the stretch of fence it actually draws, so a
+// moving player's live-y depth sorts against it correctly no matter where
+// along the run they are. Shared by both fence instances AND world.js's
+// `_buildFenceRails` (a plain function, not a per-instance method, so it
+// isn't defined twice across the two `createFencePathMixin` classes — see the
+// "unique method names" convention in the paddock README).
+export function fenceSegmentDepth(a, b) {
+  return (a.y + b.y) / 2;
 }
 
 // The two split sprites for one post (#375 owner ask, carried over to a
@@ -76,13 +84,17 @@ export function fenceRailDepth(joints) {
 // drawn IN FRONT of the rail Graphics, and a body (the rest, including where
 // the bottom rail crosses it) drawn BEHIND it. Plain functions (not instance
 // methods) for the same "not defined twice across two mixin classes" reason
-// as `fenceRailDepth` above — `scene` is passed in explicitly.
-export function buildFencePostSprites(scene, x, y, railDepth) {
+// as `fenceSegmentDepth` above — `scene` is passed in explicitly. #396: the
+// base depth passed in is now the POST'S OWN y (matching the "depth = actual
+// y" convention every other sprite in the game follows), not a run-wide
+// average, so a post sorts correctly against a character standing near IT
+// specifically, not near wherever the run's average happened to land.
+export function buildFencePostSprites(scene, x, y, baseDepth) {
   const topSprite = scene.add.image(x, y, 'fence').setScale(S).setOrigin(0, 0.5)
-    .setDepth(railDepth + 1)
+    .setDepth(baseDepth + 1)
     .setCrop(0, 0, FENCE_POST_CROP_W, FENCE_POST_TOP_SPLIT_Y);
   const bottomSprite = scene.add.image(x, y, 'fence').setScale(S).setOrigin(0, 0.5)
-    .setDepth(railDepth - 1)
+    .setDepth(baseDepth - 1)
     .setCrop(0, FENCE_POST_TOP_SPLIT_Y, FENCE_POST_CROP_W, FENCE_TEX_H - FENCE_POST_TOP_SPLIT_Y);
   return { topSprite, bottomSprite };
 }
@@ -183,13 +195,14 @@ export function createFencePathMixin(spec) {
     }
 
     // Build every post for `joints` and push them onto `this.props[postsProp]`
-    // (assumed already emptied by the caller).
+    // (assumed already emptied by the caller). #396: each post's depth is
+    // derived from ITS OWN y, not one shared run-wide average — see
+    // `buildFencePostSprites`'s comment.
     [names.fillPosts](joints) {
       const posts = this.props[postsProp];
       const specs = buildFencePosts(joints, spacing);
-      const railDepth = fenceRailDepth(joints);
       specs.forEach((p, i) => {
-        const { topSprite, bottomSprite } = buildFencePostSprites(this, p.x, p.y, railDepth);
+        const { topSprite, bottomSprite } = buildFencePostSprites(this, p.x, p.y, p.y);
         posts.push({
           x: p.x, y: p.y, topSprite, bottomSprite, label: `${label} ${i + 1}`,
           jointIndex: p.jointIndex, segIndex: p.segIndex,

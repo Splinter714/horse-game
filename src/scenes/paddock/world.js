@@ -12,7 +12,7 @@ import {
 import { SPECIES } from '../../data/species/index.js';
 import { bakeStaticGraphics } from './bakeGraphics.js';
 import { houseFenceSegmentRect, perimeterFenceSegmentRect } from './houseFence.js';
-import { fenceRailDepth } from './fencePath.js';
+import { fenceSegmentDepth } from './fencePath.js';
 
 // Collision band thickness for the house fence line (#344) — the solid slice of the
 // 48px-tall rail sprite, matching the height the old hardcoded rect used.
@@ -460,15 +460,22 @@ export const WithWorld = (Base) => class extends Base {
   // rotated to the segment.
   //
   // #386: generalized to take a `gfxProp` — the instance-field name to stash
-  // the Graphics object under — so a SECOND fence instance (the pasture
+  // the Graphics object(s) under — so a SECOND fence instance (the pasture
   // fence) can call this exact same function without clobbering the house
   // fence's rail Graphics. `_buildHouseFenceRails`/`_buildPastureFenceRails`
   // below are the two thin per-instance wrappers fencePath.js's
   // `respaceFromJoints` calls by name.
+  //
+  // #396: a single Graphics object can only carry ONE depth, so drawing every
+  // segment of a bent/long run into one shared Graphics forced one depth for
+  // the whole run (a run-wide average y) — wrong for a character standing
+  // near any point that isn't near that average. Now `gfxProp` holds an ARRAY
+  // of Graphics, one per segment, each depth-sorted by ITS OWN segment's y
+  // (`fenceSegmentDepth`) so a player sorts correctly against whichever
+  // stretch of fence they're actually near.
   _buildFenceRails(joints, gfxProp) {
-    this[gfxProp]?.destroy();
+    (this[gfxProp] ?? []).forEach(g => g.destroy());
     if (!joints || joints.length < 2) { this[gfxProp] = null; return null; }
-    const g = this.add.graphics().setDepth(fenceRailDepth(joints));
     // Post sprites are drawn with origin (0, 0.5) — a joint's x is each post's
     // LEFT edge, not its visual center. That's invisible on a mostly-
     // horizontal run (a few px of x-offset is lost along a long line), but on
@@ -476,17 +483,20 @@ export const WithWorld = (Base) => class extends Base {
     // instead of passing through its center (2026-07-27 playtest). Shift both
     // ends by half the cropped post width so the rails attach at post center.
     const cx = (FENCE_POST_CROP_W * S) / 2;
-    const drawRail = (offset, color) => {
-      g.lineStyle(FENCE_RAIL_THICKNESS, color, 1);
-      for (let i = 0; i < joints.length - 1; i++) {
-        const a = joints[i], b = joints[i + 1];
+    const segments = [];
+    for (let i = 0; i < joints.length - 1; i++) {
+      const a = joints[i], b = joints[i + 1];
+      const g = this.add.graphics().setDepth(fenceSegmentDepth(a, b));
+      const drawRail = (offset, color) => {
+        g.lineStyle(FENCE_RAIL_THICKNESS, color, 1);
         g.lineBetween(a.x + cx, a.y + offset, b.x + cx, b.y + offset);
-      }
-    };
-    drawRail(FENCE_RAIL_TOP_OFFSET, FENCE_RAIL_TOP_COLOR);
-    drawRail(FENCE_RAIL_BOTTOM_OFFSET, FENCE_RAIL_BOTTOM_COLOR);
-    this[gfxProp] = g;
-    return g;
+      };
+      drawRail(FENCE_RAIL_TOP_OFFSET, FENCE_RAIL_TOP_COLOR);
+      drawRail(FENCE_RAIL_BOTTOM_OFFSET, FENCE_RAIL_BOTTOM_COLOR);
+      segments.push(g);
+    }
+    this[gfxProp] = segments;
+    return segments;
   }
 
   _buildHouseFenceRails(joints)   { return this._buildFenceRails(joints, '_houseFenceRailGfx'); }
