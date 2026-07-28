@@ -124,6 +124,34 @@ export const WithStream = (Base) => class extends Base {
       for (let s = 0; s < 16; s++) mid.push(cr(P[i - 1], P[i], P[i + 1], P[i + 2], s / 16));
     }
     mid.push(P[P.length - 2]);
+
+    // #398: a control point another route is tap-linked to (endpointLink.js's
+    // #397 mid-point linking; for the stream this can only ever be a link to
+    // one of `_streamCtrl`'s OWN other points, since 'stream' is a single-
+    // route category) still needs the meander below zeroed out at that exact
+    // spot, the same way the path's Chaikin pass now re-anchors a linked
+    // point (world.js's `_bakePathGraphics`). The Catmull-Rom pass above
+    // already samples exactly through every raw control point — it's the
+    // meander's running-distance-based offset next that would otherwise push
+    // a linked point off its raw coordinate and read as a visible gap where
+    // a branch is fused to it.
+    //
+    // Detected the same way as the path fix: reference identity on the raw
+    // `_streamCtrl` array (a fused link is literally the same array object
+    // in two slots — endpointLink.js's "FUSION MODEL"), not by going through
+    // `this._splines` (dev-tool-only, doesn't exist at ordinary boot).
+    // `densifyStreamCtrl` rebuilds new point objects even for
+    // numerically-unchanged points, so identity is checked against the RAW
+    // `_streamCtrl` and matched into `mid` by (rounded) coordinate instead.
+    const linkedXY = [];
+    {
+      const raw = this._streamCtrl;
+      const refCount = new Map();
+      for (const pt of raw) refCount.set(pt, (refCount.get(pt) || 0) + 1);
+      for (const pt of raw) if ((refCount.get(pt) || 0) > 1) linkedXY.push(pt);
+    }
+    const isLinkedPoint = (x, y) => linkedXY.some(([lx, ly]) => Math.abs(lx - x) < 0.5 && Math.abs(ly - y) < 0.5);
+
     // add a squiggly meander perpendicular to the flow (the wavy look from before)
     const path = [];
     let dist = 0;
@@ -132,7 +160,7 @@ export const WithStream = (Base) => class extends Base {
       let tx = b[0] - a[0], ty = b[1] - a[1];
       const tl = Math.hypot(tx, ty) || 1; tx /= tl; ty /= tl;
       if (i > 0) dist += Math.hypot(mid[i][0] - mid[i - 1][0], mid[i][1] - mid[i - 1][1]);
-      const off = 13 * Math.sin(dist / 55) + 4 * Math.sin(dist / 19);
+      const off = isLinkedPoint(mid[i][0], mid[i][1]) ? 0 : (13 * Math.sin(dist / 55) + 4 * Math.sin(dist / 19));
       path.push([mid[i][0] - ty * off, mid[i][1] + tx * off]);
     }
 
