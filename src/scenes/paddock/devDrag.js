@@ -426,11 +426,28 @@ export const WithDevDrag = (Base) => class extends Base {
     if (!ep) return false;
     const res = this._toggleEndpointLink?.(ep);
     // #393: a path/stream route's own start+end can now link to EACH OTHER,
-    // closing it into a loop — `res.selfLoop` just picks the HUD wording
-    // (fences never set it, since `_toggleEndpointLink` only offers a
-    // same-array candidate for path/stream categories).
-    if (res?.linked)   { this._dragHud?.setText(res.selfLoop ? `${labelPrefix}: loop closed` : `${labelPrefix}: endpoint linked to ${res.label}`);   return true; }
-    if (res?.unlinked) { this._dragHud?.setText(res.selfLoop ? `${labelPrefix}: loop opened` : `${labelPrefix}: endpoint unlinked from ${res.label}`); return true; }
+    // closing it into a loop — `res.selfEnd` (true only when the OTHER side
+    // is itself an endpoint) picks that exact wording. #397 widened
+    // self-linking to any of the route's own interior points too
+    // (`res.selfLoop` without `res.selfEnd`) — worded as a "branch" instead,
+    // since it isn't necessarily closing the run into a loop. Cross-route
+    // links (fence or path/stream, endpoint or mid-point target alike) just
+    // name the target via `res.label`. Fences never set `selfLoop`, since
+    // `_toggleEndpointLink` never offers a same-array candidate for them.
+    if (res?.linked) {
+      const msg = res.selfEnd ? `${labelPrefix}: loop closed`
+        : res.selfLoop ? `${labelPrefix}: branched into its own ${res.label}`
+        : `${labelPrefix}: endpoint linked to ${res.label}`;
+      this._dragHud?.setText(msg);
+      return true;
+    }
+    if (res?.unlinked) {
+      const msg = res.selfEnd ? `${labelPrefix}: loop opened`
+        : res.selfLoop ? `${labelPrefix}: unlinked from its own ${res.label}`
+        : `${labelPrefix}: endpoint unlinked from ${res.label}`;
+      this._dragHud?.setText(msg);
+      return true;
+    }
     return false;
   }
 
