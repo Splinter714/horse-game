@@ -186,12 +186,12 @@ export const WithWorld = (Base) => class extends Base {
       // moved again by the owner's own placement once the barn relocated further
       // (#330 drag tool).
       [464, 251], [443, 256], [506, 280], [436, 274], [402, 247],
-      [479, 260], [425, 229], [421, 288], [489, 226], [1000, 350],
+      [479, 260], [425, 229], [421, 288], [489, 226], [363, 225],
       [496, 266], [415, 271], [490, 246], [460, 272], [422, 248],
       [516, 264], [509, 241], [378, 255], [372, 278], [491, 294],
-      [1700, 600], [395, 264], [1860, 520], [527, 253], [517, 1091],
+      [346, 241], [395, 264], [355, 264], [527, 253], [539, 237],
       [538, 267], [980, 1400], [525, 283], [1780, 900], [452, 289],
-      [669, 1254], [560, 860], [1120, 1430], [480, 282], [954, 1157],
+      [669, 1254], [364, 245], [1120, 1430], [480, 282], [954, 1157],
       [395, 283], [960, 1240], [887, 1409], [404, 225], [1700, 1320],
     ].forEach(([x, y], i) => {
       const sprite = this.add.image(x, y, flowers[i % flowers.length]).setScale(S).setDepth(y);
@@ -428,7 +428,7 @@ export const WithWorld = (Base) => class extends Base {
     // PASTURE_BOUNDS.maxY (1450) the fence line was already respecting.
     this.props.pastureFenceJoints = [
       { x: gateX - GATE_HALF_W, y: gateY, gateLink: 'left' },
-      { x: -39, y: 870 },
+      { x: -43, y: 899 },
       { x: -46, y: 1490 },
       { x: 2032, y: 1490 },
       { x: 2021, y: 860 },
