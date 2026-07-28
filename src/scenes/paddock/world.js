@@ -694,7 +694,7 @@ export const WithWorld = (Base) => class extends Base {
     // polyline doesn't have a segment spanning the gap in the first place.
     const PB = PASTURE_BOUNDS;
     const topY = PB.minY - 8;
-    const T = 20; // wall thickness — matches PASTURE_FENCE_BAND, kept local for the gate rect below
+    const T = PASTURE_FENCE_BAND; // gate collision thickness — matches the fence's own collision band
     this.fenceObstacles = this._pastureFenceObstacles();
     for (const f of this.fenceObstacles) this.obstacles.push(f);
 
