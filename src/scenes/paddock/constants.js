@@ -145,7 +145,11 @@ export const FENCE_POST_TOP_SPLIT_Y = FENCE_TEX_H / 2 + FENCE_RAIL_TOP_OFFSET / 
 // spacing convention too: one post every 96 world px (FENCE_TEX_W * S), the
 // cropped post column's native width.
 export const PASTURE_FENCE_SPACING = FENCE_TEX_W * S; // 96, matches the house fence
-export const PASTURE_FENCE_BAND    = 20; // world px collision thickness — matches the old fixed-wall thickness
+// Collision thickness: literally the SAME shared constant the house fence
+// uses (FENCE_COLLISION_BAND, below) — the two are meant to be identical in
+// every way except node position/gate linkage, so this isn't its own tunable.
+export const FENCE_COLLISION_BAND  = 40; // world px collision thickness, shared by both fence instances
+export const PASTURE_FENCE_BAND    = FENCE_COLLISION_BAND;
 
 // ── Animal droppings (#232) ─────────────────────────────────────────────────
 // The most droppings allowed lying in the pasture at once. Cosmetic clutter the
