@@ -42,7 +42,7 @@ export const WithWorld = (Base) => class extends Base {
       // fromHouse/toGate/toStream: #373 drag tool, repositioned + bend points
       // added 2026-07-27 (owner's own placements).
       fromHouse: [[221, 265], [219, 380], [398, 511], [680, 574], [905, 720]],
-      toGate:    [[905, 720], [983, 763], [962, 899], [976, 1124], [952, 1406], [1410, 1379], [1394, 1268]],
+      toGate:    [[905, 720], [983, 763], [961, 874], [976, 1124], [952, 1406], [1410, 1379], [1394, 1268]],
       toStream:  [[978, 797], [1029, 663], [1180, 537], [1454, 459], [1718, 534], [1844, 468], [1848, 221]],
       toStand:   [[1955, 742], [1800, 772], [1640, 794], [1560, 802]], // off east edge → farm stand
     };
@@ -414,16 +414,20 @@ export const WithWorld = (Base) => class extends Base {
       .setScale(S).setDepth(gateY).setOrigin(0.5, 0.5);
     this.props.gate = { x: gateX, y: gateY, sprite: gateSprite, open: false };
 
-    // Blank starting run: two joints, one LINKED to the gate's left side
-    // (`gateLink` — `_applyPastureGateLinks` re-derives its x/y from the
-    // gate's CURRENT position every respace, same "follows if the gate
-    // moves" behavior #376 built) and one a short way further along the top
-    // fence line, both draggable/promotable in the dev tool same as any
-    // house-fence joint. Not a real perimeter — just a sensible place to
-    // start bending one out from.
+    // Full perimeter, the owner's own placement (#330/#370 drag tool, baked
+    // in 2026-07-27) — bent out from the gate's left side, around the whole
+    // pasture, back to the gate's right side. Both end joints are LINKED to
+    // the gate (`gateLink` — `_applyPastureGateLinks` re-derives their x/y
+    // from the gate's CURRENT position every respace, the "follows if the
+    // gate moves" behavior #376 built); the rest are plain fixed joints,
+    // draggable/promotable in the dev tool same as any house-fence joint.
     this.props.pastureFenceJoints = [
       { x: gateX - GATE_HALF_W, y: gateY, gateLink: 'left' },
-      { x: gateX - GATE_HALF_W - 96, y: gateY },
+      { x: -39, y: 870 },
+      { x: -46, y: 1523 },
+      { x: 2032, y: 1516 },
+      { x: 2021, y: 860 },
+      { x: gateX + GATE_HALF_W, y: gateY, gateLink: 'right' },
     ];
     this.props.pastureFence = [];
     this._applyPastureGateLinks(this.props.pastureFenceJoints);
