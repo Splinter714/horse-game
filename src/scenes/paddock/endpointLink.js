@@ -110,7 +110,22 @@ export const WithEndpointLink = (Base) => class extends Base {
   // position); otherwise link to the NEAREST eligible same-category
   // endpoint within LINK_R, if any. Returns a small result object for the
   // caller to turn into a HUD message.
+  //
+  // #391 fix: a route whose first and last waypoints are the literal SAME
+  // array reference (the forest loop's permanent closure, see trail.js) is
+  // its OWN partner — `_linkedPartner` deliberately never reports that as
+  // "linked" (it only matches a DIFFERENT array, by design — see the file
+  // header), so without this guard the fall-through below would search for
+  // some unrelated nearby same-category endpoint to link to instead of
+  // unlinking, which is nonsensical (tapping the loop's closure point isn't
+  // supposed to fuse it to a random other path). The loop's closure isn't a
+  // tap-toggleable link at all — nothing else in the game (`_bakePathGraphics`,
+  // the minimap, "walk the whole loop back to the farm") supports it ever
+  // being open, so this endpoint just no-ops on tap.
   _toggleEndpointLink(ep) {
+    if (ep.arr.length > 1 && ep.arr[0] === ep.arr[ep.arr.length - 1]) {
+      return { linked: false, selfLoop: true };
+    }
     const all = this._collectLinkEndpoints();
     const idx = endIndex(ep.arr, ep.end);
     const cur = ep.arr[idx];
