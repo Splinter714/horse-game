@@ -59,6 +59,7 @@ export const WithPastureFencePath = createFencePathMixin({
     fillPosts: '_fillPastureFencePosts',
     tap: '_pastureFencePathTap',
     resolveJoint: '_pastureFenceResolveJoint',
+    deleteNode: '_pastureFenceDeleteNode', // #394 — double-tap-to-remove-a-bend
     toggleGateLink: '_pastureFenceToggleGateLink',
     pathMove: '_pastureFencePathMove',
     respace: '_respacePastureFenceFromJoints',

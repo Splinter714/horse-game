@@ -52,6 +52,7 @@ export const WithHouseFencePath = createFencePathMixin({
     fillPosts: '_fillHouseFencePosts',
     tap: '_houseFencePathTap',
     resolveJoint: '_houseFenceResolveJoint',
+    deleteNode: '_houseFenceDeleteNode', // #394 — double-tap-to-remove-a-bend
     toggleGateLink: '_houseFenceToggleGateLink', // unused (gateLinkable: false)
     pathMove: '_houseFencePathMove',
     respace: '_respaceHouseFenceFromJoints',
