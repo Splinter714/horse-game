@@ -378,6 +378,12 @@ export const WithDevDrag = (Base) => class extends Base {
     const res = this._toggleEndpointLink?.(ep);
     if (res?.linked)   { this._dragHud?.setText(`${labelPrefix}: endpoint linked to ${res.label}`);   return true; }
     if (res?.unlinked) { this._dragHud?.setText(`${labelPrefix}: endpoint unlinked from ${res.label}`); return true; }
+    // #391: the forest loop's permanently-fused start/end point (see
+    // endpointLink.js's `_toggleEndpointLink`) — consume the tap with a
+    // no-op message instead of falling through to any other tap behaviour,
+    // which could otherwise mistake this for an unhandled tap and do
+    // something else with it.
+    if (res?.selfLoop) { this._dragHud?.setText(`${labelPrefix}: this point keeps the loop closed`); return true; }
     return false;
   }
 
