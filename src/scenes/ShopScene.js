@@ -6,8 +6,9 @@
 // Before #312 this scene ALSO sold feed (SHOP_STOCK) — that counter has moved into
 // the unified store (data/generalStore.js's `food` counter, opened at the one store
 // building in town; see GeneralStoreScene). Tool upgrades weren't part of that
-// unification ask, so they stayed here at the market stall, which is no longer
-// staffed by the shopkeeper NPC (moved to the unified store, #244/#312).
+// unification ask, so they stayed here at the market stall, which is unstaffed
+// (the shopkeeper NPC that briefly staffed the unified store, #244/#312, was
+// removed per #388).
 //
 // Input parity (controller + touch + keyboard): tap a row's Buy button, or focus
 // rows with the d-pad/arrows and press A/Enter; B/Esc/✕ closes. The world is paused

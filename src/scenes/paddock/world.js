@@ -319,10 +319,11 @@ export const WithWorld = (Base) => class extends Base {
     // Compost bin (#232) — dump spot. Position (615, 850) — the owner's own placement (#330 drag tool, baked in by #341).
     this.props.compostBin = { x: 615, y: 850, sprite: this.add.image(615, 850, 'compostBin').setScale(S).setDepth(850).setOrigin(0.5, 1) };
 
-    // Market stall (#29, narrowed by #312) — TOOL UPGRADES only (#295) now; feed +
-    // the shopkeeper NPC moved to the unified store in town (paddock/town.js's
-    // buildTown → buildGeneralStore), so this stall is unstaffed. West of the farm
-    // stand (SELL station, 1628,753) so the two economy halves read as distinct.
+    // Market stall (#29, narrowed by #312) — TOOL UPGRADES only (#295) now; feed
+    // moved to the unified store in town (paddock/town.js's buildTown →
+    // buildGeneralStore). Unstaffed — the shopkeeper NPC that briefly staffed the
+    // unified store (#244/#312) was removed per #388. West of the farm stand
+    // (SELL station, 1628,753) so the two economy halves read as distinct.
     // Position (2156, 523) — the owner's own placement (#330 drag tool, baked in by #335).
     const shopX = 2156, shopY = 523;
     const shopSprite = this.add.image(shopX, shopY, 'shopStall')
