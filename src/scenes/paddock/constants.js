@@ -137,16 +137,14 @@ export const FENCE_RAIL_BOTTOM_COLOR  = 0xbc8442;
 // out part and above" should sit above the top rail, "the rest below".
 export const FENCE_POST_TOP_SPLIT_Y = FENCE_TEX_H / 2 + FENCE_RAIL_TOP_OFFSET / S; // native px, = 7.5
 
-// Pasture-perimeter fence (#376 — converted to the same bendable-joint model as
-// the house fence, but keeps its OWN different placement scheme). Unlike the
-// house fence (posts cropped to just the post column + two separate continuous
-// rail lines), the pasture fence's 'fence' tile is drawn WHOLE (post + baked-in
-// rail) and stepped at HALF its own rendered width so consecutive tiles overlap
-// ~50% and the rail reads as continuous — no separate rail Graphics needed, but
-// every post must be individually rotated to match its segment's angle (the
-// house fence's posts stay unrotated since its rail is a separate line).
-// FENCE_TEX_W * S = 96 world px rendered tile width, so 48 is exactly half.
-export const PASTURE_FENCE_SPACING = (FENCE_TEX_W * S) / 2; // 48
+// Pasture fence (#376 first converted it to the same bendable-joint model as
+// the house fence; #386 replaced the whole thing with a second manually-
+// placed instance of the literal house-fence tool — see pastureFencePath.js/
+// fencePath.js) — same rendering technique as the house fence (cropped, un-
+// rotated posts + separate continuous rail lines), so it shares its post
+// spacing convention too: one post every 96 world px (FENCE_TEX_W * S), the
+// cropped post column's native width.
+export const PASTURE_FENCE_SPACING = FENCE_TEX_W * S; // 96, matches the house fence
 export const PASTURE_FENCE_BAND    = 20; // world px collision thickness — matches the old fixed-wall thickness
 
 // ── Animal droppings (#232) ─────────────────────────────────────────────────
