@@ -12,6 +12,7 @@ import {
 import { SPECIES } from '../../data/species/index.js';
 import { bakeStaticGraphics } from './bakeGraphics.js';
 import { houseFenceSegmentRects, perimeterFenceSegmentRects } from './houseFence.js';
+import { fenceRailDepth } from './fencePath.js';
 
 // Collision band thickness for the house fence line (#344) — the solid slice of the
 // 48px-tall rail sprite, matching the height the old hardcoded rect used.
@@ -389,47 +390,44 @@ export const WithWorld = (Base) => class extends Base {
     }
   }
 
-  // #376 rework: the pasture perimeter used to be four independent walls (each
-  // its own fixed-step tile loop, corners hardcoded) built with a DIFFERENT
-  // placement scheme than the house fence (centered-origin tiles stepped at
-  // HALF their rendered width so consecutive tiles overlap 50%, vs. the house
-  // fence's left-origin/crop/joint-rail scheme). It's now one continuous
-  // bendable JOINT polyline — same #375 data model the house fence uses
-  // (ordered joints, one straight segment per consecutive pair, any point can
-  // be promoted to a bend point by dragging it in the #330/#370 dev tool) —
-  // open at the gate rather than a true closed ring, since the gate object
-  // itself fills that gap visually. See pastureFencePath.js for why the art
-  // build (`_fillPastureFencePosts`) isn't a drop-in reuse of the house
-  // fence's, even though the underlying respace maths is shared.
+  // #376 first gave the pasture perimeter the same joint/segment data model
+  // as the house fence (ordered joints, one straight segment per consecutive
+  // pair), but auto-generated a full 4-sided rectangle around the pasture
+  // with its own separate rendering technique. #386: the owner asked for
+  // that auto-generated shape to be thrown away entirely — no attempt to
+  // preserve or convert its position — and replaced with a SECOND instance
+  // of the literal house-fence drag tool (see pastureFencePath.js/
+  // fencePath.js), started from a small blank two-joint run near the gate.
+  // The owner places/bends the real perimeter himself live with the #330/#370
+  // drag tool, then hands back an export to bake in here as the permanent
+  // shape — mirroring how the house fence, worn paths, and the stream were
+  // all iterated on this session (drag live → export → bake in).
   buildPastureFence() {
     const PB = PASTURE_BOUNDS;
-    const topY = PB.minY - 8, botY = PB.maxY + 8, lX = PB.minX - 8, rX = PB.maxX + 8;
+    const topY = PB.minY - 8;
     const gateX = GATE_X, gateY = topY;
 
     // Gate (interactive) — positioned at top center of pasture. Built FIRST so
-    // the two gate-flanking joints below can be derived from its position.
+    // the gate-linked joint below can be derived from its position.
     const gateSprite = this.add.image(gateX, gateY, 'gateClosed')
       .setScale(S).setDepth(gateY).setOrigin(0.5, 0.5);
     this.props.gate = { x: gateX, y: gateY, sprite: gateSprite, open: false };
 
-    // One open polyline, winding gate-left-post → top-left corner → bottom-left
-    // corner → bottom-right corner → top-right corner → gate-right-post. The
-    // two end joints are LINKED to the gate (`gateLink`) rather than plain
-    // fixed points — `_applyPastureGateLinks` (pastureFencePath.js) re-derives
-    // their x/y from the gate's CURRENT position every respace, so the fence
-    // stays glued to the gate even if it's ever dragged/repositioned (#376
-    // decided: "gate linking = follows if the gate moves").
+    // Blank starting run: two joints, one LINKED to the gate's left side
+    // (`gateLink` — `_applyPastureGateLinks` re-derives its x/y from the
+    // gate's CURRENT position every respace, same "follows if the gate
+    // moves" behavior #376 built) and one a short way further along the top
+    // fence line, both draggable/promotable in the dev tool same as any
+    // house-fence joint. Not a real perimeter — just a sensible place to
+    // start bending one out from.
     this.props.pastureFenceJoints = [
       { x: gateX - GATE_HALF_W, y: gateY, gateLink: 'left' },
-      { x: lX, y: topY },
-      { x: lX, y: botY },
-      { x: rX, y: botY },
-      { x: rX, y: topY },
-      { x: gateX + GATE_HALF_W, y: gateY, gateLink: 'right' },
+      { x: gateX - GATE_HALF_W - 96, y: gateY },
     ];
     this.props.pastureFence = [];
     this._applyPastureGateLinks(this.props.pastureFenceJoints);
     this._fillPastureFencePosts(this.props.pastureFenceJoints);
+    this._buildPastureFenceRails(this.props.pastureFenceJoints);
   }
 
   // House-fence rail lines (#372 rework, #372 playtest fix, #375 polyline
@@ -443,21 +441,24 @@ export const WithWorld = (Base) => class extends Base {
   // perpendicular to the run's ANGLE instead, which lined up with the post art
   // only when the run was horizontal — at any other angle the perpendicular
   // offset visibly drifted off the (un-rotated) post sprites, worse the
-  // steeper the angle (2026-07-27 playtest). Since `respaceHouseFence` places
+  // steeper the angle (2026-07-27 playtest). Since `respaceFenceRun` places
   // every post exactly on the straight line between its segment's two joints,
   // a pure vertical translation of that line still passes through every
   // intermediate post's own (x, y+offset) point — collinearity is preserved
   // under a (0, dy) translation — so one line per rail per segment still
   // reaches every post correctly, just anchored to the post art instead of
-  // rotated to the segment. Destroys/recreates its own single Graphics object
-  // each call (stashed on `this._houseFenceRailGfx`, one object covering every
-  // segment — depth is the average of every joint's y) so the #370/#375 drag
-  // tool's `_respaceHouseFenceFromJoints` (houseFencePath.js) can just call
-  // this again after every respace/promotion, same as the initial build here.
-  _buildHouseFenceRails(joints) {
-    this._houseFenceRailGfx?.destroy();
-    if (!joints || joints.length < 2) { this._houseFenceRailGfx = null; return null; }
-    const g = this.add.graphics().setDepth(this._houseFenceRailDepth(joints));
+  // rotated to the segment.
+  //
+  // #386: generalized to take a `gfxProp` — the instance-field name to stash
+  // the Graphics object under — so a SECOND fence instance (the pasture
+  // fence) can call this exact same function without clobbering the house
+  // fence's rail Graphics. `_buildHouseFenceRails`/`_buildPastureFenceRails`
+  // below are the two thin per-instance wrappers fencePath.js's
+  // `respaceFromJoints` calls by name.
+  _buildFenceRails(joints, gfxProp) {
+    this[gfxProp]?.destroy();
+    if (!joints || joints.length < 2) { this[gfxProp] = null; return null; }
+    const g = this.add.graphics().setDepth(fenceRailDepth(joints));
     // Post sprites are drawn with origin (0, 0.5) — a joint's x is each post's
     // LEFT edge, not its visual center. That's invisible on a mostly-
     // horizontal run (a few px of x-offset is lost along a long line), but on
@@ -474,9 +475,12 @@ export const WithWorld = (Base) => class extends Base {
     };
     drawRail(FENCE_RAIL_TOP_OFFSET, FENCE_RAIL_TOP_COLOR);
     drawRail(FENCE_RAIL_BOTTOM_OFFSET, FENCE_RAIL_BOTTOM_COLOR);
-    this._houseFenceRailGfx = g;
+    this[gfxProp] = g;
     return g;
   }
+
+  _buildHouseFenceRails(joints)   { return this._buildFenceRails(joints, '_houseFenceRailGfx'); }
+  _buildPastureFenceRails(joints) { return this._buildFenceRails(joints, '_pastureFenceRailGfx'); }
 
   // ─── Obstacles & collision ───────────────────────────────────────────────
 

@@ -359,6 +359,13 @@ export const WithDevDrag = (Base) => class extends Base {
       return;
     }
     if (this._pastureJointHeld) {
+      // A plain tap (never dragged past TAP_SLOP) on an EXISTING joint
+      // toggles its gate link on/off instead of reshaping anything — see
+      // fencePath.js's `toggleGateLink` / pastureFencePath.js's header.
+      if (!this._dragMoved) {
+        const linked = this._pastureFenceToggleGateLink?.(this._pastureJointHeld);
+        if (linked) this._dragHud?.setText(`Pasture fence: joint gate-link toggled`);
+      }
       this._pastureJointHeld = null;
       this._dragMoved = false;
       this._devDragHud(null);
