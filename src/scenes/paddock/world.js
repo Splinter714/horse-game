@@ -72,26 +72,47 @@ export const WithWorld = (Base) => class extends Base {
     this._pathBake?.destroy();
     const g = this.add.graphics().setDepth(-95);
     const routes = Object.values(this._pathRoutes);
-    const subdivided = routes.map((wp) => {
-      // Chaikin-style corner-cutting (#378): soften each interior waypoint's
-      // hard kink by repeatedly replacing points with two points pulled a
-      // percentage toward their neighbors, before the straight-segment
-      // stamping below runs. This is a local copy used only for this bake —
-      // it never touches `wp` itself, so the real corner points
-      // `_pathRoutes` holds (and that splineDrag.js drags/inserts against)
-      // are untouched. Endpoints are left alone (each pass re-anchors the
-      // first/last point) so route junctions/entrances still land exactly
-      // on the declared coordinates.
-      //
-      // A single pass only trims the very tip of the corner, which still
-      // reads as a (smaller) cut corner rather than a true curve — a
-      // playtest note on the first version of this fix (#378). Running
-      // several passes, each smoothing the previous pass's output, converges
-      // toward a properly rounded bend while staying a cheap point-pull
-      // (no bezier/spline math needed).
+
+    // #398: a mid-point that another route is tap-linked to (endpointLink.js's
+    // #397 mid-point linking) has to stay a hard anchor through the Chaikin
+    // pass below, exactly like the route's own start/end already are —
+    // otherwise the branch (fused by reference to this exact point, so its
+    // own raw coordinate never moves) ends up fused to a spot the smoothed
+    // curve no longer actually passes through, reading as a visible gap.
+    //
+    // Detected by plain reference identity rather than by going through
+    // endpointLink.js's `_collectLinkEndpoints`/`_linkedPartner`: those read
+    // `this._splines`, which only exists while the dev link tool is mounted,
+    // but this bake also runs at ordinary game boot (`buildPath()` →
+    // `_bakePathGraphics()`) with no dev tool active. The fusion model those
+    // helpers rely on (endpointLink.js's "FUSION MODEL" comment) is itself
+    // just "two linked points are the literal same array reference" — so a
+    // point object that shows up in more than one (route, index) slot across
+    // `_pathRoutes` IS a link (its own endpoint slot holding the target's
+    // exact reference), with no extra bookkeeping needed here either.
+    const pointRefCount = new Map();
+    for (const wp of routes) for (const pt of wp) pointRefCount.set(pt, (pointRefCount.get(pt) || 0) + 1);
+    const isLinkedAnchor = (pt) => (pointRefCount.get(pt) || 0) > 1;
+
+    // Chaikin-style corner-cutting (#378): soften each interior waypoint's
+    // hard kink by repeatedly replacing points with two points pulled a
+    // percentage toward their neighbors, before the straight-segment
+    // stamping below runs. Operates on a local copy — it never touches `wp`
+    // itself, so the real corner points `_pathRoutes` holds (and that
+    // splineDrag.js drags/inserts against) are untouched. Endpoints are left
+    // alone (each pass re-anchors the first/last point) so route
+    // junctions/entrances still land exactly on the declared coordinates.
+    //
+    // A single pass only trims the very tip of the corner, which still
+    // reads as a (smaller) cut corner rather than a true curve — a
+    // playtest note on the first version of this fix (#378). Running
+    // several passes, each smoothing the previous pass's output, converges
+    // toward a properly rounded bend while staying a cheap point-pull
+    // (no bezier/spline math needed).
+    const chaikinSmooth = (points) => {
       const CHAIKIN_PASSES = 3;
       const CHAIKIN_PULL = 0.25;
-      let smoothed = wp;
+      let smoothed = points;
       for (let pass = 0; pass < CHAIKIN_PASSES && smoothed.length > 2; pass++) {
         smoothed = [
           smoothed[0],
@@ -105,6 +126,30 @@ export const WithWorld = (Base) => class extends Base {
           }),
           smoothed[smoothed.length - 1],
         ];
+      }
+      return smoothed;
+    };
+
+    const subdivided = routes.map((wp) => {
+      // #398: split the route at any linked mid-point first, so that point
+      // becomes a hard segment boundary (exact raw coordinate preserved,
+      // same as `chaikinSmooth` already guarantees for `points[0]`/last) —
+      // each segment between anchors is smoothed independently and the
+      // results stitched back together. A route with no linked mid-points is
+      // just one segment covering the whole thing: identical to the old
+      // single-`chaikinSmooth(wp)` behavior.
+      const anchorIdx = [0];
+      for (let i = 1; i < wp.length - 1; i++) if (isLinkedAnchor(wp[i])) anchorIdx.push(i);
+      anchorIdx.push(wp.length - 1);
+      let smoothed;
+      if (anchorIdx.length <= 2) {
+        smoothed = chaikinSmooth(wp);
+      } else {
+        smoothed = [];
+        for (let s = 0; s < anchorIdx.length - 1; s++) {
+          const seg = chaikinSmooth(wp.slice(anchorIdx[s], anchorIdx[s + 1] + 1));
+          smoothed.push(...(s === 0 ? seg : seg.slice(1))); // drop duplicate boundary point
+        }
       }
       const pts = [];
       for (let i = 0; i < smoothed.length - 1; i++) {
