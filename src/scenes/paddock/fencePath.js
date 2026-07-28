@@ -252,6 +252,30 @@ export function createFencePathMixin(spec) {
       return true;
     }
 
+    // #394: given an EXISTING joint (already resolved — `held.index`, or a
+    // `{ pending: post }` whose post already turned out to be a joint), splice
+    // it back OUT of the joint list so the fence goes straight between its
+    // former neighbors again — the inverse of `resolveJoint` promoting an
+    // auto-fill post INTO a joint. Never removes the run's absolute first/last
+    // joint (those are the anchors, not a bend, and removing one would need a
+    // whole different "shorten the run" gesture this isn't) — a no-op on an
+    // endpoint or on a not-yet-a-joint pending post. Because only an INTERIOR
+    // joint can ever be deleted, and only the two endpoint joints are ever
+    // gate/endpoint-linked cross-references, deleting a joint never leaves a
+    // dangling link to clean up — the joint (and whatever `gateLink` tag it
+    // carried) is simply removed with it.
+    [names.deleteNode](held) {
+      if (!held) return false;
+      const post = held.pending ?? held;
+      const jointIndex = held.index ?? post.jointIndex;
+      if (jointIndex === undefined) return false;
+      const joints = this[names.joints]();
+      if (jointIndex <= 0 || jointIndex >= joints.length - 1) return false; // anchors — never deletable
+      joints.splice(jointIndex, 1);
+      this[names.respace]();
+      return true;
+    }
+
     // Called from devDrag.js's `_devDragMove` on every tick while a joint is held.
     [names.pathMove](jointIndex, w) {
       const joints = this[names.joints]();

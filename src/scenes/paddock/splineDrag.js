@@ -170,6 +170,27 @@ export const WithSplineDrag = (Base) => class extends Base {
     return { spline, index: segIndex };
   }
 
+  // #394: given an EXISTING held control point `{ spline, index }`, splices it
+  // back OUT of `spline.points` so the route goes straight through where it
+  // used to bend — the inverse of `_splineInsertTap`. Never removes the
+  // route's own absolute first/last waypoint (index 0 or length-1) — those
+  // are the anchors a whole route hangs off, including (for the forest loop)
+  // a self-closed shared reference at BOTH ends, so this deliberately treats
+  // "index 0" and "index length-1" as untouchable regardless of whether
+  // they're currently fused to anything; only true interior points are ever
+  // linkable via endpointLink.js anyway, so a deletable point here never has
+  // a cross-route link to clean up.
+  _splineDeleteNode(held) {
+    if (!held) return false;
+    const { spline, index } = held;
+    const pts = spline.points;
+    if (index <= 0 || index >= pts.length - 1) return false; // anchors — never deletable
+    pts.splice(index, 1);
+    spline.onChange();
+    this._drawSplineMarks();
+    return true;
+  }
+
   // Called from devDrag.js's `_devDragMove` while a control point is held.
   _splineDragMove(w) {
     const { spline, index } = this._splineHeld;

@@ -71,6 +71,9 @@ export const WithDevDrag = (Base) => class extends Base {
     this._dragBtns    = [];    // screen-fixed Text buttons + their hit rects
     this._dragHud     = null;  // "what am I holding" readout
     this._dragPanel   = null;  // the export readout panel
+    this._lastNodeArr   = null; // #394 — double-tap-to-delete-a-bend tracking (last tapped joint/point)
+    this._lastNodeIndex = null;
+    this._lastNodeAt    = 0;
     if (loadDevSettings().dragObjects) this._mountDevDrag();
   }
 
@@ -106,6 +109,9 @@ export const WithDevDrag = (Base) => class extends Base {
     this._dragHud     = null;
     this._dragPanel   = null;
     this._dragBtns    = [];
+    this._lastNodeArr   = null; // #394 — don't carry stale double-tap tracking across a remount
+    this._lastNodeIndex = null;
+    this._lastNodeAt    = 0;
   }
 
   // Snapshot every placed object AND where it started, so "moved" is knowable
@@ -394,11 +400,62 @@ export const WithDevDrag = (Base) => class extends Base {
     return false;
   }
 
+  // #394: resolves whatever `held` a fence/spline tap handed back down to a
+  // definite array index — a fence's `{ index }` (already a joint) or
+  // `{ pending: post }` (a post that may or may not already be a joint;
+  // `post.jointIndex` is undefined for an auto-fill post), or a spline's
+  // plain `{ index }`. Returns undefined when there's no definite joint/point
+  // index yet (e.g. an auto-fill fence post that's never been promoted).
+  _devHeldIndex(held) {
+    if (!held) return undefined;
+    if (held.index !== undefined) return held.index;
+    return held.pending?.jointIndex;
+  }
+
+  // #394: true when this tap is a quick second tap on the SAME node (same
+  // live array reference + same index) as the last one — mirrors player.js's
+  // `_isDoubleTap` (single tap pets, quick double-tap opens info) applied
+  // here to "single tap toggles a link, quick double-tap removes the bend
+  // instead". `arr` is the joints/points array the drag tool already mutates
+  // in place, so reference equality across the two taps is meaningful the
+  // same way `endpointLink.js`'s `_linkedPartner` already relies on it.
+  // Tracking is cleared after a hit so a stray third tap isn't misread as
+  // ANOTHER double-tap on whatever node now sits at that same index.
+  _devDoubleTapNode(arr, index) {
+    const now = this.time.now;
+    const isDouble = this._lastNodeArr === arr && this._lastNodeIndex === index &&
+      (now - (this._lastNodeAt ?? 0)) < 320;
+    if (isDouble) {
+      this._lastNodeArr = null;
+      this._lastNodeIndex = null;
+      this._lastNodeAt = 0;
+    } else {
+      this._lastNodeArr = arr;
+      this._lastNodeIndex = index;
+      this._lastNodeAt = now;
+    }
+    return isDouble;
+  }
+
   // A press that never became a drag is a tap: toggle the object (and its group)
   // in or out of the selection.
   _devDragDrop() {
     if (this._fenceJointHeld) {
-      if (!this._dragMoved) this._devEndpointTapToggle(this._fenceJoints(), this._fenceJointHeld, 'House fence');
+      if (!this._dragMoved) {
+        const joints = this._fenceJoints();
+        const idx = this._devHeldIndex(this._fenceJointHeld);
+        // #394: a quick second tap on the SAME interior joint removes the
+        // bend instead of the ordinary single-tap link-toggle below — never
+        // offered on the run's own endpoints (idx 0/length-1), which stay
+        // link-toggleable only. Checked ahead of the toggle so the delete
+        // wins outright on the tap that triggers it.
+        if (idx !== undefined && idx > 0 && idx < joints.length - 1 && this._devDoubleTapNode(joints, idx)) {
+          this._houseFenceDeleteNode(this._fenceJointHeld);
+          this._dragHud?.setText('House fence: bend removed');
+        } else {
+          this._devEndpointTapToggle(joints, this._fenceJointHeld, 'House fence');
+        }
+      }
       this._fenceJointHeld = null;
       this._dragMoved = false;
       this._devDragHud(null);
@@ -413,11 +470,25 @@ export const WithDevDrag = (Base) => class extends Base {
       // interior joint (or an endpoint with nothing to link to) still
       // behaves exactly as before — see fencePath.js's `toggleGateLink` /
       // pastureFencePath.js's header.
+      //
+      // #394: a quick second tap on the SAME interior joint takes priority
+      // over both of those and removes the bend instead (an interior joint
+      // is never a run endpoint, so it's never itself endpoint-linked — but
+      // it CAN carry a gate-link, since the pasture fence lets any tapped
+      // joint attach to the gate; deleting it just drops that tag along with
+      // the joint, no dangling reference to clean up separately).
       if (!this._dragMoved) {
-        const handled = this._devEndpointTapToggle(this._pastureJoints(), this._pastureJointHeld, 'Pasture fence');
-        if (!handled) {
-          const linked = this._pastureFenceToggleGateLink?.(this._pastureJointHeld);
-          if (linked) this._dragHud?.setText(`Pasture fence: joint gate-link toggled`);
+        const joints = this._pastureJoints();
+        const idx = this._devHeldIndex(this._pastureJointHeld);
+        if (idx !== undefined && idx > 0 && idx < joints.length - 1 && this._devDoubleTapNode(joints, idx)) {
+          this._pastureFenceDeleteNode(this._pastureJointHeld);
+          this._dragHud?.setText('Pasture fence: bend removed');
+        } else {
+          const handled = this._devEndpointTapToggle(joints, this._pastureJointHeld, 'Pasture fence');
+          if (!handled) {
+            const linked = this._pastureFenceToggleGateLink?.(this._pastureJointHeld);
+            if (linked) this._dragHud?.setText(`Pasture fence: joint gate-link toggled`);
+          }
         }
       }
       this._pastureJointHeld = null;
@@ -428,10 +499,18 @@ export const WithDevDrag = (Base) => class extends Base {
     }
     if (this._splineHeld) {
       // #389: same endpoint-link toggle as the fences, for a path/stream
-      // run's first/last control point.
+      // run's first/last control point. #394: a quick second tap on the SAME
+      // interior control point removes it instead (never offered on the
+      // route's own first/last waypoint, which stays link-toggleable only).
       if (!this._dragMoved) {
-        this._devEndpointTapToggle(this._splineHeld.spline.points, this._splineHeld, this._splineHeld.spline.label);
-        this._drawSplineMarks?.();
+        const { spline, index } = this._splineHeld;
+        if (index > 0 && index < spline.points.length - 1 && this._devDoubleTapNode(spline.points, index)) {
+          this._splineDeleteNode(this._splineHeld);
+          this._dragHud?.setText(`${spline.label}: bend removed`);
+        } else {
+          this._devEndpointTapToggle(spline.points, this._splineHeld, spline.label);
+          this._drawSplineMarks?.();
+        }
       }
       this._splineHeld = null;
       this._dragMoved  = false;
