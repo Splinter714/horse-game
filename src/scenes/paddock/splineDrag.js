@@ -177,14 +177,20 @@ export const WithSplineDrag = (Base) => class extends Base {
   // are the anchors a whole route hangs off, including (for the forest loop)
   // a self-closed shared reference at BOTH ends, so this deliberately treats
   // "index 0" and "index length-1" as untouchable regardless of whether
-  // they're currently fused to anything; only true interior points are ever
-  // linkable via endpointLink.js anyway, so a deletable point here never has
-  // a cross-route link to clean up.
+  // they're currently fused to anything.
+  //
+  // #397: an interior point CAN now be a link target (another route's, or
+  // this route's own, endpoint fused to it) — `_detachLinkDependents`
+  // (endpointLink.js) runs first and gives every such dependent its own
+  // independent copy at the current position, so deleting the point never
+  // leaves a dangling shared reference. A point nobody's linked to is
+  // unaffected (the call is a no-op).
   _splineDeleteNode(held) {
     if (!held) return false;
     const { spline, index } = held;
     const pts = spline.points;
     if (index <= 0 || index >= pts.length - 1) return false; // anchors — never deletable
+    this._detachLinkDependents?.(pts, index);
     pts.splice(index, 1);
     spline.onChange();
     this._drawSplineMarks();
