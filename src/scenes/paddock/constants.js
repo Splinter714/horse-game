@@ -82,6 +82,22 @@ export const BOUNDS         = { minX: 180, maxX: 1740, minY: 200, maxY: 900 };
 export const PLAYER_BOUNDS  = { minX: TRAIL_X0 + 40, maxX: TOWN_X1 - 40, minY: 80, maxY: 1550 };
 export const PASTURE_BOUNDS = { minX: 180, maxX: 1740, minY: 910, maxY: 1450 };
 
+// #390: the on-screen hotbar strip permanently covers the bottom 72 logical px
+// of the screen (see the `lpy > logicalH(this) - 72` checks in player.js's
+// handleTap and devDrag.js's _devDragTap — both reserve that band for the
+// hotbar rather than the world). The camera's southward scroll is bounded by
+// WORLD_H (player.js's `setBounds`), and that clamp lines up EXACTLY with the
+// hotbar band: once the camera hits its southmost scroll position, the bottom
+// 72px of world content is permanently hidden behind the hotbar with no way to
+// scroll it clear — the camera simply can't go any further south to lift it
+// above the strip. Any object at a world y beyond WORLD_H - 72 is therefore
+// stuck there FOREVER, regardless of screen size. The dev drag-tool (#330) has
+// no such y-limit of its own, so a fence post (or anything else) dragged past
+// this line becomes permanently untappable — no highlight, no grab, nothing.
+// Clamp dev-drag moves well short of that line (extra margin beyond the exact
+// 72px for safety) so nothing can be placed where it can never be tapped again.
+export const DEV_DRAG_MAX_Y = WORLD_H - 100;
+
 // Water trough capacity, in "drinks" (#103). The trough holds a numeric water
 // level 0..TROUGH_CAP; each poured bucket raises it by TROUGH_PER_BUCKET and each
 // horse drink lowers it by one. CAP/PER_BUCKET = 3 buckets to fill from empty.

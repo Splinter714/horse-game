@@ -421,11 +421,16 @@ export const WithWorld = (Base) => class extends Base {
     // from the gate's CURRENT position every respace, the "follows if the
     // gate moves" behavior #376 built); the rest are plain fixed joints,
     // draggable/promotable in the dev tool same as any house-fence joint.
+    // The two south corners (originally y:1523/y:1516) sat just 5-12px above
+    // the world's south camera-scroll clamp — the exact permanently-untappable
+    // dead zone #390 fixed (see DEV_DRAG_MAX_Y in constants.js). Nudged up to
+    // sit safely clear of that line; same perimeter shape, same margin above
+    // PASTURE_BOUNDS.maxY (1450) the fence line was already respecting.
     this.props.pastureFenceJoints = [
       { x: gateX - GATE_HALF_W, y: gateY, gateLink: 'left' },
       { x: -39, y: 870 },
-      { x: -46, y: 1523 },
-      { x: 2032, y: 1516 },
+      { x: -46, y: 1490 },
+      { x: 2032, y: 1490 },
       { x: 2021, y: 860 },
       { x: gateX + GATE_HALF_W, y: gateY, gateLink: 'right' },
     ];
