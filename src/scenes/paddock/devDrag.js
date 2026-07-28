@@ -309,6 +309,11 @@ export const WithDevDrag = (Base) => class extends Base {
       }
       this._houseFencePathMove(this._fenceJointHeld.index, w);
       this._drawFenceJoints();
+      // #389: if this joint's an endpoint fused to another fence's endpoint,
+      // rerun the OTHER fence's own respace too — mutating the shared joint
+      // object already moved its coordinates, but each fence still redraws
+      // itself separately.
+      this._syncLinkedEndpoint?.(this._fenceJoints(), this._fenceJointHeld.index);
       this._drawDevDragMarks();
       return;
     }
@@ -322,6 +327,8 @@ export const WithDevDrag = (Base) => class extends Base {
       }
       this._pastureFencePathMove(this._pastureJointHeld.index, w);
       this._drawPastureFenceJoints();
+      // #389 — see the house-fence branch above.
+      this._syncLinkedEndpoint?.(this._pastureJoints(), this._pastureJointHeld.index);
       this._drawDevDragMarks();
       return;
     }
@@ -333,6 +340,12 @@ export const WithDevDrag = (Base) => class extends Base {
         this._dragMoved = true;
       }
       this._splineDragMove(w);
+      // #389: rerun a fused partner route/stream's own onChange (re-bake /
+      // re-derive) — `_splineDragMove` already redraws THIS spline's marks,
+      // and `_drawSplineMarks` redraws every spline's lines/points each
+      // call, so the partner's own visual geometry is covered by that; only
+      // its downstream rebuild needs an explicit nudge here.
+      this._syncLinkedEndpoint?.(this._splineHeld.spline.points, this._splineHeld.index);
       return;
     }
     const e = this._dragHeld;
@@ -348,10 +361,31 @@ export const WithDevDrag = (Base) => class extends Base {
     this._drawDevDragMarks();
   }
 
+  // #389: a plain tap (never dragged) on an existing RUN ENDPOINT joint/point
+  // tries to toggle its cross-instance endpoint link (see endpointLink.js) —
+  // returns true if it did anything (linked or unlinked), so a caller with
+  // its own fallback tap behaviour (the pasture fence's gate-link toggle)
+  // knows whether this already consumed the tap. `held` is whatever the tap
+  // handler returned — `{ pending: post }` if the press never became a drag
+  // (the only time this is called), matching `toggleGateLink`'s own
+  // `held.pending ?? held` extraction below.
+  _devEndpointTapToggle(arr, held, labelPrefix) {
+    if (!held) return false;
+    const post = held.pending ?? held;
+    const jointIndex = held.index ?? post.jointIndex;
+    const ep = this._findLinkEndpoint?.(arr, jointIndex);
+    if (!ep) return false;
+    const res = this._toggleEndpointLink?.(ep);
+    if (res?.linked)   { this._dragHud?.setText(`${labelPrefix}: endpoint linked to ${res.label}`);   return true; }
+    if (res?.unlinked) { this._dragHud?.setText(`${labelPrefix}: endpoint unlinked from ${res.label}`); return true; }
+    return false;
+  }
+
   // A press that never became a drag is a tap: toggle the object (and its group)
   // in or out of the selection.
   _devDragDrop() {
     if (this._fenceJointHeld) {
+      if (!this._dragMoved) this._devEndpointTapToggle(this._fenceJoints(), this._fenceJointHeld, 'House fence');
       this._fenceJointHeld = null;
       this._dragMoved = false;
       this._devDragHud(null);
@@ -359,12 +393,19 @@ export const WithDevDrag = (Base) => class extends Base {
       return;
     }
     if (this._pastureJointHeld) {
-      // A plain tap (never dragged past TAP_SLOP) on an EXISTING joint
-      // toggles its gate link on/off instead of reshaping anything — see
-      // fencePath.js's `toggleGateLink` / pastureFencePath.js's header.
+      // A plain tap (never dragged past TAP_SLOP) on an EXISTING joint tries
+      // an endpoint link first (#389) — only fires on an actual run endpoint
+      // with an eligible partner nearby, or one already linked to unlink.
+      // Otherwise falls back to the existing gate-link toggle, so an
+      // interior joint (or an endpoint with nothing to link to) still
+      // behaves exactly as before — see fencePath.js's `toggleGateLink` /
+      // pastureFencePath.js's header.
       if (!this._dragMoved) {
-        const linked = this._pastureFenceToggleGateLink?.(this._pastureJointHeld);
-        if (linked) this._dragHud?.setText(`Pasture fence: joint gate-link toggled`);
+        const handled = this._devEndpointTapToggle(this._pastureJoints(), this._pastureJointHeld, 'Pasture fence');
+        if (!handled) {
+          const linked = this._pastureFenceToggleGateLink?.(this._pastureJointHeld);
+          if (linked) this._dragHud?.setText(`Pasture fence: joint gate-link toggled`);
+        }
       }
       this._pastureJointHeld = null;
       this._dragMoved = false;
@@ -373,6 +414,12 @@ export const WithDevDrag = (Base) => class extends Base {
       return;
     }
     if (this._splineHeld) {
+      // #389: same endpoint-link toggle as the fences, for a path/stream
+      // run's first/last control point.
+      if (!this._dragMoved) {
+        this._devEndpointTapToggle(this._splineHeld.spline.points, this._splineHeld, this._splineHeld.spline.label);
+        this._drawSplineMarks?.();
+      }
       this._splineHeld = null;
       this._dragMoved  = false;
       this._devDragHud(null);
