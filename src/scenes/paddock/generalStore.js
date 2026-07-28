@@ -3,11 +3,11 @@
 // (called from buildTown, paddock/town.js — moved out of the farm per #312's
 // confirmed decision) and registers its solid footprint on
 // `this.generalStoreObstacles` (spread into this.obstacles by buildObstacles,
-// mirroring the barn/doghouse pattern). It also builds the shopkeeper NPC (#244)
-// standing at the counter — the unified store is staffed, not self-serve, per the
-// owner's confirmed decision on #312. `openGeneralStore` launches the buy overlay
+// mirroring the barn/doghouse pattern). `openGeneralStore` launches the buy overlay
 // (GeneralStoreScene) when the player interacts with the store, mirroring
 // paddock/shop.js's openShop exactly (same launch/bringToTop/already-open guard).
+// (The shopkeeper NPC that used to stand at the counter — #244 — was removed per
+// #388; the store is self-serve now, opened directly via its interactable.)
 //
 // Structured with a `counters` registry (data/generalStore.js STORE_COUNTERS: seeds,
 // food, clothing, pets) — GeneralStoreScene reads STORE_COUNTERS directly, no
@@ -31,7 +31,6 @@ export const WithGeneralStore = (Base) => class extends Base {
       { x: STORE_X - 72, y: STORE_Y - 100, w: 144, h: 100, isGeneralStore: true, own: this.props.generalStore },
     ];
 
-    this.buildShopkeeper(this.props.generalStore); // shopkeeper NPC (#244); paddock/shop.js
   }
 
   openGeneralStore() {

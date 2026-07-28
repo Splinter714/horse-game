@@ -13,9 +13,9 @@
 // added a separate NEW pet-store building here. #312 (unify all shops into one,
 // moved out of the farm) superseded that: the pet store and the general store are
 // now the SAME single building (paddock/generalStore.js's buildGeneralStore, called
-// below), staffed by the shopkeeper NPC (#244). There's no separate pet-store prop
-// or interactable anymore — pets is just another counter in that one building's
-// STORE_COUNTERS tabs.
+// below). There's no separate pet-store prop or interactable anymore — pets is
+// just another counter in that one building's STORE_COUNTERS tabs. (The
+// shopkeeper NPC that briefly staffed it, #244, was removed per #388.)
 //
 // Kept a separate concern file (not grown into world.js, which is already near
 // the 500-line budget) so this doesn't collide with other agents editing the
@@ -63,7 +63,7 @@ export const WithTown = (Base) => class extends Base {
     this.props.townEntrance = { x: TOWN_X0 - 20, y: midY };
 
     // The unified store (#312) — the one shop building for the whole game, moved
-    // out of the farm into town. Builds its prop/obstacles/shopkeeper; see
+    // out of the farm into town. Builds its prop/obstacles; see
     // paddock/generalStore.js for buildGeneralStore/openGeneralStore. Its
     // interactable descriptor lives in paddock/interactables.js's `generalStore`
     // (unchanged since #215) — no town-specific interactable needed anymore now

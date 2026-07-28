@@ -1,6 +1,7 @@
 // The unified store (#312) — ONE shop building (moved out of the farm, into town;
-// see paddock/generalStore.js) staffed by the shopkeeper NPC (#244), structured as a
-// registry of "counters" (tabs) per the owner's confirmed decision: keep the
+// see paddock/generalStore.js), self-serve — the shopkeeper NPC that briefly
+// staffed it (#244) was removed per #388 — structured as a registry of "counters"
+// (tabs) per the owner's confirmed decision: keep the
 // existing tab-per-category UI, don't replace it with a single grid. Four counters
 // exist today: `seeds` (#215), `clothing` (#217), `pets` (#222), and `food` (#312 —
 // folded in from the market stall's old feed stock, data/shop.js SHOP_STOCK).
