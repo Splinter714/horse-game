@@ -550,7 +550,7 @@ export function buildWorldTextures(scene) {
   for (let lvl = 1; lvl <= TROUGH_CAP; lvl++) {
     gen(scene, `trough${lvl}`, TROUGH_W, TROUGH_H, (g) => {
       drawTroughShell(g);
-      const w  = Math.max(2, Math.round((lvl * 14) / TROUGH_CAP)); // 2..14 — distinct per level
+      const w  = Math.max(2, Math.round((lvl * 16) / TROUGH_CAP)); // 2..16 — distinct per level, full at max
       const x0 = 5 + Math.round((16 - w) / 2);                     // centred in the channel
       g.fillStyle(0x5fa6d6, 1); g.fillRect(x0, 8, w, TROUGH_H - 16);              // water body
       g.fillStyle(0x9ae0f8, 1); g.fillRect(x0, 8, Math.min(2, w), TROUGH_H - 16); // lit west edge
