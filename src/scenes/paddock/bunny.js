@@ -18,6 +18,8 @@ import Phaser from 'phaser';
 import { SPECIES } from '../../data/species/index.js';
 import { nextBunny, BUNNY_CAP } from '../../data/species/bunny/index.js';
 import { Bunny } from '../../data/species/bunny/model.js';
+import { BOUNDS } from './constants.js';
+import { offscreenX, exitX } from './offscreen.js';
 
 export const WithBunny = (Base) => class extends Base {
   // The shared pet bowl's food side was refilled near (x, y): if the roster isn't already full
@@ -60,15 +62,16 @@ export const WithBunny = (Base) => class extends Base {
     return a;
   }
 
-  // Where a freshly-attracted bunny appears: just off the nearest play-area edge from
-  // the bowl, so it reads as hopping in from outside rather than popping into being on
-  // top of the dish. Falls back to a small offset if bounds are unavailable.
+  // Where a freshly-attracted bunny appears: genuinely off-screen (#410 — a small
+  // nearby offset still popped it into view), from the nearer side of the current
+  // camera view, so it reads as hopping in from outside the frame rather than
+  // appearing near the bowl.
   _bunnyEntryPoint(x, y) {
-    const b = this.player?.homeBounds ?? null;
-    // Enter from a random nearby offset (a bunny emerging from the brush), clamped
-    // into the walkable area so it isn't stuck in an obstacle or off-screen.
-    const ox = x + Phaser.Math.Between(-90, 90);
-    const oy = y - Phaser.Math.Between(70, 130); // come in from "above" (the yard edge)
+    const fromLeft = exitX(this, x, 40).toLeft;
+    const ox = offscreenX(this, fromLeft, 40, x);
+    // Come in from "above" (the yard edge), clamped into the walkable area so it
+    // isn't stuck in an obstacle.
+    const oy = Phaser.Math.Clamp(y - Phaser.Math.Between(70, 130), BOUNDS.minY, BOUNDS.maxY);
     return { x: ox, y: oy };
   }
 };
