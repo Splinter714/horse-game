@@ -158,9 +158,10 @@ function defaultFoxRoster() {
 
 // Ducks (#275) start with NO default individuals — same wild-attract shape as the fox.
 // A duck only joins once it's been TAMED by repeated feeding near the stream
-// (paddock/duck.js `_commitDuck`), which adds the `duck0` member at runtime (cap 1).
-// The empty default means makeRoster.load() leans on its saved-key merge to restore a
-// tamed duck a returning player won over; offline decay applies (it has hunger/thirst).
+// (paddock/duck.js `_commitDuck`), which adds a `duck0`/`duck1` member at runtime (one
+// male, one female — cap 2, #409). The empty default means makeRoster.load() leans on
+// its saved-key merge to restore any tamed duck(s) a returning player won over; offline
+// decay applies (it has hunger/thirst).
 function defaultDuckRoster() {
   return {};
 }
