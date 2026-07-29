@@ -75,18 +75,32 @@ export const WithBarn = (Base) => class extends Base {
     // fit the front-eave-to-back-peak span exactly, but that stretch can't
     // guarantee pixel-perfect alignment with the two independently-drawn facade
     // textures it bridges — overlapping a little hides the residual rounding
-    // instead of chasing exact analytical alignment. But barnRoofMid's depth is
-    // pinned to frontEaveY (a fixed value, always HIGHER than barnBack's own depth,
-    // backY) so it draws IN FRONT OF barnBack wherever the two overlap — pushing
-    // past backPeakY at the top drew the connector's flat ribbon over barnBack's
-    // own cap/cupola art, covering it up. So: generous overlap at the front (where
-    // barnFront's depth, ay, is always higher than the connector's, so barnFront
-    // still correctly draws on top), ZERO overlap at the back — it stops exactly
-    // at backPeakY, same as before.
+    // instead of chasing exact analytical alignment. barnRoofMid's depth used to
+    // be pinned to frontEaveY (a fixed value, always HIGHER than barnBack's own
+    // depth, backY) so it drew IN FRONT OF barnBack wherever the two overlap —
+    // pushing past backPeakY at the top drew the connector's flat ribbon over
+    // barnBack's own cap/cupola art, covering it up.
+    //
+    // #400: frontEaveY was too LOW a depth for a third relationship this connector
+    // also has to satisfy — staying in front of every stalled horse. Horses in the
+    // barn depth-sort by their own live y (rendering.js: h.sprite.setDepth(h.sprite.y)),
+    // which ranges up to the interior's south edge, dy(WALL_Y1 - 4) — comfortably
+    // past frontEaveY, so a horse standing anywhere near the front of the interior
+    // sorted ABOVE the roof connector and visibly poked through it. barnFront
+    // itself never had this problem: it's pinned to `ay`, which is dy(BARN_H) —
+    // strictly greater than dy(WALL_Y1 - 4) since WALL_Y1 - 4 < BARN_H, so no
+    // animal inside the barn's walls can ever out-depth it. Pinning barnRoofMid to
+    // `ay - 1` borrows that same guarantee (still safely above every stalled/
+    // interior horse) while staying just BELOW barnFront (ay), so barnFront still
+    // wins their shared front seam — and it's still far above barnBack (backY), so
+    // the back-peak relationship above is untouched (ay - 1 >> backY regardless).
+    // So: generous overlap at the front (where barnFront's depth, ay, is always
+    // higher than the connector's, so barnFront still correctly draws on top),
+    // ZERO overlap at the back — it stops exactly at backPeakY, same as before.
     const FRONT_OVERLAP = 24;
     this.barnRoofMid = this.add.image(ax, frontEaveY + FRONT_OVERLAP, 'barnRoofMid')
       .setDisplaySize(BARN_DW * S, Math.max(4, (frontEaveY - backPeakY) + FRONT_OVERLAP))
-      .setDepth(frontEaveY).setOrigin(0.5, 1);
+      .setDepth(ay - 1).setOrigin(0.5, 1);
 
     // Interior walkable rect (inside the walls, clear of the back stalls). Used to
     // detect "player is inside" for the cutaway, to seat stalled horses, and (since
