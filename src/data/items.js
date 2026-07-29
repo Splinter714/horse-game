@@ -73,7 +73,13 @@ export const CONTENT_DEFS = {
   // the bowl is also what ATTRACTS a wild bunny to join the roster (capped at 4,
   // paddock/bunny.js `attractBunny`, fired from the bowl's `onFill` hook), so bunny food
   // both attracts and sustains. `feeds: ['bunny']` keeps the demand/gather maths data-driven.
-  bunnyFood:  { label: 'Bunny Food',  icon: 'iconBasketBunnyFood',  action: 'feed',  stocks: 'bunnyFood',  feeds: ['bunny'] },
+  // `gatherAmount: 1` (#401): fox/duck/bunny aren't in the persisted roster
+  // (ROSTER_SPECIES) that `foodDemand` sums over, so the normal "one per animal
+  // that eats it" demand maths always reads 0 for these three and falls back to
+  // filling the whole basket. They're always gathered a flat 1-at-a-time instead —
+  // a data flag `_gatherTarget` (useDispatch.js) checks before the demand logic,
+  // rather than special-casing these content names in code.
+  bunnyFood:  { label: 'Bunny Food',  icon: 'iconBasketBunnyFood',  action: 'feed',  stocks: 'bunnyFood',  feeds: ['bunny'], gatherAmount: 1 },
   // Fox food (#266): gathered from the fox den (a gathering source) into a basket, then
   // DROPPED as a ground pile the fox trots over to and eats (unlike the cat/bunny bowl
   // contents, it has a `ground` texture — the fox is befriended by leaving food out for
@@ -81,7 +87,7 @@ export const CONTENT_DEFS = {
   // wild fox's taming counter and, once fed enough, lures it into the roster (paddock/fox.js
   // `onFoxFoodPlaced` → `_feedWildFox`). `feeds: ['fox']` keeps the demand/gather + diet-gate
   // maths data-driven (only the fox seeks a foxFood pile; grazers walk past it).
-  foxFood:    { label: 'Fox Food',    icon: 'iconBasketFoxFood',    action: 'feed',  ground: 'foxFoodPile', feeds: ['fox'] },
+  foxFood:    { label: 'Fox Food',    icon: 'iconBasketFoxFood',    action: 'feed',  ground: 'foxFoodPile', feeds: ['fox'], gatherAmount: 1 },
   // Duck food (#275): gathered from the duck feeder (a gathering source by the stream)
   // into a basket, then DROPPED as a ground pile the duck waddles over to and eats
   // (same shape as fox food — a ground-drop taming interaction, not a bowl-fill).
@@ -89,7 +95,7 @@ export const CONTENT_DEFS = {
   // fed enough, lures it into the roster (paddock/duck.js `onDuckFoodPlaced` →
   // `_feedWildDuck`). `feeds: ['duck']` keeps the demand/gather + diet-gate maths
   // data-driven (only the duck seeks a duckFood pile; grazers walk past it).
-  duckFood:   { label: 'Duck Food',   icon: 'iconBasketDuckFood',   action: 'feed',  ground: 'duckFoodPile', feeds: ['duck'] },
+  duckFood:   { label: 'Duck Food',   icon: 'iconBasketDuckFood',   action: 'feed',  ground: 'duckFoodPile', feeds: ['duck'], gatherAmount: 1 },
   // Milk is produced by milking a well-cared-for cow into an empty bucket, then
   // sold at the farm stand (action 'sell', like eggs — see STAND_DEFS).
   milk:   { label: 'Milk',    icon: 'iconBucketMilk',   action: 'sell' },

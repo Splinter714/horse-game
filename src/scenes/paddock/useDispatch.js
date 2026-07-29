@@ -360,7 +360,14 @@ export const WithUseDispatch = (Base) => class extends Base {
 
   // How many of `content` a full gather should land on. Food: one per animal that can
   // eat it (#136), capped at carrier capacity. Non-food (water): just capacity.
+  // `gatherAmount` (#401) opts a content OUT of the demand maths entirely — fox/duck/
+  // bunny food are eaten by wild/tamed critters outside ROSTER_SPECIES, so
+  // foodDemand/_speciesCounts always reads 0 for them and would otherwise fall
+  // through to "no demand info → fill to capacity". Those three always gather a
+  // flat, fixed amount instead (checked before the demand fallback).
   _gatherTarget(content, capacity) {
+    const fixed = CONTENT_DEFS[content]?.gatherAmount;
+    if (fixed != null) return Math.min(fixed, capacity);
     const demand = foodDemand(content, this._speciesCounts());
     return demand > 0 ? Math.min(demand, capacity) : capacity;
   }
