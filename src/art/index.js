@@ -139,8 +139,8 @@ export const SPECIES_TEXTURES = {
 
   // Bunnies (#224). The roster starts EMPTY and grows at runtime when the player
   // attracts a bunny with bunny food, so — unlike the other rosters — we can't build
-  // "one texture per saved individual" up front. Instead build ALL FOUR coat
-  // textures unconditionally (keyed `bunny0`..`bunny3` = coat slot, so `bunny<i>`
+  // "one texture per saved individual" up front. Instead build every coat's
+  // textures unconditionally (keyed `bunny0`..`bunny<N-1>` = coat slot, so `bunny<i>`
   // always wears BUNNY_COATS[i]), the way the demo foals are pre-built. attractBunny
   // then spawns a bunny whose key already has a ready texture — no runtime build.
   // A persisted bunny with a customizer `look` re-skins on top via reskinAnimal.
