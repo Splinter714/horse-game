@@ -33,48 +33,58 @@ const COATS = {
   brown: { mid: 0xa9773f, hi: 0xc99a5f, lo: 0x7f5628, ear: 0xe1a49a, eye: 0x2a1c10, belly: 0xd9c0a0 },
   black: { mid: 0x3b3740, hi: 0x565059, lo: 0x241f27, ear: 0xd7969c, eye: 0x120f14, belly: 0x6a636e },
   // Splotchy black & white — white base, near-black patches (matches the solid
-  // black coat's own mid tone), dark eyes.
-  blackWhite: { mid: 0xf1eee9, hi: 0xffffff, lo: 0xd8d2c8, ear: 0xe8a7ad, eye: 0x1c1a20, belly: 0xffffff, spots: 0x3b3740 },
+  // black coat's own mid tone), dark eyes. `patches`/`facePatches` (rects in the
+  // unlifted 0-20 design grid, see drawBunnyPatches/drawBunnyFacePatches) are its
+  // OWN distribution — deliberately different positions/shapes from brownWhite's
+  // below, so the two splotchy coats don't read as the same pattern recolored
+  // (2026-07-28 playtest fix).
+  blackWhite: {
+    mid: 0xf1eee9, hi: 0xffffff, lo: 0xd8d2c8, ear: 0xe8a7ad, eye: 0x1c1a20, belly: 0xffffff, spots: 0x3b3740,
+    patches: [
+      [12, 7, 3, 3], [14, 8, 3, 2], [13, 10, 2, 2],   // upper back/shoulder cluster
+      [5, 15, 3, 2], [7, 16, 2, 1],                    // small far-haunch patch
+    ],
+    facePatches: [[14, 6, 2, 2], [15, 8, 2, 1]],       // ear-base/cheek, left side of the head
+  },
   // Splotchy brown & white — white base, warm-brown patches (matches the solid
-  // brown coat's own mid tone), brown eyes. `heavy` (2026-07-28 playtest fix):
-  // more brown coverage than the black&white coat, per real brown-and-white
-  // rabbits skewing more brown than white.
-  brownWhite: { mid: 0xf1eee9, hi: 0xffffff, lo: 0xd8d2c8, ear: 0xe8a7ad, eye: 0x2a1c10, belly: 0xffffff, spots: 0xa9773f, heavy: true },
+  // brown coat's own mid tone), brown eyes. Heavier coverage than blackWhite (a
+  // 2026-07-28 owner playtest fix — real brown-and-white rabbits skew more brown
+  // than white) and its own distinct patch distribution/face placement.
+  brownWhite: {
+    mid: 0xf1eee9, hi: 0xffffff, lo: 0xd8d2c8, ear: 0xe8a7ad, eye: 0x2a1c10, belly: 0xffffff, spots: 0xa9773f,
+    patches: [
+      [5, 10, 4, 4], [8, 9, 3, 3], [6, 14, 3, 2], [9, 13, 2, 3],  // big haunch cluster
+      [9, 8, 3, 2], [11, 9, 2, 3], [10, 15, 3, 2], [7, 9, 2, 2],  // midback + extra coverage
+    ],
+    facePatches: [[18, 9, 2, 1], [15, 9, 1, 2]],       // muzzle/cheek side, opposite of blackWhite's
+  },
 };
 
 const NOSE = 0xd76b76;
 
-// Hand-placed patch shapes for the two splotchy coats, drawn on top of the body/
-// haunch (mirrors the cow's Holstein patches: fixed positions, not random). No-op
-// when the coat has no `spots` colour, so the four solid coats are unaffected.
-// `lift` matches drawBunny's hop offset (0 for the eat pose, which never hops).
-//
-// 2026-07-28 owner playtest fix: the original two smooth ellipses read as too
-// clean/geometric ("perfect shapes") and, on the brown&white coat, too little
-// brown coverage. Each patch is now built from several small offset rects
-// (a jagged, hand-torn silhouette instead of one smooth curve) — `heavy` (only
-// true for the brown&white coat, whose real-rabbit reference skews more brown
-// than white) adds a third, bigger patch for noticeably more coverage.
+// Hand-placed patch shapes for the two splotchy coats' BODY/haunch, drawn on top
+// of the body (mirrors the cow's Holstein patches: fixed positions, not random).
+// No-op when the coat has no `spots` colour, so the four solid coats are
+// unaffected. `lift` matches drawBunny's hop offset (0 for the eat pose, which
+// never hops). Each patch is a cluster of small offset rects rather than one
+// smooth ellipse — a jagged, hand-torn silhouette instead of a clean geometric
+// shape (2026-07-28 playtest fix). The actual rect list lives per-coat in
+// `COATS[id].patches`, so blackWhite/brownWhite each get their own distribution.
 function drawBunnyPatches(g, lift, C) {
-  if (!C.spots) return;
+  if (!C.spots || !C.patches) return;
   g.layer('spots');
   g.fillStyle(C.spots, 1);
-  // Rear patch, over the haunch — a cluster of offset rects, not one ellipse.
-  g.fillRect(5, 11 - lift, 4, 4);
-  g.fillRect(8, 10 - lift, 3, 3);
-  g.fillRect(6, 14 - lift, 3, 2);
-  g.fillRect(9, 13 - lift, 2, 3);
-  // Patch over the back/shoulder.
-  g.fillRect(12, 8 - lift, 3, 3);
-  g.fillRect(14, 9 - lift, 3, 2);
-  g.fillRect(13, 11 - lift, 2, 2);
-  if (C.heavy) {
-    // A third, bigger patch for the brown&white coat's extra coverage.
-    g.fillRect(9, 8 - lift, 3, 2);
-    g.fillRect(11, 9 - lift, 2, 3);
-    g.fillRect(10, 15 - lift, 3, 2);
-    g.fillRect(7, 9 - lift, 2, 2);
-  }
+  for (const [x, y, w, h] of C.patches) g.fillRect(x, y - lift, w, h);
+}
+
+// Small patch(es) of the coat's spot colour on the FACE/head (not just the body)
+// — `COATS[id].facePatches`, drawn after the head circle so they read as
+// markings on the head, but before the eye/nose so those stay legible on top.
+function drawBunnyFacePatches(g, lift, C) {
+  if (!C.spots || !C.facePatches) return;
+  g.layer('facePatch');
+  g.fillStyle(C.spots, 1);
+  for (const [x, y, w, h] of C.facePatches) g.fillRect(x, y - lift, w, h);
 }
 
 // Resolve a coat from a `look` — look.coat is a colour id ('grey'…). Falls back to
@@ -138,6 +148,7 @@ function drawBunny(g, bob, hop, noseWiggle, look) {
   g.layer('head');
   g.fillStyle(C.mid, 1); g.fillCircle(17, 8 - lift, 3.4);
   g.fillStyle(C.hi, 1);  g.fillCircle(16, 6 - lift, 1.6);        // brow highlight
+  drawBunnyFacePatches(g, lift, C);  // splotchy coats only — markings on the face too
 
   // ── Ears ── two tall upright ears; trail back a little mid-hop.
   g.layer('ears');
@@ -198,6 +209,7 @@ function drawBunnyEat(g, bob, dip, look) {
   const hy = 9 + dip + bob;
   g.fillStyle(C.mid, 1); g.fillCircle(17, hy, 3.4);
   g.fillStyle(C.hi, 1);  g.fillCircle(16, hy - 2, 1.4);
+  drawBunnyFacePatches(g, 8 - hy, C); // face patches are drawn relative to head y=8 in the idle pose
 
   g.layer('ears');
   // Ears tip forward over the head while nibbling.
