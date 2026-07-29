@@ -6,6 +6,8 @@ import { EVENTS } from '../../data/events.js';
 import { CONTENT_DEFS, JUNK_CONTENTS } from '../../data/items.js';
 import { playGather } from '../../audio/sounds.js';
 import { WORLD_W, PLAYER_SPEED, PLAYER_BOUNDS, S, STAND_DEFS, STAND_TYPES } from './constants.js';
+import { isSpinReady } from '../../data/spinning.js';
+import { loadWoolSpin, saveWoolSpin } from '../../data/save.js';
 
 export const WithFarmStand = (Base) => class extends Base {
   // ─── Farm Stand ──────────────────────────────────────────────────────────
@@ -124,7 +126,7 @@ export const WithFarmStand = (Base) => class extends Base {
     });
   }
 
-  // ─── Spinning wheel — crafting (#233) ──────────────────────────────────────
+  // ─── Spinning wheel — crafting (#233, timed batch #405) ────────────────────
 
   // Convert whatever the player is HOLDING from one content to another in place —
   // a basket of it, or a load-carrying tool's own load (#358: the shears' wool, which
@@ -137,19 +139,89 @@ export const WithFarmStand = (Base) => class extends Base {
         || (hot?.convertShearsLoad?.(from, to) ?? 0);
   }
 
-  // Spin the held raw wool into yarn (1:1) at the spinning wheel — from a basket, or
-  // straight off the shears' own load (#358). Reads the wheel prop's `craft` block
-  // (from → to) so it's data-driven, not wool-specific. No-op unless what's held is
-  // the craftable input. Floats the output icon as feedback, mirroring stockStand's
-  // stock-float.
-  spinWool() {
+  // Take (and remove) `from` off whatever the player is holding, WITHOUT converting
+  // it — the wheel takes custody of the load while it spins, so it's not still
+  // sitting in the basket/shears mid-craft. Mirrors _craftHeldLoad's dual routing
+  // (carrier first, then a load-carrying tool) but empties rather than converts.
+  // Returns how many units were taken (0 if the held thing isn't the input).
+  _takeHeldLoad(from) {
+    const hot = this.scene.get('HotbarScene');
+    const item = this.getActiveItem();
+    if (item?.type === 'carrier' && item.content === from && item.count > 0) {
+      return hot?.useActiveCarrier?.(item.count) ?? 0;
+    }
+    if (item?.action === 'shear' && item.content === from && item.load > 0) {
+      const { count } = hot?.takeShearsLoad?.() ?? { count: 0 };
+      return count;
+    }
+    return 0;
+  }
+
+  // Restore any in-flight spin (#405): called from create() once the wheel prop
+  // exists. Wall-clock timed, mirroring buildIncubation — a spin started before
+  // closing the game is still ticking (or already ready to collect) on reload.
+  // Resumes the visible spinning animation only if the batch isn't done yet.
+  buildSpin() {
     const w = this.props.spinningWheel;
     if (!w) return;
-    const { from, to } = w.craft;
-    const n = this._craftHeldLoad(from, to);
-    if (n <= 0) return;
-    playGather(to); // a soft whirr/click as the wheel turns
-    this._spinWheelAnim(w);
+    w.spin = loadWoolSpin();
+    if (w.spin && !isSpinReady(w.spin.startedAt, w.spin.amount)) {
+      this._startSpinAnim(w);
+    }
+  }
+
+  // Per-frame (from update): stop the visible spin once a running batch's timer is
+  // up, so the wheel reads as "done, come collect" rather than still turning.
+  // Cheap and self-gating when nothing is spinning.
+  updateSpin(delta) {
+    const w = this.props.spinningWheel;
+    if (!w?.spin) return;
+    this._spinAccum = (this._spinAccum ?? 0) + delta;
+    if (this._spinAccum < 500) return;
+    this._spinAccum = 0;
+    if (isSpinReady(w.spin.startedAt, w.spin.amount)) this._stopSpinAnim(w);
+  }
+
+  // Start spinning the held raw wool into yarn at the spinning wheel — from a
+  // basket, or straight off the shears' own load (#358). Reads the wheel prop's
+  // `craft` block (from → to) so it's data-driven, not wool-specific. No-op unless
+  // what's held is the craftable input, or a batch is already running. Takes the
+  // WHOLE held load off the player and starts a wall-clock timer scaled to the
+  // amount (#405: a few seconds per unit) — this is a walk-away wait, not an
+  // in-place one, so nothing more happens here until the player comes back to
+  // collectSpin().
+  startSpin() {
+    const w = this.props.spinningWheel;
+    if (!w || w.spin) return;
+    const { from } = w.craft;
+    const amount = this._takeHeldLoad(from);
+    if (amount <= 0) return;
+    w.spin = { amount, startedAt: Date.now() };
+    saveWoolSpin(w.spin);
+    playGather(from); // a soft whirr/click as the wheel starts turning
+    this._startSpinAnim(w);
+  }
+
+  // Collect a finished batch of yarn from the wheel into the held carrier (a basket
+  // that accepts the output — mirrors the beehive's "needs a basket" harvest gate).
+  // No-op if nothing's ready, or nothing's held that can take the yarn. If the
+  // carrier can't take the whole batch (unlikely — a basket's capacity is huge),
+  // whatever fits is collected and the rest stays queued at the wheel rather than
+  // being lost. Floats the output icon as feedback, mirroring stockStand's stock-float.
+  collectSpin() {
+    const w = this.props.spinningWheel;
+    if (!w?.spin || !isSpinReady(w.spin.startedAt, w.spin.amount)) return;
+    const { to } = w.craft;
+    const item = this.getActiveItem();
+    if (item?.type !== 'carrier' || !item.accepts?.includes(to)) return;
+    const hot = this.scene.get('HotbarScene');
+    const added = hot?.fillActiveCarrier?.(to, w.spin.amount) ?? 0;
+    if (added <= 0) return;
+    w.spin.amount -= added;
+    w.spin = w.spin.amount > 0 ? w.spin : null;
+    saveWoolSpin(w.spin);
+    this._stopSpinAnim(w);
+    playGather(to);
     const icon = this.add.image(w.x, w.y - 40, CONTENT_DEFS[to].icon)
       .setScale(1.8).setDepth(10000);
     this.tweens.add({
@@ -251,20 +323,28 @@ export const WithFarmStand = (Base) => class extends Base {
     });
   }
 
-  // Briefly spin the wheel's spoked disc so the craft reads as motion (#233 playtest).
-  // The spokes overlay is normally hidden and pinned on the hub; here we reveal it and
-  // rotate it a couple of turns over ~0.8s, easing out to a stop, then hide it again so
-  // the static base wheel remains at rest. No-op if the wheel wasn't built with an
-  // overlay (older saves / tests). Restarts cleanly if spun again mid-turn.
-  _spinWheelAnim(w) {
+  // Keep the wheel's spoked disc visibly turning for as long as a batch is in
+  // progress (#405 — a batch can run for a while now, so the craft needs to read
+  // as ongoing motion, not a one-shot flourish). The spokes overlay is normally
+  // hidden and pinned on the hub; reveal it and spin it continuously until
+  // _stopSpinAnim is called (batch finishes, or the wheel is reloaded already-done).
+  // No-op if the wheel wasn't built with an overlay (older saves / tests).
+  _startSpinAnim(w) {
     const spokes = w?.spokes;
     if (!spokes) return;
     this.tweens.killTweensOf(spokes);
     spokes.setVisible(true).setAngle(0);
-    this.tweens.add({
-      targets: spokes, angle: 360 * 2, duration: 800, ease: 'Cubic.easeOut',
-      onComplete: () => spokes.setVisible(false).setAngle(0),
+    this._spinTween = this.tweens.add({
+      targets: spokes, angle: 360, duration: 900, ease: 'Linear', repeat: -1,
     });
+  }
+
+  // Stop the wheel's spoked disc and hide it again, so the wheel reads as at-rest
+  // (batch done, or nothing running). Safe to call even if nothing was spinning.
+  _stopSpinAnim(w) {
+    this._spinTween?.stop();
+    this._spinTween = null;
+    if (w?.spokes) w.spokes.setVisible(false).setAngle(0);
   }
 
   // ─── NPC Customers ───────────────────────────────────────────────────────

@@ -358,6 +358,7 @@ export const WithWorld = (Base) => class extends Base {
       .setScale(S).setDepth(swy + 0.1).setOrigin(0.5, 0.5).setVisible(false);
     this.props.spinningWheel = {
       x: swx, y: swy, sprite: spinSprite, spokes, craft: { from: 'wool', to: 'yarn' },
+      spin: null, // in-flight { amount, startedAt } once a batch is started (#405); restored in buildSpin()
     };
     // (Its solid footprint is added to this.obstacles below, once that array exists.)
     this.buildKitchenCounter(); // crop processing (#40); paddock/farmStand.js

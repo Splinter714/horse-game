@@ -630,6 +630,30 @@ export function saveIncubations(list) {
   } catch {}
 }
 
+// ── Spinning-wheel wool→yarn timer (#405) ────────────────────────────────────
+// One in-flight spin at a time: { amount, startedAt } (or null when the wheel
+// isn't running). Wall-clock timed, mirroring the chick incubation clock above,
+// so a spin started before closing the game is still ticking (or already ready
+// to collect) after a reload.
+const WOOL_SPIN_KEY = 'horse-game-wool-spin-v1';
+
+export function loadWoolSpin() {
+  try {
+    const data = JSON.parse(localStorage.getItem(WOOL_SPIN_KEY));
+    return data && typeof data.startedAt === 'number' && typeof data.amount === 'number'
+      ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveWoolSpin(spin) {
+  try {
+    if (spin) localStorage.setItem(WOOL_SPIN_KEY, JSON.stringify(spin));
+    else localStorage.removeItem(WOOL_SPIN_KEY);
+  } catch {}
+}
+
 // ── Dev settings (pause-menu dev tools) ──────────────────────────────────────
 // Persisted "start state" knobs so the owner can test things without replaying
 // from scratch: which time-of-day the day/night clock boots into, and whether
