@@ -41,6 +41,11 @@
 // that's an accurate reflection of real-world clustering, not a labeling bug, and
 // the existing anti-overlap nudge on the object labels already handles it.
 //
+// Grid tightened back up (2026-07-28, #356 follow-up): 300px cells were too coarse
+// for precise positioning work in practice — the numbering scheme (integer column/
+// row, not raw pixels) stays exactly as-is, but GRID_STEP dropped to 150 for finer
+// placement without going back to the too-fiddly 100px original.
+//
 // The currently-dragged object's label is ALWAYS shown (2026-07-26 follow-up): the
 // #330 drag tool's `this._dragHeld` (the entry under the finger, or null) is read
 // directly here — the two dev tools already share state this way (`_devLabelTargets`
@@ -52,7 +57,7 @@
 import { loadDevSettings } from '../../data/save.js';
 import { dprOf } from '../uiUtils.js';
 
-const GRID_STEP    = 300;   // world px per grid cell (coarsened from 100 — #329 follow-up)
+const GRID_STEP    = 150;   // world px per grid cell (finer from 300 — #356 follow-up)
 const GRID_DEPTH   = 9500;  // above world sprites (depth == y, max ~1600), below prompts
 const LBL_DEPTH    = 9501;
 const LABEL_RADIUS = 80;   // world px — only objects this close to the player get a visible label
@@ -248,7 +253,7 @@ export const WithDevLabels = (Base) => class extends Base {
     g.clear();
     let n = 0;
     for (let x = x0; x <= x1; x += GRID_STEP) {
-      // Every 3rd line (every 900px at GRID_STEP=300) reads a touch stronger, so
+      // Every 3rd line (every 450px at GRID_STEP=150) reads a touch stronger, so
       // it's easy to count across without every single line looking the same.
       const col = Math.round(x / GRID_STEP);
       g.lineStyle(1, 0xffffff, col % 3 === 0 ? 0.30 : 0.14);
