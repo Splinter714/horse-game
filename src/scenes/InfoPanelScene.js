@@ -322,9 +322,11 @@ export default class InfoPanelScene extends WithCustomizerShell(WithCustomizerNa
     if (!p) return y;
 
     let cy = y + 4;
-    // Temperament headline — capitalized, e.g. "A gentle soul".
+    // Temperament headline — just the word on its own, capitalized (e.g. "Gentle").
+    // Used to read "A gentle soul", which the owner's daughter found too weird/wordy.
     if (p.temperament) {
-      this.panel.add(this.add.text(CARD_W / 2, cy, `A ${p.temperament} soul`, {
+      const word = p.temperament.charAt(0).toUpperCase() + p.temperament.slice(1);
+      this.panel.add(this.add.text(CARD_W / 2, cy, word, {
         fontFamily: 'system-ui, sans-serif', fontSize: '13px', color: '#a47a4a',
         fontStyle: 'italic',
       }).setOrigin(0.5, 0));
