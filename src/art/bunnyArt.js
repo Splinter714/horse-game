@@ -18,19 +18,41 @@ import { gen, scaledGraphics, ART_SCALE } from './_frames.js';
 
 export const BUNNY_W = 20, BUNNY_H = 20;
 
-// Coat palettes: fur base tones + the inner-ear pink and eye colour. The tail is
-// always a bright white cotton puff (kept in the draw fn), and the belly/cheek reads
-// a touch lighter than the base. Black/brown/grey get darker eyes; white reads pink-
-// eyed like a classic domestic albino for charm.
+// Coat palettes: fur base tones + the inner-ear pink and eye colour. The tail always
+// matches the bunny's own coat tones (mid/hi/lo — see drawBunny), and the belly/cheek
+// reads a touch lighter than the base. Black/brown/grey get darker eyes; white reads
+// pink-eyed like a classic domestic albino for charm.
+//
+// Two coats (blackWhite / brownWhite) are splotchy patterns: a white base plus an
+// optional `spots` patch colour, hand-placed at fixed spots (see drawBunnyPatches) —
+// same two-tone technique as the Holstein cow (cowArt.js). The four solid coats have
+// no `spots` field, so they render exactly as before.
 const COATS = {
   grey:  { mid: 0x9a9aa2, hi: 0xc2c2cb, lo: 0x6f6f78, ear: 0xe8a7ad, eye: 0x2b2b30, belly: 0xcfcfd6 },
   white: { mid: 0xf1eee9, hi: 0xffffff, lo: 0xd8d2c8, ear: 0xf2b3ba, eye: 0xb04a52, belly: 0xffffff },
   brown: { mid: 0xa9773f, hi: 0xc99a5f, lo: 0x7f5628, ear: 0xe1a49a, eye: 0x2a1c10, belly: 0xd9c0a0 },
   black: { mid: 0x3b3740, hi: 0x565059, lo: 0x241f27, ear: 0xd7969c, eye: 0x120f14, belly: 0x6a636e },
+  // Splotchy black & white — white base, near-black patches (matches the solid
+  // black coat's own mid tone), dark eyes.
+  blackWhite: { mid: 0xf1eee9, hi: 0xffffff, lo: 0xd8d2c8, ear: 0xe8a7ad, eye: 0x1c1a20, belly: 0xffffff, spots: 0x3b3740 },
+  // Splotchy brown & white — white base, warm-brown patches (matches the solid
+  // brown coat's own mid tone), brown eyes.
+  brownWhite: { mid: 0xf1eee9, hi: 0xffffff, lo: 0xd8d2c8, ear: 0xe8a7ad, eye: 0x2a1c10, belly: 0xffffff, spots: 0xa9773f },
 };
 
 const NOSE = 0xd76b76;
-const TAIL = { mid: 0xfaf7f2, hi: 0xffffff, lo: 0xdedad2 };
+
+// Hand-placed patch shapes for the two splotchy coats, drawn on top of the body/
+// haunch (mirrors the cow's Holstein patches: fixed positions, not random). No-op
+// when the coat has no `spots` colour, so the four solid coats are unaffected.
+// `lift` matches drawBunny's hop offset (0 for the eat pose, which never hops).
+function drawBunnyPatches(g, lift, C) {
+  if (!C.spots) return;
+  g.layer('spots');
+  g.fillStyle(C.spots, 1);
+  g.fillEllipse(7, 13 - lift, 5, 4);   // rear patch, over the haunch
+  g.fillEllipse(13, 10 - lift, 4, 3);  // patch over the back/shoulder
+}
 
 // Resolve a coat from a `look` — look.coat is a colour id ('grey'…). Falls back to
 // grey (the first coat) for an unset/stale look so the art never blanks.
@@ -62,11 +84,11 @@ function drawBunny(g, bob, hop, noseWiggle, look) {
     g.fillRect(13, 17, 3, 2);                // fore paw
   }
 
-  // ── Cotton tail ── a round white puff at the rear.
+  // ── Cotton tail ── a round puff at the rear, in the bunny's own coat tones.
   g.layer('tail');
-  g.fillStyle(TAIL.mid, 1); g.fillCircle(3, 12 - lift, 2.6);
-  g.fillStyle(TAIL.hi, 1);  g.fillCircle(2.2, 11 - lift, 1.2);
-  g.fillStyle(TAIL.lo, 1);  g.fillCircle(3.5, 13 - lift, 1);
+  g.fillStyle(C.mid, 1); g.fillCircle(3, 12 - lift, 2.6);
+  g.fillStyle(C.hi, 1);  g.fillCircle(2.2, 11 - lift, 1.2);
+  g.fillStyle(C.lo, 1);  g.fillCircle(3.5, 13 - lift, 1);
 
   // ── Haunch ── big rounded rear thigh (the bunny's crouched-power silhouette).
   g.layer('haunch');
@@ -79,6 +101,10 @@ function drawBunny(g, bob, hop, noseWiggle, look) {
   g.fillStyle(C.mid, 1); g.fillEllipse(11, 12 - lift, 12 + stretch, 8);
   g.fillStyle(C.hi, 1);  g.fillEllipse(11, 10 - lift, 9, 3);      // sunlit back
   g.fillStyle(C.belly, 1); g.fillEllipse(11, 15 - lift, 8, 2);   // pale belly
+
+  // ── Splotches (blackWhite/brownWhite only) ── hand-placed patches over the
+  // haunch/back, drawn on top of body so they read as markings on the coat.
+  drawBunnyPatches(g, lift, C);
 
   // ── Neck/chest ── blends the body up into the head.
   g.layer('neck');
@@ -125,8 +151,8 @@ function drawBunnyEat(g, bob, dip, look) {
   g.fillStyle(C.mid, 1); g.fillRect(13, 17, 3, 2);
 
   g.layer('tail');
-  g.fillStyle(TAIL.mid, 1); g.fillCircle(3, 12, 2.6);
-  g.fillStyle(TAIL.hi, 1);  g.fillCircle(2.2, 11, 1.2);
+  g.fillStyle(C.mid, 1); g.fillCircle(3, 12, 2.6);
+  g.fillStyle(C.hi, 1);  g.fillCircle(2.2, 11, 1.2);
 
   g.layer('haunch');
   g.fillStyle(C.mid, 1); g.fillCircle(7, 12, 4.5);
@@ -136,6 +162,9 @@ function drawBunnyEat(g, bob, dip, look) {
   g.fillStyle(C.mid, 1); g.fillEllipse(11, 12, 12, 8);
   g.fillStyle(C.hi, 1);  g.fillEllipse(11, 10, 9, 3);
   g.fillStyle(C.belly, 1); g.fillEllipse(11, 15, 8, 2);
+
+  // ── Splotches (blackWhite/brownWhite only) ── same fixed patches as the idle pose.
+  drawBunnyPatches(g, 0, C);
 
   g.layer('neck');
   // Neck stretches forward and DOWN toward the food.

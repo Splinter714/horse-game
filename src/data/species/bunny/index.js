@@ -14,11 +14,12 @@
 // bouncing hop (bunnyArt.js) rather than a plodding step, so it reads as a bunny in
 // motion without any bespoke movement-engine code.
 
-// The four coat colours, in order. This list is the single source of truth for both
-// the cap (4) and the per-key coat assignment — bunny key `bunny<i>` always wears
-// `BUNNY_COATS[i]`, so a persisted bunny keeps its colour across reloads. Palette
-// swaps only (bunnyArt.js reads the id); the silhouette is identical.
-export const BUNNY_COATS = ['grey', 'white', 'brown', 'black'];
+// The coat colours, in order. This list is the single source of truth for both
+// the cap (BUNNY_CAP) and the per-key coat assignment — bunny key `bunny<i>` always
+// wears `BUNNY_COATS[i]`, so a persisted bunny keeps its colour across reloads.
+// Palette swaps only (bunnyArt.js reads the id); the silhouette is identical, except
+// the two splotchy coats (blackWhite/brownWhite) which also draw hand-placed patches.
+export const BUNNY_COATS = ['grey', 'white', 'brown', 'black', 'blackWhite', 'brownWhite'];
 
 // How many bunnies can ever join — one per coat colour.
 export const BUNNY_CAP = BUNNY_COATS.length;
