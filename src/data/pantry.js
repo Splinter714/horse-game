@@ -10,7 +10,7 @@
 // CONTENT_DEFS) since "storable in the pantry" is a pantry-specific question, not
 // a property of the content itself.
 export const PANTRY_STORABLE = [
-  'hay', 'apple', 'carrot', 'seed', 'egg', 'eggBrown', 'milk', 'wool', 'yarn',
+  'hay', 'oats', 'apple', 'carrot', 'seed', 'egg', 'eggBrown', 'milk', 'wool', 'yarn',
   'strawberry', 'wheat', 'jam', 'flour', 'pigFeed', 'honey', 'catFood', 'bunnyFood',
   'foxFood', 'duckFood', 'orange', 'berry',
   // Cooking (#41): cooked dishes can be stocked in the pantry like any other

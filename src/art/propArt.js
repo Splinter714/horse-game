@@ -140,6 +140,28 @@ export function buildPropTextures(scene) {
     g.fillRect(7, 7, 2, 1); g.fillRect(16, 8, 3, 1); g.fillRect(25, 7, 2, 1);
   });
 
+  // Oats pile (#411) — loose oats spread on ground, mirroring hayPile's mound but a
+  // paler, huskier palette (oat grain is tan/cream, not hay's golden straw) so a
+  // dropped pile reads at a glance apart from hay.
+  gen(scene, 'oatsPile', 36, 12, (g) => {
+    const base = 0xd8c088, hi = 0xe8d8a8, mid = 0xc4a86a, lo = 0xa88a54;
+    g.fillStyle(0x000000, 0.1); g.fillEllipse(18, 11, 34, 3);
+    g.fillStyle(mid, 1); g.fillEllipse(18, 8, 34, 7);
+    g.fillStyle(base, 1); g.fillEllipse(17, 7, 30, 6);
+    g.fillStyle(hi, 1); g.fillEllipse(15, 6, 20, 3);
+    g.fillStyle(lo, 1); g.fillRect(3, 9, 30, 1);
+    // oat-head stalks of varied height sticking up (rounded husks, not flat straw)
+    g.fillStyle(base, 1);
+    g.fillRect(4, 2, 1, 4); g.fillRect(8, 1, 1, 5); g.fillRect(13, 3, 1, 3);
+    g.fillRect(18, 1, 1, 5); g.fillRect(22, 2, 1, 4); g.fillRect(27, 1, 1, 5); g.fillRect(31, 3, 1, 3);
+    g.fillStyle(hi, 1);
+    g.fillCircle(4, 2, 1); g.fillCircle(8, 1, 1); g.fillCircle(13, 3, 1);
+    g.fillCircle(18, 1, 1); g.fillCircle(22, 2, 1); g.fillCircle(27, 1, 1); g.fillCircle(31, 3, 1);
+    // scattered oat flecks across the mound
+    g.fillStyle(lo, 1);
+    g.fillRect(7, 7, 2, 1); g.fillRect(16, 8, 3, 1); g.fillRect(25, 7, 2, 1);
+  });
+
   // Saddle overlays (#134 follow-up to #21): three cosmetically distinct types,
   // all drawn at the same horse-back position (x=19-38, y=16-22) so riding.js can
   // swap textures without repositioning. `withLayer` keeps dissect tags harmless.
@@ -538,6 +560,34 @@ export function buildPropTextures(scene) {
     // a little spilled grain at the foot
     g.fillStyle(0xc8a030, 1); g.fillRect(3, 41, 2, 1); g.fillRect(35, 41, 2, 1); g.fillRect(30, 42, 2, 1);
   });
+  // Oat sack (#411) — the gather SOURCE for oats: a plump burlap sack tipped open
+  // with oat sprigs spilling from the mouth, sat a short walk from the Hay Pile.
+  // Mirrors the grain bin's role/scale for seed but its own tan/cream oat palette
+  // (vs. the grain bin's golden seed) so the two read apart at a glance.
+  gen(scene, 'oatSack', 34, 40, (g) => {
+    const sack = 0xc9b078, sackHi = 0xe0cd9a, sackLo = 0x9c8555, tie = 0x7a6236;
+    const oat = 0xd8c088, oatHi = 0xe8d8a8, oatLo = 0xa88a54;
+    g.fillStyle(0x000000, 0.12); g.fillEllipse(17, 38, 28, 6); // ground shadow
+    // sack body (rounded bag, wider at the base)
+    g.fillStyle(sackLo, 1); g.fillEllipse(17, 27, 30, 20);
+    g.fillStyle(sack, 1);   g.fillEllipse(17, 25, 27, 18);
+    g.fillStyle(sackHi, 1); g.fillEllipse(12, 21, 11, 8); // sunlit belly
+    g.fillStyle(sackLo, 1); g.fillRect(14, 20, 1, 14); g.fillRect(21, 20, 1, 14); // seams
+    // cinched neck + folded-over top
+    g.fillStyle(sackLo, 1); g.fillRect(11, 8, 12, 8);
+    g.fillStyle(tie, 1);    g.fillRect(11, 12, 12, 2); // the tie
+    g.fillStyle(sack, 1);   g.fillTriangle(9, 9, 25, 9, 17, 3); // folded-over top
+    // oats heaped at the mouth and spilling down the front
+    g.fillStyle(oatLo, 1);  g.fillEllipse(17, 8, 12, 5);
+    g.fillStyle(oat, 1);    g.fillEllipse(17, 7, 10, 4);
+    g.fillStyle(oatHi, 1);
+    g.fillCircle(14, 6, 1); g.fillCircle(18, 5, 1); g.fillCircle(21, 7, 1);
+    // a little spilled trickle of oats down the sack front
+    g.fillStyle(oat, 1); g.fillCircle(13, 13, 1); g.fillCircle(15, 17, 1); g.fillCircle(12, 20, 1);
+    // scattered oats at the foot
+    g.fillStyle(oat, 1); g.fillRect(2, 37, 2, 1); g.fillRect(29, 37, 2, 1); g.fillRect(25, 38, 2, 1);
+  });
+
   // Stone well — a water source: stone drum, posts, peaked shingle roof,
   // a crank, and a bucket hanging on a rope over the dark opening.
   gen(scene, 'well', 40, 52, (g) => {
