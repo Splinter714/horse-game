@@ -12,6 +12,10 @@
 // trailing behind instead of paddling legs (a duck floats, it doesn't dog-paddle with
 // visible legs).
 //
+// Two coats (#409): 'mallard', the classic green-headed drake, and 'hen', a plainer
+// mottled-brown female — palette swaps only, same silhouette/frames, mirroring the
+// rooster/hen coat split.
+//
 // Super-sampled on the ART_SCALE grid (spawn.superSampled) for HiDPI crispness — the
 // draw fns receive a scaledGraphics wrapper, so coords stay in the small design grid.
 
@@ -19,8 +23,12 @@ import { gen, scaledGraphics, ART_SCALE } from './_frames.js';
 
 export const DUCK_W = 24, DUCK_H = 20;
 
-// Coat palette: mallard drake colouring — the iridescent green head, white neck ring,
-// chestnut chest, grey-brown body, and the bright orange bill/feet.
+// Coat palette. `mallard` is the drake (male) colouring — the iridescent green head,
+// white neck ring, chestnut chest, grey-brown body, and the bright orange bill/feet.
+// `hen` (#409, the second duck) is the plainer mottled-brown female mallard look: no
+// green head or white ring — just warm mottled brown all over with a darker eye-stripe
+// and a duller olive bill — same silhouette/frames, palette-only swap, exactly like the
+// rooster/hen coat split.
 const COATS = {
   mallard: {
     head:    0x2f6b46, // iridescent green head
@@ -34,6 +42,20 @@ const COATS = {
     bill:    0xd8a020, // orange-yellow bill
     billLo:  0xb2820f, // bill shade
     feet:    0xd8a020, // webbed feet
+    eye:     0x1a1410, // dark eye
+  },
+  hen: {
+    head:    0x8a6a3c, // mottled brown head — no iridescent green
+    headHi:  0xa8875a, // sunlit brown
+    ring:    0x8a6a3c, // no white collar — same as head, reads as unbroken brown
+    chest:   0x9c8156, // warm buff chest, softer than the drake's chestnut band
+    body:    0x7a6a4c, // mottled brown-tan body
+    bodyHi:  0x9c8c68, // sunlit back
+    bodyLo:  0x564a34, // shaded underside
+    tail:    0x3e3524, // dark tail feathers
+    bill:    0xb2822e, // duller olive-orange bill (no bright drake yellow)
+    billLo:  0x8c6420, // bill shade
+    feet:    0xb2822e, // webbed feet
     eye:     0x1a1410, // dark eye
   },
 };

@@ -18,10 +18,19 @@
 // still reads as "won over gradually" rather than instant like the bunny.
 export const DUCK_TAME_FEEDS = 3;
 
-// Only ever one duck joins for now. Keyed `duck0` so the coat texture (art/index.js
-// duck builder) is ready before it's attracted, exactly like the fox.
-export const DUCK_CAP = 1;
-export const DUCK_KEY = 'duck0';
+// Two ducks can ever join — one male, one female (#409). Mirrors the bunny's
+// one-per-coat cap (BUNNY_COATS/nextBunny, data/species/bunny/index.js): a fixed list
+// of variants, one registry key per slot (`duck<i>`), so a persisted duck's sex/look
+// stays stable across reloads and the art (art/index.js duck builder) can be built for
+// every slot up front — a tamed duck always spawns into a key whose texture already
+// exists, no runtime art build. Puddle (the original single duck, mallard-drake
+// plumage) keeps his existing key/look; Willow is the new hen-coloured female.
+export const DUCK_VARIANTS = [
+  { sex: 'male',   coat: 'mallard', name: 'Puddle' },
+  { sex: 'female', coat: 'hen',     name: 'Willow' },
+];
+export const DUCK_KEYS = DUCK_VARIANTS.map((_, i) => `duck${i}`);
+export const DUCK_CAP = DUCK_VARIANTS.length;
 
 // Pure taming step (unit-tested in ./index.test.js) — identical shape to feedWildFox.
 // Given the wild duck's current feed count and whether the roster already has room,
@@ -32,11 +41,26 @@ export function feedWildDuck(count, rosterFull = false, needFeeds = DUCK_TAME_FE
   return { count: next, tamed: next >= needFeeds };
 }
 
+// Pure attraction/cap logic (mirrors nextBunny, data/species/bunny/index.js). Given
+// the sexes already in the roster, pick the next wild duck to lure in: its registry
+// key (`duck<i>`), sex, coat and default name, chosen RANDOMLY among the still-free
+// sexes. Returns null once both slots are taken.
+//   takenSexes — array/Set of sexes currently in the roster
+//   rng        — () => [0,1) random source (injectable for deterministic tests)
+export function nextDuck(takenSexes, rng = Math.random) {
+  const taken = new Set(takenSexes);
+  const free = DUCK_VARIANTS.filter((v) => !taken.has(v.sex));
+  if (!free.length) return null; // cap reached — no room for another duck
+  const variant = free[Math.floor(rng() * free.length)];
+  const index = DUCK_VARIANTS.indexOf(variant);
+  return { key: `duck${index}`, index, ...variant };
+}
+
 export const DUCK = {
   id: 'duck',
   defaults: {
     id: () => `duck-${Math.random().toString(36).slice(2, 9)}`,
-    name: 'Puddle', breed: 'Mallard', coat: 'mallard', age: 1, sex: 'female',
+    name: 'Puddle', breed: 'Mallard', coat: 'mallard', age: 1, sex: 'male',
   },
   // Hunger + thirst, restored at dropped duck-food/water piles via the shared grazing
   // AI (the same mechanic the fox/bunny use). Gentle, kid-friendly decay + forgiving
@@ -85,18 +109,19 @@ export const DUCK = {
   },
 
   // World spawn (#167 B4). `inWorld` so buildAnimals walks the (initially empty)
-  // roster; once a duck is tamed (paddock/duck.js) it's added under DUCK_KEY and
-  // lands where it was won over. The static placement below sits it near the stream
-  // bank (world.js buildStream runs through ~x:1430-2140, y:-60..380), matching the
-  // "shows up around the stream" resolved scope. 1× art (super-sampled like the
-  // bunny/fox), roams the whole world so it can reach the stream from anywhere.
+  // roster; once a duck is tamed (paddock/duck.js) it's added under its slot key
+  // (`duck0`/`duck1`, #409) and lands where it was won over. The static placements
+  // below sit near the stream bank (world.js buildStream runs through ~x:1430-2140,
+  // y:-60..380), matching the "shows up around the stream" resolved scope. 1× art
+  // (super-sampled like the bunny/fox), roams the whole world so it can reach the
+  // stream from anywhere.
   spawn: {
     inWorld: true,
     superSampled: true, // drawn on the ART_SCALE grid — display at S/ART_SCALE
     shadowScale: 0.24, walkFps: 6, tweenRate: 13, eatFps: 4, bodyR: 8,
     roam: 'world',
     placements: [
-      { x: 1650, y: 330 },
+      { x: 1650, y: 330 }, { x: 1780, y: 300 },
     ],
   },
 

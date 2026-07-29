@@ -27,7 +27,7 @@ import { LLAMA_VARIANTS } from '../data/species/llama/index.js';
 import { buildPlayerTextures } from './playerArt.js';
 import { BUNNY_COATS } from '../data/species/bunny/index.js';
 import { FOX_KEY } from '../data/species/fox/index.js';
-import { DUCK_KEY } from '../data/species/duck/index.js';
+import { DUCK_VARIANTS } from '../data/species/duck/index.js';
 import { buildWildlifeOldTextures } from './wildlifeArt.js'; // TEMP: old-vs-new gallery A/B
 import { composeCoat } from '../data/species/horse/coats.js';
 import { DEMO_FOALS } from '../data/demoFoals.js';
@@ -160,15 +160,17 @@ export const SPECIES_TEXTURES = {
     buildFoxTextures(scene, FOX_KEY, { coat: 'red' });
   },
 
-  // Ducks (#275). Like the fox, the roster starts EMPTY and grows at runtime when a
-  // wild duck is TAMED by repeated feeding, so we can't build "one texture per saved
-  // individual" up front. Instead build the duck's frame set unconditionally under
-  // DUCK_KEY (the key a tamed duck spawns as, paddock/duck.js), the way the fox/demo
-  // foals are pre-built — so `_commitDuck` spawns a duck whose key already has a ready
-  // texture, no runtime build. A persisted duck with a customizer `look` re-skins on
-  // top via reskinAnimal.
+  // Ducks (#275, two sexes #409). Like the bunny, the roster starts EMPTY and grows at
+  // runtime when a wild duck is TAMED by repeated feeding, so we can't build "one
+  // texture per saved individual" up front. Instead build BOTH duck slots'
+  // frame sets unconditionally — `duck<i>` always wears DUCK_VARIANTS[i]'s coat (male
+  // 'mallard'/duck0, female 'hen'/duck1), the way the bunny's coat slots are pre-built —
+  // so `_commitDuck` spawns a duck whose key already has a ready texture, no runtime
+  // build. A persisted duck with a customizer `look` re-skins on top via reskinAnimal.
   duck(scene) {
-    buildDuckTextures(scene, DUCK_KEY, { coat: 'mallard' });
+    DUCK_VARIANTS.forEach((v, i) => {
+      buildDuckTextures(scene, `duck${i}`, { coat: v.coat });
+    });
   },
 };
 
