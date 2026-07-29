@@ -36,8 +36,10 @@ const COATS = {
   // black coat's own mid tone), dark eyes.
   blackWhite: { mid: 0xf1eee9, hi: 0xffffff, lo: 0xd8d2c8, ear: 0xe8a7ad, eye: 0x1c1a20, belly: 0xffffff, spots: 0x3b3740 },
   // Splotchy brown & white — white base, warm-brown patches (matches the solid
-  // brown coat's own mid tone), brown eyes.
-  brownWhite: { mid: 0xf1eee9, hi: 0xffffff, lo: 0xd8d2c8, ear: 0xe8a7ad, eye: 0x2a1c10, belly: 0xffffff, spots: 0xa9773f },
+  // brown coat's own mid tone), brown eyes. `heavy` (2026-07-28 playtest fix):
+  // more brown coverage than the black&white coat, per real brown-and-white
+  // rabbits skewing more brown than white.
+  brownWhite: { mid: 0xf1eee9, hi: 0xffffff, lo: 0xd8d2c8, ear: 0xe8a7ad, eye: 0x2a1c10, belly: 0xffffff, spots: 0xa9773f, heavy: true },
 };
 
 const NOSE = 0xd76b76;
@@ -46,12 +48,33 @@ const NOSE = 0xd76b76;
 // haunch (mirrors the cow's Holstein patches: fixed positions, not random). No-op
 // when the coat has no `spots` colour, so the four solid coats are unaffected.
 // `lift` matches drawBunny's hop offset (0 for the eat pose, which never hops).
+//
+// 2026-07-28 owner playtest fix: the original two smooth ellipses read as too
+// clean/geometric ("perfect shapes") and, on the brown&white coat, too little
+// brown coverage. Each patch is now built from several small offset rects
+// (a jagged, hand-torn silhouette instead of one smooth curve) — `heavy` (only
+// true for the brown&white coat, whose real-rabbit reference skews more brown
+// than white) adds a third, bigger patch for noticeably more coverage.
 function drawBunnyPatches(g, lift, C) {
   if (!C.spots) return;
   g.layer('spots');
   g.fillStyle(C.spots, 1);
-  g.fillEllipse(7, 13 - lift, 5, 4);   // rear patch, over the haunch
-  g.fillEllipse(13, 10 - lift, 4, 3);  // patch over the back/shoulder
+  // Rear patch, over the haunch — a cluster of offset rects, not one ellipse.
+  g.fillRect(5, 11 - lift, 4, 4);
+  g.fillRect(8, 10 - lift, 3, 3);
+  g.fillRect(6, 14 - lift, 3, 2);
+  g.fillRect(9, 13 - lift, 2, 3);
+  // Patch over the back/shoulder.
+  g.fillRect(12, 8 - lift, 3, 3);
+  g.fillRect(14, 9 - lift, 3, 2);
+  g.fillRect(13, 11 - lift, 2, 2);
+  if (C.heavy) {
+    // A third, bigger patch for the brown&white coat's extra coverage.
+    g.fillRect(9, 8 - lift, 3, 2);
+    g.fillRect(11, 9 - lift, 2, 3);
+    g.fillRect(10, 15 - lift, 3, 2);
+    g.fillRect(7, 9 - lift, 2, 2);
+  }
 }
 
 // Resolve a coat from a `look` — look.coat is a colour id ('grey'…). Falls back to
