@@ -91,7 +91,15 @@ export const WithBarn = (Base) => class extends Base {
     // Interior walkable rect (inside the walls, clear of the back stalls). Used to
     // detect "player is inside" for the cutaway, to seat stalled horses, and (since
     // #349) as the rain-shelter area every grazer paths into.
-    this.barnInterior = { x0: dx(WALL_X0 + 8), y0: dy(WALL_Y0 + 18), x1: dx(WALL_X1 - 8), y1: dy(WALL_Y1 - 4) };
+    // y0's margin mirrors x0/x1's: exactly the back wall's own solid thickness
+    // (T=16 world px = 8 design units), not an arbitrary bigger gap. #399: the
+    // old +18 margin put the "inside" boundary FARTHER from the wall than the
+    // player's own collision radius (14px) ever lets them get past the wall's
+    // solid face (T=16) — a player standing legally at the very back of the
+    // room (as close as collision allows, wallFace + T + playerRadius) was
+    // still short of y0, so isInsideBarn falsely read as "outside" and the
+    // cutaway faded the front/roof back in while the player was still inside.
+    this.barnInterior = { x0: dx(WALL_X0 + 8), y0: dy(WALL_Y0 + 8), x1: dx(WALL_X1 - 8), y1: dy(WALL_Y1 - 4) };
 
     // Stall stand-spots: one per stall, in front of its hay mound along the back.
     // Geometry comes from data/barn.js, which the interior art draws from too.
