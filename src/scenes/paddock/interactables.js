@@ -17,6 +17,7 @@ import Phaser from 'phaser';
 import { CONTENT_DEFS } from '../../data/items.js';
 import { TROUGH_CAP, BOWL_CAP, PASTURE_BOUNDS, STAND_DEFS } from './constants.js';
 import { FEEDER_CAP } from '../../data/feeder.js';
+import { isSpinReady, spinRemaining } from '../../data/spinning.js';
 
 export const WithInteractables = (Base) => class extends Base {
   buildInteractables() {
@@ -237,15 +238,50 @@ export const WithInteractables = (Base) => class extends Base {
         }));
     };
 
-    // Spinning wheel (#233) — spin raw wool into yarn. Only offers the action when
-    // what's held actually IS the craftable input (wool); shows a passive hint
-    // otherwise so the station is discoverable. Data-driven off the prop's `craft`
-    // block (from → to), so it's not sheep- or wool-specific. The input can ride in a
-    // basket OR in the shears' own load (#358) — both report content+amount alike.
+    // Spinning wheel (#233, timed batch #405) — spin raw wool into yarn. A spin is
+    // now a WALK-AWAY timed batch (a few seconds per unit), not an instant craft,
+    // so the wheel has three states: idle (offer to start a spin off whatever's
+    // held), running (passive "still spinning" hint, nothing to tap), and ready
+    // (offer to collect — gated on a basket, mirroring the beehive's harvest gate).
+    // Data-driven off the prop's `craft` block (from → to), so it's not sheep- or
+    // wool-specific. The input can ride in a basket OR in the shears' own load
+    // (#358) — both report content+amount alike.
     const spinningWheel = (item) => {
       const w = this.props.spinningWheel;
       if (!w) return [];
       const { from, to } = w.craft;
+      const approach = (world) => {
+        const refX = world ? world.x : this.player.sprite.x;
+        return { x: w.x + (refX < w.x ? -1 : 1) * 70, y: w.y + 10 };
+      };
+
+      // Ready to collect.
+      if (w.spin && isSpinReady(w.spin.startedAt, w.spin.amount)) {
+        const hasBasket = item?.type === 'carrier' && item.accepts?.includes(to);
+        return [{
+          x: w.x, y: w.y, tapRadius: 130, reachDist: 110, promptOffsetY: 90,
+          canAct: hasBasket,
+          label: hasBasket
+            ? `Collect ${CONTENT_DEFS[to].label}  (${w.spin.amount})`
+            : `${CONTENT_DEFS[to].label} ready  •  equip a Basket to collect`,
+          approach,
+          activate: () => this.collectSpin(),
+        }];
+      }
+
+      // Still spinning — passive countdown, nothing to tap yet.
+      if (w.spin) {
+        const secsLeft = Math.ceil(spinRemaining(w.spin.startedAt, w.spin.amount) / 1000);
+        return [{
+          x: w.x, y: w.y, tapRadius: 130, reachDist: 110, promptOffsetY: 90,
+          canAct: false,
+          label: `Spinning ${w.spin.amount} ${CONTENT_DEFS[from].label}…  ready in ${secsLeft}s`,
+          approach,
+          activate: () => {},
+        }];
+      }
+
+      // Idle — offer to start a new spin if holding the craftable input.
       const held = item?.content === from
         ? (item.type === 'carrier' ? item.count : (item.load ?? 0)) : 0;
       const where = item?.type === 'carrier' ? 'basket' : 'shears';
@@ -255,11 +291,8 @@ export const WithInteractables = (Base) => class extends Base {
         label: held > 0
           ? `Spin ${CONTENT_DEFS[from].label} → ${CONTENT_DEFS[to].label}  (${where}: ${held})`
           : `Spinning Wheel  •  bring ${CONTENT_DEFS[from].label} in a basket or on the shears`,
-        approach: (world) => {
-          const refX = world ? world.x : this.player.sprite.x;
-          return { x: w.x + (refX < w.x ? -1 : 1) * 70, y: w.y + 10 };
-        },
-        activate: () => this.spinWool(),
+        approach,
+        activate: () => this.startSpin(),
       }];
     };
 

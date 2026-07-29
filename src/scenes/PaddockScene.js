@@ -142,6 +142,7 @@ export default class PaddockScene extends PaddockBase {
     this.buildPlayerBuffHud(); // #277: "well fed" status readout while a meal buff is active
     this.buildCoop(); // local two-player co-op (#302) — join affordance for player 2
     this.buildFarmStand();
+    this.buildSpin(); // #405: restore an in-flight wool→yarn spin (wall-clock, like incubation)
     this.buildNeighbor(); // neighbor NPC (#294): restore relationship score + schedule first visit
     this.buildGarden(); // crop garden plot (#242) — before interactables (they read it)
     this.buildTractor(); // drivable tractor (#264) — before interactables (they read it)
@@ -285,6 +286,7 @@ export default class PaddockScene extends PaddockBase {
     this.updateFoals(delta);
     this.updateBreeding(delta); // #15: tick gestations, birth ready foals
     this.updateIncubation(delta); // #274: tick incubations, hatch ready chicks
+    this.updateSpin(delta); // #405: stop the wheel's visible spin once a batch is done
     this.updateDogCompanion(delta); // dog trots alongside the player, sits when idle (#186)
     this.checkProximity();
     this.checkToolProximity();
