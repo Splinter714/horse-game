@@ -245,8 +245,7 @@ export const WithHorseAI = (Base) => class extends Base {
         if (h.state !== 'eating') return;
         this._modelFor(h)?.applyAction(action);
         this.game.events.emit(EVENTS.STATS_CHANGED);
-        pile.sprite.destroy();
-        this.props.hayPiles = this.props.hayPiles.filter(p => p !== pile);
+        this.consumePile(pile); // destroy sprite + drop from hayPiles (worldObjects.js, #408)
         h._eatPile = null;
         h.sprite.play(`idle_${h.key}`, true);
         h.state = 'idle';
