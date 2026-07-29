@@ -43,6 +43,7 @@ export const WithBarn = (Base) => class extends Base {
     // Interior floor drawn under animals/player. Depth just above the ground path
     // layers (-95..-99) but below any creature (creatures use depth = y ≈ 500+).
     this.barnInteriorSprite = this.add.image(ax, ay, 'barnInterior').setScale(S).setDepth(-40).setOrigin(0.5, 1);
+    this.barnInteriorAlpha = 1; // the light see-through dip for #362/#383's behind-the-wall mechanic (fades with the back wall, never with the INSIDE cutaway)
     // Front façade overlay drawn OVER occupants (high depth, anchored to its south
     // edge like a tall prop). This is the sprite the cutaway fades.
     this.barnFront = this.add.image(ax, ay, 'barnFront').setScale(S).setDepth(ay).setOrigin(0.5, 1);
@@ -234,7 +235,18 @@ export const WithBarn = (Base) => class extends Base {
     if (!p) return;
     const { rect, door } = this._barnLiveRects();
     const inside = isInsideBarn(rect, door, p.x, p.y);
-    const target = inside ? 0 : 1; // fully invisible while inside — the barn now has a real back wall/roof, so there's no longer a need for a ghost outline
+    // #383: the front/roof art extends north over the same area the back wall
+    // covers (its texture includes the whole roof silhouette), so it needs to
+    // fade for the BEHIND case too — otherwise only the thin back-wall sprite
+    // dipped and the rest of the barn stayed fully opaque while the player
+    // walked around north of it. INSIDE (fully invisible, target 0) always wins
+    // over BEHIND (light see-through, wallTargetAlpha) — not that the two can
+    // really conflict: BEHIND requires py < the back wall's own line, INSIDE's
+    // room check requires py > that same line + 8 design units, so they're
+    // geometrically disjoint. This is just a safe precedence, in case that ever
+    // changes.
+    const behind = isBehindWall(this._barnBackWallLine(), p.x, p.y);
+    const target = inside ? 0 : wallTargetAlpha(behind);
     const step = CUTAWAY_FADE * delta;
     if (this.barnFrontAlpha < target) this.barnFrontAlpha = Math.min(target, this.barnFrontAlpha + step);
     else if (this.barnFrontAlpha > target) this.barnFrontAlpha = Math.max(target, this.barnFrontAlpha - step);
@@ -268,15 +280,30 @@ export const WithBarn = (Base) => class extends Base {
     sprite.setAlpha(a);
   }
 
+  // The barn's back (north) wall line in LIVE world coords, re-derived from the
+  // façade's current position (#330 drag-tool safe) — shared by updateBarnCutaway
+  // (BEHIND check for front/roofMid) and updateBarnBackWall (back wall + floor).
+  _barnBackWallLine() {
+    if (!this.barnBack) return null;
+    const r = this._barnLiveRects().rect;
+    return { x0: r.x0, x1: r.x1, y: this.barnBack.y };
+  }
+
   // Barn-specific wiring for the generic mechanic above: the back wall's own
   // face is the barn's back (north) wall line, re-derived from its LIVE position
   // the same way _barnLiveRects() re-derives the interior/doorway (#330 drag-tool
   // safe).
   updateBarnBackWall(delta) {
     if (!this.barnBack) return;
-    const r = this._barnLiveRects().rect;
-    const wall = { x0: r.x0, x1: r.x1, y: this.barnBack.y };
+    const wall = this._barnBackWallLine();
     this.updateWallSeeThrough(this.barnBack, wall, 'barnBackAlpha', delta);
+    // #383: the interior floor fades along with the back wall on the same BEHIND
+    // trigger — before this it stayed fully opaque while every other barn part
+    // faded, so "walk behind the barn" didn't read as the whole building going
+    // see-through. It has no INSIDE-specific behavior of its own (it's the floor
+    // the player stands on while inside), and behind/inside can't both be true
+    // (see updateBarnCutaway), so reusing the plain behind-only target is safe.
+    this.updateWallSeeThrough(this.barnInteriorSprite, wall, 'barnInteriorAlpha', delta);
   }
 
   // ─── Indoors check (#350) ───────────────────────────────────────────────────
