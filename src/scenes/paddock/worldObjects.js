@@ -73,17 +73,34 @@ export const WithWorldObjects = (Base) => class extends Base {
     // such species can coexist without a silent-override collision (#167 C1 guard) —
     // `_dispatchFoodPlaced` below just fans the drop out to every hook that exists.
     // Species-neutral — this shared file names no species itself.
-    this._dispatchFoodPlaced(content, spot.x, spot.y);
+    this._dispatchFoodPlaced(content, spot.x, spot.y, pile);
   }
 
   // Fan a dropped-food event out to every ground-drop taming species' own hook
   // (`on<X>FoodPlaced`, #275) — a fixed, species-neutral list of hook NAMES (not
   // logic), so this file still names no species behavior, only which mixins may want
   // to know. Each hook self-gates on its own content id (e.g. onFoxFoodPlaced bails
-  // unless content === 'foxFood'), so an unrelated drop is a cheap no-op call.
-  _dispatchFoodPlaced(content, x, y) {
-    this.onFoxFoodPlaced?.(content, x, y);
-    this.onDuckFoodPlaced?.(content, x, y);
+  // unless content === 'foxFood'), so an unrelated drop is a cheap no-op call. Also
+  // hands along the pile record itself (#408) so a taming-feed hook can consume it
+  // (via consumePile below) instead of leaving an "eaten" pile sitting on the ground
+  // forever — before this the hooks only got the drop coordinates.
+  _dispatchFoodPlaced(content, x, y, pile) {
+    this.onFoxFoodPlaced?.(content, x, y, pile);
+    this.onDuckFoodPlaced?.(content, x, y, pile);
+  }
+
+  // Consume one feeding from a dropped pile: destroy its sprite and drop it from the
+  // pasture pile list. Shared by every hay-pile eater — horses/grazers (horseAI.js
+  // `horseGoEat`) and the tamed fox/duck taming-feed (fox.js/duck.js, #408) — so
+  // pile-removal lives in one place instead of being copy-pasted per species. Horses
+  // have always destroyed a hay pile outright on a single eat, regardless of
+  // `feedsLeft` (unlike the chicken seed piles in flock.js, which decrement and only
+  // clear at 0) — this mirrors that exact behavior so a pile behaves the same no
+  // matter who eats it.
+  consumePile(pile) {
+    if (!pile?.sprite?.active) return;
+    pile.sprite.destroy();
+    this.props.hayPiles = this.props.hayPiles.filter(p => p !== pile);
   }
 
   // ─── Droppings (#232) ────────────────────────────────────────────────────────

@@ -63,16 +63,17 @@ export const WithFox = (Base) => class extends Base {
   // to FOX FOOD. If the fox is already tamed, do nothing — the roster fox eats the pile
   // via the normal grazing AI. Otherwise summon/redirect the wild fox to the pile so it
   // comes over to be fed (the taming beat).
-  onFoxFoodPlaced(content, x, y) {
+  onFoxFoodPlaced(content, x, y, pile) {
     if (content !== 'foxFood') return;
     if (this._foxRosterFull()) return; // already have our fox — normal grazing takes over
-    this._lureWildFox(x, y);
+    this._lureWildFox(x, y, pile);
   }
 
   // Bring the wild fox to the dropped fox-food pile at (x, y): reuse the existing wild-fox
   // sprite if one's already about, else spawn one entering from the nearest yard edge for a
   // "a fox slinks in from the brush" beat. Then trot it to the pile and, on arrival, feed it.
-  _lureWildFox(x, y) {
+  // `pile` is the actual hayPiles record (#408) so the feed can consume it once eaten.
+  _lureWildFox(x, y, pile) {
     if (!this._wildFox || !this._wildFox.sprite.active) this._spawnWildFox(x, y);
     const c = this._wildFox;
     if (!c?.sprite?.active) return;
@@ -80,7 +81,7 @@ export const WithFox = (Base) => class extends Base {
     // Stand a short hop to the side of the pile, facing it.
     const facingRight = x >= c.sprite.x;
     const tx = x + (facingRight ? -26 : 26), ty = y - 4;
-    this._foxTrotTo(c, tx, ty, () => this._feedWildFox(c, x, y));
+    this._foxTrotTo(c, tx, ty, () => this._feedWildFox(c, x, y, pile));
   }
 
   // Spawn the wild fox just off the nearest play-area edge from (x, y) so it reads as
@@ -116,9 +117,10 @@ export const WithFox = (Base) => class extends Base {
   // (a) commit it to the roster on the taming feed, or (b) leave it to slink off, a little
   // more won over, until the next feed. Persists the running count so it's gradual across
   // reloads.
-  _feedWildFox(c, x, y) {
+  _feedWildFox(c, x, y, pile) {
     if (!c.sprite?.active) return;
     c.sprite.play(`eat_${FOX_KEY}`, true);
+    this.consumePile(pile); // pile's actually eaten now — destroy it (worldObjects.js, #408)
     const step = feedWildFox(this._foxTameCount, this._foxRosterFull());
     this._foxTameCount = step.count;
     saveFoxTaming(step.count);

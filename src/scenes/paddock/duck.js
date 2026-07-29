@@ -70,17 +70,18 @@ export const WithDuck = (Base) => class extends Base {
   // the duck is already tamed, do nothing — the roster duck eats the pile via the
   // normal grazing AI. Otherwise summon/redirect the wild duck to the pile so it comes
   // over to be fed (the taming beat).
-  onDuckFoodPlaced(content, x, y) {
+  onDuckFoodPlaced(content, x, y, pile) {
     if (content !== 'duckFood') return;
     if (this._duckRosterFull()) return; // already have our duck — normal grazing takes over
-    this._lureWildDuck(x, y);
+    this._lureWildDuck(x, y, pile);
   }
 
   // Bring the wild duck to the dropped duck-food pile at (x, y): reuse the existing
   // wild-duck sprite if one's already about, else spawn one entering from the nearest
   // stream-ward edge for a "a duck waddles in from the water" beat. Then waddle it to
-  // the pile and, on arrival, feed it.
-  _lureWildDuck(x, y) {
+  // the pile and, on arrival, feed it. `pile` is the actual hayPiles record (#408) so
+  // the feed can consume it once eaten.
+  _lureWildDuck(x, y, pile) {
     if (!this._wildDuck || !this._wildDuck.sprite.active) this._spawnWildDuck(x, y);
     const c = this._wildDuck;
     if (!c?.sprite?.active) return;
@@ -88,7 +89,7 @@ export const WithDuck = (Base) => class extends Base {
     // Stand a short hop to the side of the pile, facing it.
     const facingRight = x >= c.sprite.x;
     const tx = x + (facingRight ? -24 : 24), ty = y - 4;
-    this._duckWaddleTo(c, tx, ty, () => this._feedWildDuck(c, x, y));
+    this._duckWaddleTo(c, tx, ty, () => this._feedWildDuck(c, x, y, pile));
   }
 
   // Spawn the wild duck just off the nearest play-area edge from (x, y) so it reads as
@@ -124,9 +125,10 @@ export const WithDuck = (Base) => class extends Base {
   // either (a) commit it to the roster on the taming feed, or (b) leave it to paddle
   // off, a little more won over, until the next feed. Persists the running count so
   // it's gradual across reloads.
-  _feedWildDuck(c, x, y) {
+  _feedWildDuck(c, x, y, pile) {
     if (!c.sprite?.active) return;
     c.sprite.play(`eat_${DUCK_KEY}`, true);
+    this.consumePile(pile); // pile's actually eaten now — destroy it (worldObjects.js, #408)
     const step = feedWildDuck(this._duckTameCount, this._duckRosterFull());
     this._duckTameCount = step.count;
     saveDuckTaming(step.count);
