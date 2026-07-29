@@ -29,18 +29,21 @@ export const CONTENT_DEFS = {
   // The GOAT (#267) is on EVERY edible pile's `feeds` list — that's her eat-everything
   // charm quirk, realized as data: unlike the pickier grazers she'll trot over to any
   // food the farm drops (hay, apples, carrots, even the chickens' seed). The grazing AI
-  // reads `feeds` (speciesEatsContent) when choosing which pile to walk to. Llamas (#268)
-  // eat hay like the sheep/cow but refuse apples/carrots.
+  // reads `feeds` (speciesEatsContent) when choosing which pile to walk to. Llamas used
+  // to refuse apples/carrots (#268) — the owner's 2026-07-28 diet-accuracy pass reversed
+  // that (real llamas take fruit/veg treats fine) and gave sheep the same.
   hay:    { label: 'Hay',     icon: 'iconBasketHay',    action: 'feed',  ground: 'hayPile',    feeds: ['horse', 'cow', 'sheep', 'goat', 'llama'] },
   // Apples and carrots feed the pig too; hay does NOT (pigs won't touch it). This
   // `feeds` list is the single source of truth for the pig's pickier diet — the
   // grazing AI reads it (speciesEatsContent) when choosing which pile to walk to.
-  apple:  { label: 'Apples',  icon: 'iconBasketApple',  action: 'feed',  ground: 'applePile',  feeds: ['horse', 'cow', 'pig', 'goat'] },
+  // Oranges were dropped from horse/cow (2026-07-28 diet-accuracy pass) — not a
+  // realistic part of either diet — while apples/carrots gained sheep/llama.
+  apple:  { label: 'Apples',  icon: 'iconBasketApple',  action: 'feed',  ground: 'applePile',  feeds: ['horse', 'cow', 'pig', 'goat', 'sheep', 'llama'] },
   // Carrots are also grindable into pig feed at the kitchen counter (#40) — `craftsTo`
   // names the processed content the grind converts a basket of carrots into, mirroring
   // wool → yarn (#233). Raw carrots still feed/sell exactly as before; grinding is an
   // additional option, not a replacement.
-  carrot: { label: 'Carrots', icon: 'iconBasketCarrot', action: 'feed',  ground: 'carrotPile', feeds: ['horse', 'cow', 'pig', 'goat'], craftsTo: 'pigFeed' },
+  carrot: { label: 'Carrots', icon: 'iconBasketCarrot', action: 'feed',  ground: 'carrotPile', feeds: ['horse', 'cow', 'pig', 'goat', 'sheep', 'llama'], craftsTo: 'pigFeed' },
   // Seed feeds the chickens — and the goat (she eats everything). A dropped seed pile in
   // the pasture is fair game for a wandering goat.
   seed:   { label: 'Seed',    icon: 'iconBasketSeed',   action: 'feed',  ground: 'seedPile',   feeds: ['chicken', 'goat'] },
@@ -140,7 +143,9 @@ export const CONTENT_DEFS = {
   // ground piles (feeds the same grazers as apples) AND grind into jam at the
   // kitchen counter (#40), alongside strawberries — one shared "fruit jam" sink
   // rather than a bespoke processed good per fruit, keeping this simple.
-  orange: { label: 'Oranges', icon: 'iconBasketOrange', action: 'feed', ground: 'orangePile', feeds: ['horse', 'cow', 'pig', 'goat'], craftsTo: 'jam' },
+  // Dropped from horse/cow's diet (2026-07-28 diet-accuracy pass) — not realistic for
+  // either; pig/goat keep it (goat eats everything, pig is a real omnivore).
+  orange: { label: 'Oranges', icon: 'iconBasketOrange', action: 'feed', ground: 'orangePile', feeds: ['pig', 'goat'], craftsTo: 'jam' },
   // Berries are pig-only (#228 playtest, 2026-07-24 + 2026-07-26 follow-up): horses
   // eating berries read as wrong for the species, and a further narrowing dropped
   // cow/goat too — berries are now diet-gated to the pig alone.
