@@ -304,6 +304,14 @@ export function buildIconTextures(scene) {
     g.fillStyle(0xd9b94a, 1); g.fillRect(4, 7, 12, 1); g.fillRect(4, 9, 12, 1);
     g.fillStyle(0xe8cc6a, 1); g.fillRect(5, 2, 1, 3); g.fillRect(10, 1, 1, 4); g.fillRect(14, 2, 1, 3);
   });
+  gen(scene, 'iconBasketOats', 20, 20, (g) => { // #411 — paler, huskier than hay's golden straw
+    drawBasketBody(g);
+    g.fillStyle(0xd8c088, 1); g.fillRoundedRect(4, 4, 12, 7, 2); // oats mounded above rim
+    g.fillStyle(0xc4a86a, 1); g.fillRect(4, 7, 12, 1); g.fillRect(4, 9, 12, 1);
+    g.fillStyle(0xe8d8a8, 1); // oat-head sprigs poking up
+    g.fillRect(5, 2, 1, 3); g.fillRect(10, 1, 1, 4); g.fillRect(14, 2, 1, 3);
+    g.fillStyle(0xb89858, 1); g.fillCircle(5, 2, 0.8); g.fillCircle(10, 1, 0.8); g.fillCircle(14, 2, 0.8);
+  });
   gen(scene, 'iconBasketApple', 20, 20, (g) => {
     drawBasketBody(g);
     g.fillStyle(0xd64545, 1); g.fillCircle(7, 7, 3); g.fillCircle(13, 7, 3); g.fillCircle(10, 5, 3);

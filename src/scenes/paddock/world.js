@@ -399,6 +399,9 @@ export const WithWorld = (Base) => class extends Base {
     const defs = [
       // Hay Pile / Well positions are the owner's own placements (#330 drag tool, baked in by #342, moved again after #349's barn relocation).
       { x: 1127, y: 1350, content: 'hay',    tex: 'haystack',     label: 'Hay Pile',      reach: 100, ob: { w: 84,  h: 36 } },
+      // Oats (#411) — a second grazer feed, gathered from a sack a short walk from
+      // the Hay Pile (same south-pasture area, clear of the haystack's obstacle box).
+      { x: 1230, y: 1358, content: 'oats',   tex: 'oatSack',      label: 'Oat Sack',      reach: 90,  ob: { w: 34,  h: 24 } },
       { x: 1234, y: 425, content: 'carrot', tex: 'carrotGarden', label: 'Carrot Garden', reach: 100, ob: { w: 104, h: 42 } },
       { x: 1510, y: 412, content: 'apple',  tex: 'appleTree',    label: 'Apple Tree',    reach: 90,  ob: { w: 44,  h: 26 } }, // #330 drag tool, repositioned 2026-07-27
       { x: 1635, y: 447, content: 'orange', tex: 'orangeTree', label: 'Orange Tree', reach: 90, ob: { w: 44, h: 26 } }, // #228 tree, mirrors apple; #330 drag tool, repositioned 2026-07-27

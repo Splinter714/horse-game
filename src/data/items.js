@@ -12,7 +12,7 @@ export const CARRIER_DEFS = {
   // animal that eats it, #136), so the basket's cap is just a safety ceiling, not a
   // limit you should hit. Kept finite (not Infinity) so it never trips serialization
   // or UI maths — but high enough that the demand always fits (and you can hoard eggs).
-  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey', 'jam', 'flour', 'pigFeed', 'blueberry', 'potato', 'orange', 'berry', 'vegetableStew', 'berryPie', 'honeyBread', 'trinket', 'rawSugar', 'sugarCube', 'pigSlop'] },
+  basket: { capacity: 999, emptyIcon: 'iconBasket', accepts: ['hay', 'oats', 'apple', 'carrot', 'seed', 'catFood', 'bunnyFood', 'foxFood', 'duckFood', 'egg', 'eggBrown', 'wool', 'yarn', 'compost', 'strawberry', 'wheat', 'honey', 'jam', 'flour', 'pigFeed', 'blueberry', 'potato', 'orange', 'berry', 'vegetableStew', 'berryPie', 'honeyBread', 'trinket', 'rawSugar', 'sugarCube', 'pigSlop'] },
   bucket: { capacity: 1, emptyIcon: 'iconBucket', accepts: ['water', 'milk', 'nectar'] },
 };
 
@@ -33,6 +33,9 @@ export const CONTENT_DEFS = {
   // to refuse apples/carrots (#268) — the owner's 2026-07-28 diet-accuracy pass reversed
   // that (real llamas take fruit/veg treats fine) and gave sheep the same.
   hay:    { label: 'Hay',     icon: 'iconBasketHay',    action: 'feed',  ground: 'hayPile',    feeds: ['horse', 'cow', 'sheep', 'goat', 'llama'] },
+  // Oats (#411) — a second grazer feed, wired exactly like hay: same `feeds` list
+  // (the same species diet-accuracy pass that set hay's list applies equally here).
+  oats:   { label: 'Oats',    icon: 'iconBasketOats',   action: 'feed',  ground: 'oatsPile',   feeds: ['horse', 'cow', 'sheep', 'goat', 'llama'] },
   // Apples and carrots feed the pig too; hay does NOT (pigs won't touch it). This
   // `feeds` list is the single source of truth for the pig's pickier diet — the
   // grazing AI reads it (speciesEatsContent) when choosing which pile to walk to.
