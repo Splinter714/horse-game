@@ -30,6 +30,7 @@ import { SPECIES } from '../../data/species/index.js';
 import { FOX_KEY, FOX_CAP, feedWildFox } from '../../data/species/fox/index.js';
 import { Fox } from '../../data/species/fox/model.js';
 import { loadFoxTaming, saveFoxTaming } from '../../data/save.js';
+import { offscreenX, exitX } from './offscreen.js';
 
 const FOX_SCALE = S / ART_SCALE; // super-sampled art shown at S/ART_SCALE (like the bunny)
 
@@ -83,11 +84,14 @@ export const WithFox = (Base) => class extends Base {
     this._foxTrotTo(c, tx, ty, () => this._feedWildFox(c, x, y));
   }
 
-  // Spawn the wild fox just off the nearest play-area edge from (x, y) so it reads as
-  // wandering in rather than popping into being on the pile. Uses the same FOX_KEY frames
-  // the tamed fox will wear, so the look is continuous through the commit.
+  // Spawn the wild fox genuinely off-screen (#410 — a small nearby offset still popped
+  // it into view) from the nearer side of the current camera view, so it reads as
+  // wandering in from outside the frame rather than appearing near the pile. Uses the
+  // same FOX_KEY frames the tamed fox will wear, so the look is continuous through the
+  // commit.
   _spawnWildFox(x, y) {
-    const fromX = Phaser.Math.Clamp(x + Phaser.Math.Between(-120, 120), BOUNDS.minX, BOUNDS.maxX);
+    const fromLeft = exitX(this, x, 40).toLeft;
+    const fromX = offscreenX(this, fromLeft, 40, x);
     const fromY = Phaser.Math.Clamp(y - Phaser.Math.Between(90, 150), BOUNDS.minY, BOUNDS.maxY);
     const sprite = this.add.sprite(fromX, fromY, `${FOX_KEY}_idle_0`)
       .setOrigin(0.5, 1).setScale(FOX_SCALE).setDepth(fromY).play(`idle_${FOX_KEY}`);

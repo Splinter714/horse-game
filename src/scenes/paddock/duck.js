@@ -37,6 +37,7 @@ import { SPECIES } from '../../data/species/index.js';
 import { DUCK_KEY, DUCK_CAP, feedWildDuck } from '../../data/species/duck/index.js';
 import { Duck } from '../../data/species/duck/model.js';
 import { loadDuckTaming, saveDuckTaming } from '../../data/save.js';
+import { offscreenX, exitX } from './offscreen.js';
 
 const DUCK_SCALE = S / ART_SCALE; // super-sampled art shown at S/ART_SCALE (like the fox)
 
@@ -91,11 +92,14 @@ export const WithDuck = (Base) => class extends Base {
     this._duckWaddleTo(c, tx, ty, () => this._feedWildDuck(c, x, y));
   }
 
-  // Spawn the wild duck just off the nearest play-area edge from (x, y) so it reads as
-  // waddling in rather than popping into being on the pile. Uses the same DUCK_KEY
-  // frames the tamed duck will wear, so the look is continuous through the commit.
+  // Spawn the wild duck genuinely off-screen (#410 — a small nearby offset still
+  // popped it into view) from the nearer side of the current camera view, so it reads
+  // as waddling in from outside the frame rather than appearing near the pile. Uses
+  // the same DUCK_KEY frames the tamed duck will wear, so the look is continuous
+  // through the commit.
   _spawnWildDuck(x, y) {
-    const fromX = Phaser.Math.Clamp(x + Phaser.Math.Between(-120, 120), BOUNDS.minX, BOUNDS.maxX);
+    const fromLeft = exitX(this, x, 40).toLeft;
+    const fromX = offscreenX(this, fromLeft, 40, x);
     const fromY = Phaser.Math.Clamp(y - Phaser.Math.Between(90, 150), BOUNDS.minY, BOUNDS.maxY);
     const sprite = this.add.sprite(fromX, fromY, `${DUCK_KEY}_idle_0`)
       .setOrigin(0.5, 1).setScale(DUCK_SCALE).setDepth(fromY).play(`idle_${DUCK_KEY}`);
