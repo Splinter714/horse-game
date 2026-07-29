@@ -100,7 +100,7 @@ export const GOAT = {
     // of S, applied to her sprite + shadow in creatures.js.
     scale: 0.9,
     roam: 'pasture',
-    placements: [{ x: 1220, y: 1340 }],
+    placements: [{ x: 1330, y: 1300 }], // moved 2026-07-28 — was overlapping the oat sack (world.js)
   },
 
   // Info-panel presentation: animated portrait (she has idle frames), stat bars from
